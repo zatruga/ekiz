@@ -1,0 +1,32 @@
+namespace PusulaEHealthSync.Db;
+
+// LIS.uv_LaboratuarSonucKayitBilgileriByProtokolId -- Pusula'nin kendi eski LIS.* tablolari
+// TERK EDILMIS (bos), gercek sonuclar ayri bir baglı sunucudaki (COMED LIS) tablolardan bu
+// view uzerinden okunuyor (bkz. konusma, 2026-08-21 -- view tanimi COMED.LIS_BAK.LIS.TestProcess
+// vb. tablolara JOIN yapiyor). Her satir TEK BIR test parametresinin sonucu (panel testlerde
+// bir protokolde onlarca satir olabilir, orn. 61).
+//
+// Status/State: view'in kendi CASE'i LTP.Status'u normalize ediyor -- CANLI VERIYLE
+// DOGRULANDI (2026-08-21, son 3 gun/79 protokol): Status=6 olan satirlarin TAMAMINDA
+// (1659/1659) TetkikSonucOnayTarihi DOLU -- yani "sonuc onaylandi/kesinlesti" sinyali. Digger
+// Status degerleri (2/3/8) hicbirinde onay tarihi yok (hala islemde). KilitDurumuId=1
+// (Epikriz) ile AYNI kalip: SADECE onaylanmis (Status=6) sonuclar gonderilmeli.
+public class LabResultRecord
+{
+    public int LabaratuarSonucId { get; set; }
+    public int VisitId { get; set; } // ProtokolId
+    public int Status { get; set; }
+    public string? TetkikAdi { get; set; }
+    public string? TetkikSonucu { get; set; }
+    public string? TetkikSonucuBirimi { get; set; }
+    public string? TetkikSonucuReferansDegeri { get; set; }
+
+    // "1" = sonuc referans araligi DISINDA (view'deki ResultWaring H/L/HH/LL/HHH/LLL kodlarindan
+    // hesaplaniyor) -- alan adi "...AraligindaMi" olsa da anlami TERSTIR (kod incelendi, 2026-08-21).
+    public bool DisindaMi { get; set; }
+    public string? LoincKodu { get; set; }
+    public DateTime? TetkikSonucTarihi { get; set; }
+    public DateTime? TetkikSonucOnayTarihi { get; set; }
+
+    public bool IsApproved => Status == 6;
+}

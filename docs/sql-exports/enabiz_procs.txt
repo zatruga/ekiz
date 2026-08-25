@@ -1,0 +1,511 @@
+
+
+================ SaglikNet.usp_GetAgentENabizYatanEpikrizListesi ================
+CREATE PROCEDURE [SaglikNet].[usp_GetAgentENabizYatanEpikrizListesi]
+AS
+BEGIN
+SELECT * 
+FROM (
+SELECT TOP 100 SEPI.ProtokolId EkProtokolNo,   SEPI.PaketTipiId EkPaketTipi, ISNULL(SEPI.IslemTipiId, 1) EkIslemTipi
+FROM SaglikNet.ENabizProtokolIslem SEPI (NOLOCK)
+INNER JOIN Hasta.Protokol HP (NOLOCK) ON HP.Id = SEPI.ProtokolId
+INNER JOIN Hasta.Hasta HH (NOLOCK) ON HP.HastaId = HH.Id
+WHERE HP.State <> 0  AND 
+SEPI.State IN (1,3) AND  
+SEPI.PaketTipiId IN('109')
+AND  ISNULL((SELECT SUM(SEG.TekrarGonderimAdeti)  FROM SaglikNet.ENabizGonderim SEG(nolock) WHERE SEG.ProtokolId=HP.Id AND SEG.State <> 2),0)<250
+AND GonderimTarihi < GETDATE()
+AND YEAR(HP.AcilisTarihi) > 2023
+AND (
+ EXISTS (SELECT *FROM SaglikNet.ENabizGonderim SEG (NOLOCK) WHERE SEG.ProtokolId = HP.Id AND SEG.SYSTakipNo IS NOT NULL)
+OR (
+ NOT EXISTS
+(SELECT TOP 1 SNA.IslemId FROM [SaglikNet].[SaglikNetAyarlari] SNA (NOLOCK)WHERE SNA.State <> 0 AND SNA.IslemTipiId = 0 AND SNA.IslemId = HP.ProtokolTipiId)
+AND NOT EXISTS
+(SELECT TOP 1 SNA.IslemId FROM [SaglikNet].[SaglikNetAyarlari] SNA (NOLOCK)WHERE SNA.State <> 0 AND SNA.IslemTipiId = 1 AND SNA.IslemId = HP.BolumId)
+AND NOT EXISTS
+(SELECT TOP 1 SNA.IslemId FROM [SaglikNet].[SaglikNetAyarlari] SNA (NOLOCK)WHERE SNA.State <> 0 AND SNA.IslemTipiId = 3 AND SNA.IslemId = HP.DoktorId)
+AND NOT EXISTS
+(select TOP 1 SNA.IslemId from[SaglikNet].[SaglikNetAyarlari] SNA (NOLOCK) where SNA.State <> 0 and SNA.IslemTipiId = 4 AND SNA.IslemId in(HP.OSSKurumId,HP.AKKurumId,HP.IndirimGrubuId))  
+ AND NOT EXISTS
+(SELECT TOP 1 SNA.IslemId FROM [SaglikNet].[SaglikNetAyarlari] SNA (NOLOCK)WHERE SNA.State <> 0 AND SNA.IslemTipiId = 5 AND SNA.IslemId = HH.GuvenlikSeviyesiId)
+ ))
+GROUP BY  SEPI.ProtokolId , SEPI.PaketTipiId , ISNULL(SEPI.IslemTipiId, 1) 
+ORDER BY SEPI.ProtokolId DESC, SEPI.PaketTipiId
+)  TBL
+UNION ALL
+SELECT * 
+FROM (
+SELECT TOP 100 TY.ProtokolId EkProtokolNo, '109' EkPaketTipi, 1 EkIslemTipi
+FROM Tedavi.Yatis TY (NOLOCK)
+WHERE TY.TaburcuTarihi is not null AND TY.State = 5
+AND DATEDIFF(DAY,TY.TaburcuTarihi,GETDATE()) < 5
+AND
+EXISTS (SELECT 1 FROM  Tedavi.GenelMuayene TGM (NOLOCK) WHERE TY.ProtokolId = TGM.ProtokolId AND TGM.Epikriz IS NOT NULL) AND
+(NOT EXISTS(SELECT 1 FROM SaglikNet.ENabizGonderim SEG(nolock)
+INNER JOIN  SaglikNet.ENabizGonderimDetay SEGD(nolock) ON SEG.Id = SEGD.EnabizGonderimId
+WHERE SEG.ProtokolId = TY.ProtokolId  AND SEG.State <> 2 AND  SEGD.PaketTipiId = '109' AND SEGD.State != 2))
+AND NOT EXISTS(SELECT 1 FROM  SaglikNet.ENabizProtokolIslem SEPI WHERE SEPI.ProtokolId = TY.ProtokolId AND  SEPI.State IN (1,3) AND  SEPI.PaketTipiId IN('109')) 
+ORDER BY  TY.ProtokolId  DESC
+)  TBL
+UNION ALL
+SELECT * 
+FROM (
+SELECT TOP 100 TY.ProtokolId EkProtokolNo, '109' EkPaketTipi, 1 EkIslemTipi
+FROM Tedavi.Yatis TY (NOLOCK) 
+INNER JOIN Hasta.Protokol HP (NOLOCK) ON HP.Id = TY.ProtokolId
+WHERE  TY.TaburcuTarihi IS NULL AND HP.GelisTipiId = 'Y' AND TY.State != 0 
+AND DATEDIFF(DAY,TY.ServisKabulTarihi,GETDATE()) <8 AND
+EXISTS (SELECT 1 FROM  Tedavi.GenelMuayene TGM (NOLOCK) WHERE TY.ProtokolId = TGM.ProtokolId AND TGM.Epikriz IS NOT NULL) AND
+(EXISTS(SELECT 1 FROM SaglikNet.ENabizGonderim SEG(nolock)
+INNER JOIN  SaglikNet.ENabizGonderimDetay SEGD(nolock) ON SEG.Id = SEGD.EnabizGonderimId
+WHERE SEG.ProtokolId = TY.ProtokolId  AND SEG.State <> 2 AND  SEGD.PaketTipiId = '109' AND DATEDIFF(DAY, ISNULL(SEGD.ModifiedDate, SEGD.CreatedDate),GETDATE()) > 5))
+AND NOT EXISTS(SELECT 1 FROM  SaglikNet.ENabizProtokolIslem SEPI WHERE SEPI.ProtokolId = TY.ProtokolId AND  SEPI.State IN (1,3) AND  SEPI.PaketTipiId IN('109')) 
+ORDER BY TY.ProtokolId DESC
+)  TBL
+END; 
+
+
+
+
+================ SaglikNet.usp_GetProtokolIslemByENabiz ================
+CREATE PROCEDURE [SaglikNet].[usp_GetProtokolIslemByENabiz]
+ @pProtokolId INT,
+ @pProtokolIslemIds  NVARCHAR(MAX)=NULL,
+ @pSgkBildirim tinyint =null
+ AS
+BEGIN
+    SET NOCOUNT ON;
+
+--SELECT *
+SELECT KlinikKoduValue
+          , KlinikKoduCode
+          , TarafBilgisiCode
+          , TarafBilgisiValue
+		  , CASE WHEN GerceklesmeZamani <= IslemZamani THEN   DATEADD(MINUTE,2,IslemZamani)  ELSE GerceklesmeZamani END AS  GerceklesmeZamani
+          , AcilisTarihi
+          , IslemTuruCode
+          , IslemTuruValue
+          , IslemKodu
+          , IslemAdi
+          , GirisimselIslemKodu
+		  , IslemZamani
+          , Adet
+          , HastaTutari
+          , KurumTutari
+          , RandevuZamani
+          , KullaniciKimlikNumarasi
+          , CihazNumarasi
+          , IslemReferansNumarasi
+          , HekimKimlikNumarasi
+          , ProtokolHekimKimlikNumarasi
+          , SgkHizmetReferansNumarasi
+          , SgkTakipNumarasi
+          , SgkBildirim
+          , HekiminAmeliyataKararVerdigiTarih
+          , AmeliyatRandevuTarihi
+          , SaglikTurizmiFiyatTarifesiCode
+          , SaglikTurizmiFiyatTarifesiValue
+          , AsistanHekimKimlikNumarasi
+          , HizmetAlimBilgisiValue
+          , HizmetAlimBilgisiCode
+		  , IsMedulaPasif
+		  ,YogunBakimBirAltBasamaktanOde
+
+FROM 
+(
+SELECT 
+CASE WHEN HP.SGKKurumId is not null AND  ISNULL(HPI.IsMedulaPasif,0)= 1 THEN 1 ELSE 0 END AS IsMedulaPasif,
+isnull(CAST((SELECT TOP 1 SFT.Adi FROM Skrs.FullTable SFT (NOLOCK) WHERE SFT.SistemKodu='c04bee57-c5d4-443d-e040-7b0a6f146a3d' 
+AND SFT.Kodu=(SELECT TOP 1 OB.SKRSKodu  from Ortak.Bolum OB (nolock) WHERE OB.Id=HPI.IsteyenBolumId)) AS NVARCHAR(200)),
+CAST((SELECT TOP 1 SFT.Adi FROM Skrs.FullTable SFT (NOLOCK) WHERE SFT.SistemKodu='c04bee57-c5d4-443d-e040-7b0a6f146a3d' 
+AND SFT.Kodu=(SELECT TOP 1 OB.SKRSKodu  from Ortak.Bolum OB (nolock) WHERE OB.Id=HP.BolumId )) AS NVARCHAR(200))) KlinikKoduValue, 
+
+isnull(
+CAST((SELECT TOP 1 SFT.Kodu FROM Skrs.FullTable SFT (NOLOCK) WHERE SFT.SistemKodu='c04bee57-c5d4-443d-e040-7b0a6f146a3d' AND SFT.Kodu=(SELECT TOP 1 OB.SKRSKodu  
+from Ortak.Bolum OB (nolock) WHERE OB.Id=HPI.IsteyenBolumId)) AS NVARCHAR(200)),
+CAST((SELECT TOP 1 SFT.Kodu FROM Skrs.FullTable SFT (NOLOCK) WHERE SFT.SistemKodu='c04bee57-c5d4-443d-e040-7b0a6f146a3d' AND SFT.Kodu=(SELECT TOP 1 OB.SKRSKodu  
+from Ortak.Bolum OB (nolock) WHERE OB.Id=HP.BolumId )) AS NVARCHAR(200))) KlinikKoduCode,
+
+
+HPI.MedulaSagSolId TarafBilgisiCode , 
+CASE WHEN HPI.MedulaSagSolId = 1 THEN 'SAG' WHEN HPI.MedulaSagSolId = 2 THEN 'SOL'  WHEN HPI.MedulaSagSolId = 3 THEN 'SAG-SOL BELIRSIZ' ELSE ''END TarafBilgisiValue,  
+
+case when OH.SUTKodu in('908115','908116') AND 
+exists(select 1 from [LIS].[NumuneIslem] lni(NOLOCK) 
+where Id in(select lti.NumuneIslemId from [LIS].[TestIslem] lti(nolock) where lti.ProtokolIslemId= HPI.Id and lti.State<> 0 AND lni.KabulTarihi  is not null))
+then
+(select top 1 DATEADD(MINUTE,1,lni.KabulTarihi) from [LIS].[NumuneIslem] lni(NOLOCK) 
+where Id in(
+select lti.NumuneIslemId from [LIS].[TestIslem] lti(nolock) where lti.ProtokolIslemId= HPI.Id and lti.State<> 0))
+
+else
+
+ISNULL((SELECT TOP 1 DATEADD(MINUTE,1, SML.IslemTarihi) FROM [SaglikNet].[MukerrerlikSorgulamaLog] SML(NOLOCK) 
+WHERE SML.ProtokolIslemId = HPI.Id AND SML.ProtokolId = HP.Id  AND SML.IslemTarihi IS NOT NULL
+ORDER BY SML.Id DESC),
+
+ISNULL(
+CASE WHEN OH.HizmetTipiId=2 THEN  
+ISNULL((select top 1 
+--isnull(lni.NumuneAlmaTarihi, lni.KabulTarihi)
+lni.KabulTarihi
+from [LIS].[NumuneIslem] lni(NOLOCK) 
+where Id in(
+select lti.NumuneIslemId from [LIS].[TestIslem] lti(nolock) where lti.ProtokolIslemId= HPI.Id and lti.State<> 0  AND lni.KabulTarihi > HPI.IslemTarihi)),
+(CASE WHEN HP.AcilisTarihi>  HPI.IslemTarihi THEN DATEADD(MINUTE,3, HP.AcilisTarihi) ELSE HPI.IslemTarihi END)
+)
+WHEN OH.HizmetTipiId=3 THEN  
+ISNULL((SELECT TOP 1  
+RTI.KabulTarihi
+
+FROM RIS.TetkikIslem RTI(NOLOCK) WHERE RTI.ProtokolIslemId=HPI.Id AND RTI.State=6 AND RTI.OnaylanmaTarihi>HPI.IslemTarihi),
+(CASE WHEN HP.AcilisTarihi>  HPI.IslemTarihi THEN DATEADD(MINUTE,3, HP.AcilisTarihi) ELSE HPI.IslemTarihi END)
+)
+WHEN OH.HizmetTipiId=1 THEN  
+ISNULL((SELECT TOP 1  TGM.MuayeneBaslangicTarihi FROM Tedavi.GenelMuayene TGM(NOLOCK) WHERE TGM.ProtokolId=HP.Id AND TGM.State<>0 AND TGM.MuayeneBaslangicTarihi >HPI.IslemTarihi),
+(CASE WHEN HP.AcilisTarihi>  HPI.IslemTarihi THEN DATEADD(MINUTE,3, HP.AcilisTarihi) ELSE HPI.IslemTarihi END)
+)
+ELSE NULL END,
+CASE WHEN HP.AcilisTarihi>  HPI.IslemTarihi THEN DATEADD(MINUTE,2, HP.AcilisTarihi) ELSE HPI.IslemTarihi END)) end
+
+ GerceklesmeZamani,
+ 
+HP.AcilisTarihi,  
+CASE WHEN HPI.HizmetId IS NOT NULL THEN '1'  WHEN SM.MalzemeTipiId=51 THEN '2'  ELSE '3' END IslemTuruCode,  
+CASE WHEN HPI.HizmetId IS NOT NULL THEN 'DIGER (SUT, VAKA BASI VEYA PAKET ISLEMLER)'  
+WHEN SM.MalzemeTipiId=51 THEN 'ILAÇ'  ELSE 'MALZEME' END IslemTuruValue, 
+ 
+
+CASE WHEN HPI.MedulaSutKodu IS NOT NULL  THEN HPI.MedulaSutKodu
+WHEN HPI.HizmetId IS NOT NULL THEN  OH.SUTKodu
+WHEN SM.MalzemeTipiId = 51 THEN ISNULL((SELECT TOP 1 SMB.ResmiKodu FROM Stok.MalzemeBarkod SMB (NOLOCK)
+                                     WHERE
+                                      
+                                         SMB.MalzemeId IN ( SM.Id, SM.ParentId )
+                                         AND SMB.IsMedulayaGonderilecek = 1
+                                         AND SMB.State <> 0
+                                 ),(SELECT TOP 1 SMB.ResmiKodu FROM Stok.MalzemeBarkod SMB (NOLOCK)
+                                     WHERE
+                                         SMB.MalzemeId IN ( SM.Id, SM.ParentId )
+                                         AND SMB.State <> 0
+                                         AND SMB.ResmiKodu IS NOT NULL))
+ELSE SM.ResmiKodu END IslemKodu ,
+
+    
+CASE WHEN LEN(OH.SUTAdi)> 4 THEN OH.SUTAdi ELSE  ISNULL(OH.Adi,SM.Adi) END IslemAdi,  
+CASE WHEN OH.HizmetTipiId=6 THEN OH.SutKodu ElSE '' END GirisimselIslemKodu,
+
+
+CASE WHEN OH.SUTKodu in('908115','908116')
+THEN
+isnull((select top 1 lni.KabulTarihi from [LIS].[NumuneIslem] lni(NOLOCK) 
+where Id in(
+select lti.NumuneIslemId from [LIS].[TestIslem] lti(nolock) where lti.ProtokolIslemId= HPI.Id and lti.State<> 0))
+,
+ISNULL((SELECT TOP 1 SML.IslemTarihi FROM [SaglikNet].[MukerrerlikSorgulamaLog] SML(NOLOCK) 
+WHERE SML.ProtokolIslemId = HPI.Id AND SML.ProtokolId = HP.Id AND SML.IslemTarihi IS NOT NULL
+ORDER BY SML.Id DESC),
+(CASE WHEN HP.AcilisTarihi>  HPI.IslemTarihi THEN DATEADD(MINUTE,2, HP.AcilisTarihi) ELSE HPI.IslemTarihi END)
+)
+)
+WHEN OH.HizmetTipiId = 2 OR  OH.HizmetTipiId = 3 THEN  ---lab ve rad icin (akilci lab)
+ISNULL((SELECT TOP 1 SML.IslemTarihi FROM [SaglikNet].[MukerrerlikSorgulamaLog] SML(NOLOCK) 
+WHERE SML.ProtokolIslemId = HPI.Id AND SML.ProtokolId = HP.Id AND SML.IslemTarihi IS NOT NULL
+ORDER BY SML.Id DESC), 
+(CASE WHEN HP.AcilisTarihi > HPI.CreatedDate THEN DATEADD(MINUTE,2, HP.AcilisTarihi) ELSE HPI.CreatedDate END))
+ELSE
+ISNULL((SELECT TOP 1 SML.IslemTarihi FROM [SaglikNet].[MukerrerlikSorgulamaLog] SML(NOLOCK) 
+WHERE SML.ProtokolIslemId = HPI.Id AND SML.ProtokolId = HP.Id AND SML.IslemTarihi IS NOT NULL
+ORDER BY SML.Id DESC),
+(CASE WHEN HP.AcilisTarihi > HPI.IslemTarihi THEN DATEADD(MINUTE,2, HP.AcilisTarihi) ELSE HPI.IslemTarihi END)) END IslemZamani,
+
+HPI.Miktar as Adet,  CAST(0 AS DECIMAL) HastaTutari,  CAST(0 AS DECIMAL) KurumTutari,  
+NULL RandevuZamani, '' KullaniciKimlikNumarasi, ''  CihazNumarasi,  CAST(HPI.Id as NVARCHAR(20)) IslemReferansNumarasi,  
+isnull((select(select top 1 IKP.TCKimlikNo from IK.Personel IKP where IKP.Id = MedulaDoktorId) 
+ from Ik.PersonelDoktor IKPD where IKPD.State <> 0 and IKPD.MedulaDoktorId is not null and IKPD.PersonelId = HPI.UygulayanPersonelId) , 
+(SELECT TOP 1 IK.TCKimlikNo FROM IK.Personel IK(NOLOCK)WHERE IK.Id = HPI.UygulayanPersonelId)) HekimKimlikNumarasi,  
+isnull((select(select top 1 IKP.TCKimlikNo from IK.Personel IKP where IKP.Id = MedulaDoktorId) from Ik.PersonelDoktor IKPD where IKPD.State <> 0 and IKPD.MedulaDoktorId is not null and IKPD.PersonelId = HP.DoktorId),  
+(SELECT IKP.TCKimlikNo FROM IK.Personel IKP(NOLOCK) WHERE IKP.Id = HP.DoktorId))ProtokolHekimKimlikNumarasi,
+CAST(HPI.Id as NVARCHAR(20))  AS SgkHizmetReferansNumarasi,
+(Select TOP 1 MT.TakipNo  from  Medula.Takip MT (NOLOCK) WHERE  MT.ProtokolId=HP.Id AND MT.State<>0) AS SgkTakipNumarasi,
+
+CASE 
+WHEN ISNULL(HPI.IsMedulaPasif,0)=1 THEN '0'
+
+WHEN (@pSgkBildirim =2 OR 
+DATEPART(HOUR,GETDATE())>19 OR DATEPART(HOUR,GETDATE())<9 OR
+OH.HizmetTipiId =11)
+AND
+((Select COUNT(*) from  Medula.Takip MT (NOLOCK) WHERE  MT.ProtokolId=HP.Id AND MT.State<>0 and MT.TakipNo is not null)>0)
+THEN CAST ('2' as NVARCHAR(10))
+WHEN (Select COUNT(*) from Medula.Takip MT (NOLOCK) WHERE  MT.ProtokolId=HP.Id AND MT.State<>0 and MT.TakipNo is not null) >0
+THEN CAST ('1' as NVARCHAR(10))
+ELSE CAST ('0' as NVARCHAR(10)) END AS SgkBildirim,
+
+CASE WHEN OH.HizmetTipiId in(5,6) THEN
+(select TOP 1 
+CASE WHEN RR.BaslangicTarihi is not null and TA.CreatedDate > RR.BaslangicTarihi THEN DATEADD(MINUTE,-2,RR.BaslangicTarihi)
+ELSE TA.CreatedDate END 
+from Tedavi.Ameliyat TA(NOLOCK)
+left join  Randevu.Randevu RR (NOLOCK) ON RR.Id = TA.RandevuId And RR.State <> 0
+ where   TA.YatisId = (select TOP 1 TY.Id from Tedavi.Yatis TY(NOLOCK) WHERE TY.ProtokolId = HP.Id AND TY.State <> 0)
+AND TA.State <> 0
+AND TA.State > 5
+)
+ELSE NULL END HekiminAmeliyataKararVerdigiTarih,
+
+CASE WHEN OH.HizmetTipiId in(5,6) THEN
+(select TOP 1  RR.BaslangicTarihi from Tedavi.Ameliyat TA(NOLOCK)
+inner join  Randevu.Randevu RR (NOLOCK) ON RR.Id = TA.RandevuId And RR.State <> 0
+ where   TA.YatisId = (select TOP 1 TY.Id from Tedavi.Yatis TY(NOLOCK) WHERE TY.ProtokolId = HP.Id AND TY.State <> 0 )
+AND TA.State <> 0
+AND TA.State > 5
+)ELSE NULL END 
+AmeliyatRandevuTarihi,
+
+CASE WHEN 
+(SELECT [Entegrasyon].[ufns_GetENabizHastaTipi] (@pProtokolId)) = '2' AND 
+EXISTS(SELECT 1 FROM Hasta.Hasta HH (NOLOCK) WHERE HH.Id = HP.HastaId AND HH.YabanciHastaTipiId = 1) THEN 
+(SELECT TOP 1 SUTKodu FROM Skrs.SaglikTurizmiFiyatTarifesi SSTF(NOLOCK) WHERE SSTF.SUTKodu = ISNULL(HPI.MedulaSutKodu,OH.SUTKodu) AND SSTF.State =1 AND [SUTDurumu] = 'Aktif') ELSE NULL END SaglikTurizmiFiyatTarifesiCode,
+CASE WHEN 
+(SELECT [Entegrasyon].[ufns_GetENabizHastaTipi] (@pProtokolId)) = '2' AND 
+EXISTS(SELECT 1 FROM Hasta.Hasta HH (NOLOCK) WHERE HH.Id = HP.HastaId AND HH.YabanciHastaTipiId = 1) THEN 
+(SELECT TOP 1 SUTIslemAdi FROM Skrs.SaglikTurizmiFiyatTarifesi SSTF(NOLOCK) WHERE SSTF.SUTKodu = ISNULL(HPI.MedulaSutKodu,OH.SUTKodu) AND SSTF.State =1 AND [SUTDurumu] = 'Aktif') ELSE NULL END SaglikTurizmiFiyatTarifesiValue,
+
+CASE WHEN OH.HizmetTipiId = 6 THEN
+(SELECT TOP 1 IKP1.TCKimlikNo 
+FROM Hasta.ProtokolIslem HPI1
+INNER JOIN IK.Personel IKP1(NOLOCK) ON IKP1.Id = HPI1.UygulayanPersonelId
+INNER JOIN Ortak.Hizmet OH1 (NOLOCK) ON HPI1.HizmetId = OH1.Id
+WHERE HPI1.ProtokolId = HP.Id and HPI1.state > 1 AND OH1.HizmetTipiId  in(16,17,18)
+AND CAST(HPI1.IslemTarihi AS DATE) = CAST(HPI.IslemTarihi AS DATE))
+ELSE NULL END AsistanHekimKimlikNumarasi,
+
+CASE
+WHEN (HPI.MedulaOzelDurumId COLLATE SQL_Latin1_General_CP1_CS_AS ='f' OR HPI.MedulaOzelDurumIds LIKE '%f%')THEN 
+'DIŞ HİZMET ALIMI' ELSE 'KURUM İÇİ' END HizmetAlimBilgisiValue ,
+CASE
+WHEN (HPI.MedulaOzelDurumId COLLATE SQL_Latin1_General_CP1_CS_AS ='f' OR HPI.MedulaOzelDurumIds LIKE '%f%')THEN 
+'1' ELSE '3' END HizmetAlimBilgisiCode ,
+
+(SELECT 
+CASE 
+WHEN HPIM.IsBirAltBasamaktanOde = 1 THEN '1'
+WHEN HPIM.IsBirAltBasamaktanOde = 0 THEN '2'
+ELSE '' END
+FROM Hasta.ProtokolIslemMedula HPIM(NOLOCK) WHERE HPIM.ProtokolIslemId = HPI.Id AND HPIM.State != 0 AND HPIM.IsBirAltBasamaktanOde = 1)
+ YogunBakimBirAltBasamaktanOde
+
+FROM Hasta.Protokol HP(NOLOCK)  
+INNER JOIN Hasta.ProtokolIslem HPI(NOLOCK) ON HPI.ProtokolId=HP.Id  
+LEFT JOIN Ortak.Hizmet OH(NOLOCK) ON OH.Id=HPI.HizmetId  
+LEFT JOIN Stok.Malzeme SM(NOLOCK) ON SM.Id=HPI.MalzemeId  
+WHERE HPI.State>1 AND ProtokolId= @pProtokolId
+AND( @pProtokolIslemIds IS NULL OR HPI.Id in(select * from [Sistem].[ufn_ConvertStringToTable](@pProtokolIslemIds)))
+)TEMP
+WHERE IslemKodu IS NOT NULL and GerceklesmeZamani <= GETDATE() and IslemZamani <= GETDATE()
+
+AND NOT EXISTS(SELECT 1 FROM [SaglikNet].[KlinikKisitlanacakIslem]  SKKI (NOLOCK) 
+WHERE SKKI.state !=0 
+AND SKKI.KlinikSKRSKodu  = TEMP.KlinikKoduCode
+AND SKKI.IslemKodu = TEMP.IslemKodu)
+
+END;
+
+
+
+
+================ SaglikNet.usp_GetLaboratuvarSonucBilgileriByEnabiz ================
+
+CREATE PROCEDURE [SaglikNet].[usp_GetLaboratuvarSonucBilgileriByEnabiz] @pProtokolId INT
+AS
+BEGIN
+    SELECT
+        (
+            SELECT TOP 1
+                HP.AcilisTarihi
+            FROM Hasta.Protokol HP (NOLOCK)
+            WHERE HP.Id = OA.ProtokolId
+        ) AS ProtokolAcilisTarihi,
+        CAST(1 AS INT) IslemTipiId,
+        LTI.Id LabaratuarSonucId,
+        CAST(LTI.ProtokolIslemId AS NVARCHAR(100)) IslemReferansNumarasi,
+        CAST(LNI.Id AS NVARCHAR(100)) TetkikOrnekNumarasi,
+        LNI.NumuneAlmaTarihi TetkikOrnegininAlindigiZaman,
+        LNI.KabulTarihi TetkikOrnegininKabulZamani,
+        ISNULL(LTI.SonucTarihi, DATEADD(MINUTE, -1, LTI.OnayTarihi)) TetkikSonucTarihi,
+        LTI.OnayTarihi TetkikSonucOnayTarihi,
+        LT.Adi TetkikAdi,
+        --------------------------
+
+        CASE --transactional data da testin grup olup olmadıgı anlasılıyor.
+        ISNULL(
+        (
+            SELECT LTS.Adi + ':' + ISNULL(ISNULL(CAST(LTIS.SonucSayisal AS NVARCHAR(MAX)), LTIS.SonucText), '') + ','
+            FROM LIS.TestIslem (NOLOCK) LTIS
+            INNER JOIN LIS.Test (NOLOCK) LTS ON LTS.Id = LTIS.TestId
+            WHERE LTIS.State = 6
+            AND LTIS.GrupTestIslemId = LTI.Id
+            FOR XML PATH('')
+        ),
+        ''
+              )
+            WHEN '' THEN --eger test grup test degil ise testin direkt sonucu alınıyor
+                ISNULL(ISNULL(CAST(LTI.SonucSayisal AS NVARCHAR(MAX)), LTI.SonucText), '')
+            ELSE --eger test grup test ise alt parametre sonuçları alınıyor.
+        (
+            SELECT LTS.Adi + ':' + ISNULL(ISNULL(CAST(LTIS.SonucSayisal AS NVARCHAR(MAX)), LTIS.SonucText), '') + ','
+            FROM LIS.TestIslem (NOLOCK) LTIS
+            INNER JOIN LIS.Test (NOLOCK) LTS ON LTS.Id = LTIS.TestId
+            WHERE LTIS.State = 6
+            AND LTIS.GrupTestIslemId = LTI.Id
+            FOR XML PATH('')
+        )
+        END AS TetkikSonucu,
+
+
+        -------------------------
+        LT.SonucBirimi TetkikSonucuBirimi,
+        CAST(LTI.ReferansDeger AS NVARCHAR(100)) TetkikSonucuReferansDegeri,
+        CAST(CASE
+                 WHEN ISNULL(LTI.TestSonucDurumId, 1) = 1 THEN
+                     '1'
+                 ELSE
+                     0
+             END AS NVARCHAR(50)) TetkikSonucuReferansDegerAraligindaMi,
+        LT.LoincKodu,
+        LT.TestTipiId TestTipiId
+    FROM LIS.NumuneIslem LNI (NOLOCK)
+        INNER JOIN LIS.TestIslem LTI (NOLOCK)
+            ON LNI.Id = LTI.NumuneIslemId
+        INNER JOIN LIS.Test LT (NOLOCK)
+            ON LT.Id = LTI.TestId
+        INNER JOIN Ortak.Aktivite OA (NOLOCK)
+            ON OA.Id = LTI.AktiviteId
+    WHERE LTI.State = 6
+          AND OA.ProtokolId = @pProtokolId
+          AND LT.HizmetId IS NOT NULL
+          AND LTI.Id IN (
+                            SELECT MIN(LTIS.Id)
+                            FROM LIS.TestIslem (NOLOCK) LTIS
+                                INNER JOIN Ortak.Aktivite (NOLOCK) OAS
+                                    ON OAS.Id = LTIS.AktiviteId
+                            WHERE OAS.ProtokolId = OA.ProtokolId
+                            GROUP BY LTIS.ProtokolIslemId
+                        );
+END;
+
+
+
+================ SaglikNet.usp_GetHastaKimlikBilgileriByEnabiz ================
+
+CREATE PROCEDURE [SaglikNet].[usp_GetHastaKimlikBilgileriByEnabiz]
+ @pProtokolId INT
+ AS
+BEGIN
+    SET NOCOUNT ON;
+SELECT
+HastaId, 
+GercekAdi,
+GercekSoyadi,
+Adi,
+Soyadi,
+SabitTel,
+GSM,
+DogumTarihi,
+AcikAdres,
+CinsiyetCode,
+CinsiyetValue,
+UyrukCode,
+UyrukValue,
+DogumSirasi,
+AcikAdresIl,
+AcikAdresIlce,
+HastaTipiValue,
+HastaTipiCode,
+
+CASE WHEN HastaTipiCode = '1' THEN TcKimlikNo ELSE NULL END TcKimlikNo, 
+CASE WHEN HastaTipiCode = '2' THEN TcKimlikNo ELSE NULL END YabanciHastaKimlikNumarasi,
+CASE WHEN HastaTipiCode = '2' THEN ISNULL(PasaportNo,CAST(HastaId AS NVARCHAR(10)))  ELSE NULL END PasaportNo,
+HastaYupassNo, 
+DonorAliciKmlikNumarasi, 
+CASE WHEN HastaTipiCode = '4' THEN CASE WHEN LEN(AnneKimlikNo) > 2 THEN AnneKimlikNo ELSE 
+Isnull((SELECT  MT.TCKimlikNo  FROM Medula.Takip MT(NOLOCK) WHERE ProtokolId = @pProtokolId AND State <> 0 AND MT.IsYeniDogan=1),
+(SELECT TOP 1 [UygulanacakKisiId] FROM [Tedavi].[AsiUygulamaBilgileri] WHERE ProtokolId = @pProtokolId and [UygulanacakKisiTipi] = '3' 
+and [UygulanacakKisiId] is not null) 
+ )END ELSE NULL END
+
+ AnneKimlikNo,
+
+
+CASE WHEN HastaTipiCode = '2' THEN YabanciHastaTipiCode ELSE NULL END YabanciHastaTipiCode,
+CASE WHEN HastaTipiCode = '2' THEN 
+(SELECT SFT.Adi FROM Skrs.FullTable SFT (NOLOCK) WHERE SFT.SistemKodu = 'd8e52cb9-4aa9-512c-e043-14031b0a419d' AND SFT.Kodu = YabanciHastaTipiCode) ELSE NULL END YabanciHastaTipiValue
+FROM 
+(
+SELECT HH.Id AS HastaId,HH.GercekAdi,HH.GercekSoyadi, HH.TcKimlikNo, HH.Adi, HH.Soyadi, HH.SabitTel, HH.GSM, HH.DogumTarihi, HH.PasaportNo, HH.EvAdresi AcikAdres,
+
+--(Select top 1 SC.Kodu from Skrs.Cinsiyet SC (nolock) where SC.Kodu = (Select top 1 SKRSKodu from Pusula.Cinsiyet PC(nolock) where PC.Id = HH.CinsiyetId)) CinsiyetCode,  
+--(Select top 1 SC.Adi from  Skrs.Cinsiyet SC (nolock)where SC.Kodu = (Select top 1 SKRSKodu from Pusula.Cinsiyet PC(nolock) where PC.Id = HH.CinsiyetId)) CinsiyetValue, 
+
+
+(SELECT TOP 1 SFT.Adi FROM Skrs.FullTable SFT (NOLOCK) WHERE SFT.SistemKodu = '784d0f4f-0603-4425-937f-1a3941fc3a1f' AND SFT.Kodu =(SELECT TOP 1 SKRSKodu FROM Pusula.Cinsiyet PC(NOLOCK) WHERE PC.Id = HH.CinsiyetId))CinsiyetValue,
+(SELECT TOP 1 SFT.Kodu FROM Skrs.FullTable SFT (NOLOCK) WHERE SFT.SistemKodu = '784d0f4f-0603-4425-937f-1a3941fc3a1f' AND SFT.Kodu=(SELECT TOP 1 SKRSKodu FROM Pusula.Cinsiyet PC(NOLOCK) WHERE PC.Id = HH.CinsiyetId))CinsiyetCode,
+
+ 
+--CAST(ISNULL((SELECT TOP 1 SU.Merniskodu FROM Skrs.UlkeKodlari SU(NOLOCK) WHERE SU.Kodu = (SELECT TOP 1 SKRSKodu FROM Ortak.Ulke OU(NOLOCK) WHERE OU.Id = HH.UyrukId)), '9980') AS NVARCHAR(20) ) UyrukCode,  
+--ISNULL((SELECT TOP 1 SU.Adi FROM Skrs.UlkeKodlari SU(NOLOCK) WHERE SU.Kodu = (SELECT TOP 1 SKRSKodu FROM Ortak.Ulke OU(NOLOCK) WHERE OU.Id = HH.UyrukId)), 'TÜRKİYE CUMHURİYETİ') UyrukValue,  
+
+CAST(ISNULL((Select top 1 SFT.MernisKodu from Skrs.FullTable SFT (NOLOCK) WHERE SFT.SistemKodu = 'd650777a-3d4d-a259-e040-7c0a01167a83' AND  SFT.Kodu = (Select top 1 SKRSKodu from Ortak.Ulke OU(nolock) where OU.Id = HH.UyrukId)), '9980') AS NVARCHAR(20) ) UyrukCode,  
+ISNULL((Select top 1 SFT.Adi from Skrs.FullTable SFT (NOLOCK) WHERE SFT.SistemKodu = 'd650777a-3d4d-a259-e040-7c0a01167a83' AND SFT.Kodu = (Select top 1 SKRSKodu from Ortak.Ulke OU(nolock) where OU.Id = HH.UyrukId)), 'TÜRKİYE CUMHURİYETİ') UyrukValue,  
+
+CAST(ISNULL(HH.DogumSirasi, (SELECT TOP 1  YeniDoganSiraNo FROM Medula.Takip MT(NOLOCK) WHERE ProtokolId =  @pProtokolId AND State <> 0)) AS NVARCHAR(20)) DogumSirasi,  
+(SELECT Adi FROM Ortak.Il(NOLOCK) WHERE Il.Id = HH.IlIdEv) AcikAdresIl,  
+(SELECT Adi FROM Ortak.Ilce(NOLOCK) WHERE Ilce.Id = HH.IlceIdEv) AcikAdresIlce, 
+ --HH.AnneTCKimlikNo AnneKimlikNo,
+isnull(HH.AnneTcKimlikNo,
+(select TOP 1 BildirimYapilanKimlikNo from [SaglikNet].[ENabizGonderim] SEG(NOLOCK) 
+where SEG.ProtokolId = @pProtokolId and SEG.State <> 2 and SEG.BildirimYapilanHastaTipi='4' and BildirimYapilanKimlikNo is not null))AnneKimlikNo,
+
+CAST((SELECT TOP 1  MT.TCKimlikNo FROM Medula.Takip MT(NOLOCK) WHERE ProtokolId =  @pProtokolId AND State <> 0 AND MT.DonorTCKimlikNo IS NOT NULL) AS NVARCHAR(20)) DonorAliciKmlikNumarasi, 
+CAST((SELECT TOP 1  MT.YupassNo FROM Medula.Takip MT(NOLOCK) WHERE ProtokolId =  @pProtokolId AND State <> 0 AND ISNULL(MT.YupassNo,'')!='') AS NVARCHAR(20)) HastaYupassNo ,
+
+CASE 
+WHEN EXISTS(SELECT 1  FROM Medula.Takip MT(NOLOCK) WHERE ProtokolId =  @pProtokolId AND State <> 0 AND MT.IsYeniDogan=1) 
+OR EXISTS(SELECT 1  FROM Medula.Takip MT(NOLOCK) WHERE ProtokolId =  @pProtokolId AND State <> 0 AND MT.TCKimlikNo<>MT.MedulaTcKimlikNo AND LEN(MT.MedulaTcKimlikNo)=11
+AND  DATEDIFF(DAY, HH.DogumTarihi, (SELECT TOP 1 HP.AcilisTarihi FROM Hasta.Protokol HP(NOLOCK) WHERE HP.Id =  @pProtokolId ))<= 30 ) 
+THEN 'YENIDOĞAN_KAYIT'
+--WHEN EXISTS(select 1 from [Tedavi].[AsiUygulamaBilgileri] taub(nolock) where taub.Protokolıd = @pProtokolId and taub.UygulanacakKisiTipi  = 3 and taub.UygulanacakKisiId is not null and taub.State <> 0)
+--THEN 'YENIDOĞAN_KAYIT'
+WHEN LEN(HH.TCKimlikNo) = 11 AND HH.TCKimlikNo NOT LIKE'9%'THEN  'VATANDAŞ_KAYIT'
+WHEN DATEDIFF(DAY, HH.DogumTarihi, (SELECT TOP 1 HP.AcilisTarihi FROM Hasta.Protokol HP(NOLOCK) WHERE HP.Id =  @pProtokolId ))<= 30 
+AND LEN( HH.AnneTCKimlikNo)=11 AND   HH.AnneTCKimlikNo NOT LIKE'9%' THEN 'YENIDOĞAN_KAYIT'
+WHEN HH.TCKimlikNo LIKE'9%' OR ISNULL(HH.PasaportNo,'')!='' OR 
+EXISTS(SELECT 1  FROM Medula.Takip MT(NOLOCK) WHERE ProtokolId =  @pProtokolId AND State <> 0 AND  ISNULL(MT.YupassNo,'')!='')  THEN  'YABANCI_KAYIT'
+WHEN  HH.HastaTipiId = 5 THEN 'KİMLİKSİZ'
+ELSE 'VATANSIZ_KAYIT(MÜLTECI)' END HastaTipiValue, 
+
+
+CASE 
+WHEN EXISTS(SELECT 1  FROM Medula.Takip MT(NOLOCK) WHERE ProtokolId =  @pProtokolId AND State <> 0 AND MT.IsYeniDogan=1) 
+OR EXISTS(SELECT 1  FROM Medula.Takip MT(NOLOCK) WHERE ProtokolId =  @pProtokolId AND State <> 0 AND MT.TCKimlikNo<>MT.MedulaTcKimlikNo AND LEN(MT.MedulaTcKimlikNo)=11
+AND  DATEDIFF(DAY, HH.DogumTarihi, (SELECT TOP 1 HP.AcilisTarihi FROM Hasta.Protokol HP(NOLOCK) WHERE HP.Id =  @pProtokolId ))<= 30) THEN '4'
+--WHEN EXISTS(select 1 from [Tedavi].[AsiUygulamaBilgileri] taub(nolock) where taub.Protokolıd = @pProtokolId and taub.UygulanacakKisiTipi  = 3 and taub.UygulanacakKisiId is not null and taub.State <> 0)
+--THEN '4'
+WHEN LEN(HH.TCKimlikNo) = 11 AND HH.TCKimlikNo NOT LIKE'9%'THEN  '1'
+WHEN DATEDIFF(DAY, HH.DogumTarihi, (SELECT TOP 1 HP.AcilisTarihi FROM Hasta.Protokol HP(NOLOCK) WHERE HP.Id =  @pProtokolId ))<= 30 
+AND LEN( HH.AnneTCKimlikNo)=11 AND   HH.AnneTCKimlikNo NOT LIKE'9%' THEN '4'
+WHEN HH.TCKimlikNo LIKE'9%' OR ISNULL(HH.PasaportNo,'')!='' OR 
+EXISTS(SELECT 1  FROM Medula.Takip MT(NOLOCK) WHERE ProtokolId =  @pProtokolId AND State <> 0 AND  ISNULL(MT.YupassNo,'')!='')  THEN  '2'
+WHEN  HH.HastaTipiId = 5 THEN '6'
+ELSE  '3' END HastaTipiCode,
+
+ISNULL((SELECT TOP 1  HPD.YabanciHastaTipiId FROM Hasta.ProtokolDetay (NOLOCK) HPD WHERE HPD.ProtokolId = @pProtokolId),HH.YabanciHastaTipiId) AS YabanciHastaTipiCode
+
+FROM Hasta.Hasta HH(NOLOCK) WHERE HH.Id = (SELECT TOP 1 HP.HastaId FROM Hasta.Protokol HP(NOLOCK)WHERE HP.Id =  @pProtokolId  AND HP.State <>0)
+) TEMP;
+
+END; 
+
+

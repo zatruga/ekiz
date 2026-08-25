@@ -1,0 +1,32 @@
+# Build outputs
+bin/
+obj/
+*.dll
+*.pdb
+
+# IDE / editor
+.vs/
+.vscode/
+*.user
+*.suo
+
+# Local databases (contain real sync history / patient references - never commit)
+data/
+*.db
+*.db-shm
+*.db-wal
+
+# Secrets - real credentials live only in dotnet user-secrets, never in-repo.
+# appsettings.json / appsettings.Development.json are safe templates (blank values) and ARE tracked.
+appsettings.*.local.json
+secrets.json
+*.pfx
+*.pem
+*.key
+
+# OS cruft
+Thumbs.db
+.DS_Store
+
+# Scratch/throwaway exploration project - not part of the shipped solution
+src/ConnTest/*.json

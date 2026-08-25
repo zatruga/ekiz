@@ -1,0 +1,156 @@
+@page
+@model PusulaEHealthSync.Web.Pages.AktiviteModel
+@using PusulaEHealthSync.Persistence
+@{
+    ViewData["Title"] = "Aktivite Akışı";
+}
+
+<p class="breadcrumb"><a asp-page="/Index">Protokol Listesi</a> / Aktivite Akışı</p>
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Aktivite Akışı</h1>
+        <p class="page-subtitle">Her senkron denemesinin ham, teknik kaydı -- kaynak türüne göre filtrelenebilir</p>
+    </div>
+</div>
+
+@{
+    var fromIso = Model.EffectiveFrom.ToString("yyyy-MM-dd");
+    var toIso = Model.EffectiveTo.ToString("yyyy-MM-dd");
+}
+
+<form method="get" class="filter-bar">
+    <label for="from">Başlangıç</label>
+    <input type="date" id="from" name="From" value="@fromIso" onchange="this.form.submit()" />
+    <label for="to">Bitiş</label>
+    <input type="date" id="to" name="To" value="@toIso" onchange="this.form.submit()" />
+    <input type="hidden" name="Status" value="@Model.Status" />
+    <select name="ResourceType" onchange="this.form.submit()">
+        <option value="">Tüm kayıt türleri</option>
+        <option value="Patient" selected="@(Model.ResourceType == "Patient")">@SyncLogEntry.ResourceTypeLabel("Patient")</option>
+        <option value="Encounter" selected="@(Model.ResourceType == "Encounter")">@SyncLogEntry.ResourceTypeLabel("Encounter")</option>
+        <option value="Practitioner" selected="@(Model.ResourceType == "Practitioner")">@SyncLogEntry.ResourceTypeLabel("Practitioner")</option>
+        <option value="Composition" selected="@(Model.ResourceType == "Composition")">@SyncLogEntry.ResourceTypeLabel("Composition")</option>
+        <option value="Condition" selected="@(Model.ResourceType == "Condition")">@SyncLogEntry.ResourceTypeLabel("Condition")</option>
+        <option value="Procedure" selected="@(Model.ResourceType == "Procedure")">@SyncLogEntry.ResourceTypeLabel("Procedure")</option>
+    </select>
+</form>
+
+<div class="stat-grid">
+    <a asp-page="/Aktivite" asp-route-Status="" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" class="stat-card @(string.IsNullOrEmpty(Model.Status) ? "active" : "")">
+        <div class="stat-top">
+            <span class="stat-label">Toplam Deneme</span>
+            <span class="stat-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            </span>
+        </div>
+        <span class="stat-value">@Model.TotalCount</span>
+    </a>
+    <a asp-page="/Aktivite" asp-route-Status="Success" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" class="stat-card success @(Model.Status == "Success" ? "active" : "")">
+        <div class="stat-top">
+            <span class="stat-label">Başarılı</span>
+            <span class="stat-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
+            </span>
+        </div>
+        <span class="stat-value success">@Model.SuccessCount</span>
+    </a>
+    <a asp-page="/Aktivite" asp-route-Status="Skipped" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" class="stat-card warning @(Model.Status == "Skipped" ? "active" : "")">
+        <div class="stat-top">
+            <span class="stat-label">Atlanan</span>
+            <span class="stat-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
+            </span>
+        </div>
+        <span class="stat-value warning">@Model.SkippedCount</span>
+    </a>
+    <a asp-page="/Aktivite" asp-route-Status="Failed" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" class="stat-card danger @(Model.Status == "Failed" ? "active" : "")">
+        <div class="stat-top">
+            <span class="stat-label">Hatalı</span>
+            <span class="stat-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
+            </span>
+        </div>
+        <span class="stat-value danger">@Model.FailedCount</span>
+    </a>
+</div>
+
+@if (Model.Entries.Count == 0)
+{
+    <div class="table-wrap empty-state">
+        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+        <p>Bu filtreye uyan senkron kaydı yok.</p>
+    </div>
+}
+else
+{
+    <div class="table-wrap">
+        <table style="min-width:1650px;">
+            <thead>
+                <tr>
+                    <th>Zaman (UTC)</th>
+                    <th>Tür</th>
+                    <th>Ad Soyad</th>
+                    <th>FIN No</th>
+                    <th>Ata adı</th>
+                    <th>Doğum tarihi</th>
+                    <th>Cinsiyet</th>
+                    <th>Kayıt açılma tarihi</th>
+                    <th>Pusula Id</th>
+                    <th>Durum</th>
+                    <th>AZ kaynak Id</th>
+                    <th>İşlem</th>
+                    <th>Mesaj</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var e in Model.Entries)
+                {
+                    <tr>
+                        <td class="mono text-muted">@e.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td><span class="badge @SyncLogEntry.ResourceTypeCssClass(e.ResourceType)">@SyncLogEntry.ResourceTypeLabel(e.ResourceType)</span></td>
+                        <td>@(string.IsNullOrWhiteSpace(e.PatientFullName) ? "-" : e.PatientFullName)</td>
+                        <td class="mono">@(e.Fin ?? "-")</td>
+                        <td class="text-muted">@(e.FathersName ?? "-")</td>
+                        <td class="mono text-muted">@(e.BirthDate?.ToString("yyyy-MM-dd") ?? "-")</td>
+                        <td class="text-muted">@GenderLabel(e.Gender)</td>
+                        <td class="mono text-muted">@(e.RecordOpenedAt?.ToString("yyyy-MM-dd") ?? "-")</td>
+                        <td class="mono">@e.PusulaId</td>
+                        <td>
+                            @{
+                                var (aBadgeClass, aBadgeLabel) = SyncLogEntry.StatusBadge(e);
+                            }
+                            <span class="badge @aBadgeClass"><span class="badge-dot"></span>@aBadgeLabel</span>
+                        </td>
+                        <td class="mono text-muted">@(e.AzResourceId ?? "-")</td>
+                        <td class="text-muted">@(e.Operation?.ToString() ?? "-")</td>
+                        <td class="cell-wide text-muted">@(e.Message ?? "-")</td>
+                        <td><a asp-page="/Detail" asp-route-id="@e.Id" class="btn btn-outline btn-sm">Detay</a></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="pagination">
+        @if (Model.PageNumber > 1)
+        {
+            <a class="btn btn-outline btn-sm" asp-page="/Aktivite" asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-P="@(Model.PageNumber - 1)">&larr; Önceki</a>
+        }
+        @if (Model.HasNextPage)
+        {
+            <a class="btn btn-outline btn-sm" asp-page="/Aktivite" asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-P="@(Model.PageNumber + 1)">Sonraki &rarr;</a>
+        }
+    </div>
+}
+
+@functions {
+    string GenderLabel(string? code) => code switch
+    {
+        "E" => "Erkek",
+        "K" => "Kadın",
+        "D" => "Diğer",
+        null => "-",
+        _ => code
+    };
+}

@@ -1,0 +1,283 @@
+@page
+@model PusulaEHealthSync.Web.Pages.IndexModel
+@using PusulaEHealthSync.Persistence
+@{
+    ViewData["Title"] = "Protokol Listesi";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Protokol Listesi</h1>
+        <p class="page-subtitle">Pusula protokolleri ve e-Health'e gönderim durumları -- Pusula'nın kendi ENabız Gönderim ekranındaki mantıkla</p>
+    </div>
+</div>
+
+<div class="proto-layout">
+    <form method="get" class="proto-filters">
+        <div class="filter-group">
+            <p class="filter-group-title">Tarih aralığı</p>
+            <div class="field-row">
+                <label for="from">Başlangıç</label>
+                <input type="date" id="from" name="From" value="@Model.EffectiveFrom.ToString("yyyy-MM-dd")" />
+            </div>
+            <div class="field-row">
+                <label for="to">Bitiş</label>
+                <input type="date" id="to" name="To" value="@Model.EffectiveTo.ToString("yyyy-MM-dd")" />
+            </div>
+        </div>
+
+        <div class="filter-group">
+            <p class="filter-group-title">Ara</p>
+            <div class="field-row">
+                <input type="text" name="Search" value="@Model.Search" placeholder="Hasta adı, FIN veya protokol Id" />
+            </div>
+        </div>
+
+        <div class="filter-group">
+            <p class="filter-group-title">Hasta bilgisi durumu</p>
+            <div class="status-list">
+                <button type="submit" name="HastaDurumu" value="Tumu" class="status-opt @(Model.HastaDurumu == "Tumu" ? "active" : "")">
+                    <span>Tümü</span><span class="count">@Model.CountTumu</span>
+                </button>
+                <button type="submit" name="HastaDurumu" value="Gonderildi" class="status-opt @(Model.HastaDurumu == "Gonderildi" ? "active" : "")">
+                    <span>Gönderildi</span><span class="count">@Model.CountGonderildi</span>
+                </button>
+                <button type="submit" name="HastaDurumu" value="Gonderilmedi" class="status-opt @(Model.HastaDurumu == "Gonderilmedi" ? "active" : "")">
+                    <span>Gönderilmedi</span><span class="count">@Model.CountGonderilmedi</span>
+                </button>
+            </div>
+        </div>
+
+        <div class="filter-group">
+            <p class="filter-group-title">Protokol durumu</p>
+            <div class="status-list">
+                <button type="submit" name="ProtokolDurumu" value="Tumu" class="status-opt @(Model.ProtokolDurumu == "Tumu" ? "active" : "")">
+                    <span>Tümü</span><span class="count">@Model.CountTumu</span>
+                </button>
+                <button type="submit" name="ProtokolDurumu" value="Acik" class="status-opt @(Model.ProtokolDurumu == "Acik" ? "active" : "")">
+                    <span>Açık (kapanış bekliyor)</span><span class="count">@Model.CountAcik</span>
+                </button>
+                <button type="submit" name="ProtokolDurumu" value="Kapali" class="status-opt @(Model.ProtokolDurumu == "Kapali" ? "active" : "")">
+                    <span>Kapalı</span><span class="count">@Model.CountKapali</span>
+                </button>
+            </div>
+        </div>
+
+        <button type="submit" class="btn btn-primary btn-block">Filtrele</button>
+    </form>
+
+    <div>
+        @if (Model.BulkResultMessage is not null)
+        {
+            <div class="alert alert-success">@Model.BulkResultMessage</div>
+        }
+
+        @if (Model.SearchActive)
+        {
+            <div class="alert" style="background:var(--primary-soft); color:var(--primary); border:1px solid transparent;">
+                Arama yapıyorsunuz -- tarih aralığı yok sayılıyor, sonuçlar tüm zamanlar içinde aranıyor.
+            </div>
+        }
+
+        @if (Model.VoidedButSentEntries.Count > 0)
+        {
+            <div class="card card-pad" style="margin-bottom:18px; border-color:var(--danger); background:color-mix(in srgb, var(--danger) 5%, var(--surface));">
+                <p class="section-title" style="color:var(--danger);">Pusula'da silinmiş ama e-Health'te hâlâ kayıtlı (@Model.VoidedButSentEntries.Count)</p>
+                <p class="text-muted" style="font-size:13px; margin:0 0 14px; line-height:1.6;">
+                    Bu protokoller Pusula'da sonradan iptal/silinmiş (State=0) ama daha önce e-Health'e gönderilmişti.
+                    Aşağıdakileri seçip e-Health'ten silebilirsiniz.
+                </p>
+                <form method="post" asp-page-handler="BulkSilIptal"
+                      onsubmit="if (!confirm('Seçili ' + document.querySelectorAll('#voidedForm .row-check:checked').length + ' kaydı e-Health\'ten silmek istediğinize emin misiniz? Bu işlem geri alınamaz.')) return false; pusulaLockSubmit(this); return true;"
+                      id="voidedForm">
+                    <input type="hidden" name="From" value="@Model.EffectiveFrom.ToString("yyyy-MM-dd")" />
+                    <input type="hidden" name="To" value="@Model.EffectiveTo.ToString("yyyy-MM-dd")" />
+                    <input type="hidden" name="Search" value="@Model.Search" />
+                    <input type="hidden" name="HastaDurumu" value="@Model.HastaDurumu" />
+                    <input type="hidden" name="ProtokolDurumu" value="@Model.ProtokolDurumu" />
+                    <input type="hidden" name="P" value="@Model.PageNumber" />
+                    <div class="bulk-toolbar">
+                        <button type="button" class="btn btn-outline btn-sm" onclick="document.querySelectorAll('#voidedForm .row-check').forEach(c => c.checked = true)">Tümünü Seç</button>
+                        <button type="submit" class="btn btn-primary btn-sm" style="background:var(--danger); border-color:var(--danger);">Seçilenleri e-Health'ten Sil</button>
+                    </div>
+                    <div class="table-wrap">
+                        <table>
+                            <thead>
+                                <tr>
+                                    <th class="checkbox-cell"></th>
+                                    <th>Protokol Id</th>
+                                    <th>Hasta</th>
+                                    <th>e-Health Id</th>
+                                    <th>Gönderim tarihi</th>
+                                </tr>
+                            </thead>
+                            <tbody>
+                                @foreach (var entry in Model.VoidedButSentEntries)
+                                {
+                                    <tr>
+                                        <td class="checkbox-cell"><input type="checkbox" class="row-check" name="selectedLogIds" value="@entry.Id" /></td>
+                                        <td class="mono"><a asp-page="/Protokol" asp-route-id="@entry.PusulaId">@entry.PusulaId</a></td>
+                                        <td>@entry.PatientFullName</td>
+                                        <td class="mono text-muted">@entry.AzResourceId</td>
+                                        <td class="mono text-muted">@entry.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                                    </tr>
+                                }
+                            </tbody>
+                        </table>
+                    </div>
+                </form>
+            </div>
+        }
+
+        @if (Model.Rows.Count == 0)
+        {
+            <div class="table-wrap empty-state">
+                <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <p>Bu filtreye uyan protokol yok.</p>
+            </div>
+        }
+        else
+        {
+            <form method="post" asp-page-handler="BulkGonder" id="bulkForm" onsubmit="pusulaLockSubmit(this)">
+                <input type="hidden" name="From" value="@Model.EffectiveFrom.ToString("yyyy-MM-dd")" />
+                <input type="hidden" name="To" value="@Model.EffectiveTo.ToString("yyyy-MM-dd")" />
+                <input type="hidden" name="Search" value="@Model.Search" />
+                <input type="hidden" name="HastaDurumu" value="@Model.HastaDurumu" />
+                <input type="hidden" name="ProtokolDurumu" value="@Model.ProtokolDurumu" />
+                <input type="hidden" name="P" value="@Model.PageNumber" />
+
+                <div class="bulk-toolbar">
+                    <button type="button" class="btn btn-outline btn-sm" onclick="pusulaSelectAll()">Tümünü Seç</button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="pusulaSelectFailed()">Hatalı Olanları Seç</button>
+                    <button type="button" class="btn btn-outline btn-sm" onclick="pusulaSelectNone()">Seçimi Temizle</button>
+                    <span class="bulk-count" id="bulkCount">0 seçili</span>
+                    <button type="submit" class="btn btn-primary btn-sm" id="bulkSubmitBtn" disabled
+                            onclick="return confirm('Seçilen protokoller için Hasta + Müayinə canlı olarak e-Health\'e gönderilecek. Devam edilsin mi?')">
+                        Seçilenleri Gönder
+                    </button>
+                </div>
+
+            <div class="table-wrap">
+                <table style="min-width:1320px;">
+                    <thead>
+                        <tr>
+                            <th class="checkbox-cell"><input type="checkbox" id="selectAllHeader" onclick="pusulaToggleAllHeader(this)" aria-label="Tümünü seç" /></th>
+                            <th>Protokol</th>
+                            <th>Hasta</th>
+                            <th>Bölüm</th>
+                            <th>Doktor</th>
+                            <th>Tarih</th>
+                            <th>Geliş Tipi</th>
+                            <th>Protokol Tipi</th>
+                            <th>e-Health durumu</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var row in Model.Rows)
+                        {
+                            var p = row.Protokol;
+                            <tr>
+                                <td class="checkbox-cell">
+                                    <input type="checkbox" class="row-check" name="selectedProtokolIds" value="@p.ProtokolId" data-hatali="@(row.Hatali ? "1" : "0")" onchange="pusulaUpdateBulkCount()" aria-label="Protokol #@p.ProtokolId seç" />
+                                </td>
+                                <td class="mono">@p.ProtokolId</td>
+                                <td>
+                                    <div>@p.HastaAdiSoyadi</div>
+                                    <div class="text-muted" style="font-size:12.5px;">@(p.Fin ?? "FIN yok")</div>
+                                </td>
+                                <td class="text-muted">@(p.BolumAdi ?? "-")</td>
+                                <td class="text-muted">@(p.DoktorAdiSoyadi ?? "-")</td>
+                                <td class="mono text-muted">@(p.AcilisTarihi?.ToString("yyyy-MM-dd HH:mm") ?? "-")</td>
+                                <td class="text-muted">@PusulaEHealthSync.Web.Pages.IndexModel.GelisTipiLabel(p.GelisTipiId)</td>
+                                <td class="text-muted">@PusulaEHealthSync.Web.Pages.IndexModel.ProtokolTipiLabel(p.ProtokolTipiId)</td>
+                                <td>
+                                    <div class="rchip-row">
+                                        @{
+                                            var (hastaChipClass, hastaChipLabel) = SyncLogEntry.StatusBadge(row.HastaDurumKaydi);
+                                        }
+                                        <span class="rchip @hastaChipClass"><span class="rchip-label">Hasta</span>@hastaChipLabel</span>
+                                        @if (row.MuayineDurumKaydi is not null)
+                                        {
+                                            var (encChipClass, encChipLabel) = SyncLogEntry.StatusBadge(row.MuayineDurumKaydi);
+                                            <span class="rchip @encChipClass"><span class="rchip-label">Muayene</span>@encChipLabel</span>
+                                        }
+                                        else if (row.MuayineGonderimeUygun)
+                                        {
+                                            <span class="rchip pending"><span class="rchip-label">Muayene</span>Gönderime hazır</span>
+                                        }
+                                        else
+                                        {
+                                            <span class="rchip disabled" title="Protokol kapanana (veya @Model.OpenProtokolSendAfterDays gün dolana) kadar bekliyor -- bkz. Ayarlar">Bekliyor</span>
+                                        }
+                                        <span class="rchip disabled" title="Henüz geliştirilmedi">Lab</span>
+                                        <span class="rchip disabled" title="Henüz geliştirilmedi">Epikriz</span>
+                                    </div>
+                                </td>
+                                <td>
+                                    <div style="display:flex; gap:6px;">
+                                        <a asp-page="/Hasta" asp-route-id="@p.HastaId" class="btn btn-outline btn-sm">Hasta Detay</a>
+                                        <a asp-page="/Protokol" asp-route-id="@p.ProtokolId" class="btn btn-outline btn-sm">Protokol Detay</a>
+                                    </div>
+                                </td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+            </form>
+
+            <div class="pagination">
+                @{
+                    var fromIso = Model.EffectiveFrom.ToString("yyyy-MM-dd");
+                    var toIso = Model.EffectiveTo.ToString("yyyy-MM-dd");
+                }
+                @if (Model.PageNumber > 1)
+                {
+                    <a class="btn btn-outline btn-sm" asp-page="/Index" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Search="@Model.Search" asp-route-HastaDurumu="@Model.HastaDurumu" asp-route-ProtokolDurumu="@Model.ProtokolDurumu" asp-route-P="@(Model.PageNumber - 1)">&larr; Önceki</a>
+                }
+                @if (Model.HasNextPage)
+                {
+                    <a class="btn btn-outline btn-sm" asp-page="/Index" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Search="@Model.Search" asp-route-HastaDurumu="@Model.HastaDurumu" asp-route-ProtokolDurumu="@Model.ProtokolDurumu" asp-route-P="@(Model.PageNumber + 1)">Sonraki &rarr;</a>
+                }
+            </div>
+        }
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function pusulaRowChecks() {
+            return Array.from(document.querySelectorAll('#bulkForm .row-check'));
+        }
+
+        function pusulaUpdateBulkCount() {
+            var checks = pusulaRowChecks();
+            var checked = checks.filter(function (c) { return c.checked; });
+            document.getElementById('bulkCount').textContent = checked.length + ' seçili';
+            document.getElementById('bulkSubmitBtn').disabled = checked.length === 0;
+            var header = document.getElementById('selectAllHeader');
+            if (header) header.checked = checks.length > 0 && checked.length === checks.length;
+        }
+
+        function pusulaSelectAll() {
+            pusulaRowChecks().forEach(function (c) { c.checked = true; });
+            pusulaUpdateBulkCount();
+        }
+
+        function pusulaSelectNone() {
+            pusulaRowChecks().forEach(function (c) { c.checked = false; });
+            pusulaUpdateBulkCount();
+        }
+
+        function pusulaSelectFailed() {
+            pusulaRowChecks().forEach(function (c) { c.checked = c.dataset.hatali === '1'; });
+            pusulaUpdateBulkCount();
+        }
+
+        function pusulaToggleAllHeader(header) {
+            pusulaRowChecks().forEach(function (c) { c.checked = header.checked; });
+            pusulaUpdateBulkCount();
+        }
+    </script>
+}

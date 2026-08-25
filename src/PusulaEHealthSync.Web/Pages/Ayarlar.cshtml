@@ -1,0 +1,279 @@
+@page
+@model PusulaEHealthSync.Web.Pages.AyarlarModel
+@{
+    ViewData["Title"] = "Ayarlar";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Ayarlar</h1>
+        <p class="page-subtitle">Ortam, otomatik gönderim, tekrar deneme ve bildirim kuralları</p>
+    </div>
+</div>
+
+<div class="settings-grid">
+
+    <div class="card card-pad settings-card span-2">
+        <p class="section-title">Ortam &middot; Sistem Adresleri</p>
+        <p class="card-desc">
+            Sistem şu an hangi e-Health ortamına gönderim yapacak. Alanlar boş bırakılırsa Test ortamı için
+            mevcut sunucu yapılandırması (appsettings/user-secrets) kullanılmaya devam eder -- burada bir şey
+            girmeden mevcut davranış bozulmaz.
+        </p>
+        <form method="post" asp-page-handler="Ortam" style="display:flex; flex-direction:column; flex:1;">
+            <label class="field-sub-label">Aktif ortam</label>
+            <div class="segmented">
+                <input type="radio" id="envTest" name="EHealthEnvironment" value="Test" checked="@(Model.EHealthEnvironment != "Live")" />
+                <label for="envTest">Test / Sandbox</label>
+                <input type="radio" id="envLive" name="EHealthEnvironment" value="Live" checked="@(Model.EHealthEnvironment == "Live")" />
+                <label for="envLive">Canlı (Production)</label>
+            </div>
+
+            <div class="field-row-2">
+                <div>
+                    <p class="field-sub-label">Test / Sandbox</p>
+                    <div class="field"><label for="testBaseUrl">Adres (BaseUrl)</label>
+                        <input type="text" id="testBaseUrl" asp-for="TestBaseUrl" placeholder="https://ehr-sandbox.e-health.gov.az" /></div>
+                    <div class="field"><label for="testUserName">Kullanıcı adı</label>
+                        <input type="text" id="testUserName" asp-for="TestUserName" autocomplete="off" /></div>
+                    <div class="field"><label for="testPassword">Şifre @(Model.TestPasswordIsSet ? "(tanımlı -- değiştirmek için yeniden girin)" : "(tanımlı değil)")</label>
+                        <input type="password" id="testPassword" asp-for="TestPassword" autocomplete="new-password" placeholder="değiştirmek için girin, boş bırakılırsa mevcut şifre saklı kalır" /></div>
+                    <div class="field"><label for="testProviderId">healthcareProviderId</label>
+                        <input type="text" id="testProviderId" asp-for="TestProviderId" /></div>
+                </div>
+                <div>
+                    <p class="field-sub-label">Canlı (Production)</p>
+                    <div class="field"><label for="liveBaseUrl">Adres (BaseUrl)</label>
+                        <input type="text" id="liveBaseUrl" asp-for="LiveBaseUrl" placeholder="https://ehr.e-health.gov.az" /></div>
+                    <div class="field"><label for="liveUserName">Kullanıcı adı</label>
+                        <input type="text" id="liveUserName" asp-for="LiveUserName" autocomplete="off" /></div>
+                    <div class="field"><label for="livePassword">Şifre @(Model.LivePasswordIsSet ? "(tanımlı -- değiştirmek için yeniden girin)" : "(tanımlı değil)")</label>
+                        <input type="password" id="livePassword" asp-for="LivePassword" autocomplete="new-password" placeholder="değiştirmek için girin, boş bırakılırsa mevcut şifre saklı kalır" /></div>
+                    <div class="field"><label for="liveProviderId">healthcareProviderId</label>
+                        <input type="text" id="liveProviderId" asp-for="LiveProviderId" /></div>
+                </div>
+            </div>
+
+            @if (Model.EHealthEnvironment == "Live" && string.IsNullOrWhiteSpace(Model.LiveBaseUrl))
+            {
+                <div class="alert alert-danger">Aktif ortam "Canlı" seçili ama Canlı adres henüz girilmemiş -- gönderimler adres girilene kadar hata verir.</div>
+            }
+
+            <div class="card-actions">
+                <button type="submit" class="btn btn-primary">Ortamı Kaydet</button>
+                @if (Model.Saved && Model.SavedSection == "ortam")
+                {
+                    <span class="rchip success">Kaydedildi</span>
+                }
+            </div>
+        </form>
+    </div>
+
+    <div class="card card-pad settings-card">
+        <p class="section-title">Otomatik Gönderim</p>
+        <p class="card-desc">
+            Hangi kaynak tipleri arka planda otomatik gönderilsin ve ne sıklıkla çalışsın.
+            <span class="field-hint">(Worker zamanlayıcısı bu ayarları henüz kullanmıyor -- şimdiden hazırlanıyor.)</span>
+        </p>
+        <form method="post" asp-page-handler="Genel" style="display:flex; flex-direction:column; flex:1;">
+            <div class="toggle-row">
+                <input type="checkbox" id="autoPatient" asp-for="AutoSendPatientEnabled" />
+                <label for="autoPatient">Hasta (Patient) kayıtlarını otomatik gönder</label>
+            </div>
+            <div class="toggle-row">
+                <input type="checkbox" id="autoEncounter" asp-for="AutoSendEncounterEnabled" />
+                <label for="autoEncounter">Protokol (Encounter) kayıtlarını otomatik gönder</label>
+            </div>
+            <div class="field-row-2">
+                <div class="field"><label for="autoInterval">Kaç dakikada bir çalışsın?</label>
+                    <input type="number" id="autoInterval" asp-for="AutoSendIntervalMinutes" min="5" max="1440" /></div>
+                <div class="field"><label for="autoBatch">Bir seferde en fazla kaç kayıt?</label>
+                    <input type="number" id="autoBatch" asp-for="AutoSendBatchSize" min="1" max="500" /></div>
+            </div>
+            <div class="card-actions">
+                <button type="submit" class="btn btn-primary">Kaydet</button>
+                @if (Model.Saved && Model.SavedSection == "genel")
+                {
+                    <span class="rchip success">Kaydedildi</span>
+                }
+            </div>
+        </form>
+    </div>
+
+    <div class="card card-pad settings-card">
+        <p class="section-title">Hata Sonrası Tekrar Deneme</p>
+        <p class="card-desc">
+            Bir gönderim hatalı olduğunda (ör. e-Health geçici olarak yanıt vermiyorsa) sistem
+            ne kadar sürede ve kaç kez tekrar denesin.
+        </p>
+        <form method="post" asp-page-handler="Tekrar" style="display:flex; flex-direction:column; flex:1;">
+            <div class="field-row-2">
+                <div class="field"><label for="retryInterval">Kaç dakika sonra tekrar dene?</label>
+                    <input type="number" id="retryInterval" asp-for="RetryIntervalMinutes" min="1" max="1440" /></div>
+                <div class="field"><label for="retryMax">En fazla kaç kez dene?</label>
+                    <input type="number" id="retryMax" asp-for="RetryMaxAttempts" min="1" max="50" /></div>
+            </div>
+            <div class="card-actions">
+                <button type="submit" class="btn btn-primary">Kaydet</button>
+                @if (Model.Saved && Model.SavedSection == "tekrar")
+                {
+                    <span class="rchip success">Kaydedildi</span>
+                }
+            </div>
+        </form>
+    </div>
+
+    <div class="card card-pad settings-card">
+        <p class="section-title">Kapanmamış Protokoller</p>
+        <p class="card-desc">
+            Varsayılan kural: bir protokol kapanana kadar (<span class="mono">KapanisTarihi</span> dolana kadar)
+            Müayinə gönderilmez. Aşağıdaki gün sayısı aşıldığında, henüz kapanmamış olsa bile gönderime
+            <b>uygun</b> sayılır.
+        </p>
+        <form method="post" asp-page-handler="Protokol" style="display:flex; flex-direction:column; flex:1;">
+            <div class="field" style="max-width:220px;">
+                <label for="days">Kaç gün sonra gönderime uygun say?</label>
+                <input type="number" id="days" asp-for="OpenProtokolSendAfterDays" min="0" max="365" />
+                <span asp-validation-for="OpenProtokolSendAfterDays" class="text-muted" style="display:block; margin-top:6px; font-size:12.5px; color:var(--danger);"></span>
+            </div>
+            <div class="card-actions">
+                <button type="submit" class="btn btn-primary">Kaydet</button>
+                @if (Model.Saved && Model.SavedSection == "protokol")
+                {
+                    <span class="rchip success">Kaydedildi</span>
+                }
+            </div>
+        </form>
+    </div>
+
+    <div class="card card-pad settings-card">
+        <p class="section-title">Epikriz (Composition) Kuralları</p>
+        <p class="card-desc">
+            Epikriz gönderimini burada tamamen kapatabilir, ya da Pusula'da henüz
+            <b>kilitlenmemiş</b> (hekim tarafından tamamlanmamış) epikrizlerin gönderilmesini
+            engelleyebilirsiniz.
+        </p>
+        <form method="post" asp-page-handler="Epikriz" style="display:flex; flex-direction:column; flex:1;">
+            <div class="toggle-row">
+                <input type="checkbox" id="epikrizSendEnabled" asp-for="EpikrizSendEnabled" />
+                <label for="epikrizSendEnabled">Epikriz (Composition) gönderimini etkinleştir</label>
+            </div>
+            <div class="toggle-row">
+                <input type="checkbox" id="epikrizOnlySigned" asp-for="EpikrizOnlySigned" />
+                <label for="epikrizOnlySigned">Sadece Pusula'da kilitlenmiş (tamamlanmış) epikrizleri gönder</label>
+            </div>
+            <div class="card-actions">
+                <button type="submit" class="btn btn-primary">Kaydet</button>
+                @if (Model.Saved && Model.SavedSection == "epikriz")
+                {
+                    <span class="rchip success">Kaydedildi</span>
+                }
+            </div>
+        </form>
+    </div>
+
+    <div class="card card-pad settings-card">
+        <p class="section-title">Tanı (Condition) &amp; İşlem (Procedure) Kuralları</p>
+        <p class="card-desc">
+            İkisi de Müayinə "Gönder" ile birlikte otomatik gönderilir (Encounter'in gerçek
+            id'si önce bilinmesi gerektiği için ayrı gönderilemezler) -- burada sadece bu
+            otomatik gönderimi tamamen açıp kapatabilirsiniz.
+        </p>
+        <form method="post" asp-page-handler="TaniIslem" style="display:flex; flex-direction:column; flex:1;">
+            <div class="toggle-row">
+                <input type="checkbox" id="conditionSendEnabled" asp-for="ConditionSendEnabled" />
+                <label for="conditionSendEnabled">Tanı (Condition) otomatik gönderimini etkinleştir</label>
+            </div>
+            <div class="toggle-row">
+                <input type="checkbox" id="procedureSendEnabled" asp-for="ProcedureSendEnabled" />
+                <label for="procedureSendEnabled">İşlem (Procedure) otomatik gönderimini etkinleştir</label>
+            </div>
+            <div class="card-actions">
+                <button type="submit" class="btn btn-primary">Kaydet</button>
+                @if (Model.Saved && Model.SavedSection == "tanislem")
+                {
+                    <span class="rchip success">Kaydedildi</span>
+                }
+            </div>
+        </form>
+    </div>
+
+    <div class="card card-pad settings-card is-placeholder">
+        <div class="card-title-row">
+            <p class="section-title">Lab Kuralları</p>
+            <span class="rchip neutral">Hazır değil</span>
+        </div>
+        <p class="card-desc">
+            Lab sonucu (DiagnosticReport) gönderimi için mapper henüz yazılmadı -- Pusula'da
+            güncel lab sonuç verisinin nerede tutulduğu netleşmeden (bkz. konuşma) bu alan pasif.
+        </p>
+        <div class="toggle-row">
+            <input type="checkbox" disabled />
+            <label>Lab sonucunu sadece onaylanmış/verified olduğunda gönder</label>
+        </div>
+    </div>
+
+    <div class="card card-pad settings-card span-2">
+        <p class="section-title">Günlük E-posta Raporu</p>
+        <p class="card-desc">
+            Her gün belirlenen saatte, o günün gönderim özetini (başarılı/hatalı sayıları + hatalı kayıt
+            listesi) aşağıdaki alıcılara e-posta ile gönderir. Relay sunucu adresi kurum IT'sinden alınan
+            <span class="mono">mail.mlpcare.com</span> olarak önceden dolduruldu.
+        </p>
+        <form method="post" asp-page-handler="Mail" style="display:flex; flex-direction:column; flex:1;">
+            <div class="toggle-row">
+                <input type="checkbox" id="mailEnabled" asp-for="MailEnabled" />
+                <label for="mailEnabled">Günlük özet e-postasını gönder</label>
+            </div>
+
+            <div class="field-row-2">
+                <div class="field-row-21">
+                    <div class="field"><label for="smtpHost">SMTP sunucu adresi</label>
+                        <input type="text" id="smtpHost" asp-for="MailSmtpHost" /></div>
+                    <div class="field"><label for="smtpPort">Port</label>
+                        <input type="number" id="smtpPort" asp-for="MailSmtpPort" min="1" max="65535" /></div>
+                </div>
+                <div class="field-row-2">
+                    <div class="field"><label for="mailUser">Kullanıcı adı <span class="field-hint">(opsiyonel)</span></label>
+                        <input type="text" id="mailUser" asp-for="MailUsername" autocomplete="off" /></div>
+                    <div class="field"><label for="mailPass">Şifre</label>
+                        <input type="password" id="mailPass" asp-for="MailPassword" autocomplete="new-password" /></div>
+                </div>
+            </div>
+
+            <div class="toggle-row" style="max-width:220px;">
+                <input type="checkbox" id="mailTls" asp-for="MailUseTls" />
+                <label for="mailTls">TLS/SSL kullan</label>
+            </div>
+
+            <div class="field-row-21">
+                <div class="field"><label for="mailFrom">Gönderen adres (From)</label>
+                    <input type="email" id="mailFrom" asp-for="MailFromAddress" /></div>
+                <div class="field"><label for="mailHour">Gönderim saati (0-23)</label>
+                    <input type="number" id="mailHour" asp-for="MailSendHour" min="0" max="23" /></div>
+            </div>
+
+            <div class="field">
+                <label for="mailRecipients">Alıcılar <span class="field-hint">(virgül veya yeni satırla ayırın)</span></label>
+                <textarea id="mailRecipients" asp-for="MailRecipients" rows="2" placeholder="ornek1@livhospital.com, ornek2@livhospital.com"></textarea>
+            </div>
+
+            <div class="card-actions">
+                <button type="submit" class="btn btn-primary">Kaydet</button>
+                @if (Model.Saved && Model.SavedSection == "mail")
+                {
+                    <span class="rchip success">Kaydedildi</span>
+                }
+            </div>
+        </form>
+    </div>
+
+    <div class="card card-pad settings-card span-2" style="flex-direction:row; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:16px;">
+        <div>
+            <p class="section-title" style="margin-bottom:4px;">Kullanıcı Yönetimi &amp; Yetkilendirme</p>
+            <p class="text-muted" style="font-size:13px; margin:0;">Panele giriş yapabilecek kullanıcıları ve rollerini (Yönetici / Operatör / İzleyici) yönetin.</p>
+        </div>
+        <a asp-page="/Kullanicilar" class="btn btn-outline">Kullanıcıları Yönet →</a>
+    </div>
+
+</div>

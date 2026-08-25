@@ -1,0 +1,223 @@
+@page "{id:int}"
+@model PusulaEHealthSync.Web.Pages.HastaModel
+@using PusulaEHealthSync.Persistence
+@{
+    ViewData["Title"] = Model.Hasta is null ? "Hasta" : $"Hasta #{Model.Hasta.Id}";
+}
+
+@if (Model.Hasta is null)
+{
+    <div class="table-wrap empty-state"><p>Hasta bulunamadı.</p></div>
+}
+else
+{
+    var h = Model.Hasta;
+    var adSoyad = string.Join(" ", new[] { h.Adi, h.Adi2, h.Soyadi }.Where(s => !string.IsNullOrWhiteSpace(s)));
+    <p class="breadcrumb"><a asp-page="/Index">Protokol Listesi</a> / Hasta #@h.Id</p>
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">@adSoyad</h1>
+            <p class="page-subtitle">Hasta No @h.Id &middot; @(h.TCKimlikNo ?? "FIN yok") &middot; @Model.Protokoller.Count protokol</p>
+        </div>
+        <a asp-page="/Index" class="btn btn-outline btn-sm">&larr; Listeye dön</a>
+    </div>
+
+    <div class="card info-strip" style="margin-bottom:16px;">
+        <div class="info-item">
+            <span class="label">Ad Soyad</span>
+            <span class="value" style="font-family:var(--font-body); font-weight:400;">@adSoyad</span>
+        </div>
+        <div class="info-item">
+            <span class="label">FIN No</span>
+            <span class="value">@(h.TCKimlikNo ?? "-")</span>
+        </div>
+        <div class="info-item">
+            <span class="label">Baba Adı</span>
+            <span class="value" style="font-family:var(--font-body); font-weight:400;">@(h.BabaAdi ?? "-")</span>
+        </div>
+        <div class="info-item">
+            <span class="label">Doğum tarihi</span>
+            <span class="value">@(h.DogumTarihi?.ToString("yyyy-MM-dd") ?? "-")</span>
+        </div>
+        <div class="info-item">
+            <span class="label">Cinsiyet</span>
+            <span class="value" style="font-family:var(--font-body); font-weight:400;">
+                @(h.CinsiyetId switch { "E" => "Erkek", "K" => "Kadın", "D" => "Diğer", _ => h.CinsiyetId ?? "-" })
+            </span>
+        </div>
+        <div class="info-item">
+            <span class="label">Kayıt açılma tarihi</span>
+            <span class="value">@(h.CreatedDate?.ToString("yyyy-MM-dd") ?? "-")</span>
+        </div>
+    </div>
+
+    <p class="section-title">e-Health gönderim durumu (Hasta)</p>
+    <div class="checklist" style="margin-bottom:24px;">
+        <div class="checklist-item">
+            <div class="rt-info">
+                <span class="rt-name">Hasta (Patient)</span>
+                <span class="rt-desc">
+                    @if (Model.HastaDurumKaydi is null)
+                    {
+                        <text>Bu hasta için henüz bir gönderim denemesi yapılmadı.</text>
+                    }
+                    else
+                    {
+                        <text>Son deneme: @Model.HastaDurumKaydi.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC @(Model.HastaDurumKaydi.Message is not null ? $"-- {Model.HastaDurumKaydi.Message}" : "")</text>
+                    }
+                </span>
+            </div>
+            <div class="rt-right">
+                @{
+                    var status = Model.HastaDurumKaydi?.Status;
+                    var (hastaBadgeClass, hastaBadgeLabel) = SyncLogEntry.StatusBadge(Model.HastaDurumKaydi);
+                }
+                <span class="badge @hastaBadgeClass"><span class="badge-dot"></span>@hastaBadgeLabel</span>
+                @if (Model.HastaDurumKaydi is not null)
+                {
+                    <a asp-page="/Detail" asp-route-id="@Model.HastaDurumKaydi.Id" class="btn btn-outline btn-sm">Detay</a>
+                }
+                <form method="post" asp-page-handler="GonderHasta" asp-route-id="@h.Id" onsubmit="pusulaLockSubmit(this)">
+                    <button type="submit" class="btn btn-primary btn-sm"
+                            onclick="return confirm('Hasta bilgisi e-Health\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
+                        @(status is null ? "Gönder" : "Tekrar Gönder")
+                    </button>
+                </form>
+                @if (SyncLogEntry.CanDelete(Model.HastaDurumKaydi))
+                {
+                    <form method="post" asp-page-handler="SilHasta" asp-route-id="@h.Id" onsubmit="pusulaLockSubmit(this)">
+                        <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
+                                onclick="return confirm('Hasta kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                            Sil
+                        </button>
+                    </form>
+                }
+            </div>
+        </div>
+    </div>
+
+    <p class="section-title">Protokol geçmişi</p>
+
+    @if (Model.BulkResultMessage is not null)
+    {
+        <div class="alert alert-success">@Model.BulkResultMessage</div>
+    }
+
+    @if (Model.Protokoller.Count == 0)
+    {
+        <div class="table-wrap empty-state"><p>Bu hastaya ait protokol bulunamadı.</p></div>
+    }
+    else
+    {
+        <form method="post" id="bulkForm">
+            <div class="bulk-toolbar">
+                <button type="button" class="btn btn-outline btn-sm" onclick="pusulaSelectAll()">Tümünü Seç</button>
+                <button type="button" class="btn btn-outline btn-sm" onclick="pusulaSelectNone()">Seçimi Temizle</button>
+                <select name="ResourceType" class="toolbar-select" aria-label="Kayıt türü">
+                    <option value="Tumu">Tümünü (Müayinə + Epikriz)</option>
+                    <option value="Encounter">Sadece Müayinə</option>
+                    <option value="Composition">Sadece Epikriz</option>
+                </select>
+                <button type="submit" asp-page-handler="BulkGonder" class="btn btn-primary btn-sm" id="bulkGonderBtn" disabled
+                        onclick="return pusulaBulkConfirm(this, 'Seçilen protokoller için seçtiğiniz kayıt türü e-Health\'e CANLI olarak gönderilecek. Devam edilsin mi?')">
+                    Gönder
+                </button>
+                <button type="submit" asp-page-handler="BulkSil" class="btn btn-outline btn-sm" id="bulkSilBtn" disabled
+                        style="border-color:var(--danger); color:var(--danger);"
+                        onclick="return pusulaBulkConfirm(this, 'Seçilen protokoller için seçtiğiniz kayıt türü e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                    Sil
+                </button>
+                <span class="bulk-count" id="bulkCount">0 seçili</span>
+            </div>
+
+        <div class="table-wrap">
+            <table style="min-width:1040px;">
+                <thead>
+                    <tr>
+                        <th class="checkbox-cell"><input type="checkbox" id="selectAllHeader" onclick="pusulaToggleAllHeader(this)" aria-label="Tümünü seç" /></th>
+                        <th>Protokol</th>
+                        <th>Bölüm</th>
+                        <th>Doktor</th>
+                        <th>Tarih</th>
+                        <th>Geliş Tipi</th>
+                        <th>Protokol Tipi</th>
+                        <th>e-Health durumu</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Protokoller)
+                    {
+                        var p = row.Protokol;
+                        <tr>
+                            <td class="checkbox-cell">
+                                <input type="checkbox" class="row-check" name="selectedProtokolIds" value="@p.ProtokolId" onchange="pusulaUpdateBulkCount()" aria-label="Protokol #@p.ProtokolId seç" />
+                            </td>
+                            <td class="mono">@p.ProtokolId</td>
+                            <td class="text-muted">@(p.BolumAdi ?? "-")</td>
+                            <td class="text-muted">@(p.DoktorAdiSoyadi ?? "-")</td>
+                            <td class="mono text-muted">@(p.AcilisTarihi?.ToString("yyyy-MM-dd HH:mm") ?? "-")</td>
+                            <td class="text-muted">@PusulaEHealthSync.Web.Pages.IndexModel.GelisTipiLabel(p.GelisTipiId)</td>
+                            <td class="text-muted">@PusulaEHealthSync.Web.Pages.IndexModel.ProtokolTipiLabel(p.ProtokolTipiId)</td>
+                            <td>
+                                <div class="rchip-row">
+                                    @{
+                                        var (encChipClass, encChipLabel) = SyncLogEntry.StatusBadge(row.MuayineDurumKaydi);
+                                        var (epiChipClass, epiChipLabel) = SyncLogEntry.StatusBadge(row.EpikrizDurumKaydi);
+                                    }
+                                    <span class="rchip @encChipClass"><span class="rchip-label">Müayinə</span>@encChipLabel</span>
+                                    <span class="rchip @epiChipClass"><span class="rchip-label">Epikriz</span>@epiChipLabel</span>
+                                </div>
+                            </td>
+                            <td><a asp-page="/Protokol" asp-route-id="@p.ProtokolId" class="btn btn-outline btn-sm">Protokol Detay</a></td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        </form>
+    }
+}
+
+@section Scripts {
+    <script>
+        function pusulaRowChecks() {
+            return Array.from(document.querySelectorAll('#bulkForm .row-check'));
+        }
+
+        function pusulaUpdateBulkCount() {
+            var checks = pusulaRowChecks();
+            var checked = checks.filter(function (c) { return c.checked; });
+            document.getElementById('bulkCount').textContent = checked.length + ' seçili';
+            document.getElementById('bulkGonderBtn').disabled = checked.length === 0;
+            document.getElementById('bulkSilBtn').disabled = checked.length === 0;
+            var header = document.getElementById('selectAllHeader');
+            if (header) header.checked = checks.length > 0 && checked.length === checks.length;
+        }
+
+        function pusulaSelectAll() {
+            pusulaRowChecks().forEach(function (c) { c.checked = true; });
+            pusulaUpdateBulkCount();
+        }
+
+        function pusulaSelectNone() {
+            pusulaRowChecks().forEach(function (c) { c.checked = false; });
+            pusulaUpdateBulkCount();
+        }
+
+        function pusulaToggleAllHeader(header) {
+            pusulaRowChecks().forEach(function (c) { c.checked = header.checked; });
+            pusulaUpdateBulkCount();
+        }
+
+        // pusulaLockSubmit (bkz. _Layout.cshtml) formdaki ILK submit butonunu kilitliyor --
+        // bu formda IKI submit butonu oldugu icin (Gönder/Sil) o yanlis butonu kilitleyebilir.
+        // Bunun yerine TIKLANAN butonu (this) dogrudan kilitliyoruz.
+        function pusulaBulkConfirm(btn, message) {
+            if (!confirm(message)) return false;
+            btn.disabled = true;
+            btn.textContent = 'İşleniyor…';
+            return true;
+        }
+    </script>
+}

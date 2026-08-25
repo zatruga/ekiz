@@ -1,0 +1,103 @@
+@page
+@model PusulaEHealthSync.Web.Pages.KullanicilarModel
+@{
+    ViewData["Title"] = "Kullanıcılar";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Kullanıcılar</h1>
+        <p class="page-subtitle">Panele giriş yapabilecek kullanıcılar ve yetkileri (sadece Yönetici görebilir)</p>
+    </div>
+</div>
+
+@if (Model.Message is not null)
+{
+    <div class="alert alert-success">@Model.Message</div>
+}
+@if (Model.Error is not null)
+{
+    <div class="alert alert-danger">@Model.Error</div>
+}
+
+<div class="card card-pad" style="margin-bottom:20px;">
+    <p class="section-title">Yeni kullanıcı ekle</p>
+    <form method="post" asp-page-handler="Add" style="display:flex; gap:14px; align-items:flex-end; flex-wrap:wrap;">
+        <div class="field" style="margin:0;">
+            <label for="newUsername">Kullanıcı adı</label>
+            <input type="text" id="newUsername" asp-for="NewUsername" autocomplete="off" />
+        </div>
+        <div class="field" style="margin:0;">
+            <label for="newPassword">Şifre</label>
+            <input type="password" id="newPassword" asp-for="NewPassword" autocomplete="new-password" />
+        </div>
+        <div class="field" style="margin:0;">
+            <label for="newRole">Rol</label>
+            <select id="newRole" asp-for="NewRole">
+                <option value="Admin">Yönetici (Admin)</option>
+                <option value="Operator" selected>Operatör</option>
+                <option value="Viewer">İzleyici</option>
+            </select>
+        </div>
+        <button type="submit" class="btn btn-primary">Ekle</button>
+    </form>
+    <p class="text-muted" style="font-size:12.5px; margin:10px 0 0;">
+        <b>Yönetici:</b> Ayarlar ve Kullanıcılar dahil her şeyi görür/değiştirir &middot;
+        <b>Operatör:</b> gönderim/silme işlemlerini yapabilir, Ayarlar'a giremez &middot;
+        <b>İzleyici:</b> sadece görüntüler.
+    </p>
+</div>
+
+<div class="table-wrap">
+    <table>
+        <thead>
+            <tr>
+                <th>Kullanıcı adı</th>
+                <th>Rol</th>
+                <th>Durum</th>
+                <th>Oluşturulma</th>
+                <th>Şifre sıfırla</th>
+                <th></th>
+            </tr>
+        </thead>
+        <tbody>
+            @foreach (var user in Model.Users)
+            {
+                var isMe = user.Username == Model.CurrentUsername;
+                <tr>
+                    <td>@user.Username @if (isMe) { <span class="text-muted" style="font-size:12px;">(siz)</span> }</td>
+                    <td>
+                        <form method="post" asp-page-handler="SetRole" style="display:flex; gap:8px; align-items:center;">
+                            <input type="hidden" name="id" value="@user.Id" />
+                            <select name="role" style="max-width:160px;">
+                                <option value="Admin" selected="@(user.Role == "Admin")">Yönetici</option>
+                                <option value="Operator" selected="@(user.Role == "Operator")">Operatör</option>
+                                <option value="Viewer" selected="@(user.Role == "Viewer")">İzleyici</option>
+                            </select>
+                            <button type="submit" class="btn btn-outline btn-sm">Kaydet</button>
+                        </form>
+                    </td>
+                    <td>
+                        <span class="rchip @(user.Active ? "success" : "neutral")">@(user.Active ? "Aktif" : "Pasif")</span>
+                    </td>
+                    <td class="mono text-muted">@user.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                    <td>
+                        <form method="post" asp-page-handler="ResetPassword" style="display:flex; gap:8px; align-items:center;">
+                            <input type="hidden" name="id" value="@user.Id" />
+                            <input type="password" name="resetPassword" placeholder="yeni şifre" autocomplete="new-password" style="max-width:150px;" />
+                            <button type="submit" class="btn btn-outline btn-sm">Sıfırla</button>
+                        </form>
+                    </td>
+                    <td>
+                        <form method="post" asp-page-handler="ToggleActive">
+                            <input type="hidden" name="id" value="@user.Id" />
+                            <button type="submit" class="btn btn-outline btn-sm" @(isMe ? "disabled" : "")>
+                                @(user.Active ? "Pasif yap" : "Aktif yap")
+                            </button>
+                        </form>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

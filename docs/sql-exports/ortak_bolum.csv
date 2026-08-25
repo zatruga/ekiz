@@ -1,0 +1,441 @@
+﻿Id	Kodu	BolumTipiId	ParentId	Adi	BlokId	ServisKatId	IptalAciklamaId	IptalAciklamasi	OperationTypeId	CreatedByLoginId	CreatedDate	ModifiedByLoginId	ModifiedDate	State	RecordStamp	BolumAltTipiId	AyaktanEpikrizSablonId	YatanEpikrizSablonId	AyaktanOzetEpikrizSablonId	YatanOzetEpikrizSablonId	SGKHastaFarkOrani	IsRandevuVerilir	IsWebRandevuVerilir	SaglikTesisKodu	BolumSorumlusu	IrtibatTelefonu	VentilatorSayisi	KonsultasyonHizmetId	MasrafMerkeziId	IsAtolye	SKRSKlinikId	IsSGKHastaPayiAlınmayacak	IsSGKHastaPayiAlinmayacak	SKRSKodu	BransId	PrDefterBaslangicNo	PrDefterBitisNo	MerkezId	SenkronizasyonTarihi	SenkronizasyonLogId	RandevuCizelgeSuresi	KurumsuzMuayeneKontrolSuresi	IsNotIndirimOnayOtomatik	YabanciAd	MuayeneFormKodu	BolumTIGId	KisaAd	IsKurumsuzKontroldeAyriProtokolAcilsin	IsKatilimPayindanMuaf	IsEpikriziBolumeOzel	HastaneCariId	ENabizSaglikTesisiId	Aciklama	TeleTipKurumKodu	IsKDVsizFaturaKesilemesin	RandevuAciklamasi	SubeId	ISPandemiKlinigi	PandemiKlinigiYatakTuruId	IsFiyatTeklifVerenBolum	MobileId	IsIlkTaniTarihiKontroluYapilsin	AlternatifAd
+0	0	1		Diğer Tıbbi Birimler	0				54	1	9.11.2021 11:11:46			0	System.Byte[]							False	False												86								True														167				0		
+4	4	1		Qulaq-Burun-Boğaz	0				54	1	13.01.2020 14:48:07	510587962	18.08.2026 11:04:32	1	System.Byte[]		1	2	11	12		True	True					100024	1243					165	82							14	True	Ear, Nose, Throat Diseases													167			True	4		
+5	5	1		Klinik	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												74								True														167				5		
+6	6	1		Göz	0				54	1	13.01.2020 14:48:07			0	System.Byte[]							True	False												83								True														167				6		
+7	7	1		KBB	0				54	1	13.01.2020 14:48:07			0	System.Byte[]							True	False												82								True														167				7		
+16	16	1		Radyoloji	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												131								True														167				16		
+19	19	1		Təcili Tibbi yardım	0				54	1	13.01.2020 14:48:07	507215310	6.08.2026 17:00:21	1	System.Byte[]	1	1	2	11	12		True	True					100024	1217					101	90							0	True	Emergency Services													167			True	19		
+20	20	1		Stomatologiya	0				54	1	13.01.2020 14:48:07	279544489	27.02.2025 10:36:59	1	System.Byte[]		1	2	11	12		True	True					100024	1218			False		198	285							14	True	Oral and dental Health 	Medinet.Dis.Tedavi.Muayene.FormDisMuayene			True		False							167			True	20		
+21	21	1		Anestezi ve Reanimasyon (GYB) TR.	0				54	1	13.01.2020 14:48:07	133425523	31.05.2024 11:29:35	1	System.Byte[]	4	1	2	11	12		True	False					100024	1460					109	92							14	True	Anesthesia and Reanimation													167			True	21		
+22	22	1		Neyrocərrahiyyə	0				54	1	13.01.2020 14:48:07	482530865	14.05.2026 13:13:10	1	System.Byte[]		1	2	11	12		True	True					100024	1221					112	78							14	True	Neurosurgery						False							167			True	22		
+23	23	1		Uşaq Cərrahiyyə	0				54	1	13.01.2020 14:48:07	176412253	21.08.2024 09:13:30	1	System.Byte[]		1	2	11	12		True	True					100024	1222					116	75							14	True	Pediatric Surgery													167			True	23		
+24	24	1		Uşaq Nevrologiyası	0				54	1	13.01.2020 14:48:07	40522333	3.03.2023 10:54:18	1	System.Byte[]		1	2	11	12		True	True					100024	1450					129	94							14	True	Pediatric Neurology													167			True	24		
+25	25	1		Uşaq Sağlamlığı və Xəstəlikləri	0				54	1	13.01.2020 14:48:07	40522333	2.03.2023 16:19:36	1	System.Byte[]		1	2	11	12		True	True					100024	1224					132	71							14	True	Child Health and Diseases													167			True	25		
+26	26	1		Dermatologiya	0				54	1	13.01.2020 14:48:07	120767244	29.04.2024 16:51:55	1	System.Byte[]		1	2	11	12		True	True					100024	1226					136	72							14	True	Dermatology													167				26		
+27	27	1		Dietologiya 	0				54	1	13.01.2020 14:48:07	404627168	23.10.2025 15:26:57	1	System.Byte[]		1	2	11	12		True	True					100024	1220					198	8						20	1	True	Diet and  Nutrition						False							167			True	27		
+28	28	1		İnfeksion Xəstəliklər        	0				54	1	13.01.2020 14:48:07	4576171	3.01.2022 13:01:05	1	System.Byte[]		1	2	11	12		True	True					100024	1228					140	106							22	True	Infectious Diseases													167			True	28		
+29	29	1		Fizioterapiya və Rehabilitasiya	0				54	1	13.01.2020 14:48:07	40522333	2.03.2023 16:20:40	1	System.Byte[]		1	2	11	12		True	True					100024	1229					142	73							14	True	Physical Medicine and Rehabilitation													167			True	29		
+30	30	1		Qastroenterologiya	0				54	1	13.01.2020 14:48:07	40522333	2.03.2023 16:20:54	1	System.Byte[]		1	2	11	12		True	True					100024	1499					144	91							21	True	Gastroenterology													167				30		
+31	31	1		Ümumi Cərrahiyyə	0				54	1	13.01.2020 14:48:07	506767922	5.08.2026 10:43:37	1	System.Byte[]		1	2	11	12		True	True					100024	1231					147	74							30	True	General Surgery													167			True	31		
+32	32	1		Torakal Cerrahiyyə	0				54	1	13.01.2020 14:48:07	176412253	21.08.2024 09:13:47	1	System.Byte[]		1	2	11	12		True	True					100024	1233					149	76							14	True	Thoracic Surgery													167			True	32		
+33	33	1		Pulmonologiya                      	0				54	1	13.01.2020 14:48:07	440514815	23.12.2025 18:08:30	1	System.Byte[]		1	2	11	12		True	True					108294	1234					150	68							14	True	Chest Diseases													167			True	33		
+34	34	1		Oftalmologiya	0				54	1	13.01.2020 14:48:07	48512454	11.05.2023 09:48:16	1	System.Byte[]		1	2	11	12		True	True					100024	1235					151	83							14	True	Ophthalmology 													167			True	34		
+35	35	1		Daxili Xəstəliklər	0				54	1	13.01.2020 14:48:07	99258167	19.02.2024 13:38:25	1	System.Byte[]		1	2	11	12		True	True					100024	1237					157	66							14	True	Internal diseases													167			True	35		
+36	36	1		Mamalıq-Ginekologiya	0				54	1	13.01.2020 14:48:07	99258167	19.02.2024 13:47:14	1	System.Byte[]		1	2	11	12		True	True					100024	1238					161	84							14	True	Gynecology and Obstetrics													167			True	36		
+37	37	1		Kardiologiya	0				54	1	13.01.2020 14:48:07	40522333	2.03.2023 16:21:59	1	System.Byte[]		1	2	11	12		True	True					100024	1240					163	67							14	True	Cardiology													167			True	37		
+38	38	1		Ürək - Damar Cərrahiyyəsi	0				54	1	13.01.2020 14:48:07	4576171	3.01.2022 13:12:13	1	System.Byte[]		1	2	11	12		True	True					100024	1239					162	77							14	True	Cardiovascular Surgery													167			True	38		
+39	39	1		Nefrologiya	0				54	1	13.01.2020 14:48:07	40522333	2.03.2023 16:22:50	1	System.Byte[]		1	2	11	12		True	True					100024	1245					166	97							14	True	Nephrology													167			True	39		
+40	40	1		Nevrologiya	0				54	1	13.01.2020 14:48:07	195083084	23.09.2024 08:21:20	1	System.Byte[]		1	2	11	12		True	True					100024	1246					168	69							14	True	Neurology													167			True	40		
+41	41	1		Travmatologiya və Ortopediya	0				54	1	13.01.2020 14:48:07	274822416	18.02.2025 17:12:48	1	System.Byte[]		1	2	11	12		True	True					100024	1248					171	80							14	True	Orthopedics and Traumatology													167			True	41		
+42	42	1		Plastik, Estetik və Rekonstruktiv Cərrahiyyə	0				54	1	13.01.2020 14:48:07	40522333	2.03.2023 16:24:00	1	System.Byte[]		1	2	11	12		True	True					100024	1534					175	79							14	True	Plastic surgery													167			True	42		
+43	43	1		Psikiyatri	0				54	1	13.01.2020 14:48:07	210221901	21.10.2024 16:26:55	1	System.Byte[]		1	2	11	12		True	True					100024	1253					181	70							14	True	Psychiatry													167			True	43		
+44	44	1		Şüa Terapiyası	0				54	1	13.01.2020 14:48:07	40522333	2.03.2023 16:25:11	1	System.Byte[]		1	2	11	12		True	False					100024	1254					177	130							14	True	Radiation oncology													167			True	44		
+45	45	1		Urologiya	0				54	1	13.01.2020 14:48:07	40522333	2.03.2023 16:16:50	1	System.Byte[]		1	2	11	12		True	True					100024	1261					196	81							14	True	Urology													167			True	45		
+46	46	1		Ağız ve Diş Cerrahisi	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1498						89								True														167				46		
+47	47	1		Anestezi ve Reanimasyon	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						74						92								True														167				47		
+48	48	1		Beyin ve Sinir Cerrahi Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1221						78								True														167				48		
+49	49	1		Çocuk Cerrahisi	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1222						75								True														167				49		
+50	50	1		Çocuk Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1224						71								True														167				50		
+51	51	1		Dermatoloji Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1226						72								True														167				51		
+52	52	1		Enfeksiyon Hastalıkları Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1228						106								True														167				52		
+53	53	1		Fizik Tedavi ve Rehabilitasyon Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1229						73								True														167				53		
+54	54	1		Gastroenteroloji Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1230						91								True														167				54		
+55	55	1		Genel Cerrahi Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1231						74								True														167				55		
+56	56	1		Göğüs Cerrahisi Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1233						76								True														167				56		
+57	57	1		Göğüs Hastalıkları Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1234						68								True														167				57		
+58	58	1		Göz Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1235						83								True														167				58		
+59	59	1		İç Hastalıkları Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1237						66								True														167				59		
+60	60	1		Kadın Hastalıkları ve Doğum Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1238						84								True														167				60		
+61	61	1		Kalp ve Damar Cerrahisi	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1239						77								True														167				61		
+62	62	1		Kardiyoloji Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1240						67								True														167				62		
+63	63	1		KBB Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1243						82								True														167				63		
+64	64	1		Nefrolofi Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1245						97								True														167				64		
+65	65	1		Nöroloji Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1246						69								True														167				65		
+66	66	1		Onkoloji	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												130								True														167				66		
+67	67	1		Ortopedi Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1248						80								True														167				67		
+68	68	1		Plastik Cerrahi Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1534						79								True														167				68		
+69	69	1		Üroloji Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1261						81								True														167				69		
+72	72	1		Laboratuvar	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	True												13								True														167				72		
+73	73	1		Laboratuar Ekip	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1311						13								True														167				73		
+77	77	1		MRI	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1314						131								True														167				77		
+78	78	1		Nükleer Tıp	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1312						135								True														167				78		
+122	122	1		Radyoloji	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1314						131								True														167				122		
+132	132	1		Hemşire	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				132		
+184	184	1		Radyasyon Onkolojisi	0				54	1	13.01.2020 14:48:07			0	System.Byte[]							True	False												130								True														167				184		
+185	185	1		Radyasyon Onkolojisi	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1254						130								True														167				185		
+186	186	1		Radyasyon Onkolojisi	0				54	1	13.01.2020 14:48:07			0	System.Byte[]							True	False												130								True														167				186		
+187	187	1		Tibbi Genetika	0				54	1	13.01.2020 14:48:07	4576171	3.01.2022 13:06:41	1	System.Byte[]		1	2	11	12		True	True					100024	1307					148	118							14	True	Genetic													167			True	187		
+189	189	1		Ailə Həkimi	0				54	1	13.01.2020 14:48:07	272586819	14.02.2025 12:09:08	1	System.Byte[]		1	2	11	12		True	True					100024	1217					101	85							14	True	Family Medicine													167			True	189		
+190	190	1		Genetik	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1307						118								True														167				190		
+191	191	1		Onkoloji Poliklinikler	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												130								True														167				191		
+192	192	1		Kemoterapi(Onk.)	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:23:56	0	System.Byte[]							True	False						1237						66								True														167				192		
+244	244	1		7. Kat	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												74								True														167				244		
+341	341	1		Genel YB	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1460						92								True														167				341		
+344	344	1		Endokrinologiya 	0				54	1	13.01.2020 14:48:07	95120779	30.01.2024 14:14:44	1	System.Byte[]		1	2	11	12		True	True					100024	1227					139	96							14	True	Endocrinology													167			True	344		
+345	345	1		Revmatologi	0				54	1	13.01.2020 14:48:07	40522333	2.03.2023 16:24:54	1	System.Byte[]		1	2	11	12		True	True					100024	1255					180	98							21	True	Rheumatology													167			True	345		
+346	346	1		Ortopedi ve Travmatoloji(Onk.)	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:24:34	0	System.Byte[]							True	False						1248						80								True														167				346		
+347	347	1		Kulak Burun Boğaz Hastalıkları(Onk.)	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:24:01	0	System.Byte[]							True	False						1243						82								True														167				347		
+348	348	1		Üroloji(Onk.)	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:26:24	0	System.Byte[]							True	False						1261						81								True														167				348		
+349	349	1		Kadın Hastalıkları ve Doğum(Onk.) 	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:11:04	0	System.Byte[]							True	False						1238						84								True														167				349		
+350	350	1		Genel Cerrahi(Onk.)	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:08:48	0	System.Byte[]							True	False						1231						74								True														167				350		
+351	351	1		Beyin Cerrahisi(Onk.)	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:06:42	0	System.Byte[]							True	False						1221						78								True														167				351		
+352	352	1		Göğüs Cerrahisi(Onk.)	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:10:26	0	System.Byte[]							True	False						1233						76								True														167				352		
+353	353	1		Medical Onkoloji(Onk.)	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				353		
+354	354	1		Radyasyon Onkolojisi(Onk.)	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:25:22	0	System.Byte[]							True	True						1254						130								True														167				354		
+355	355	1		Onkoloji Klinikler	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												130								True														167				355		
+356	356	1		Beyin Cerrahisi (Onk.)	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1221						78								True														167				356		
+357	357	1		Genel Cerrahi (Onk.)	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1231						74								True														167				357		
+358	358	1		Göğüs Cerrahisi (Onk.)	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1233						76								True														167				358		
+359	359	1		Kadın Hastalıkları ve Doğum (Onk.)	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1238						84								True														167				359		
+360	360	1		Kulak Burun Boğaz Hastalıkları (Onk.)	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1243						82								True														167				360		
+361	361	1		Medikal Onkoloji (Onk.)	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1237						66								True														167				361		
+362	362	1		Ortopedi Ve Travmatoloji (Onk.)	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1248						80								True														167				362		
+363	363	1		Radyasyon Onkolojisi (Onk.)	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1254						130								True														167				363		
+364	364	1		Üroloji (Onk.)	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1261						81								True														167				364		
+365	365	1		11 DOĞUMHANE 1	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												84								True														167				365		
+366	366	1		12 DOĞUMHANE 2	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												84								True														167				366		
+369	369	1		ONKOLOJİ Hasta Kayıt	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1254						130								True														167				369		
+370	370	1		ONKOLOJİ Hasta Danışmanı	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1254						130								True														167				370		
+371	371	1		Enjeksiyon	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:08:30	0	System.Byte[]							True	False												66								True														167				371		
+372	372	1		O3. Kat	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												66								True														167				372		
+385	385	1		Check Up	0				54	1	13.01.2020 14:48:07	480224896	30.04.2026 12:06:35	1	System.Byte[]		1	2	11	12		True	True					100024	1269					157	18							9	True	Check Up													167			True	385		Check--UP
+386	386	1		Ağrı Polikliniği	0				54	1	13.01.2020 14:48:07	133425523	31.05.2024 11:10:52	1	System.Byte[]		1	2	11	12		True	False					100024	74					105	129							9	True														167			True	386		
+387	387	1		Odyometri	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												82								True														167				387		
+388	388	1		Odyometri	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:24:19	0	System.Byte[]							True	False						1243						82								True														167				388		
+389	389	1		Uşaq Kardiologiya	0				54	1	13.01.2020 14:48:07	272586819	14.02.2025 11:51:52	1	System.Byte[]		1	2	11	12		True	True					100024	1240					126	93							14	True	Pediatric Cardiology													167			True	389		
+390	390	1		Çocuk Kardiyoloji	0				54	1	13.01.2020 14:48:07			0	System.Byte[]							True	False												93								True														167				390		
+391	391	1		Çocuk Kardiyoloji	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1240						93								True														167				391		
+399	399	1		Ağrı Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						74						66								True														167				399		
+401	401	1		Hematologiya	0				54	1	13.01.2020 14:48:07	4576171	3.01.2022 13:08:04	1	System.Byte[]		1	2	11	12		True	True					100024	1236					155	101							21	True	Hematology													167			True	401		
+402	402	1		Acil (P)	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:06:29	0	System.Byte[]							True	False						1217						3								True														167				402		
+403	403	1		Psixoloq	0				54	1	13.01.2020 14:48:07	392742849	2.10.2025 15:38:46	1	System.Byte[]		1	2	11	12		True	True					100024	1253					181	26							0	True	Psychologist													167			True	403		
+406	406	1		Damar Cerrahisi	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:07:32	0	System.Byte[]							True	True						1239						32								True														167				406		
+407	407	1		Psikolog(Onk.)	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:24:52	0	System.Byte[]							True	False						1253						70								True														167				407		
+408	408	1		Psikolog (Onk.)	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1253						70								True														167				408		
+409	409	1		Girişimsel Radyoloji Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1314						133								True														167				409		
+410	410	1		Pediatri Hematolojisi(Onk.)	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:24:40	0	System.Byte[]							True	False						1236						101								True														167				410		
+411	411	1		Pediatri Hematolojisi	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1236						101								True														167				411		
+412	412	1		Aile Hekimliği Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1217						85								True														167				412		
+413	413	1		Radyoloji Hasta Kayıt	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												131								True														167				413		
+415	415	1		Uşaq Hematologiya və Onkologiyası	0				54	1	13.01.2020 14:48:07	40522333	3.03.2023 10:53:49	1	System.Byte[]		1	2	11	12		True	True					100024	1265					123	110							14	True	Pediatric Hematology													167			True	415		
+418	418	1		Anestezi ve Reanimasyon 	0				54	1	13.01.2020 14:48:07			0	System.Byte[]							True	False												92								True														167				418		
+425	425	1		Sağlam Həyat	0				54	1	13.01.2020 14:48:07	272075481	13.02.2025 14:40:26	1	System.Byte[]		1	2	11	12		True	True					100024	1360					197	5			9921				14	True														167				425		
+438	438	1		Tüp Bebek	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												84								True														167				438		
+442	442	1		Süni Mayalanma	0				54	1	13.01.2020 14:48:07	48793563	12.05.2023 14:50:10	1	System.Byte[]		1	2	11	12		True	True					100024	1259					161	171							14	True	IVF													167			True	442		
+443	443	1		Tüp Bebek_Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1259						171								True														167				443		
+448	448	1		Nükleer Tıp	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												135								True														167				448		
+456	456	1		İyot Odası	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												130								True														167				456		
+458	458	1		Nüvə Təbabəti	0				54	1	13.01.2020 14:48:07	133425523	31.05.2024 11:18:28	1	System.Byte[]		1	2	11	12		True	False					100024	1312					169	135							14	True	Nuclear medicine													167			True	458		
+460	460	1		Laboratoriya	0				54	1	13.01.2020 14:48:07	232646978	4.12.2024 12:35:39	1	System.Byte[]		1	12	11	12		False	True					100024	1311					186	4							14	True					True									167			True	460		
+464	464	1		Saç Nakli Merkezi	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1256						27								True														167				464		
+473	473	1		Saç Nakli Merkezi.	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1256						27								True														167				473		
+481	481	1		Çocuk Psikiyatri Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1224						71								True														167				481		
+483	483	1		Kosmetoloq	0				54	1	13.01.2020 14:48:07	483893094	22.05.2026 10:52:24	1	System.Byte[]		1	2	11	12		True	True					100024	1525					136	287							14	True	Medical aesthetic													167			True	483		
+490	490	1		Radiologiya	0				54	1	13.01.2020 14:48:07	133425523	31.05.2024 11:13:43	1	System.Byte[]		1	2	11	12		True	True					100024	1314					178	131							14	True	Radiology													167			True	490		
+491	491	1		Genetik Laboratuarı	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:09:26	0	System.Byte[]							True	False												118								True														167				491		
+510	510	1		Radyoloji Klinik	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												131								True														167				510		
+512	512	1		Uşaq Nefrologiyası	0				54	1	13.01.2020 14:48:07	40522333	3.03.2023 10:54:13	1	System.Byte[]		1	2	11	12		True	True					100024	1223					128	111							14	True	Pediatric Nephrology													167			True	512		
+513	513	1		Çocuk Nefrolojisi	0				54	1	13.01.2020 14:48:07			0	System.Byte[]							True	True												111								True														167				513		
+514	514	1		Çocuk Nefrolojisi	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	True												111								True														167				514		
+533	533	1		Tüp Bebek	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												84								True														167				533		
+551	551	1		11 Doğumhane 1	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												84								True														167				551		
+552	552	1		12 Doğumhane 2	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												84								True														167				552		
+559	559	1		Uşaq və Yeniyetmə Psixologiyası	0		36		54	1	13.01.2020 14:48:07	40522333	3.03.2023 10:54:41	1	System.Byte[]		1	2	11	12		True	True					100024	1365					134	121							14	True	Pediatric Psychiatry													167			True	559		
+564	564	1		10. Kat	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												84								True														167				564		
+632	632	1		Başhekimlik	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				632		
+642	642	1		Əl və Ayaq Sağlamlığı	0				54	1	13.01.2020 14:48:07	133425523	31.05.2024 11:23:26	1	System.Byte[]		1	2	11	12		True	True					100024	1295					101	79							14	True														167			True	642		
+679	1001	1		Endokrinoloji ve Metabolizma Hast. Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												66								True														167				679		
+680	1002	1		Romatoloji Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												66								True														167				680		
+685	1003	1		İyot Odası	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												130								True														167				685		
+686	1004	1		İyot Odası	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												130								True														167				686		
+721	1005	1		Nükleer Tıp Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												135								True														167				721		
+722	1006	1		Damar Cerrahi Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												32								True														167				722		
+723	1007	1		Uşaq inkişafı	0				54	1	13.01.2020 14:48:07	40522333	3.03.2023 10:53:43	1	System.Byte[]		1	2	11	12		True	True					100024	1224					132	41							14	True	Child Development Specialization													167			True	723		
+724	1008	1		Hematoloji Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												66								True														167				724		
+725	725	1		Tıbbi Onkoloji	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				725		
+726	726	1		Tıbbi Onkoloji	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				726		
+727	727	1		Yeni Doğan Yoğun Bakım	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				727		
+737	1009	1		Dəri və Zöhrəvi Xəstəliklər	0		36		54	1	13.01.2020 14:48:07	40522333	2.03.2023 16:19:52	1	System.Byte[]							True	False					100024	1226					136	34							14	True	Skin and Venereal Diseases													167				737		
+748	748	1		Tüp Bebek	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				748		
+755	1010	1		Psikiyatri Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												70								True														167				755		
+756	1011	1		Uşaq urologiyası	0				54	1	13.01.2020 14:48:07	40522333	3.03.2023 10:55:50	1	System.Byte[]		1	2	11	12		True	True					100024	1451					133	282							14	True	Pediatric Urology													167			True	756		
+757	1012	1		Çocuk Üroloji Klin	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:07:04	0	System.Byte[]							True	False												125								True														167				757		
+758	1013	1		Qastroenteroloji cərrahiyyə	0				54	1	13.01.2020 14:48:07	133425523	31.05.2024 11:22:22	1	System.Byte[]		1	2	11	12		True	True					100024	1230					145	122							14	True	Gastroenterology Surgery													167			True	758		
+759	1014	1		Perinatologiya	0				54	1	13.01.2020 14:48:07	40522333	2.03.2023 16:25:52	1	System.Byte[]		1	2	11	12		True	True					100024	1251					173	128							14	True	Perinatology													167			True	759		
+760	1015	1		Perinatoloji	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												128								True														167				760		
+761	1016	1		Onkologiya	0				54	1	13.01.2020 14:48:07	30762879	21.11.2022 14:32:04	1	System.Byte[]		1	2	11	12		True	True					100024	1244			False		192	103							30	True	Medical Oncology					True								167			True	761		
+762	1017	1		Tıbbi Onkoloji Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												103								True														167				762		
+763	1018	1		Neonatologiya	0				54	1	13.01.2020 14:48:07	482814517	15.05.2026 17:52:25	1	System.Byte[]	4	1	2	11	12		True	True					100024	1262					167	117							14	True	Neonatology													167			True	763		
+764	1019	1		Neonatoloji	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1262						117								True														167				764		
+767	481	1		İnme Merkezi Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1326						35								True														167				767		
+768	25	1		İnme Merkezi	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:10:45	0	System.Byte[]							True	True						1326						35								True														167				768		
+769	25	1		Saç əkimi	0				54	1	13.01.2020 14:48:07	133425523	31.05.2024 11:13:20	1	System.Byte[]		1	2	11	12		True	True					100024	1256					175	27							14	True	Hair Transplant Clinic													167			True	769		
+781	1020	1		İnvaziv Radyologiya	0				54	1	13.01.2020 14:48:07	133425523	31.05.2024 11:22:01	1	System.Byte[]		1	2	11	12		True	True					100024	1268					178	283							14	True	Interventional radiology													167			True	781		
+782	1021	1		ewewrewr	0				54	1	13.01.2020 14:48:07			0	System.Byte[]							True	False												89								True														167				782		
+792	792	1		Evde Bakım Hizmetleri	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				792		
+794	794	1		Çocuk Gastroenteroloji	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				794		
+795	795	1		Çocuk Gastroenteroloji Kliniği	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				795		
+796	796	1		Algoloji Kliniği	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				796		
+798	798	1		Çocuk Nöroloji Kliniği	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				798		
+801	801	1		Çocuk Gelişimi	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				801		
+804	804	1		Çocuk Endokrinolojisi Bölümü	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				804		
+805	805	1		Çocuk Endokrinolojisi	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				805		
+806	806	1		Nöroradyoloji	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				806		
+807	807	1		Nöroradyoloji	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				807		
+808	808	1		Acil Kliniği	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				808		
+811	811	1		İşyeri Hekimliği	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				811		
+812	812	1		El ve Ayak Sağlığı Merkezi	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				812		
+814	814	1		El ve Ayak Sağlığı Merkezi	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				814		
+815	1022	1		Ortodonti	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:24:24	0	System.Byte[]							True	False												89								True														167				815		
+816	1023	1		Gastroentoroloji Cerrahisi	0				54	1	13.01.2020 14:48:07			0	System.Byte[]							True	False												122								True														167				816		
+817	1024	1		Gastroenteroloji Cerrahi Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												122								True														167				817		
+818	818	1		Hematoloji Kliniği	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				818		
+820	1025	1		Çocuk Nöroloji Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												94								True														167				820		
+821	1026	1		Çocuk Üroloji Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												125								True														167				821		
+822	1027	1		Yara baxımı	0				54	1	13.01.2020 14:48:07	9014	9.02.2020 15:31:28	1	System.Byte[]		1	2	11	12		True	True					100024	1231					197030	79							14	True														167				822		
+823	1028	1		Yara Birimi	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False						1252						79								True														167				823		
+826	826	1		Çocuk Hematoloji Kliniği	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				826		
+827	827	1		Nükleer Tıp Kliniği	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				827		
+828	1029	1		Uşaq Allerqologiyası və İmmunologiyası	0				54	1	13.01.2020 14:48:07	40522333	3.03.2023 10:53:56	1	System.Byte[]		1	2	11	12		True	True					100024	1322					124	120							14	True	Pediatric Immunology and Allergy Diseases													167			True	828		
+829	1030	1		Çocuk İmmünoloji Kliniği	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												120								True														167				829		
+830	1031	1		İşyeri həkimi	0				54	1	13.01.2020 14:48:07	279544489	27.02.2025 10:40:15	1	System.Byte[]		1	2	11	12		True	False					100024	1217					159	159							14	True	Occupational Medicine													167			True	830		
+857	857	1		Uyku Hastalıkları	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				857		
+858	858	1		Uyku Hastalıkları	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				858		
+860	860	1		Psikiyatri	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				860		
+864	864	1		Medikal Estetik	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				864		
+867	867	1		Kök Hücre Laboratuvarı	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				867		
+873	1032	1		Hava ve Uzay Hekimliği	0				54	1	13.01.2020 14:48:07	252324	2.07.2021 09:51:50	1	System.Byte[]		1	2	11	12		True	True					100024	1492					154	16							9	True														167			True	873		
+878	878	1		Medikal Estetik 	0		36	adfas	88	1	6.10.2020 10:49:41	244719	25.11.2020 12:14:44	0	System.Byte[]		1	2	11	12		False	False																				True														167				878		
+884	1033	1		Psikoloji	0		36		54	1	13.01.2020 14:48:07	208444	13.01.2020 16:26:00	0	System.Byte[]							True	True						1253						88								True														167				884		
+886	886	1		Cihaz Medikal Estetik	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				886		
+887	1034	1		Nükler Tıp	0				54	1	21.01.2020 15:48:38			0	System.Byte[]							True	False												135								True														167				887		
+889	889	1		Cihaz El ve Ayak Sağlığı Merkezi	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				889		
+890	890	1		Cihaz Ses Konuşma Ve Yutma Bozuklukları	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				890		
+893	893	1		Dil ve Konuşma Terapisi	0				88	1	6.10.2020 10:49:41	133425523	31.05.2024 11:24:17	1	System.Byte[]		1	2	11	12		True	False					100024	1528					165	336							9	False	Speech and Language Therapy													167				893		
+908	908	1		Geriatri	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				908		
+916	916	1		Tıbbi Farmakoloji	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				916		
+917	917	1		Aromaterapi	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				917		
+922	922	1		Diyabet Polikliniği	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				922		
+923	923	1		Meme Hastalıkları ve Cerrahisi Polikliniği	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				923		
+925	925	1		Meme Hastalıkları ve Cerrahisi Kliniği	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				925		
+928	1035	1		Uşaq Endokrinologiya	0				1	208444	13.01.2020 16:27:24	289452679	19.03.2025 09:35:01	1	System.Byte[]		1	2	11	12		True	True					100024	1324					118	109							14	False	Pediatric Endocrinology													167			True	928		
+929	1036	1		Uşaq infeksion Xəstəliklər	0				1	208444	13.01.2020 16:28:07	40522333	3.03.2023 10:52:13	1	System.Byte[]		1	2	11	12		True						100024	1228					119	116							14	False	Pediatric Infectious Diseases													167			True	929		
+930	1037	1		Uşaq Qastroenterologiyası	0				1	208444	13.01.2020 16:28:52	483893094	22.05.2026 10:34:26	1	System.Byte[]		1	2	11	12		True						100024	1230					120	115							14	False	Pediatric Gastroenterology													167			True	930		
+931	1038	1		Uşaq Psixologiyası	0				1	208444	13.01.2020 16:30:20	40522333	3.03.2023 10:54:47	1	System.Byte[]		1	2	11	12		True	True					100024	1365					134	367							14	False														167			True	931		
+932	1039	1		Uşaq Revmatologiyası	0				1	208444	13.01.2020 16:30:53	220835383	12.11.2024 09:46:20	1	System.Byte[]		1	2	11	12		True	True					100024	1224					131	314							14	False	Pediatric Rheumatology													167			True	932		
+933	1040	1		İmmünoloji ve Alerji Hastalıkları 	0				1	208444	13.01.2020 16:31:27	98732500	16.02.2024 12:19:30	1	System.Byte[]		1	2	11	12		True						100024	1308					158	100							9	False	Immunology and Allergy Diseases													167				933		
+934	250	3		Üst Yönetim	0				54	1	13.01.2020 14:48:07	279544489	27.02.2025 10:01:41	1	System.Byte[]							True	True					100024	1283													9	True														167				934		
+935	251	3		Başhekimlik	0				54	1	13.01.2020 14:48:07	279544489	27.02.2025 09:59:28	1	System.Byte[]							False	True					100024	1283													9	True														167				935		
+936	252	3		Hasta Bakım Hizmetleri Müdürlüğü	0				54	1	13.01.2020 14:48:07	279544489	27.02.2025 10:02:09	1	System.Byte[]							True	True					100024	1298													9	True														167				936		
+937	253	3		Misafir Hizmetleri Müdürlüğü	0				54	1	13.01.2020 14:48:07	279544489	27.02.2025 10:04:41	1	System.Byte[]							True	True					100024	1295	True												9	True														167				937		
+938	254	3		Bilgi Sistemleri Müdürlüğü	0				54	1	13.01.2020 14:48:07	351936737	10.07.2025 13:50:00	1	System.Byte[]							True	True					100024	1289	False												9	True														167				938		
+939	255	3		Teknik Hizmetler Müdürlüğü	0				54	1	13.01.2020 14:48:07	351936737	10.07.2025 14:10:08	1	System.Byte[]							True	True					100024	1291	False												9	True														167				939		
+940	256	3		Otelcilik Hizmetleri Müdürlüğü	0				54	1	13.01.2020 14:48:07	675	7.02.2020 21:05:22	1	System.Byte[]							True	True					100024	1300													9	True														167				940		
+941	257	3		İnsan Kaynakları Müdürlüğü	0				54	1	13.01.2020 14:48:07			1	System.Byte[]							True	True					100024	1299													9	True														167				941		
+942	258	3		Kurumsal Tanıtım Müdürlüğü	0				54	1	13.01.2020 14:48:07	279544489	27.02.2025 10:05:54	1	System.Byte[]							True	True					100024	1288													9	True														167				942		
+943	259	3		Mali İşler Müdürlüğü	0				54	1	13.01.2020 14:48:07	675	7.02.2020 21:05:09	1	System.Byte[]							True	True					100024	1284													9	True														167				943		
+944	260	3		Kurumsal Faturalama Müdürlüğü	0				54	1	13.01.2020 14:48:07	330820261	2.06.2025 13:58:02	1	System.Byte[]							True	True					100024	1285	True												9	True														167				944		
+945	261	3		Pazarlama Müdürlüğü	0				54	1	13.01.2020 14:48:07	279544489	27.02.2025 10:06:12	1	System.Byte[]							True	True					100024	1288													9	True														167				945		
+946	262	3		Satınalma Müdürlüğü	0				54	1	13.01.2020 14:48:07	330820261	2.06.2025 13:47:53	1	System.Byte[]							True	True					100024	1290	True												9	True														167				946		
+947	263	3		Kalite Müdürlüğü	0				54	1	13.01.2020 14:48:07	675	7.02.2020 21:04:53	1	System.Byte[]							True	True					100024	1286													9	True														167				947		
+948	264	3		Resmi İşlemler ve Ruhsatlandırma Müdürlüğü	0				54	1	13.01.2020 14:48:07	279544489	27.02.2025 10:06:38	1	System.Byte[]							True	True					100024	1283													9	True														167				948		
+949	265	3		Hasta Hakları Müdürlüğü	0				54	1	13.01.2020 14:48:07	279544489	27.02.2025 10:07:02	1	System.Byte[]							True	True					100024	1287													9	True														167				949		
+950	266	3		Biyomedikal Müdürlüğü	0				54	1	13.01.2020 14:48:07	351936737	10.07.2025 14:07:37	1	System.Byte[]							True	True					100024	1293	False												9	True														167				950		
+951	267	3		Anlaşmalı Kurumlar Müdürlüğü	0				54	1	13.01.2020 14:48:07	351936737	10.07.2025 14:12:37	1	System.Byte[]							True	True					100024	1301	True												9	True														167				951		
+952	268	3		Hekimlik	0				54	1	13.01.2020 14:48:07	351936737	10.07.2025 14:11:00	1	System.Byte[]							True	True					100024	1283	True												9	True														167				952		
+953	269	3		İnme Merkezi1	0				54	1	13.01.2020 14:48:07	243456	14.07.2020 09:45:00	1	System.Byte[]							True	True					100024	1326													9	True														167				953		
+954	270	3		Uluslararası Misafir Hizmetleri Müdürlüğü	0				54	1	13.01.2020 14:48:07	351936737	10.07.2025 14:13:35	1	System.Byte[]							True	True					100024	1304	True												9	True														167				954		
+971	971	1		Deri ve Zührevi Hastalıklar	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				971		
+972	972	1		Perinotoloji 	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				972		
+974	974	1		Çocuk Beslenme Hastalıkları 	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False																				True														167				974		
+983	983	1		Dışardan laboratuvar	0				88	1	3.02.2021 11:33:10			0	System.Byte[]		1	2	11	12		False	False															983					True														167				983		
+1096	1096	1		Yeni_Doğan_YB	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1096		
+1098	1098	1		Koroner yoğun bakım	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1098		
+1100	1100	1		Göğüs Hastalıkları	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1100		
+1101	1101	1		Yeni Doğan Kliniği	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1101		
+1102	1102	1		Neonatoloji	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1102		
+1106	1106	1		Endokrinoloji ve Metabolizma Hast.	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1106		
+1107	1107	1		Gastroenteroloji	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1107		
+1117	1117	1		Çocuk Kliniği	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1117		
+1120	1120	1		Tıbbi Onkoloji(Onk.)	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1120		
+1122	1122	1		Çocuk Hematolojisi ve Onkolojisi	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1122		
+1123	1123	1		Çocuk Hematolojisi ve Onkoloji Kliniği	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1123		
+1145	1041	1	23	Patoloji.	0		36		1	6000	8.02.2020 17:54:23	6000	8.02.2020 17:55:11	0	System.Byte[]		1																	194	136								False								101946						167				1145		
+1146	1042	1		Histopatologiya	0				1	6000	8.02.2020 17:55:03	267503468	5.02.2025 15:47:40	1	System.Byte[]							True	True					100024	1313					194	136							14	False	Histopathology													167			True	1146		
+1147	1043	1		DIŞ BÖLÜM	0				1	18398	11.02.2020 15:45:52	279544489	27.02.2025 10:01:04	1	System.Byte[]													100024	1269					197004	20			1043				9	False														167				1147		
+1148	1044	1	35	ALİ DURDU	0		36		1	191596	11.03.2020 19:25:51	243320	24.06.2020 16:55:58	0	System.Byte[]																			157	66						20		False														167				1148		
+1149	1045	1		Koroner Yoğun Bakım	0				1	243183	16.04.2020 09:34:21	274822416	18.02.2025 17:19:19	1	System.Byte[]	4												100024	1240					197020	67							9	False														167			True	1149		
+1150	1046	1		ÜDC İntensiv Terapiya	0				1	243183	16.04.2020 09:36:34	274822416	18.02.2025 17:19:27	1	System.Byte[]	4												100024	1310					197021	77							14	False														167			True	1150		
+1151	1047	1		Dahiliye Yoğun Bakım	0				1	243184	16.04.2020 09:43:19	274822416	18.02.2025 17:18:44	1	System.Byte[]	4												100024	1460					197010	12							9	False	Internal Intensive Care													167				1151		
+1152	1048	1		Cerrahi Yoğun Bakım	0				1	243184	16.04.2020 09:43:55	274822416	18.02.2025 17:18:31	1	System.Byte[]	4												100024	1460					197007	12							9	False														167			True	1152		
+1153	1049	1		Uşaq və Neonatalogiya 	0				1	243233	30.04.2020 10:51:06	274822416	18.02.2025 17:20:06	1	System.Byte[]	4												100024	1224					197032	71							14	False	Neonatal Intensive Care 													167				1153		
+1154	1050	1		Alqologiya	0				1	243310	23.06.2020 09:36:03	40522333	2.03.2023 16:26:38	1	System.Byte[]							True	True					100024	1219					107	129							14	False	Algology													167			True	1154		
+1155	1051	2		Ameliyathane Cihaz Randevu	0				1	243320	24.06.2020 17:00:57			1	System.Byte[]													100024	1306													9	False														167				1155		
+1156	1052	1		Organ Nakli	0				1	243416	7.07.2020 14:03:57	31220390	25.11.2022 18:35:50	1	System.Byte[]							True	True					100024	1247					147	25							9	False	Transplantation													167			True	1156		
+1157	1053	1		İnme Merkezi	0				1	243456	14.07.2020 09:46:14	481075451	5.05.2026 16:00:19	1	System.Byte[]		1	2	11	12		True	True					100024	1326					168	35							9	False	Stroke Center													167			True	1157		
+1158	1054	1		Palyatif Bakım Kliniği	0				1	243461	14.07.2020 18:05:44	72309896	3.10.2023 14:20:44	1	System.Byte[]													100024	1632					197	278							9	False														167				1158		
+1159		1		Çocuk Yoğunbakım	0				1	243609	27.07.2020 16:16:47	274822416	18.02.2025 17:18:37	1	System.Byte[]	4												100024	1325					135	286							9	False	Pediatric Intensive Care													167				1159		
+1160		1		Fonksiyonel Tıp	0				1	243929	17.09.2020 14:51:13	272075481	13.02.2025 14:41:35	1	System.Byte[]							True						100024	1360					140	366						60	9	False														167				1160		
+1161		1		Tıbbi Genetik	0				1	244439	2.11.2020 09:00:42	340076898	20.06.2025 15:40:59	1	System.Byte[]		1	2	11	12		True	True					100024	1307					189	140							9	False	Medical Genetics			Tıbbi Genetik										167			True	1161		
+1162	36	1		Jinekoloji Onkoloji Cerrahisi	0				1	244453	2.11.2020 15:47:07	4576171	3.01.2022 13:09:51	1	System.Byte[]		1	2	11	12		True	True					100024	1493					160	332							9	True	Gynecological Oncology Surgery			Jinekoloji Onkoloji Cerrahisi										167				1162		
+1163		1		Akupunktur	0				1	244513	6.11.2020 12:03:51	120767244	29.04.2024 16:52:17	1	System.Byte[]							True						100024	1272					168	9							9	False		Pusula.Tedavi.Muayene.FormGenelMuayene		Akupunktur										167			True	1163		
+1168		1		Uşaq Ürək - Damar Cərrahiyyəsi	0				1	244514	6.11.2020 12:28:08	40522333	3.03.2023 10:54:01	1	System.Byte[]							True	True					100024	1269					125	123							14	False	Pediatric Cardiovascular Surgery													167			True	1168		
+1169		1		El Cerrahisi	0				1	244514	6.11.2020 12:30:55	251971	26.06.2021 13:08:25	1	System.Byte[]							True						100024	1361					137	79							9	False														167			True	1169		
+1170		1		Tıbbi Mikrobiyoloji	0				1	244515	6.11.2020 12:36:39	133425523	31.05.2024 11:12:44	1	System.Byte[]								False					100024	1269					191	145							9	False														167			True	1170		
+1272	1272	1		Çocuk Endokrinolojisi	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1272		
+1273	1273	1		Çocuk Endokrinoloji Kliniği	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1273		
+1283	1283	1		Kalp ve Damar Cerrahisi	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1283		
+1284	1284	1		Kalp ve Damar Cerrahisi 	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1284		
+1295	1295	1		Çocuk Yoğun Bakım	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1295		
+1320	1320	1		Çocuk Nefrolojisi Kliniği	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	True																				True														167				1320		
+1357	1357	1		Çocuk Romatolojisi	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1357		
+1359	1359	1		Çocuk Romatoloji Kliniği	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1359		
+1360	1360	1		Psikometrik Testler(Çocuk)	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1360		
+1362	1362	1		İnme Merkezi	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1362		
+1363	1363	1		İnme Merkezi Klinigi	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1363		
+1364	1364	1		Organ Nakli	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1364		
+1365	1365	1		Organ Nakil Kliniği	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1365		
+1367	1367	1		Tüp Bebek	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1367		
+1399	1399	1		Palyatif Yoğun Bakım	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1399		
+1403	1403	1		Çocuk Gastroenteroloji, Hepatoloji ve Beslenme	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1403		
+1404	1404	1		Çocuk Gastroenteroloji, Hepatoloji ve Beslenme Kl	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1404		
+1407	1407	1		El Cerrahisi Polikliniği	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1407		
+1411	1411	1		Çocuk Psikolojisi	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1411		
+1412	1412	1		Girişimsel Radyoloji	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1412		
+1418	1418	1		Anestezi	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1418		
+1441	1441	1		Çocuk İmmünolojisi ve Alerjisi	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1441		
+1442	1442	1		Çocuk İmmünolojisi ve Alerji Kliniği	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1442		
+1443	1443	1		Çocuk Nörolojisi Kliniği	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1443		
+1444	1444	1		Perinatoloji	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1444		
+1472	1472	1		Akupunktur	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1472		
+1473	1473	1		Gastroenteroloji Cerrahisi	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1473		
+1474	1474	1		Gastroenteroloji Cerrahisi Kliniği	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1474		
+1475	1475	1		İşyeri Hekimliği	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1475		
+1476	1476	1		Çocuk Enfeksiyon Hastalıkları	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1476		
+1477	1477	1		Çocuk Enfeksiyon Hastalıkları	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1477		
+1544	1544	1		Çocuk Kalp ve Damar Cerrahisi	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1544		
+1545	1545	1		Çocuk Kalp ve Damar Cerrahisi Kliniği	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1545		
+1546	1546	1		Denge Merkezi	0				88	1	21.11.2020 18:00:54			0	System.Byte[]		1	2	11	12		False	False																				True														167				1546		
+1547		1		Organ Nakli (Nefroloji)	0				1	244698	24.11.2020 15:02:37	252460	7.07.2021 12:15:48	1	System.Byte[]		1	2	11	12		True						100024	1245					166	97						20	9	False														167				1547		
+1548		1		Organ Nakli (Gastroentroloji)	0				1	244698	24.11.2020 15:08:22			1	System.Byte[]		1	2	11	12								100024	1230					144	91						20	9	False														167				1548		
+1549		1		Orqan Trasplantasiyası	0				1	244698	24.11.2020 15:10:28	421527462	26.11.2025 11:27:40	1	System.Byte[]		1	2	11	12		True	True					100024	1231					147	74						20	14	False	Organ Transplantation (General Surgery)													167			True	1549		
+1550		1		Damar Cərrahiyyəsi	0				1	244722	25.11.2020 14:25:16	272075481	13.02.2025 14:37:06	1	System.Byte[]		1	2	11	12		True	True					100024	1239					162	32							14	True	Vascular Surgery													167			True	1550		
+1551		1		PANDEMİ KLİNİĞİ (ERİŞKİN)	0				1	244722	25.11.2020 14:44:56	252324	2.07.2021 09:56:02	1	System.Byte[]													100024	1232					300	350							9	False														167			True	1551		
+1552		1		PANDEMİ KLİNİĞİ (ÇOCUK)	0				1	244722	25.11.2020 14:47:12	252324	2.07.2021 09:55:56	1	System.Byte[]													100024	1262					301	349							9	False														167			True	1552		
+1553		1		Anesteziologiya və İntensiv Terapiya (GYB)	0				1	244896	8.12.2020 13:55:49	188499519	10.09.2024 11:24:14	1	System.Byte[]	4						True	False					100024	1460					197	104							14	False	Anesthesia and Reanimation (GICU)			Anestezi ve Reanimasyon (GYB)										167			True	1553		
+1554		1		BEYİN VE SİNİR CERRAHİSİ YOĞUN BAKIM	0				1	245331	8.01.2021 13:55:15	274822416	18.02.2025 17:18:22	1	System.Byte[]	4												100024	1221					197006	78							9	False														167			True	1554		
+1555		1		ENFEKSİYON HASTALIKLARI YOĞUN BAKIM	0				1	245331	8.01.2021 14:29:59	274822416	18.02.2025 17:18:51	1	System.Byte[]	4												100024	1228					197012	106							9	False														167				1555		
+1556		1		GÖĞÜS HASTALIKLARI YOĞUN BAKIM	0				1	245336	8.01.2021 22:57:58	274822416	18.02.2025 17:18:57	1	System.Byte[]	4												100024	1234					197017	68							9	False														167			True	1556		
+1557		1		İÇ HASTALIKLARI YOĞUN BAKIM	0				1	245336	8.01.2021 23:00:15	274822416	18.02.2025 17:19:04	1	System.Byte[]	4												100024	1237					197010	66							9	False														167			True	1557		
+1558		1		NEFROLOJİ YOĞUN BAKIM	0				1	245336	8.01.2021 23:02:40	274822416	18.02.2025 17:19:34	1	System.Byte[]	4												100024	1245					197022	97							9	False														167			True	1558		
+1559		1		İNME MERKEZİ YOĞUN BAKIM	0				1	245336	8.01.2021 23:04:29	274822416	18.02.2025 17:19:12	1	System.Byte[]	4												100024	1326					197023	35							9	False														167				1559		
+1560		1	756	Çocuk Üroloji(Çocuk Cerrahi)	0		36	...	1	245513	22.01.2021 10:34:41	245513	22.01.2021 10:35:22	0	System.Byte[]		1	2	11	12		True	True						1451					133	351								True														167				1560		
+1561		1		Pediatrik Cərrahiyyə	0				1	245513	22.01.2021 10:37:44	133425523	31.05.2024 11:25:11	1	System.Byte[]		1	2	11	12		True	False					100024	1222					116	351							14	True														167			True	1561		
+1562		1		Südvəzi sağlamlığı Poliklinikası	0				1	246554	13.03.2021 23:51:38	483893094	22.05.2026 10:52:54	1	System.Byte[]							True	True					100024	1231					147	347							29	False	Meme Sağlığı Polikliniği			Meme Sağlığı Polikliniği										167			True	1562		
+1563		1	828	Çocuk Uyku Polikliniği	0		36		1	249049	6.05.2021 09:12:05	249049	6.05.2021 09:12:25	0	System.Byte[]							True							1224					132	71								False				Çocuk Uyku Polikliniğiv										167				1563		
+1564		1		Çocuk Uyku Polikliniği	0				1	249049	6.05.2021 09:13:44	40522333	3.03.2023 10:55:43	1	System.Byte[]							True						100024	1224					132	71							9	False				Çocuk Uyku Polikliniği										167			True	1564		
+1565		1		Metabolik - Bariatrik Cərrahiyyə	0				1	249596	20.05.2021 14:01:37	483893094	22.05.2026 10:53:47	1	System.Byte[]							True	True					100024	1231					147	219							14	False	Obesity Surgery													167			True	1565		
+1566		1		Audiologiya	0				1	249596	20.05.2021 14:02:58	133425523	31.05.2024 11:16:55	1	System.Byte[]							True	False					100024	1532					165	82							14	False	Audiology													167			True	1566		
+1567		1		İdman Həkimliyi	0				1	249596	20.05.2021 14:03:54	40522333	2.03.2023 16:24:32	1	System.Byte[]							True	True					100024	1248					171	80							14	False														167				1567		
+1568		1		Homeopati	0				1	250447	3.06.2021 15:31:24	581638	4.10.2021 14:47:44	1	System.Byte[]							True						100024	1217					101	5							9	False														167			True	1568		
+1569		1		Diğer Branş	0		36	aaa	1	250562	6.06.2021 01:21:42	250562	6.06.2021 01:21:53	0	System.Byte[]														1217					101	90								False														167				1569		
+1570		1	37	Nöroradyoloji	0		36	wdwd	1	250449	11.06.2021 11:22:10	250449	11.06.2021 11:22:48	0	System.Byte[]							True							1268					178	132								False	Nöroradyoloji			Nöroradyoloji										167				1570		
+1571		1		Neyroradiologiya	0				1	250449	11.06.2021 11:23:30	186016531	5.09.2024 13:36:44	1	System.Byte[]							True	True					100024	1268					178	132							14	False	Nöroradyoloji			Nöroradyoloji										167				1571		
+1572		1		Pediatrik Təcili Yardım	0				1	251385	17.06.2021 17:52:29	4576171	3.01.2022 12:50:34	1	System.Byte[]		1	2	11	12								100024	1217					115	259							14	False	Child Emergency													167			True	1572		
+1573		1		Diyabetik Ayak	0				1	251431	18.06.2021 12:38:47			0	System.Byte[]							True						100024	1248					171	346							9	False														167				1573		
+1574		1	1150	Evde Bakım	0		36		1	252134	29.06.2021 11:23:50	252134	29.06.2021 11:26:43	0	System.Byte[]		1	2	11	12		True	True						1311					186	13								True														167				1574		
+1575	1575	1		Evdə Tibbi xidmət	0				1	252134	29.06.2021 11:28:39	133425523	31.05.2024 11:22:37	1	System.Byte[]		1	2				True	True					100024	1311					191	13							14	True	Medical care at home 													167			True	1575		
+1576		1		Geleneksel ve Tamamlayıcı Tıp	0				1	252225	30.06.2021 15:31:11	133425523	31.05.2024 11:22:15	1	System.Byte[]							True	False					100024	1360					220	333							9	True	yesno													167			True	1576		
+1577		1	19	Podoloji	0		36		1	257515	9.08.2021 15:07:00	257515	9.08.2021 15:08:08	0	System.Byte[]							True	False						1510					142	301								False														167				1577		
+1578		1	20	Podoloji	0		36		1	257515	9.08.2021 15:14:19	257515	9.08.2021 15:14:32	0	System.Byte[]							True							1510					142	301								False														167				1578		
+1579		1		Podoloji	0				1	257515	9.08.2021 15:15:36	220835383	12.11.2024 09:52:00	1	System.Byte[]							True	False					100024	1525					142	301							9	False	Podoloii													167				1579		
+1580		1	20	Ağız Diş ve Çene Cerrahisi	0		36		1	257515	16.08.2021 11:01:25	257515	16.08.2021 11:01:37	0	System.Byte[]							True	True						1218					198	89								False														167				1580		
+1581		1		Ağız, Diş və Çənə Cərrahiyyəsi	0				1	257515	16.08.2021 11:03:08	133425523	31.05.2024 11:10:34	1	System.Byte[]		1	2	11	12		True	True					100024	1218			False		103	344							14	True		Medinet.Dis.Tedavi.Muayene.FormDisMuayene												167				1581		
+1582		1		Meme Cerrahisi	0				1	261532	2.09.2021 14:31:34	483893094	22.05.2026 10:58:20	1	System.Byte[]							True	False					100024	1231					147	230							9	False														167				1582		
+1583		1	345	Romatoloji (Fizik tedavi)	0		687	şşş	1	261858	3.09.2021 17:37:51	261858	3.09.2021 17:38:30	0	System.Byte[]							True							1255					180	98								False														167				1583		
+1584	345	1		Romatoloji (Fizik Tedavi)	0				1	261858	3.09.2021 17:40:42	133425523	31.05.2024 11:13:29	1	System.Byte[]							True	False					100024	1255					180	353							9	True	Rheumatology (Physical Therapy)	Pusula.Tedavi.Muayene.FormGenelMuayene												167			True	1584		
+1585		1	33	Ortodonti	0		687	scs	1	274252	17.09.2021 12:32:49	274252	17.09.2021 12:33:34	0	System.Byte[]		1	2	11	12		True	True						1536					170	344								True														167			True	1585		
+1586		1		Ortodonti	0				1	274252	17.09.2021 12:35:24	40522333	2.03.2023 16:23:28	1	System.Byte[]		1	2	11	12		True	True					100024	1536			False		170	354							9	True		Medinet.Dis.Tedavi.Muayene.FormDisMuayene												167			True	1586		
+1587		1	1579	Pedodonti (Çocuk Diş)	0		36		1	321162	20.09.2021 15:21:45	321162	20.09.2021 15:28:24	0	System.Byte[]		1	2	11	12		True	True						1498			False		117	312								True														167				1587		
+1588		1		Protetik DişTedavisi	0				1	321162	20.09.2021 15:28:10	1662304	15.11.2021 14:23:56	1	System.Byte[]		1	2	11	12		True	False					100024	1218					176	358							9	True		Medinet.Dis.Tedavi.Muayene.FormDisMuayene												167				1588		
+1589		1		Pedodonti (Çocuk Diş)	0				1	321162	20.09.2021 15:30:25	240925254	20.12.2024 13:28:07	1	System.Byte[]		1	2	11	12		True	False					100024	1498					117	89							9	True		Medinet.Dis.Tedavi.Muayene.FormDisMuayene					False							167				1589		
+1590		1		Pediatriya(növbətçi)	0				1	354289	22.09.2021 08:31:48	133425523	31.05.2024 11:15:39	1	System.Byte[]							True	False					100024	1224					132	71							14	True														167			True	1590		
+1591		1		Daxili xəstəliklər (növbətçi)	0				1	354289	22.09.2021 08:37:25			1	System.Byte[]							True	True					100024	1237					157	66							14	True														167			True	1591		
+1592		1		Uşaq Ortopediyası	0				1	394160	24.09.2021 08:54:28	40522333	3.03.2023 10:54:33	1	System.Byte[]							True						100024	1248					171	293							14	True	Pediatric Orthopedics													167				1592		
+1593		1		Uşaq Neyrocərrahiyyəsi	0				1	394160	28.09.2021 08:04:36	220835383	12.11.2024 09:57:38	1	System.Byte[]							True	True					100024	1221					129	324							14	True														167				1593		
+1594		1	41	Ortopediya və Travmatologiya İntensiv Terapiya	0				1	652552	8.10.2021 14:46:38	274822416	18.02.2025 17:17:44	1	System.Byte[]	4												100024	1248					197026	80							14	False														167				1594		
+1595		1	40	Nevroloji intensiv terapiya	0				1	739128	13.10.2021 14:49:10	274822416	18.02.2025 17:19:42	1	System.Byte[]	4												100024	1246					197023	69							14	False														167				1595		
+1596		1		Süd vəzi xəstəlikləri və cərrahiyyəsi 	0				1	1130863	27.10.2021 14:50:44	483893094	22.05.2026 10:59:22	1	System.Byte[]							True	True					100024	1231					147	361							29	False	Breast Diseases and Surgery													167				1596		
+1597		1		Baş-Boyun Cərrahiyyəsi	0				1	1391628	5.11.2021 17:38:44	133425523	31.05.2024 11:29:46	1	System.Byte[]							True	False					100024	1243					165	82							14	False														167				1597		
+1598		1		Əl və mikrocərrahiyyə	0				1	1391628	5.11.2021 17:42:39			1	System.Byte[]							True	True					100024	1252					175	79							14	False														167				1598		
+1599		1		Elektrofizyologiya	0				1	1391628	5.11.2021 17:43:26			1	System.Byte[]							True	True					100024	1240					163	67							14	False														167				1599		
+1600		1		Diyabet	0				1	1391628	5.11.2021 17:44:22	133425523	31.05.2024 11:24:03	1	System.Byte[]							True	False					100024	1227					139	96							9	False	Diabetes Polyclinic													167				1600		
+1601		1		Anorektal Cərrahiyyə	0				1	1391628	5.11.2021 17:45:43	483893094	22.05.2026 11:01:18	1	System.Byte[]							True	True					100024	1231					147	74							14	False														167				1601		
+1602		1		Hipofiz xəstəliklərivə cərrahiyyəsi	0				1	1391628	5.11.2021 17:46:26	1391628	6.11.2021 08:28:35	1	System.Byte[]							True	True					100024	1221					112	78							14	False														167				1602		
+1603		1		Ürək Sağlamlığı Mərkəzi	0				1	1391628	5.11.2021 17:47:22			1	System.Byte[]							True	True					100024	1240					163	67							14	False														167				1603		
+1604		1		Meme Hastalıkları v e Cerrrahisi 	0		36	yanlış 	1	1391628	5.11.2021 17:48:13	1391628	6.11.2021 08:28:20	0	System.Byte[]														1231					197015	74								False														167				1604		
+1605		1		Parkinson ve Hareket Bozuklukları	0				1	1391628	5.11.2021 17:49:09			1	System.Byte[]							True	False					100024	1246					168	69							9	False														167				1605		
+1606		1		Uşaq Allerqologiyası və İmmunologiyası 	0				1	1482749	9.11.2021 10:05:12	133425523	31.05.2024 11:20:51	1	System.Byte[]							True	False					100024	1308					158	279							14	False														167				1606		
+1609		1	933	İmmünoloji ve Alerji Hastalıkları(GH)	0		36	.....	1	1498571	9.11.2021 16:26:32	1498571	9.11.2021 16:28:45	0	System.Byte[]							True	True						1308					158	357								False														167				1609		
+1610		1		İmmünoloji ve Alerji Hastalıkları(Göğüs Hst.)	0		36		1	1498571	9.11.2021 16:29:27	7030611	5.02.2022 23:53:06	0	System.Byte[]		1	2	11	12		True	True						1308					158	357								False	Immunology and Allergy Diseases (Chest Diseases)													167				1610		
+1611		1		Periodontoloji	0				1	1662304	15.11.2021 14:26:34	238895418	16.12.2024 16:30:30	1	System.Byte[]		1	2	11	12		True	False					100024	1218					174	360							9	False		Medinet.Dis.Tedavi.Muayene.FormDisMuayene		Periodontoloji										167				1611		
+1612		1		Ağız, Diş ve Çene Radyolojisi	0				1	1662304	15.11.2021 15:00:11	133425523	31.05.2024 11:10:44	1	System.Byte[]		1	2	11	12		True	False					100024	1218			False		104	168							9	False		Medinet.Dis.Tedavi.Muayene.FormDisMuayene		Ağız, Diş ve Çene Radyolojisi										167				1612		
+1613		1		Restoratif Diş Tedavisi	0				1	1662304	15.11.2021 15:01:37	238895418	16.12.2024 16:28:28	1	System.Byte[]		1	2	11	12		True	False					100024	1218					179	359							9	False		Medinet.Dis.Tedavi.Muayene.FormDisMuayene		Restoratif Diş Tedavisi										167				1613		
+1614		1		Endodontologiya	0				1	1662304	15.11.2021 15:02:22	482728197	15.05.2026 11:17:35	1	System.Byte[]		1	2	11	12		True	True					100024	1218					138	322							14	False				Endodonti										167				1614		
+1615		1		xxx	0				1	2787836	8.12.2021 16:56:50	26730480	5.10.2022 11:38:35	1	System.Byte[]	1												100024	1217					101	30							0	False														167				1615		
+1616		1		Əmzirmə poliklinikası	0				1	4157887	30.12.2021 11:07:56			1	System.Byte[]		1	2	11	12		True	True					100024	1238					161	84							14	False														167				1616		
+1617		1	1615	Endokrin Cerrahisi	0		36		1	5293588	12.01.2022 13:10:20	5293588	12.01.2022 13:10:42	0	System.Byte[]							True	False						1231					197015	74								False														167				1617		
+1618		1		Endokrin cərrahiyyə	0				1	5293588	12.01.2022 13:11:34	483871868	22.05.2026 09:34:17	1	System.Byte[]		1	2	11	12		True	True					100024	1231					147	74							14	False														167				1618		
+1619		1		Uşaq onkologiyası	0				1	5293588	12.01.2022 13:15:57	487857251	11.06.2026 15:59:41	1	System.Byte[]		1	2	11	12		True	True					100024	1323					14	114							14	False														167				1619		
+1620		1		Kök hüceyrə	0				1	5293588	12.01.2022 13:17:36	5308005	12.01.2022 14:33:14	1	System.Byte[]							True	True					100024	1311					189	13							14	False														167				1620		
+1621		1		Yenidoğulmuşların müşahidə poliklinikası	0				1	6102044	24.01.2022 09:12:56	220835383	12.11.2024 10:00:44	1	System.Byte[]		1	2	11	12		True						100024	1262					132	362							14	True														167			True	1621		
+1622		1		Bütüncül Tıp Uygulamaları	0				1	6102044	24.01.2022 09:29:54	272075481	13.02.2025 14:41:13	1	System.Byte[]		1	2	11	12		True						100024	1360					220	363							9	False														167				1622		
+1623		1		Cərrahi onkologiya	0				1	9763560	11.03.2022 17:36:39	133425523	31.05.2024 11:30:04	1	System.Byte[]		1	2	11	12		True	True					100024	1231					113	364							14	True	Surgical Oncology													167			True	1623		
+1624		1		Ağız və Diş sağlamlığı	0				1	10549412	18.03.2022 16:46:15	133425523	31.05.2024 11:24:10	1	System.Byte[]							True	True					100024	1218					198	285							14	True		Medinet.Dis.Tedavi.Muayene.FormDisMuayene												167			True	1624		
+1625		1		Ergoterapist	0				1	10994280	24.03.2022 08:24:24	133425523	31.05.2024 11:22:43	1	System.Byte[]							True	False					100024	1272					143	365							9	False														167				1625		
+1626		1		Heriatriya	0				1	13500327	26.04.2022 10:23:14	453026091	19.01.2026 16:54:28	1	System.Byte[]		1	2	11	12		True	True					100024	1237					148	278							14	False														167				1626		
+1627		1		Əl cərrahiyyəsi	0				1	18670327	22.06.2022 08:33:44	374038998	21.08.2025 13:26:00	1	System.Byte[]		1	2	11	12		True	True					100024	1248					137	368							14	False														167				1627		
+1628		1		Aile Danışmanlığı	0				1	40184294	28.02.2023 09:42:45	133425523	31.05.2024 11:28:39	1	System.Byte[]							True	False						1253					181	370							9	False														167				1628		
+1629		1		Çocuk Allerjisi	0				1	44497981	7.04.2023 10:21:43	44497981	7.04.2023 10:33:30	1	System.Byte[]		1	2	11	12		True	True						1322					124	113							9	False														167				1629		
+1630		1		Uşaq Pulmonologiyası	0				1	51973263	5.06.2023 11:31:20	176412253	21.08.2024 09:14:00	1	System.Byte[]		1	2	11	12		True	True						1224					199	119								False														167				1630		
+1631		1		Aktarım	0				1	56733624	5.07.2023 13:38:36	279544489	27.02.2025 10:38:54	1	System.Byte[]														1269					152	86								False	Aktarım			Aktarım						Aktarım Protokolleri Bölümü				167				1631		
+1632		1		Omurga Sağlığı ve Skolyoz	0				1	65579104	24.08.2023 17:03:41	133425523	31.05.2024 11:16:47	1	System.Byte[]		1	2	11	12		True	False						1248					171	371								False														167						
+1633		1	1156	Çocuk Böbrek Nakli	0				1	66629751	31.08.2023 11:21:59	66629751	31.08.2023 11:25:40	1	System.Byte[]		1	2	11	12		True	True						1223					128	111								False														167						
+1634		1		Çocuk Karaciğer Nakli	0				1	66629751	31.08.2023 11:24:59	133425523	31.05.2024 11:25:53	1	System.Byte[]		1	2	11	12		True	False						1224					120	115								False														167						
+1635		1		Çocuk Hematolojisi	0				1	71998480	2.10.2023 10:05:41	77866193	2.11.2023 10:02:55	1	System.Byte[]		1	2	11	12		True	True						1265					10	372								False														167						
+1636		1		Çocuk İmmünolojisi	0				1	72873048	6.10.2023 11:03:56	208605190	22.10.2024 10:02:24	1	System.Byte[]		1	2	11	12		True	True						1322					124	373								False														167						
+1637		1		Çocuk Metabolizma Hastalıkları	0				1	75482122	19.10.2023 18:02:41	133425523	31.05.2024 11:25:46	1	System.Byte[]		1	2	11	12		True	False						1324					118	374								False														167						
+1638		1		İmmünoloji ve Alerji Hastalıkları(GH)(1173)	0				1	77565674	31.10.2023 16:29:18	133425523	31.05.2024 11:20:45	1	System.Byte[]		1	2	11	12		True	False						1308					158	375								False														167						
+1639		1	385	Check-up-Link	0				1	80524512	17.11.2023 11:25:58	292615186	24.03.2025 13:11:29	1	System.Byte[]							True							1269					157	18							9	True	H-Link													167			True	1639		
+1640		1		Uşaq və Yeniyetmə Psixiatriyası	0				1	84465293	8.12.2023 13:28:50	418893172	25.11.2025 13:16:00	1	System.Byte[]		1	2	11	12		True						100024	1365					134	376								False														167						
+1641		1	30	Binnur Şimşek	0		36	mükerrer	1	99258167	19.02.2024 12:10:03	99258167	19.02.2024 12:13:37	0	System.Byte[]														1230					144	91								False														167						
+1642		1	1629	denem	0		36	fgd	1	119042741	25.04.2024 14:13:46	119042741	25.04.2024 14:14:04	0	System.Byte[]														1312					190	18								False														167						
+1643		1		denem	0			f	1	119042741	25.04.2024 14:14:32	119042741	25.04.2024 14:16:24	0	System.Byte[]														1287					190	18								False														167						
+1644		1		Algoloji (Ağrı Ünitesi)	0				1	119940461	27.04.2024 11:06:17	133425523	31.05.2024 11:29:29	1	System.Byte[]		1	2	11	12		True	False						1219					107	377								False														167						
+1645		1		Ergen Sağlığı	0				1	212043236	24.10.2024 09:17:31	212043236	24.10.2024 09:19:27	1	System.Byte[]		1	2	11	12		True	True						1224					132	378								False														167						
+1646		1		MS Polikliniği	0				1	251627738	9.01.2025 10:54:08	255061623	15.01.2025 15:18:33	1	System.Byte[]		1	2	11	12		True	True						1246					168	379								False														167						
+1647		1	1615	Histoloji ve Embriyoloji	0		36	.	1	267673399	5.02.2025 18:55:00	267673399	5.02.2025 18:55:17	0	System.Byte[]														1311					156	380								False				Histoloji ve Embriyoloji										167						
+1648		1		Histoloji ve Embriyoloji	0		36	Ç	1	267673399	5.02.2025 18:55:49	267673399	5.02.2025 19:37:53	0	System.Byte[]														1311					156	380								False				Histoloji ve Embriyoloji										167				1648		
+1649		1		Çocuk Endokrinolojisi	0				1	289452679	19.03.2025 15:18:41	401888798	17.10.2025 09:59:18	1	System.Byte[]		1	2	11	12		True	True						1324					118	381								False				Çocuk Endokrinolojisi										167				1649		
+1650		1		Alerji Hastalıkları(İH)	0				1	331959179	3.06.2025 13:52:18	331959179	3.06.2025 13:52:35	1	System.Byte[]		1	2	11	12		True	True						1308					158	382								False														167						
+1651		1		Organ Nakli Yoğun Bakım	0				1	340816659	20.06.2025 11:44:36			1	System.Byte[]	4													1247					197025	383								False				Organ Nakli (YB)										167						
+1652		3		Fiyatlandırma Müdürlüğü	0				1	350076158	8.07.2025 15:48:45	351936737	10.07.2025 14:12:59	1	System.Byte[]							False							1294	True													False														167						
+1653		3	937	Yatış(kullanma)	0		36		1	350076158	8.07.2025 15:51:02	350076158	8.07.2025 15:51:37	0	System.Byte[]														1296														False														167						
+1654		3		Yatış	0				1	350076158	8.07.2025 15:51:55	350076158	8.07.2025 15:55:38	1	System.Byte[]														1294														False														167						
+1655		3		Taburculuk	0				1	350076158	8.07.2025 15:52:23	350076158	8.07.2025 15:55:48	1	System.Byte[]														1294														False														167						
+1656		3		Aşı Odası	0				1	350076158	8.07.2025 15:53:04	350076158	8.07.2025 15:56:25	1	System.Byte[]														1294														False														167						
+1657		3		Kanalma	0				1	350076158	8.07.2025 15:53:40	350076158	8.07.2025 15:56:02	1	System.Byte[]														1294														False														167						
+1658		3		Raportör	0				1	350076158	8.07.2025 15:55:28			1	System.Byte[]														1294														False														167						
+1659		3		Servis Yatış Uygunluğu	0				1	350076158	8.07.2025 15:57:08			1	System.Byte[]														1294														False														167						
+1660		3		İşlem	0				1	350076158	8.07.2025 16:00:02			1	System.Byte[]														1294														False														167						
+1661		3		Test/Tahlil	0				1	350076158	8.07.2025 16:00:42			1	System.Byte[]														1294														False														167						
+1662		3		Sigorta ve Provizyon	0				1	350076158	8.07.2025 16:01:09			1	System.Byte[]														1294														False														167						
+1663		3		İlaç	0				1	350076158	8.07.2025 16:01:35			1	System.Byte[]														1294														False														167						
+1664		1		Hemodiyaliz	0				1	397319995	8.10.2025 10:51:26	397319995	8.10.2025 10:52:48	1	System.Byte[]		1	2	11	12									1245					166	384								False														167						
+1665		1	1632	Skolyoz	0		36	sss	1	407556715	4.11.2025 15:38:49	407556715	4.11.2025 15:39:32	0	System.Byte[]		1	2	11	12									1221					112	386								False														167						
+1666		1		Skolyoz	0				1	407556715	4.11.2025 15:41:40			1	System.Byte[]		1	2	11	12		True	True						1221					112	386								False														167						
+1667		1		Omurga Sağlığı	0				1	407556715	4.11.2025 15:43:33			1	System.Byte[]		1	2	11	12		True	True						1221					112	385								False														167						
+1668		1	1154	Kozmetoloq	0		36	ggg	1	427235427	7.12.2025 19:25:03	427235427	7.12.2025 19:25:24	0	System.Byte[]														1226					136	34								False														167						
+1669		1		Kozmetoloq	0				1	427235427	7.12.2025 19:26:26	457540723	2.02.2026 10:34:19	1	System.Byte[]		1	2	11	12									1226					136	34								False														167						
+1670		1	385	Odeme Link	0				1	80524512	17.11.2023 11:25:58	480013483	29.04.2026 10:51:12	1	System.Byte[]							True							1269					157	18							9	True	H-Link													167			True	1670		

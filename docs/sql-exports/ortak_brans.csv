@@ -1,0 +1,306 @@
+﻿Id	Kodu	Adi	SutKodu	SaglikNetKodu	VBOFiyati	MinYas	MaxYas	CinsiyetId	DoktorKapasitesi	IptalAciklamaId	IptalAciklamasi	OperationTypeId	CreatedByLoginId	CreatedDate	ModifiedByLoginId	ModifiedDate	State	RecordStamp	MerkezId	SenkronizasyonTarihi	SenkronizasyonLogId	IsDigerBransindanTakipAlabilir	IsYasCinsiyetKuraliSadeceSGKIcin	costcenter_id	costcenter_code	MKodu	TedaviTipiId	IsKurallariOnlineGorusmeIcinUygula
+1	9916	Medical Hiyerarşi	9916			0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9916					160	GM-96	9916		
+3	4401	Pratisyen Hekimlik	9999	101		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	4401					160	GM-01	9999		
+4	3700	Qulaq-Burun-Boğaz	3700	100		0	999					54	1	17.01.2020 12:29:51	244503	5.11.2020 16:21:48	1	System.Byte[]	9907					160	MM4-07	3700		
+5	9921	Sağlıklı Yaşam Kliniği	9921			0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	9921					160	GM-48	9921		
+8	9903	Beslenme ve Diyetetik	9999	8225		0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	9903					117	GM-04	9903		
+9	9902	Akupunktur	9999	1		0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	9921					160	GM-96	9999		
+10	3103	Anestezi(KVC)	3100	4		0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	3103					160	GM-23	3103		
+11	3101	Anestezi(Ameliyathane)	3100	4		0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	3101					160	MM4-01	3101		
+12	3100	Anestezi(GYB)	3100	197005		0	999					54	1	17.01.2020 12:29:51	243521	20.07.2020 15:21:06	1	System.Byte[]	3102					160	GM-16	3102		
+13	1242	Laboratuar	9999			0	999					54	1	17.01.2020 12:29:51	244499	5.11.2020 14:46:30	1	System.Byte[]	9914					170	MM4-07	9999		
+14	5701	Yeni Doğan Yoğun Bakım	1500	197032		0	999					54	1	17.01.2020 12:29:51	81719861	24.11.2023 17:23:38	1	System.Byte[]	1048					159	GM-46	1048		
+15	4100	Askeri Sahra Hekimliği	4100			0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	4100					160	GM-96	4100		
+16	4200	Hava ve Uzay Hekimliği	4200	154		0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	4200					160	GM-96	4200		
+17	4300	Sualtı Hekimliği ve Hiperbarik Tıp	4300	70		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:32:38	1	System.Byte[]	4300					160	GM-96	4300		
+18	9908	Check Up	9999	106		0	999					54	1	17.01.2020 12:29:51	2787836	8.12.2021 17:34:00	1	System.Byte[]	9908					160	GM-96	9908		
+19	1171	Təcili Tibbi yardım	9999	26		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	1171					160	GM-18	9999		
+20	9910	Stomatologiya	9910			0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	9910					160	GM-96	9910		
+21	9911	Anestezi ve Reanimasyon (GYB) TR.	9911			0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	9911					160	MM4-07	9911		
+22	9912	Neyrocərrahiyyə	9912			0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	9912					160	MM4-10	9912		
+23	1000	Uşaq Cərrahiyyə	1000	29		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	1000					160	GM-21	1000		
+24	9915	Uşaq Nevrologiyası	9915			0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9915					160	GM-10	9915		
+25	1900	Uşaq Sağlamlığı və Xəstəlikləri	1900	147		0	999					54	1	17.01.2020 12:29:51	243831	2.09.2020 11:26:00	1	System.Byte[]	9917					144	GM-31	9917		
+26	9918	Dermatologiya	9918	46		0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	9918					1253	GM-37	9918		
+27	9920	Dietologiya 	9920	175		0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	9920					1256	GM-40	9920		
+28	1100	İnfeksion Xəstəliklər        	1100	25		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:21:33	0	System.Byte[]	9923					139	MM4-14	1100		
+29	5010	Fizioterapiya və Rehabilitasiya	9999			0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	5010					160	GM-10	9999		
+30	9999	Qastroenterologiya	9999	101		0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	4401					160	GM-01	9999		
+31	4000	Ümumi Cərrahiyyə	4000	4500		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	4000						GM-41	4000		
+32	2300	Torakal Cerrahiyyə	2300	42		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:24:30	1	System.Byte[]	3201						GM-09	3201		
+33	9933	Pulmonologiya                      	1700	136		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9933							1700		
+34	1700	Oftalmologiya	1700	60		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:29:03	1	System.Byte[]	9933						GM-10	9933		
+35	1300	Daxili Xəstəliklər	1300	66		0	999					54	1	17.01.2020 12:29:51	243831	1.09.2020 14:18:40	1	System.Byte[]	9934					1325	GM-66	9934		
+36	9934	Mamalıq-Ginekologiya	1300	168		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9934					1325	GM-65	1300		
+37	9936	Kardiologiya	1548	135		0	18					1	1	18.07.2020 22:17:56			0	System.Byte[]	9936					1222	GM-60	1548		
+39	1855	Nefrologiya	1855	180		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	1855					160		1855		
+41	1402	Travmatologiya və Ortopediya	1402			0	18					54	1	17.01.2020 12:29:51	420957472	25.11.2025 10:16:40	1	System.Byte[]	1402					1224	GM-08	1402		True
+42	1402	Plastik, Estetik və Rekonstruktiv Cərrahiyyə	1855			0	18					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:39:08	0	System.Byte[]	1402					160	GM-96	1855		
+66	1000	İç Hastalıkları	1000	64		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:20:38	1	System.Byte[]	1000					134	GM-21	1000		
+67	1100	Kardiyoloji	1100	65		0	999					54	1	17.01.2020 12:29:51	54881041	21.06.2023 10:13:24	1	System.Byte[]	1100					137	GM-24	1100		
+68	1171	Göğüs Hastalıkları	1171	63		0	999					54	1	17.01.2020 12:29:51	54881041	21.06.2023 11:28:57	1	System.Byte[]	1171					131	GM-18	1171		
+69	1300	Nöroloji	1300	66		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:31:02	1	System.Byte[]	1300					143	GM-30	1300		
+70	1400	Psikiyatri	1400	68		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:31:56	1	System.Byte[]	1400					150	GM-37	1400		
+71	1500	Çocuk Sağlığı ve Hastalıkları	1500	59		0	18					54	1	17.01.2020 12:29:51	420957472	25.11.2025 09:25:57	1	System.Byte[]	1500					121	GM-08	1500		True
+72	1700	Dermatoloji	1700	60		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:43:38	1	System.Byte[]	1700					123	GM-10	1700		
+73	1800	Fiziksel Tıp ve Rehabilitasyon	1800	62		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:29:38	1	System.Byte[]	1800					126	GM-13	1800		
+74	1900	Genel Cerrahi	1900	147		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:20:23	1	System.Byte[]	1900					128	GM-15	1900		
+75	2000	Çocuk Cerrahisi	2000	37		0	18					54	1	17.01.2020 12:29:51	420957472	25.11.2025 09:26:49	1	System.Byte[]	2000					119	GM-06	2000		True
+76	2200	Göğüs Cerrahisi	2200	39		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:23:11	1	System.Byte[]	2200					130	GM-17	2200		
+77	2300	Kalp ve Damar Cerrahisi	2300	42		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:24:49	1	System.Byte[]	2300					136	GM-23	2300		
+78	2400	Beyin ve Sinir Cerrahisi	2400	36		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:22:26	1	System.Byte[]	2400					118	GM-05	2400		
+79	2500	Plastik, Rekonstrüktif ve Estetik Cerrahi	2500	45		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:25:20	1	System.Byte[]	2500					149	GM-36	2520		
+80	2600	Ortopedi ve Travmatoloji	2600	44		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:21:01	1	System.Byte[]	2600					145	GM-32	2600		
+81	2700	Üroloji	2700	46		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:25:39	1	System.Byte[]	2700					160	GM-45	2700		
+82	2800	Kulak-Burun-Boğaz Hastalıkları	2800	107		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:42:23	1	System.Byte[]	2800					140	GM-27	2800		
+83	2900	Göz Hastalıkları	2900	40		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:23:25	1	System.Byte[]	2900					132	GM-19	2900		
+84	3000	Kadın Hastalıkları ve Doğum	3000	41		0	999	K				54	1	17.01.2020 12:29:51	268	6.02.2020 11:32:52	1	System.Byte[]	3000					135	GM-22	3000		
+85	4800	Aile Hekimliği	4800	56		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:16:03	1	System.Byte[]	4800					160	GM-01	4800		
+86	9904	Diğer Dallar	9999			0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	9904					160	GM-96	9999		
+88	9918	Psikoloji	9918	46		0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	9918					1253	GM-37	9918		
+89	5300	Pedodonti (Çocuk Diş)	5300	117		0	99					54	1	17.01.2020 12:29:51	262771647	29.01.2025 14:35:36	1	System.Byte[]	5300					115	GM-02	36578		
+90	4400	Acil Tıp	4400	102		0	999					54	1	17.01.2020 12:29:51	244061	5.10.2020 14:42:47	1	System.Byte[]	4400				False	114	GM-01	4400		
+91	1076	Gastroentroloji	1076	85		0	999					54	1	17.01.2020 12:29:51	55373201	22.06.2023 15:48:12	1	System.Byte[]	1076					127	GM-14	1076		
+92	3100	Anestezi ve Reanimasyon	3100	197005		0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	3100					160	GM-16	3100		
+93	1586	Çocuk Kardiyolojisi	1586	79		0	18					54	1	17.01.2020 12:29:51	420957472	25.11.2025 09:26:04	1	System.Byte[]	1586					1240	GM-33	1586		True
+94	1583	Çocuk Nörolojisi	1583	82		0	20					54	1	17.01.2020 12:29:51	420957472	25.11.2025 09:26:08	1	System.Byte[]	1583					1224	GM-08	1583		True
+95	1099	Alergoloji	1099			0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	1099					160	GM-18	1099		
+96	1078	Endokrinoloji ve Metabolizma Hastalıkları	1078	84		0	999					54	1	17.01.2020 12:29:51	244713	25.11.2020 09:46:49	1	System.Byte[]	1078					124	GM-11	1078		
+97	1062	Nefroloji	1062	91		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:38:24	1	System.Byte[]	1062					142	GM-29	1062		
+98	1055	Romatoloji	1055	93		0	999					54	1	17.01.2020 12:29:51	244454	2.11.2020 17:00:28	1	System.Byte[]	1055				False	152	GM-39	1055		
+99	4668	İş ve Meslek Hastalıkları	1068	89		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:37:39	1	System.Byte[]	4668					160	GM-21	1068		
+100	1069	İmmünoloji	1069	88		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:37:19	1	System.Byte[]	1069					167	MM4-04	1069		
+101	1070	Hematoloji	1070	87		0	999					54	1	17.01.2020 12:29:51	15279111	10.05.2022 14:12:58	1	System.Byte[]	1070					133	GM-20	1070	0	
+102	1073	Geriatri	1073	148		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	1073					160	GM-21	1073		
+103	1053	Tıbbi Onkoloji	1053	94		0	999					54	1	17.01.2020 12:29:51	10444067	17.03.2022 10:47:39	1	System.Byte[]	1053					141	GM-28	1053	14	
+104	3100	Genel Yoğun Bakım	3100	197		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:14:22	1	System.Byte[]	3100					129	GM-16	3100		
+105	1198	Alerjik Göğüs Hastalıkları	1198	158		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	1198					160	GM-18	1198		
+106	1200	Enfeksiyon Hastalıkları	1200	61		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:29:23	1	System.Byte[]	1200					125	GM-12	1200		
+109	1595	Çocuk Endokrinolojik ve Metabolizma Hastalıkları	1595	127		0	18					54	1	17.01.2020 12:29:51	420957472	25.11.2025 10:17:05	1	System.Byte[]	1593					121	GM-08	1593		True
+110	1589	Çocuk Hematolojisi ve Onkolojisi	1589	77		0	21					54	1	17.01.2020 12:29:51	420957472	25.11.2025 09:26:13	1	System.Byte[]	1589					160	GM-49	1589	0	True
+111	1584	Çocuk Nefrolojisi	1584	81		0	21					54	1	17.01.2020 12:29:51	409692009	7.11.2025 11:13:17	1	System.Byte[]	1584					121	GM-08	1584		True
+113	1598	Çocuk Alerjisi	1598	26		0	18					54	1	17.01.2020 12:29:51	420957472	25.11.2025 10:17:17	1	System.Byte[]	1594					1449	GM-08	1594		True
+114	1582	Çocuk Onkolojisi	1582	14		0	18					54	1	17.01.2020 12:29:51	420957472	25.11.2025 10:17:22	1	System.Byte[]	1582					121	GM-08	1582		True
+115	1591	Çocuk Gastroenteroloji, Hepatoloji ve Beslenme	1591	74		0	21					54	1	17.01.2020 12:29:51	420957472	25.11.2025 10:17:27	1	System.Byte[]	1591					121	GM-08	1591		True
+116	1592	Çocuk Enfeksiyon Hastalıkları	1592	119		0	18					54	1	17.01.2020 12:29:51	420957472	25.11.2025 09:26:25	1	System.Byte[]	1592					121	GM-08	1592		True
+117	1561	Neonatoloji	1561	92		0	16					54	1	17.01.2020 12:29:51	77565674	31.10.2023 15:45:16	1	System.Byte[]	1561					1262	GM-46	1561		
+118	1574	Genetik	1574			0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	1574					166	MM4-03	1574		
+119	1590	Çocuk Göğüs Hastalıkları	1590	76		0	21					54	1	17.01.2020 12:29:51	420957472	25.11.2025 09:26:21	1	System.Byte[]	1501					121	GM-08	1590		True
+120	1594	Çocuk İmmünolojisi ve Alerji Hastalıkları	1594	124		0	18					54	1	17.01.2020 12:29:51	420957472	25.11.2025 10:17:39	1	System.Byte[]	1588					160	GM-08	1588		True
+121	1600	Çocuk Psikiyatrisi	1600	58		0	90					54	1	17.01.2020 12:29:51	35125192	4.01.2023 10:57:15	1	System.Byte[]	1401					121	GM-37	1401		
+122	1975	Gastroenteroloji Cerrahisi	1975	145		0	999					54	1	17.01.2020 12:29:51	270672730	11.02.2025 09:40:27	1	System.Byte[]	1975					160	GM-14	1975		
+123	2387	Çocuk Kalp ve Damar Cerrahisi	2387	52		0	18					54	1	17.01.2020 12:29:51	420957472	25.11.2025 10:17:50	1	System.Byte[]	2387					160	GM-08	2387		True
+124	2579	El Cerrahisi	2579	5400		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	2579					160	GM-36	2579		
+125	2781	Çocuk Ürolojisi	2100	133		0	18					54	1	17.01.2020 12:29:51			0	System.Byte[]	2781					121		2100		
+126	5009	Androloji	2796			0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	5009					160		2796		
+127	5008	Üreme Endokrinolojisi ve İnfertilite	3050			0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	5008					160	GM-43	3050		
+128	3056	Perinatoloji	3056	50		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:26:27	1	System.Byte[]	3056					1224	GM-22	3056		
+129	3197	Algoloji	3197	71		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:17:03	1	System.Byte[]	3197					1219	GM-03	3197		
+130	3200	Radyasyon Onkolojisi	3200	67		0	999					54	1	17.01.2020 12:29:51	475476138	30.03.2026 16:14:39	1	System.Byte[]	3200					151	GM-38	3200	14	
+131	3300	Radyoloji	3300	106		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:42:12	1	System.Byte[]	3300					173	MM4-10	3300		
+132	5007	Nöroradyoloji	3359	178		0	999					54	1	17.01.2020 12:29:51	186016531	5.09.2024 13:36:14	1	System.Byte[]	5007					160	MM4-10	3359		
+133	3372	Girişimsel Radyoloji	3300	178		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	3372					160	GM-59	3372		
+134	5006	Pediyatrik Radyoloji	3357			0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	5006					160	MM4-10	3357		
+135	3400	Nükleer Tıp	3400	3400		0	999					54	1	17.01.2020 12:29:51	243519	20.07.2020 10:45:41	1	System.Byte[]	3400					1312	MM4-08	3400		
+136	3500	Patoloji	3500	99		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:40:39	1	System.Byte[]	3500					160	MM4-09	3500		
+140	3600	Tıbbi Genetik	3600	95		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:39:47	1	System.Byte[]	3600					160	MM4-03	3600		
+141	5005	Klinik Sitogenetik	3664	47		0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	5005					160	MM4-03	3664		
+142	3600	Tıbbi Genetik	3665	47		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	3600					160	MM4-03	3665		
+143	5004	Klinik Genetik	3666	47		0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	5004					160	MM4-03	3666		
+144	9907	Biyokimya	3700	6		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9907					160	MM4-07	3700		
+145	3800	Mikrobiyoloji	3800	101		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:41:18	1	System.Byte[]	3800					160	MM4-07	3800		
+146	3800	Mikrobiyoloji	3852	34		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	3800					160	MM4-07	3852		
+147	3800	Mikrobiyoloji	3849	34		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	3800					160	MM4-07	3849		
+148	3800	Mikrobiyoloji	3863	34		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	3800					160	MM4-07	3863		
+149	3900	Tıbbi Farmakoloji	3900	96		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:40:02	1	System.Byte[]	3900					160	MM4-07	3900		
+150	5003	Toksikoloji	3951	1		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	5003					160	GM-96	3951		
+151	4000	Spor Hekimliği	4000	69		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:32:23	1	System.Byte[]	4000					154	GM-41	4000		
+155	4500	Adli Tıp	4500			0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	4500					160	GM-01	4500		
+156	4600	Halk Sağlığı	4600			0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	4600					160	GM-96	4600		
+157	4677	Epidemiyoloji	4677	141		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	4677					160	GM-12	4677		
+158	4695	Çevre Sağlığı	4695			0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	4695					160	GM-96	4695		
+159	4667	İşyeri Hekimliği	4667	159		0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	4667					160	GM-21	4667		
+160	4658	Okul Hekimliği	4658			0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	4658					160	GM-01	4658		
+161	4700	Fizyoloji	4700			0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	4700					160	GM-96	4700		
+162	4900	Anatomi	4900			0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	4900					160	GM-96	4900		
+163	5000	Embriyoloji ve Histoloji	5000			0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	5000					160	GM-43	5000		
+164	5002	Ortodonti	5100	170		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	5002					160	GM-02	5100		
+165	5200	Protetik Diş Tedavisi	5200	5350		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	5200					160	GM-02	5200		
+166	5400	Pedodonti	5400	5360		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	5400					160	GM-02	5400		
+167	5500	Periodontoloji	5500	5371		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	5500					160	GM-02	5500		
+168	5600	Ağız, Diş ve Çene Radyolojisi	5600	104		0	999					54	1	17.01.2020 12:29:51	1662304	15.11.2021 14:10:10	1	System.Byte[]	5600					160	GM-02	5600		
+169	5700	Diş Hastalıkları ve Tedavisi	5700	5350		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	5700					160	GM-02	5700		
+170	9901	Hemodiyaliz	9901			0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9901					160	GM-45	9901		
+171	3000	Tüp Bebek  (IVF)	3000	161		0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	9922					1259	GM-43	9922		
+197	9937	Medikal Estetik	197			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9937					1402	GM-138	197		
+198	9939	Fako Cerrahisi	198			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9939					1400	GM-136	198		
+199	9940	Şaşılık Cerrahisi	199			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9940					1399	GM-135	199		
+200	9942	Skolyoz Cerrahisi	200			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9942					1398	GM-134	200		
+201	9943	Oküloplasti	201			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9943					1397	GM-133	201		
+202	9944	Evlilik Terapisi	202			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9944					1396	GM-132	202		
+203	9945	Çocuk Ortopedisi	203			0	18					1	1	18.07.2020 22:17:56			0	System.Byte[]	9945					1395	GM-131	203		
+204	9946	Polisomnografi	204			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9946					1394	GM-130	204		
+205	9947	Baş Boyun Cerrahisi	205			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9947					1393	GM-129	205		
+206	9948	Kapalı Kapak Tedavilerii Kapalı malformasyon Tedav	206	162		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9948					1392	GM-128	206		
+207	9949	Vitroretinal Cerrahi	207			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9949					1389	GM-127	207		
+208	9950	Apne Cerrahisi	208			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9950					1391	GM-126	208		
+209	9951	Beyin Tümörleri Cerrahisi	209			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9951					1390	GM-125	209		
+210	9952	Çocuk Oyun Terapisi	210			0	18					1	1	18.07.2020 22:17:56			0	System.Byte[]	9952					1388	GM-124	210		
+211	9953	Podoloii(Ayak Sağlığı)	211			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9953					1387	GM-123	211		
+212	9954	İnme Merkezi	212	168		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9934					1386	GM-122	212		
+213	9955	Kohlear İmplant	213			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9955					1385	GM-121	213		
+214	9956	Elektrofizyoloji ve Aritmi	214			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9956					1384	GM-120	214		
+215	9957	Retinal Cerrahi	215			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9957					1383	GM-119	215		
+216	9958	Uyku Bozuklukları	216	168001		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9958					1291	GM-30	216		
+217	9959	Kozmetoloji	217			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9959					1381	GM-117	217		
+218	9960	Omurga Cerrahisi	218			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9960					1380	GM-116	218		
+219	9962	Obezite Cerrahisi(Bariatrik Cerrahi)	219			0	999					1	1	18.07.2020 22:17:56			1	System.Byte[]	9962					1377	GM-113	9962		
+220	9963	Gastroenteroloji Cerrahisi	220	145		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9963					1373	GM-112	220		
+221	9964	Pedodonti	221			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9964					1376	GM-111	221		
+222	9965	Hepatobilier Cerrahi	222			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9965					1375	GM-110	222		
+223	9966	Çocuk Romatolojisi	223	131		0	18					1	1	18.07.2020 22:17:56			0	System.Byte[]	9966					1374	GM-109	223		
+224	9967	Kolorektal Cerrahi	224			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9967					1372	GM-108	224		
+225	9968	Çene Cerrahisi	225			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9968					1371	GM-107	225		
+226	9969	Mikrocerrahi	226			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9969					1370	GM-106	226		
+227	9970	Jineonkoloji	227	161		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9970					1364	GM-105	227		
+228	9971	Medikal Onkoloji	228	192		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9971					1363	GM-104	228		
+229	9972	Bireysel Genomik Tıp 	229			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9972					1366	GM-103	229		
+230	9973	Meme Cerrahisi	230			0	999					1	1	18.07.2020 22:17:56			1	System.Byte[]	1900					1365	GM-102	896		
+231	9974	Endodonti	231	138		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9974					1362	GM-101	231		
+232	9975	Moleküler Genetik	232	189		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9975					1361	GM-100	232		
+233	9976	Çocuk Beyin Cerrahisi	233			0	18					1	1	18.07.2020 22:17:56			0	System.Byte[]	9976					1417	GM-94	233		
+234	9977	Psikoonkoloji	234			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9977					1416	GM-93	234		
+235	9978	Pedagoji	235			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9978					1415	GM-92	235		
+236	9979	Klinik Psikoloji	236			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9979					1414	GM-91	236		
+237	9980	Ruh Sağlığı ve Hastalıkları	237	181		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9980					1412	GM-89	237		
+238	9981	Plastik Cerrahi	238	175		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9981					1411	GM-88	238		
+239	9982	Ses Konuşma Ve Yutma Bozuklukları	239			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9982					1410	GM-87	239		
+240	9983	Odyoloji	240			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9983					1409	GM-86	240		
+241	9984	Jinekolojik Onkoloji Cerrahisi	9984	160		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9984					1331	GM-70	9984		
+242	9985	Geleneksel ve Tamamlayıcı Tıp	242	220		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9985					1368	GM-82	242		
+243	9986	Estetisyen	243			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9986					1367	GM-81	243		
+244	9987	Doğum Koçluğu 	244			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9987					1406	GM-80	244		
+245	9988	Dil ve Konuşma Terapisi	245			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9988					1405	GM-79	245		
+246	126	Androloji	2796			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	126						GM-45	2796		
+247	127	Üreme Endokrinolojisi ve İnfertilite	3050			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	127						GM-43	3050		
+248	132	Nöroradyoloji	3359			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	132						MM4-10	3359		
+249	134	Pediyatrik Radyoloji	3357			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	134						MM4-10	3357		
+250	141	Klinik Sitogenetik	3664	189		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	141					1245	MM4-03	3664		
+251	143	Klinik Genetik	3666	47		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	143						MM4-03	3666		
+252	150	Toksikoloji	3951	1		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	150						GM-96	3951		
+253	178	Ortodonti	5100	170		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	178					1413	GM-90	5100		
+254	9989	Aromaterapi	254			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9989						GM-145	254		
+255	9990	Diyabetik Ayak Polikliniği	4567	789		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	9990						GM-146	4567		
+256	3100	Palyatif Bakım Ünitesi	3100	197005		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	3102					1255	MM4-15	3100		
+257	10000	Meme Sağlığı Ünitesi	896			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	10000						GM-149	10000		
+258	10001	İlk ve Acil Yardım	5800	1		0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	10001						GM-148	5800		
+259	1596	Çocuk Acil	1596	115		0	18					1	1	18.07.2020 22:17:56	420957472	25.11.2025 10:17:57	1	System.Byte[]	10002						GM-46	10002		True
+260	10003	İç Hastalıkları Yoğun Bakım	1048			0	999					1	1	18.07.2020 22:17:56			0	System.Byte[]	10003						GM-147	1048		
+277	5100	Ortodonti	5100	170		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	5002					1536	GM-90	5100		
+278	1073	Geriatri	1073	148		0	999					54	1	17.01.2020 12:29:51	452276938	17.01.2026 09:13:56	1	System.Byte[]	1073						GM-21	1073		
+279	1198	Alerjik Göğüs Hastalıkları	1198	26		0	999					54	1	17.01.2020 12:29:51	77565674	31.10.2023 16:22:06	1	System.Byte[]	1198						GM-18	1198		
+280	1561	Neonatoloji	1561	167		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	1561						GM-46	1561		
+282	2781	Çocuk Ürolojisi	2781	53		0	18					54	1	17.01.2020 12:29:51	420957472	25.11.2025 10:18:01	1	System.Byte[]	2781						GM-08	2781		True
+283	3300	Girişimsel Radyoloji	3300			0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	3372						GM-59	3372		
+284	4677	Epidemiyoloji	4677	141		0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	4677						GM-12	4677		
+285	5700	Ağız ve Diş Sağlığı	5700	198		0	999					54	1	17.01.2020 12:29:51	73466166	9.10.2023 16:13:45	1	System.Byte[]	5700						GM-02	5301		
+286	1548	Çocuk Yoğun Bakım	1500	135		0	18					54	1	17.01.2020 12:29:51	420957472	25.11.2025 10:18:05	1	System.Byte[]	9936						GM-60	9936		True
+287	999914	Medikal Estetik		175		0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:04:20	1	System.Byte[]	9937					1525	GM-138	9937		
+288	999911	Fako Cerrahisi				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:04:02	1	System.Byte[]	9939					1523	GM-136			
+289	999928	Şaşılık Cerrahisi				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:05:57	1	System.Byte[]	9940					1522	GM-135			
+290	999927	Skolyoz Cerrahisi				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:05:49	1	System.Byte[]	9942					1521	GM-134			
+291	999919	Oküloplasti				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:04:54	1	System.Byte[]	9943					1520	GM-133			
+292	999910	Evlilik Terapisi				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:03:54	1	System.Byte[]	9944					1519	GM-132			
+293	99995	Çocuk Ortopedisi	2600	44		0	18					54	1	17.01.2020 12:29:51	420957472	25.11.2025 10:18:09	1	System.Byte[]	9945					1518	GM-131	203		True
+294	999923	Polisomnografi				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:05:22	1	System.Byte[]	9946					1517	GM-130			
+295	2800	Baş Boyun Cerrahisi	2800	107		0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	9947					1516	GM-129			
+296	9999	Kapalı Kapak Tedavilerii Kapalı malformasyon Tedav				0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9948					1515	GM-128			
+297	9999	Vitroretinal Cerrahi				0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9949					1514	GM-127			
+298	9999	Apne Cerrahisi				0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9950					1513	GM-126			
+299	9999	Beyin Tümörleri Cerrahisi				0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9951					1512	GM-125			
+300	99996	Çocuk Oyun Terapisi				0	18					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:03:26	1	System.Byte[]	9952					1511	GM-124			
+301	999922	Podoloii(Ayak Sağlığı)				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:05:13	1	System.Byte[]	9953					1510	GM-123	211		
+302	9999	İnme Merkezi				0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9934					1509	GM-122			
+303	9999	Kohlear İmplant				0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9955					1508	GM-121			
+304	9999	Elektrofizyoloji ve Aritmi				0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9956					1507	GM-120			
+305	9999	Retinal Cerrahi				0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9957					1506	GM-119			
+306	999929	Uyku Bozuklukları				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:06:03	1	System.Byte[]	9958						GM-118			
+307	9999	Kozmetoloji				0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9959					1504	GM-117			
+308	9999	Omurga Cerrahisi				0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9960					1503	GM-116			
+310	9999	Obezite Cerrahisi(Bariatrik Cerrahi)				0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9962					1500	GM-113			
+311	9999	Gastroenteroloji Cerrahisi				0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9963					1499	GM-112			
+312	5301	Pedodonti (Çocuk Diş)	5300			0	18			36	Mükererlik olmaması için silindi. 5300 kodu mevcut.	54	1	17.01.2020 12:29:51	1662304	15.11.2021 14:45:46	0	System.Byte[]	9964					1498	GM-111	36578		
+313	9999	Hepatobilier Cerrahi				0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9965					1497	GM-110			
+314	1599	Çocuk Romatolojisi	1599			0	18					54	1	17.01.2020 12:29:51	420957472	25.11.2025 10:18:14	1	System.Byte[]	1500					1496	GM-109	1599		True
+315	9999	Kolorektal Cerrahi				0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9967					1495	GM-108			
+316	9999	Çene Cerrahisi				0	999			36	Yerine 5100 kodu eklendiğinden mükererlik olmaması için silindi.	54	1	17.01.2020 12:29:51	1662304	15.11.2021 14:19:11	0	System.Byte[]	9968					1494	GM-107			
+317	999916	Mikrocerrahi				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:04:35	1	System.Byte[]	9969					1488	GM-106			
+318	999912	Jineonkoloji				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:04:07	1	System.Byte[]	9970					1487	GM-105			
+319	999915	Medikal Onkoloji				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:04:28	1	System.Byte[]	9971					1486	GM-104			
+320	99994	Bireysel Genomik Tıp 				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:02:29	1	System.Byte[]	9972					1490	GM-103			
+321	9999	Meme Cerrahisi				0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	9973					1489	GM-102	896		
+322	5550	Endodonti	5550			0	999					54	1	17.01.2020 12:29:51	1662304	15.11.2021 14:06:00	1	System.Byte[]	9974					1485	GM-101			
+323	999917	Moleküler Genetik				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:04:42	1	System.Byte[]	9975					1484	GM-100			
+324	99991	Çocuk Beyin ve Sinir Cerrahisi				0	18					54	1	17.01.2020 12:29:51	420957472	25.11.2025 10:18:19	1	System.Byte[]	9976					1540	GM-94	9976		True
+325	999924	Psikoonkoloji				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:05:29	1	System.Byte[]	9977					1539	GM-93			
+326	999920	Pedagoji				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:05:01	1	System.Byte[]	9978					1538	GM-92			
+327	999913	Klinik Psikoloji				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:04:15	1	System.Byte[]	9979					1537	GM-91			
+328	999925	Ruh Sağlığı ve Hastalıkları				0	999					54	1	17.01.2020 12:29:51	414253882	14.11.2025 10:52:06	1	System.Byte[]	9980					1535	GM-89			
+329	999921	Plastik Cerrahi				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:05:07	1	System.Byte[]	9981					1534	GM-88			
+330	999926	Ses Konuşma Ve Yutma Bozuklukları				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:05:43	1	System.Byte[]	9982					1533	GM-87			
+331	999918	Odyoloji				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:04:48	1	System.Byte[]	9983					1532	GM-86			
+332	3010	Jinekolojik Onkoloji Cerrahisi	3010	160		0	999					54	1	17.01.2020 12:29:51	245766	5.02.2021 16:36:30	1	System.Byte[]	3000					1493	GM-84	3000		
+333	1801	Geleneksel ve Tamamlayıcı Tıp	1800			0	999					54	1	17.01.2020 12:29:51	253341	14.07.2021 12:22:46	1	System.Byte[]	9921					1491	GM-82	9985		
+334	99999	Estetisyen				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:03:44	1	System.Byte[]	9986					1530	GM-81			
+335	99998	Doğum Koçluğu 				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:03:37	1	System.Byte[]	9987					1529	GM-80			
+336	99997	Dil ve Konuşma Terapisi				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:03:32	1	System.Byte[]	9988					1528	GM-79	9988		
+337	2796	Androloji	2796			0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	126						GM-45	2796		
+338	3050	Üreme Endokrinolojisi ve İnfertilite	3050			0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	127						GM-43	3050		
+339	3359	Nöroradyoloji	3359			0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	132						MM4-10	3359		
+340	3357	Pediyatrik Radyoloji	3357			0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	134						MM4-10	3357		
+341	3664	Klinik Sitogenetik	3664	47		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	141						MM4-03	3664		
+342	3666	Klinik Genetik	3666	47		0	999					54	1	17.01.2020 12:29:51			0	System.Byte[]	143						MM4-03	3666		
+343	3951	Toksikoloji	3951	1		0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	150						GM-96	3951		
+344	5100	Endokrinologiya 	5100	103		0	999					54	1	17.01.2020 12:29:51	1662304	15.11.2021 14:10:54	1	System.Byte[]	5700					1536	GM-90	5100		
+345	99993	Revmatologi				0	999					54	1	17.01.2020 12:29:51	174813876	19.08.2024 15:02:23	1	System.Byte[]	9989						GM-145			
+346	4567	Diyabetik Ayak Polikliniği	4567	789		0	999					54	1	17.01.2020 12:29:51			1	System.Byte[]	9990						GM-146	9990		
+347	1900	Meme Sağlığı Ünitesi	1900	38		0	999					54	1	17.01.2020 12:29:51	327999339	27.05.2025 13:38:18	1	System.Byte[]	1900						GM-149	10000		
+348						0	999			36		0	1	18.07.2020 21:14:04	244479	4.11.2020 12:13:53	0	System.Byte[]										
+349	301	PANDEMİ KLİNİĞİ (ÇOCUK)		301		9999	18					1	244722	25.11.2020 14:39:28	244722	25.11.2020 14:41:17	1	System.Byte[]				False						
+350	300	PANDEMİ KLİNİĞİ (ERİŞKİN)		300		999	0					1	244722	25.11.2020 14:41:46			1	System.Byte[]				False						
+351	2782	Çocuk Ürolojisi (Çocuk cerrahisi)	2782	53		0	18					1	245513	22.01.2021 10:27:36	420957472	25.11.2025 10:18:25	1	System.Byte[]	2781			False			GM-08	2782		True
+352	1596	Çocuk Acil	1596	115		0	18			36	asass	1	251384	17.06.2021 17:41:02	251384	17.06.2021 17:45:20	0	System.Byte[]				False	True					
+353	1855	Romatoloji (Fizik Tedavi)	1855	93		0	999					1	261858	3.09.2021 17:43:50	261899	4.09.2021 09:13:12	1	System.Byte[]	1055			False				1055		
+354	5200	Ortodonti	5200	170								1	321162	20.09.2021 15:23:45	1662304	15.11.2021 14:14:47	1	System.Byte[]	5300			False				178		
+355	1048 	İÇ HASTALIKLARI YOĞUN BAKIM	1048	197010		0	999					1	1348876	4.11.2021 12:41:22	292422437	24.03.2025 09:49:35	1	System.Byte[]				False						
+356	1173	İmmünoloji ve Alerji Hastalıkları(Göğüs Hastalıkla	1173			0	999			36	ddd	1	1379729	5.11.2021 14:25:08	1379729	5.11.2021 14:42:35	0	System.Byte[]				False						
+357	1173	İmmünoloji ve Alerji Hastalıkları(Göğüs Hastalıkla	1173	26		0	999			36	llmlml	1	1446789	9.11.2021 16:03:16	1769615	18.11.2021 10:26:42	0	System.Byte[]				False						
+358	5400	Protetik Diş Tedavisi	5400	176		0	999					1	1662304	15.11.2021 14:00:39	1662304	15.11.2021 14:11:37	1	System.Byte[]				False						
+359	5150	Restoratif Diş Tedavisi	5150				999					1	1662304	15.11.2021 14:02:50			1	System.Byte[]				False						
+360	5500	Periodontoloji	5500	174		0	999					1	1662304	15.11.2021 14:03:55	1662304	15.11.2021 14:17:03	1	System.Byte[]				False						
+361	9974	Meme Hastalıkları ve Cerrahisi 	230			0	999					1	1672637	15.11.2021 15:44:23			1	System.Byte[]	1900			False				5011		
+362	9905	Yenidoğan ve Prematüre İzlem Polikliniği	9999	1		0	1					1	6101868	24.01.2022 09:17:25			1	System.Byte[]				False				5802		
+363	9906	Bütüncül Tıp Uygulamaları	9999	1		0	120					1	6102044	24.01.2022 09:21:14			1	System.Byte[]	9921			False				5801		
+364	1910	Cerrahi Onkoloji	1910	113			999					1	9763560	11.03.2022 17:42:17	425953707	4.12.2025 09:52:31	1	System.Byte[]				False				10001		
+365	99992	Ergoterapist		9999		0	999					1	10994280	24.03.2022 08:19:53	10994280	24.03.2022 08:20:45	1	System.Byte[]				False				100010		
+366	9989	Fonksiyonel Tıp	9999			0	999					1	11306867	28.03.2022 17:24:10	11306867	28.03.2022 17:24:45	1	System.Byte[]	9921			False				10005		
+367	5022	Çocuk Psikolojisi	9918	46		0	18					54	1	17.01.2020 12:29:51	420957472	25.11.2025 10:18:32	1	System.Byte[]	5022					1253	GM-37	9918		True
+368	2679	El Cerrahisi (Ortopedi ve Travmatoloji)	2679	137								1	18670327	22.06.2022 08:30:21			1	System.Byte[]	2600			False				10003		
+369	99993	Evde Bakım		9999			999			36	deneme	1	19849264	7.07.2022 13:22:00	19887267	7.07.2022 17:51:25	0	System.Byte[]				False						
+370	99181	Aile Danışmanlığı	9918	46		0	999					1	40184294	28.02.2023 10:31:01			1	System.Byte[]	9918			False		1253	GM-37	10007		
+371	2600	Skolyoz ve Omurga Cerrahisi	2600	44		0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:21:01	1	System.Byte[]	2600					145	GM-32	10004		
+372	1587	Çocuk Hematolojisi	1587	10		0	21					1	71998480	2.10.2023 10:01:58	420957472	25.11.2025 10:18:37	1	System.Byte[]	1587			False				10008		True
+373	1588	Çocuk İmmünolojisi	1588	124		0	18					1	72873048	6.10.2023 10:56:19	420957472	25.11.2025 09:26:41	1	System.Byte[]	5900			False				10010		True
+374	1585	Çocuk Metabolizma Hastalıkları	1585	72								1	75482122	19.10.2023 17:58:55	75482122	19.10.2023 17:59:44	1	System.Byte[]	1585			False				10009		
+375	1173	İmmünoloji ve Alerji Hastalıkları(GH)	1173			16	999					1	77565674	31.10.2023 16:24:31	98221537	14.02.2024 15:47:49	1	System.Byte[]				False						
+376	1600	Çocuk ve Ergen Psikiyatrisi	1600	58		0	90					1	85458099	13.12.2023 14:03:37			1	System.Byte[]	10011			False				10011		
+377	3199	Algoloji (Ağrı Ünitesi)	3199	107								1	119940461	27.04.2024 11:01:05	124883042	9.05.2024 16:01:01	1	System.Byte[]	10012			False				10012		
+378	1501	Ergen Sağlığı	1500	59		10	18					1	212043236	24.10.2024 09:14:53	215091580	30.10.2024 15:40:34	1	System.Byte[]				False				10013		
+379	1502	MS Polikliniği				0	999					54	1	17.01.2020 12:29:51	208636	20.01.2020 10:31:02	1	System.Byte[]	10014					143	GM-30	10014		
+380	5000	Histoloji ve Embriyoloji	5000	156								1	267673399	5.02.2025 18:53:13			1	System.Byte[]				False						
+381	1593	Çocuk Endokrinolojisi	1593	127		0	18					1	289452679	19.03.2025 15:15:48	420957472	25.11.2025 10:18:54	1	System.Byte[]	10015			False				10015		True
+382	1099	Alerji Hastalıkları(İH)	1099	158								1	331959179	3.06.2025 13:48:58			1	System.Byte[]				False						
+383	197025	Organ Nakli Yoğun Bakım	197025									1	340816659	20.06.2025 11:43:24			1	System.Byte[]	10016			False				10016		
+384	9999	Hemodiyaliz	9999									1	396706305	7.10.2025 15:37:53	396706305	7.10.2025 15:47:55	1	System.Byte[]	10017			False				10017		
+385	2601	Omurga Sağlığı	2600	44								1	407556715	4.11.2025 15:35:36			1	System.Byte[]				False						
+386	2602	Skolyoz	2600	44								1	407556715	4.11.2025 15:36:03	407556715	4.11.2025 15:36:19	1	System.Byte[]				False						

@@ -1,0 +1,82 @@
+@page
+@model PusulaEHealthSync.Web.Pages.BolumEslestirmeModel
+@{
+    ViewData["Title"] = "Bölüm Eşleştirme";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Bölüm Eşleştirme</h1>
+        <p class="page-subtitle">Pusula bölümlerini AZ hospital-departments koduna birebir eşleştirin -- otomatik/tahmini eşleştirme yapılmıyor.</p>
+    </div>
+</div>
+
+@if (Model.Saved)
+{
+    <div class="alert alert-success">Kaydedildi.</div>
+}
+
+<div class="card card-pad" style="margin-bottom:20px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+    <a asp-page="/BolumEslestirme" asp-route-Durum="Tumu" class="stat-link @(Model.Durum == "Tumu" ? "active" : "")">
+        <span class="stat-value" style="font-size:24px;">@Model.TotalCount</span>
+        <span class="text-muted" style="font-size:13px; display:block;">tümü</span>
+    </a>
+    <a asp-page="/BolumEslestirme" asp-route-Durum="Eslestirildi" class="stat-link @(Model.Durum == "Eslestirildi" ? "active" : "")">
+        <span class="stat-value" style="font-size:24px; color:var(--success);">@Model.MappedCount</span>
+        <span class="text-muted" style="font-size:13px; display:block;">eşleştirildi</span>
+    </a>
+    <a asp-page="/BolumEslestirme" asp-route-Durum="Eslestirilmedi" class="stat-link @(Model.Durum == "Eslestirilmedi" ? "active" : "")">
+        <span class="stat-value" style="font-size:24px; color:var(--text-muted);">@Model.UnmappedCount</span>
+        <span class="text-muted" style="font-size:13px; display:block;">eşleştirilmedi</span>
+    </a>
+    <p class="text-muted" style="font-size:13px; margin:0 0 0 12px; max-width:600px;">
+        Aşağıdaki liste son 365 günde <span class="mono">hasta.protokol</span>'de gerçekten kullanılan
+        bölümler, en çok kullanılana göre sıralı. Eşleşmeyen bir bölümün protokolü Müayinə olarak
+        gönderilemez -- "Bölüm için AZ eşleştirmesi henüz yapılmadı" diye atlanır (tahmini bir koda
+        düşürülmez).
+    </p>
+</div>
+
+<form method="post">
+    <input type="hidden" name="Durum" value="@Model.Durum" />
+    <div class="bulk-toolbar">
+        <button type="submit" class="btn btn-primary btn-sm">Kaydet</button>
+    </div>
+
+    <div class="table-wrap">
+        <table style="min-width:900px;">
+            <thead>
+                <tr>
+                    <th>Pusula Id</th>
+                    <th>Pusula Bölüm Adı</th>
+                    <th>Kullanım (365 gün)</th>
+                    <th>AZ Kodu</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var row in Model.Rows)
+                {
+                    var mapped = !string.IsNullOrWhiteSpace(row.AzKod);
+                    <tr style="@(mapped ? "" : "background: color-mix(in srgb, var(--warning) 6%, transparent);")">
+                        <td class="mono">@row.BolumId</td>
+                        <td>@(row.Adi ?? "-")</td>
+                        <td class="mono text-muted">@row.Adet.ToString("N0")</td>
+                        <td>
+                            <select name="Mappings[@row.BolumId]">
+                                <option value="">@(mapped ? "-- kaldır --" : "-- seçilmedi --")</option>
+                                @foreach (var az in PusulaEHealthSync.Web.Pages.BolumEslestirmeModel.AzDepartments)
+                                {
+                                    <option value="@az.Key" selected="@(row.AzKod == az.Key)">@az.Value (@az.Key)</option>
+                                }
+                            </select>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    <div class="bulk-toolbar" style="margin-top:16px;">
+        <button type="submit" class="btn btn-primary btn-sm">Kaydet</button>
+    </div>
+</form>

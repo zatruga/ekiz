@@ -1,0 +1,1167 @@
+/* Pusula -> e-Health Senkron Paneli -- v2 tasarim
+   Koyu temali, genis, veri-yogun "data platform" estetigi (Linear/Vercel/GitHub
+   ilhamli). Harici CDN/font bagimliligi yok -- ic agda internet erisimi olmayan
+   bir hastane sunucusunda da sorunsuz calissin diye. */
+
+:root {
+  --bg: #0B0F16;
+  --bg-elevated: #10151F;
+  --surface: #131924;
+  --surface-hover: #171F2C;
+  --border: #232B3A;
+  --border-strong: #303B4F;
+
+  --primary: #4F8CF7;
+  --primary-hover: #6B9FF8;
+  --primary-soft: rgba(79, 140, 247, 0.12);
+
+  --success: #34D399;
+  --success-soft: rgba(52, 211, 153, 0.12);
+  --warning: #FBBF24;
+  --warning-soft: rgba(251, 191, 36, 0.12);
+  --danger: #F87171;
+  --danger-soft: rgba(248, 113, 113, 0.12);
+  --violet: #A78BFA;
+  --violet-soft: rgba(167, 139, 250, 0.14);
+  --teal: #2DD4BF;
+  --teal-soft: rgba(45, 212, 191, 0.14);
+  --indigo: #818CF8;
+  --indigo-soft: rgba(129, 140, 248, 0.14);
+
+  --text: #E6EAF2;
+  --text-muted: #8B95A8;
+  --text-faint: #5B6577;
+  --code-text: #B8C4D9;
+  --shadow-card: 0 24px 60px rgba(0,0,0,0.4);
+  --login-glow-1: rgba(79, 140, 247, 0.12);
+  --login-glow-2: rgba(124, 92, 252, 0.10);
+
+  --font-heading: ui-monospace, "Cascadia Code", "Segoe UI Mono", Consolas, "Liberation Mono", monospace;
+  --font-body: "Segoe UI", system-ui, -apple-system, Roboto, Helvetica, Arial, sans-serif;
+
+  --radius-sm: 8px;
+  --radius: 12px;
+  --radius-lg: 16px;
+  --sidebar-w: 248px;
+  --content-max: 1680px;
+}
+
+/* Gunduz (acik) tema -- <html data-theme="light"> ile aktiflesir, tercih
+   localStorage'da tutulur (bkz. _Layout.cshtml'deki kucuk script). */
+:root[data-theme="light"] {
+  --bg: #F5F7FA;
+  --bg-elevated: #FFFFFF;
+  --surface: #FFFFFF;
+  --surface-hover: #F1F5F9;
+  --border: #E4E9F0;
+  --border-strong: #CBD5E1;
+
+  --primary: #2F6FED;
+  --primary-hover: #1D5FE0;
+  --primary-soft: rgba(47, 111, 237, 0.10);
+
+  --success: #059669;
+  --success-soft: #ECFDF5;
+  --warning: #C2760C;
+  --warning-soft: #FFFBEB;
+  --danger: #DC2626;
+  --danger-soft: #FEF2F2;
+  --violet: #7C5CFC;
+  --violet-soft: rgba(124, 92, 252, 0.10);
+  --teal: #0D9488;
+  --teal-soft: rgba(13, 148, 136, 0.10);
+  --indigo: #4F46E5;
+  --indigo-soft: rgba(79, 70, 229, 0.10);
+
+  --text: #0F172A;
+  --text-muted: #55617A;
+  --text-faint: #8B95A8;
+  --code-text: #1E293B;
+  --shadow-card: 0 20px 45px rgba(15, 23, 42, 0.10);
+  --login-glow-1: rgba(47, 111, 237, 0.10);
+  --login-glow-2: rgba(124, 92, 252, 0.08);
+}
+
+* { box-sizing: border-box; }
+html { font-size: 16px; }
+
+body {
+  margin: 0;
+  min-height: 100vh;
+  background: var(--bg);
+  color: var(--text);
+  font-family: var(--font-body);
+  line-height: 1.55;
+  -webkit-font-smoothing: antialiased;
+}
+
+a { color: var(--primary); text-decoration: none; }
+a:hover { color: var(--primary-hover); }
+
+h1, h2, h3, .font-heading {
+  font-family: var(--font-heading);
+  font-weight: 600;
+  letter-spacing: -0.01em;
+  color: var(--text);
+  margin: 0;
+}
+
+::selection { background: var(--primary-soft); color: var(--text); }
+
+/* ---------- App shell: sidebar + content ---------- */
+
+.app-shell {
+  display: grid;
+  grid-template-columns: var(--sidebar-w) 1fr;
+  min-height: 100vh;
+}
+
+@media (max-width: 900px) {
+  .app-shell { grid-template-columns: 1fr; }
+  .sidebar { display: none; }
+}
+
+.sidebar {
+  background: var(--bg-elevated);
+  border-right: 1px solid var(--border);
+  padding: 22px 16px;
+  display: flex;
+  flex-direction: column;
+  position: sticky;
+  top: 0;
+  height: 100vh;
+}
+
+.brand {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 6px 8px 22px;
+}
+
+.brand-mark {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 34px;
+  height: 34px;
+  border-radius: 9px;
+  background: linear-gradient(135deg, var(--primary), #7C5CFC);
+  color: white;
+  flex-shrink: 0;
+}
+
+.brand-name {
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  line-height: 1.3;
+}
+
+.brand-name .accent { color: var(--primary); }
+
+.nav-section-label {
+  font-size: 11px;
+  text-transform: uppercase;
+  letter-spacing: 0.06em;
+  color: var(--text-faint);
+  padding: 0 8px;
+  margin: 8px 0 6px;
+}
+
+.nav-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 10px;
+  border-radius: var(--radius-sm);
+  color: var(--text-muted);
+  font-size: 14px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.nav-link:hover { background: var(--surface-hover); color: var(--text); text-decoration: none; }
+.nav-link.active { background: var(--primary-soft); color: var(--primary); }
+.nav-link svg { flex-shrink: 0; opacity: 0.9; }
+
+.sidebar-footer {
+  margin-top: auto;
+  padding-top: 16px;
+  border-top: 1px solid var(--border);
+}
+
+.user-row {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px;
+}
+
+.user-avatar {
+  width: 30px;
+  height: 30px;
+  border-radius: 50%;
+  background: var(--surface-hover);
+  border: 1px solid var(--border-strong);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text-muted);
+  flex-shrink: 0;
+}
+
+.user-name { font-size: 13.5px; color: var(--text); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+.icon-btn {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 30px;
+  height: 30px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  background: transparent;
+  color: var(--text-faint);
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.icon-btn:hover { background: var(--surface-hover); color: var(--primary); }
+.icon-btn.icon-btn-logout:hover { color: var(--danger); }
+
+.theme-toggle {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 10px;
+  margin-bottom: 4px;
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  background: var(--surface);
+  color: var(--text-muted);
+  font-family: var(--font-body);
+  font-size: 13px;
+  font-weight: 500;
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease, border-color 150ms ease;
+}
+
+.theme-toggle:hover { color: var(--text); border-color: var(--border-strong); }
+.theme-toggle svg { flex-shrink: 0; }
+.theme-toggle .sun-icon, .theme-toggle .sun-label,
+[data-theme="light"] .theme-toggle .moon-icon, [data-theme="light"] .theme-toggle .moon-label { display: none; }
+[data-theme="light"] .theme-toggle .sun-icon { display: inline-flex; }
+[data-theme="light"] .theme-toggle .sun-label { display: inline; }
+
+main.content {
+  padding: 32px 40px 72px;
+  max-width: var(--content-max);
+  width: 100%;
+}
+
+/* mobile topbar fallback (sidebar hidden) */
+.mobile-topbar { display: none; }
+@media (max-width: 900px) {
+  .mobile-topbar {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 14px 20px;
+    background: var(--bg-elevated);
+    border-bottom: 1px solid var(--border);
+  }
+  main.content { padding: 24px 20px 56px; }
+}
+
+.page-header {
+  display: flex;
+  align-items: flex-end;
+  justify-content: space-between;
+  flex-wrap: wrap;
+  gap: 16px;
+  margin-bottom: 28px;
+}
+
+.page-title { font-size: 24px; margin-bottom: 6px; }
+.page-subtitle { color: var(--text-muted); font-size: 14.5px; margin: 0; }
+.breadcrumb { font-size: 13px; color: var(--text-faint); margin-bottom: 8px; }
+.breadcrumb a { color: var(--text-muted); }
+
+/* ---------- Buttons ---------- */
+
+.btn {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  padding: 9px 18px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  font-family: var(--font-body);
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background-color 150ms ease, border-color 150ms ease, color 150ms ease, transform 100ms ease;
+}
+
+.btn:active { transform: translateY(1px); }
+.btn:disabled { cursor: not-allowed; opacity: 0.55; transform: none; }
+
+.btn-primary { background: var(--primary); color: #fff; }
+.btn-primary:hover:not(:disabled) { background: var(--primary-hover); }
+
+.btn-outline { background: transparent; border-color: var(--border-strong); color: var(--text-muted); }
+.btn-outline:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+
+.btn-sm { padding: 7px 14px; font-size: 13px; }
+.btn-block { width: 100%; justify-content: center; }
+
+.btn:focus-visible, a:focus-visible, input:focus-visible, select:focus-visible, button:focus-visible {
+  outline: 2px solid var(--primary);
+  outline-offset: 2px;
+}
+
+/* ---------- Cards & stat tiles ---------- */
+
+.card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius);
+}
+
+.card-pad { padding: 24px 26px; }
+
+.stat-grid {
+  display: grid;
+  grid-template-columns: repeat(4, 1fr);
+  gap: 18px;
+  margin-bottom: 32px;
+}
+
+@media (max-width: 1100px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
+@media (max-width: 560px) { .stat-grid { grid-template-columns: 1fr; } }
+
+.stat-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 22px 24px;
+  display: flex;
+  flex-direction: column;
+  gap: 14px;
+}
+
+/* .stat-card bir <a> uzerinde kullanilinca (KULLANICI ISTEGI, 2026-08-25: "bilgi bari
+   secim yapilabilir olsun") -- tiklanabilir/aktif hallerini ekler, gorunumu bozmaz. */
+a.stat-card { text-decoration: none; cursor: pointer; transition: border-color .15s, background .15s; }
+a.stat-card:hover { border-color: var(--border-strong); }
+a.stat-card.active { border-color: var(--primary); background: var(--primary-soft); }
+
+.stat-top { display: flex; align-items: center; justify-content: space-between; }
+
+.stat-icon {
+  width: 36px;
+  height: 36px;
+  border-radius: 10px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--primary-soft);
+  color: var(--primary);
+}
+
+.stat-card.success .stat-icon { background: var(--success-soft); color: var(--success); }
+.stat-card.warning .stat-icon { background: var(--warning-soft); color: var(--warning); }
+.stat-card.danger .stat-icon { background: var(--danger-soft); color: var(--danger); }
+
+.stat-label { font-size: 13px; color: var(--text-muted); font-weight: 500; }
+
+.stat-value {
+  font-family: var(--font-heading);
+  font-size: 34px;
+  font-weight: 700;
+  color: var(--text);
+  line-height: 1;
+}
+
+.stat-value.success { color: var(--success); }
+.stat-value.warning { color: var(--warning); }
+.stat-value.danger { color: var(--danger); }
+
+/* Tiklanabilir stat bloklari -- Doktorlar/Bolum Eslestirme ust bilgi barindaki
+   Gonderildi/Hatali/Gonderilmedi vb. sayilar tiklaninca listeyi filtreliyor
+   (KULLANICI ISTEGI, 2026-08-25). */
+.stat-link {
+  display: block;
+  text-decoration: none;
+  padding: 6px 14px;
+  border-radius: var(--radius-sm);
+  border: 1px solid transparent;
+  cursor: pointer;
+}
+.stat-link:hover { background: var(--surface-hover); }
+.stat-link.active { background: var(--primary-soft); border-color: var(--primary); }
+
+/* ---------- Filters ---------- */
+
+.filter-bar {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  flex-wrap: wrap;
+  margin-bottom: 18px;
+}
+
+.filter-bar select, .filter-bar input[type="text"], .filter-bar input[type="date"] {
+  font-family: var(--font-body);
+  font-size: 14px;
+  padding: 9px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  min-width: 180px;
+}
+
+.filter-bar select:focus, .filter-bar input:focus { border-color: var(--primary); }
+
+.filter-bar label {
+  font-size: 13px;
+  color: var(--text-muted);
+  font-weight: 500;
+}
+
+/* ---------- Table ---------- */
+
+.table-wrap {
+  overflow-x: auto;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+}
+
+table { width: 100%; border-collapse: collapse; font-size: 14.5px; min-width: 860px; }
+
+thead th {
+  text-align: left;
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  font-weight: 600;
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  white-space: nowrap;
+}
+
+tbody td {
+  padding: 16px 20px;
+  border-bottom: 1px solid var(--border);
+  vertical-align: middle;
+}
+
+tbody tr:last-child td { border-bottom: none; }
+tbody tr { transition: background-color 150ms ease; }
+tbody tr:hover { background: var(--surface-hover); }
+
+.mono { font-family: var(--font-heading); font-size: 13.5px; color: var(--text); }
+.text-muted { color: var(--text-muted); }
+.cell-wide { white-space: normal; max-width: 420px; }
+
+/* ---------- Badges ---------- */
+
+.badge {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  padding: 4px 12px;
+  border-radius: 999px;
+  font-size: 12.5px;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.badge.success { background: var(--success-soft); color: var(--success); }
+.badge.warning { background: var(--warning-soft); color: var(--warning); }
+.badge.danger { background: var(--danger-soft); color: var(--danger); }
+.badge.neutral { background: var(--surface-hover); color: var(--text-muted); }
+
+.badge-dot { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+
+/* Aktivite Akisi tablosunda hangi kaynak turunun (Hasta/Doktor/Müayinə/Epikriz/Tanı)
+   gonderildigini bir bakista ayirt etmek icin -- KULLANICI ISTEGI (2026-08-25): "hangi
+   kaydin ne oldugu anlasilmiyor, doktor gondermisim ama hasta gibi gorunuyor". Ayni
+   rt-* renk kodu Detail.cshtml'deki resource-chip ile tutarli tutuldu. */
+.badge.rt-patient { background: var(--primary-soft); color: var(--primary); }
+.badge.rt-practitioner { background: var(--violet-soft); color: var(--violet); }
+.badge.rt-encounter { background: var(--success-soft); color: var(--success); }
+.badge.rt-composition { background: var(--warning-soft); color: var(--warning); }
+.badge.rt-condition { background: var(--teal-soft); color: var(--teal); }
+.badge.rt-procedure { background: var(--indigo-soft); color: var(--indigo); }
+
+/* ---------- Kayit Detayi -- kaynak turu basligi ---------- */
+/* Hangi kayit turunun (Hasta/Doktor/Müayinə/Epikriz) detayinda olundugu ilk bakista
+   belli olsun diye (KULLANICI ISTEGI, 2026-08-21) -- her tur kendi rengiyle, ikonlu
+   bir "avatar" + ust etiket (eyebrow) olarak gosteriliyor. */
+.resource-header { display: flex; align-items: center; gap: 16px; }
+
+/* page-header'in ortasinda (baslik ile butonlar arasindaki bosluk) duran, kendi rengiyle
+   one cikan bagimsiz "tur" rozeti -- KULLANICI ISTEGI (2026-08-21): ikon+etiket basligin
+   yaninda degil, bu bosluga tasindi. */
+.resource-chip {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  padding: 10px 20px 10px 10px;
+  border-radius: 999px;
+}
+.resource-chip.rt-patient { background: var(--primary-soft); }
+.resource-chip.rt-practitioner { background: var(--violet-soft); }
+.resource-chip.rt-encounter { background: var(--success-soft); }
+.resource-chip.rt-composition { background: var(--warning-soft); }
+.resource-chip.rt-condition { background: var(--teal-soft); }
+.resource-chip.rt-procedure { background: var(--indigo-soft); }
+
+.resource-avatar {
+  flex-shrink: 0;
+  width: 44px;
+  height: 44px;
+  border-radius: 50%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: var(--bg-elevated);
+}
+.resource-avatar svg { width: 22px; height: 22px; }
+
+.resource-avatar.rt-patient { background: var(--primary-soft); color: var(--primary); }
+.resource-avatar.rt-practitioner { background: var(--violet-soft); color: var(--violet); }
+.resource-avatar.rt-encounter { background: var(--success-soft); color: var(--success); }
+.resource-avatar.rt-composition { background: var(--warning-soft); color: var(--warning); }
+.resource-avatar.rt-condition { background: var(--teal-soft); color: var(--teal); }
+.resource-avatar.rt-procedure { background: var(--indigo-soft); color: var(--indigo); }
+
+.resource-eyebrow {
+  display: block;
+  font-family: var(--font-heading);
+  font-size: 14px;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+  margin-bottom: 4px;
+}
+.resource-eyebrow.rt-patient { color: var(--primary); }
+.resource-eyebrow.rt-practitioner { color: var(--violet); }
+.resource-eyebrow.rt-encounter { color: var(--success); }
+.resource-eyebrow.rt-composition { color: var(--warning); }
+.resource-eyebrow.rt-condition { color: var(--teal); }
+.resource-eyebrow.rt-procedure { color: var(--indigo); }
+
+/* ---------- Empty state ---------- */
+
+.empty-state {
+  text-align: center;
+  padding: 64px 24px;
+  color: var(--text-muted);
+}
+
+.empty-state svg { margin-bottom: 14px; color: var(--text-faint); }
+
+/* ---------- Pagination ---------- */
+
+.pagination { display: flex; gap: 10px; margin-top: 20px; justify-content: flex-end; }
+
+/* ---------- Login page ---------- */
+
+.login-shell {
+  min-height: 100vh;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 24px;
+  background:
+    radial-gradient(circle at 20% 20%, var(--login-glow-1), transparent 40%),
+    radial-gradient(circle at 80% 80%, var(--login-glow-2), transparent 40%),
+    var(--bg);
+}
+
+.login-card {
+  width: 100%;
+  max-width: 400px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  box-shadow: var(--shadow-card);
+  padding: 36px 32px;
+}
+
+.login-header { text-align: center; margin-bottom: 26px; }
+
+.login-mark {
+  width: 50px;
+  height: 50px;
+  border-radius: 14px;
+  background: linear-gradient(135deg, var(--primary), #7C5CFC);
+  color: white;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  margin: 0 auto 16px;
+}
+
+.login-title { font-size: 19px; margin-bottom: 5px; }
+.login-subtitle { font-size: 13.5px; color: var(--text-muted); margin: 0; }
+
+.field { margin-bottom: 18px; }
+
+.field label {
+  display: block;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--text);
+  margin-bottom: 7px;
+}
+
+.field input {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.field input:focus { border-color: var(--primary); }
+
+/* checkbox/radio bir .field icindeyse yukaridaki width:100% kuralindan MUAF olmali --
+   aksi halde tikanabilir kutusu tum satiri kaplar, etiketi uzagа iter (bkz. Ayarlar
+   sayfasi -- Ortam segmented control gerceklestirilirken bulundu). */
+.field input[type="checkbox"],
+.field input[type="radio"] { width: auto; accent-color: var(--primary); }
+
+.field select,
+.field textarea {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-body);
+  font-size: 14.5px;
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.field select:focus, .field textarea:focus { border-color: var(--primary); }
+
+.field-hint { font-size: 12px; color: var(--text-faint); font-weight: 400; }
+
+.alert {
+  padding: 11px 15px;
+  border-radius: var(--radius-sm);
+  font-size: 13.5px;
+  margin-bottom: 18px;
+}
+
+.alert-danger { background: var(--danger-soft); color: var(--danger); border: 1px solid rgba(248, 113, 113, 0.3); }
+.alert-success { background: var(--success-soft); color: var(--success); border: 1px solid rgba(52, 211, 153, 0.3); }
+
+/* ---------- Detail page ---------- */
+
+.detail-grid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 24px;
+}
+
+@media (max-width: 1100px) {
+  .detail-grid { grid-template-columns: 1fr; }
+}
+
+.info-strip {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 28px;
+  padding: 22px 26px;
+}
+
+.info-item { display: flex; flex-direction: column; gap: 6px; }
+.info-item .label { font-size: 12px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--text-faint); }
+.info-item .value { font-family: var(--font-heading); font-size: 15px; color: var(--text); }
+
+.json-panel {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.json-panel-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 12px 18px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg-elevated);
+}
+
+.json-panel-title {
+  font-size: 12.5px;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-muted);
+  font-weight: 600;
+}
+
+.json-block {
+  margin: 0;
+  padding: 20px;
+  background: transparent;
+  color: var(--code-text);
+  font-family: var(--font-heading);
+  font-size: 13px;
+  line-height: 1.65;
+  overflow-x: auto;
+  max-height: 560px;
+}
+
+.section-title {
+  font-size: 13px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-muted);
+  margin: 0 0 12px;
+  font-weight: 600;
+}
+
+/* ---------- Protokol Listesi (ana ekran) ---------- */
+
+.proto-layout {
+  display: grid;
+  grid-template-columns: 264px 1fr;
+  gap: 24px;
+  align-items: start;
+}
+
+@media (max-width: 1100px) {
+  .proto-layout { grid-template-columns: 1fr; }
+}
+
+.proto-filters {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  padding: 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 22px;
+  position: sticky;
+  top: 20px;
+}
+
+.filter-group-title {
+  font-size: 12px;
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--text-faint);
+  font-weight: 600;
+  margin: 0 0 10px;
+}
+
+.filter-group .field-row { display: flex; flex-direction: column; gap: 6px; margin-bottom: 10px; }
+.filter-group .field-row:last-child { margin-bottom: 0; }
+.filter-group .field-row label { font-size: 12.5px; color: var(--text-muted); }
+
+.proto-filters input[type="text"],
+.proto-filters input[type="date"] {
+  width: 100%;
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  padding: 8px 11px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  color: var(--text);
+}
+
+.proto-filters input:focus { border-color: var(--primary); }
+
+.status-list { display: flex; flex-direction: column; gap: 2px; }
+
+.status-opt {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  font-size: 13.5px;
+  color: var(--text-muted);
+  border: none;
+  background: transparent;
+  width: 100%;
+  text-align: left;
+  font-family: var(--font-body);
+  transition: background-color 150ms ease, color 150ms ease;
+}
+
+.status-opt:hover { background: var(--surface-hover); color: var(--text); }
+.status-opt.active { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+.status-opt .count { font-family: var(--font-heading); font-size: 12px; opacity: 0.85; }
+
+/* Kaynak-turu durum ciplari -- Protokol Listesi ve Detay'da ortak. */
+.rchip-row { display: flex; gap: 6px; flex-wrap: wrap; }
+
+.rchip {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+  padding: 3px 10px;
+  border-radius: 999px;
+  font-size: 11.5px;
+  font-weight: 600;
+  white-space: nowrap;
+  border: 1px solid transparent;
+}
+
+.rchip .rchip-label { font-weight: 500; opacity: 0.75; font-size: 11px; }
+.rchip.success { background: var(--success-soft); color: var(--success); }
+.rchip.warning { background: var(--warning-soft); color: var(--warning); }
+.rchip.danger { background: var(--danger-soft); color: var(--danger); }
+.rchip.pending, .rchip.neutral { background: var(--surface-hover); color: var(--text-muted); }
+.rchip.disabled { background: transparent; border-style: dashed; border-color: var(--border-strong); color: var(--text-faint); }
+
+.badge-count {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  min-width: 20px;
+  padding: 1px 6px;
+  border-radius: 999px;
+  background: var(--surface-hover);
+  color: var(--text-muted);
+  font-family: var(--font-heading);
+  font-size: 11px;
+}
+
+/* ---------- Toplu secim (bulk) ---------- */
+
+.bulk-toolbar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 14px;
+  flex-wrap: wrap;
+}
+
+.bulk-count {
+  font-size: 13px;
+  color: var(--text-muted);
+  margin-left: auto;
+}
+
+.checkbox-cell { width: 42px; text-align: center; }
+
+td select {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  min-width: 220px;
+}
+
+td select:focus { border-color: var(--primary); }
+
+.toolbar-select {
+  font-family: var(--font-body);
+  font-size: 13.5px;
+  padding: 7px 10px;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  background: var(--surface);
+  color: var(--text);
+  min-width: 220px;
+}
+
+.toolbar-select:focus { border-color: var(--primary); }
+
+input[type="checkbox"].row-check,
+#selectAllHeader {
+  width: 16px;
+  height: 16px;
+  accent-color: var(--primary);
+  cursor: pointer;
+}
+
+/* ---------- Protokol Detay / kaynak checklisti ---------- */
+
+.checklist {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+
+.checklist-item {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 16px;
+  padding: 16px 22px;
+  background: var(--surface);
+  flex-wrap: wrap;
+}
+
+.checklist-item .rt-info { display: flex; flex-direction: column; gap: 3px; }
+.checklist-item .rt-name { font-weight: 600; font-size: 14.5px; color: var(--text); }
+.checklist-item .rt-desc { font-size: 12.5px; color: var(--text-muted); }
+.checklist-item .rt-right { display: flex; align-items: center; gap: 14px; }
+
+.hasta-mini-card {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+}
+
+/* ---------- Protokol Detay -- Tanı/İşlem sağ panel ----------
+   KULLANICI ISTEGI (2026-08-25): "bence de sağ tarafta olması daha güzel ... bu liste
+   uzun yatışlı hastalarda daha uzun olacak sol taraf ile bağlantısı olmadan aşağıya
+   doğru büyüyor olmalı" -- .protokol-split iki sütunu ayri, bagimsiz yukseklikte tutar
+   (grid align-items:start), sag panel sticky DEGIL, kendi icerigi kadar asagi buyur.
+   KULLANICI ISTEGI (2026-08-25, ikinci tur): "sağ tarafı biraz daha genişlendir" --
+   440px'ten 520px'e cikarildi. "tanı kısmının başlangıcı muayene alanının çizgisi ile
+   aynı olsun" -- ayri bir aciklama satiri KALDIRILDI, bunun yerine .side-panel'e
+   Hasta satirinin YAKLASIK yuksekligi kadar margin-top verildi (asagida DUZELTME
+   notuna bkz. -- bu bir tahmin, mukemmel piksel eslesmesi CSS Grid subgrid gerektirir
+   ama subgrid satirlari PAYLASTIRIR, bu da "bagimsiz buyume" kuralini bozar, o yuzden
+   kasitli olarak tercih edilmedi). "tanı ile procedür alanını arasında boşluk olmasın"
+   -- iki ayri .side-card yerine TEK karta, ic bolumler (.side-card-section) araciligiyla
+   birlestirildi (checklist'teki "tek kart, sac tel ayirici" gorunumuyle ayni mantik). */
+.protokol-split { display: grid; grid-template-columns: 1fr 520px; gap: 24px; align-items: start; }
+@media (max-width: 980px) { .protokol-split { grid-template-columns: 1fr; } }
+
+.side-panel { display: flex; flex-direction: column; gap: 0; }
+
+/* KULLANICI ISTEGI (2026-08-25, ucuncu tur): "az önce denemelerimizde üstünde açıklama
+   yazmıştın o hoşuma gitmişti onu yeniden koy" -- kaldirilmis olan aciklama satiri geri
+   geldi. Karti Muayine satiriyla hizalamak icin ONCEDEN .side-panel'e verilen 78px'lik
+   margin-top artik BURADAN cikarilip .side-card'a tasindi ve notun kendi yuksekligini
+   (~38px) telafi edecek sekilde azaltildi -- toplamda yine Muayine'nin USTUYLE yaklasik
+   ayni hizada baslar. */
+.side-panel-link {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  font-size: 12.5px;
+  color: var(--text-muted);
+  padding: 2px 2px 4px;
+}
+.side-panel-link .link-arrow {
+  font-family: var(--font-heading);
+  font-size: 20px;
+  line-height: 1;
+  color: var(--success);
+  flex-shrink: 0;
+}
+
+/* Muayine (Encounter) satirindan sag panele gorsel baglanti -- KULLANICI ISTEGI
+   (2026-08-25): "bu alanı görsel olarak okla çizgi ile ve muayeneye bağlı olduğunu
+   gösterelim". Sol tarafta .checklist-item--source (Muayine satirinin kendisi) yesil
+   aksan kenarlik alir, sag kartta da AYNI yesil kenarlik (+ayni baslangic yuksekligi)
+   kullanilir -- pixel-hesapli, kirilgan bir baglanti cizgisine gerek kalmadan ayni renk
+   ve hizanin kendisi "bunlar birbirine bagli" hissini verir. */
+.checklist-item--source { border-left: 3px solid var(--success); padding-left: 19px; }
+
+.side-card {
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-left: 3px solid var(--success);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+  margin-top: 40px;
+}
+
+/* Tanı ve İşlem artik AYNI .side-card icinde iki .side-card-section -- aralarinda bosluk
+   yok, sadece ince bir ust kenarlik (checklist'teki sac tel ayiricinin ayni mantigi). */
+.side-card-section + .side-card-section { border-top: 1px solid var(--border); }
+
+/* KULLANICI ISTEGI (2026-08-25): "başlıkların arka fonu böyle soluk yesil olsun insanı
+   rahatsız etmeyen, başlık olduğu belli olsun" -- var(--success-soft), zaten badge'lerde
+   kullanilan ayni yumusak yesil tonu. */
+.side-card-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  padding: 12px 14px;
+  border-bottom: 1px solid var(--border);
+  background: var(--success-soft);
+  flex-wrap: wrap;
+}
+.side-card-head .rt-name { font-weight: 600; font-size: 13.5px; color: var(--text); display: flex; align-items: center; gap: 8px; }
+.side-card-head .count {
+  font-family: var(--font-heading);
+  font-size: 11px;
+  color: var(--text-faint);
+  background: var(--surface-hover);
+  padding: 2px 8px;
+  border-radius: 999px;
+}
+.side-card-actions { display: flex; gap: 6px; }
+
+.side-card-empty { padding: 14px; font-size: 12.5px; color: var(--text-faint); }
+
+.side-row { display: flex; align-items: flex-start; justify-content: space-between; gap: 10px; padding: 11px 14px; border-bottom: 1px solid var(--border); }
+.side-row:last-child { border-bottom: none; }
+.side-row-main { display: flex; flex-direction: column; gap: 3px; min-width: 0; }
+.side-row-code { font-family: var(--font-heading); font-size: 11.5px; color: var(--text-faint); }
+.side-row-name { font-size: 12.5px; color: var(--text); line-height: 1.35; }
+.side-row-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
+
+/* KULLANICI ISTEGI (2026-08-25, dorduncu tur): "böyle hiç bir zaman kalmamalıyım bunu bir
+   şekilde ya silmeli yada tekrar gönder yapabilmeliyim" -- Sil'in yaninda ayni boyutta
+   Detay (goz) ve Gönder (yenile) icon-butonlari da eklendi, HER ucu ayni gorunmesin diye
+   (Sil kirmizi, Detay/Gönder mavi hover) ayri siniflar. */
+.icon-btn-sil, .icon-btn-detay, .icon-btn-gonder {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 24px;
+  height: 24px;
+  border-radius: 6px;
+  border: 1px solid var(--border-strong);
+  color: var(--text-faint);
+  background: transparent;
+  cursor: pointer;
+  padding: 0;
+}
+.icon-btn-sil:hover { border-color: var(--danger); color: var(--danger); background: var(--danger-soft); }
+.icon-btn-detay:hover, .icon-btn-gonder:hover { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
+
+/* ---------- Ayarlar (kartlar yan yana, derli toplu izgara) ---------- */
+
+.settings-grid {
+  display: grid;
+  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 20px;
+  align-items: start;
+}
+
+@media (max-width: 980px) {
+  .settings-grid { grid-template-columns: 1fr; }
+}
+
+.settings-grid .span-2 { grid-column: 1 / -1; }
+
+.settings-card { display: flex; flex-direction: column; height: 100%; }
+
+.card-title-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin: 0 0 8px;
+}
+
+.card-title-row .section-title { margin: 0; }
+
+.card-desc {
+  color: var(--text-muted);
+  font-size: 13px;
+  line-height: 1.6;
+  margin: 0 0 18px;
+}
+
+.field-row-2 { display: grid; grid-template-columns: 1fr 1fr; gap: 0 16px; }
+.field-row-21 { display: grid; grid-template-columns: 2fr 1fr; gap: 0 16px; }
+
+@media (max-width: 480px) {
+  .field-row-2, .field-row-21 { grid-template-columns: 1fr; }
+}
+
+.field-sub-label {
+  font-size: 11.5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.05em;
+  color: var(--text-faint);
+  margin: 0 0 10px;
+}
+
+.card-actions {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: auto;
+  padding-top: 6px;
+}
+
+/* Test/Canli ortam secici -- radio'lar gorsel olarak gizli, etiketleri sekmeli
+   (segmented) buton gibi davraniyor. Checked input'un hemen sonraki kardesi
+   (immediate sibling) label oldugu icin ~ yerine + kullanildi. */
+.segmented {
+  display: inline-flex;
+  border: 1px solid var(--border-strong);
+  border-radius: var(--radius-sm);
+  overflow: hidden;
+  margin-bottom: 18px;
+}
+
+.segmented input[type="radio"] {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 1px;
+  height: 1px;
+}
+
+.segmented label {
+  margin: 0 !important;
+  padding: 9px 18px;
+  font-size: 13.5px;
+  font-weight: 500 !important;
+  color: var(--text-muted);
+  cursor: pointer;
+  transition: background-color 150ms ease, color 150ms ease;
+  border-left: 1px solid var(--border-strong);
+}
+
+.segmented label:first-of-type { border-left: none; }
+.segmented input:checked + label { background: var(--primary-soft); color: var(--primary); font-weight: 600 !important; }
+.segmented input:focus-visible + label { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+.toggle-row {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 11px 13px;
+  border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  background: var(--bg-elevated);
+  margin-bottom: 10px;
+}
+
+.toggle-row input[type="checkbox"] { flex-shrink: 0; }
+.toggle-row label { margin: 0; font-weight: 400 !important; font-size: 13.5px; color: var(--text); cursor: pointer; }
+
+.settings-card.is-placeholder { opacity: 0.6; }
+.settings-card.is-placeholder .toggle-row { background: transparent; }
+
+@media (prefers-reduced-motion: reduce) {
+  * { transition: none !important; animation: none !important; }
+}

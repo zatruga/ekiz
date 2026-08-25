@@ -1,0 +1,41 @@
+@page
+@model PusulaEHealthSync.Web.Pages.LoginModel
+@{
+    ViewData["Title"] = "Giriş";
+    Layout = "_Layout";
+}
+
+<div class="login-shell">
+    <button type="button" class="theme-toggle" style="position:fixed; top:20px; right:20px; width:auto;" onclick="pusulaToggleTheme()" aria-label="Açık/koyu tema değiştir">
+        <svg class="moon-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+        <svg class="sun-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66 4.93 19.07M19.07 4.93 17.66 6.34"/></svg>
+        <span class="moon-label">Koyu tema</span>
+        <span class="sun-label">Açık tema</span>
+    </button>
+    <div class="login-card">
+        <div class="login-header">
+            <div class="login-mark">
+                <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+            </div>
+            <h1 class="login-title">Senkron Paneli</h1>
+            <p class="login-subtitle">Pusula &rarr; Azərbaycan e-Health entegrasyonu</p>
+        </div>
+
+        @if (Model.Error is not null)
+        {
+            <div class="alert alert-danger" role="alert">@Model.Error</div>
+        }
+
+        <form method="post">
+            <div class="field">
+                <label for="Username">Kullanıcı adı</label>
+                <input type="text" id="Username" name="Username" value="@Model.Username" autocomplete="username" autofocus required />
+            </div>
+            <div class="field">
+                <label for="Password">Şifre</label>
+                <input type="password" id="Password" name="Password" autocomplete="current-password" required />
+            </div>
+            <button type="submit" class="btn btn-primary" style="width:100%; justify-content:center;">Giriş yap</button>
+        </form>
+    </div>
+</div>

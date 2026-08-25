@@ -1,0 +1,174 @@
+@page
+@model PusulaEHealthSync.Web.Pages.DoktorlarModel
+@using PusulaEHealthSync.Persistence
+@{
+    ViewData["Title"] = "Doktorlar";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Doktorlar</h1>
+        <p class="page-subtitle">Doktor (Practitioner) gönderimi artık protokol bazlı değil, buradan yönetiliyor -- bir doktor başarıyla gönderildikten sonra hiçbir protokolde tekrar gönderilmez, sadece kayıtlı kodu referans verilir.</p>
+    </div>
+</div>
+
+@if (Model.ResultMessage is not null)
+{
+    <div class="alert alert-success">@Model.ResultMessage</div>
+}
+
+<div class="card card-pad" style="margin-bottom:20px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+    <a asp-page="/Doktorlar" asp-route-Search="@Model.Search" asp-route-Durum="Tumu" class="stat-link @(Model.Durum == "Tumu" ? "active" : "")">
+        <span class="stat-value" style="font-size:24px;">@Model.CountTumu</span>
+        <span class="text-muted" style="font-size:13px; display:block;">tümü</span>
+    </a>
+    <a asp-page="/Doktorlar" asp-route-Search="@Model.Search" asp-route-Durum="Gonderildi" class="stat-link @(Model.Durum == "Gonderildi" ? "active" : "")">
+        <span class="stat-value" style="font-size:24px; color:var(--success);">@Model.CountGonderildi</span>
+        <span class="text-muted" style="font-size:13px; display:block;">gönderildi</span>
+    </a>
+    <a asp-page="/Doktorlar" asp-route-Search="@Model.Search" asp-route-Durum="Hatali" class="stat-link @(Model.Durum == "Hatali" ? "active" : "")">
+        <span class="stat-value" style="font-size:24px; color:var(--danger);">@Model.CountHatali</span>
+        <span class="text-muted" style="font-size:13px; display:block;">hatalı</span>
+    </a>
+    <a asp-page="/Doktorlar" asp-route-Search="@Model.Search" asp-route-Durum="Gonderilmedi" class="stat-link @(Model.Durum == "Gonderilmedi" ? "active" : "")">
+        <span class="stat-value" style="font-size:24px; color:var(--text-muted);">@Model.CountGonderilmedi</span>
+        <span class="text-muted" style="font-size:13px; display:block;">gönderilmedi</span>
+    </a>
+    <p class="text-muted" style="font-size:13px; margin:0 0 0 12px; max-width:480px;">
+        Son 180 günde <span class="mono">hasta.protokol</span>'de gerçekten kullanılan doktorlar,
+        en çok kullanılana göre sıralı. Bir doktorun ilk gönderimi Müayinə gönderilirken otomatik
+        yapılır -- burası sadece görünürlük ve hatalı olanı elle tekrar gönderme/silme içindir.
+    </p>
+</div>
+
+<form method="get" class="filter-bar" style="margin-bottom:16px;">
+    <input type="hidden" name="Durum" value="@Model.Durum" />
+    <input type="text" name="Search" value="@Model.Search" placeholder="Doktor adı veya FIN ara" />
+    <button type="submit" class="btn btn-outline btn-sm">Ara</button>
+</form>
+
+@if (Model.Rows.Count == 0)
+{
+    <div class="table-wrap empty-state"><p>Bu filtreye uyan doktor yok.</p></div>
+}
+else
+{
+    <form method="post" id="bulkForm">
+        <input type="hidden" name="Search" value="@Model.Search" />
+        <input type="hidden" name="Durum" value="@Model.Durum" />
+
+        <div class="bulk-toolbar">
+            <button type="button" class="btn btn-outline btn-sm" onclick="pusulaSelectAll()">Tümünü Seç</button>
+            <button type="button" class="btn btn-outline btn-sm" onclick="pusulaSelectNone()">Seçimi Temizle</button>
+            <span class="bulk-count" id="bulkCount">0 seçili</span>
+            <button type="submit" asp-page-handler="BulkGonder" class="btn btn-primary btn-sm" id="bulkGonderBtn" disabled
+                    onclick="return pusulaBulkConfirm(this, 'Seçilen doktorlar e-Health\'e CANLI olarak gönderilecek. Devam edilsin mi?')">
+                Gönder
+            </button>
+        </div>
+
+        <div class="table-wrap">
+            <table style="min-width:960px;">
+                <thead>
+                    <tr>
+                        <th class="checkbox-cell"><input type="checkbox" id="selectAllHeader" onclick="pusulaToggleAllHeader(this)" aria-label="Tümünü seç" /></th>
+                        <th>Doktor Id</th>
+                        <th>Ad Soyad</th>
+                        <th>FIN</th>
+                        <th>Kullanım (180 gün)</th>
+                        <th>e-Health durumu</th>
+                        <th>Bakanlık Kodu</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var row in Model.Rows)
+                    {
+                        var d = row.Doktor;
+                        var status = row.DurumKaydi?.Status;
+                        var (badgeClass, badgeLabel) = SyncLogEntry.StatusBadge(row.DurumKaydi);
+                        <tr>
+                            <td class="checkbox-cell">
+                                <input type="checkbox" class="row-check" name="selectedDoktorIds" value="@d.DoktorId" onchange="pusulaUpdateBulkCount()" aria-label="@d.AdiSoyadi seç" />
+                            </td>
+                            <td class="mono">@d.DoktorId</td>
+                            <td>@(string.IsNullOrWhiteSpace(d.AdiSoyadi) ? "-" : d.AdiSoyadi)</td>
+                            <td class="mono text-muted">@(d.TCKimlikNo ?? "-")</td>
+                            <td class="mono text-muted">@d.Adet.ToString("N0")</td>
+                            <td>
+                                <span class="badge @badgeClass"><span class="badge-dot"></span>@badgeLabel</span>
+                                @if (row.DurumKaydi?.Message is not null)
+                                {
+                                    <div class="text-muted" style="font-size:12px; margin-top:4px; max-width:360px;">@row.DurumKaydi.Message</div>
+                                }
+                            </td>
+                            <td class="mono text-muted" style="font-size:12.5px;">@(row.DurumKaydi?.AzResourceId ?? "-")</td>
+                            <td>
+                                <div style="display:flex; gap:6px;">
+                                    @if (row.DurumKaydi is not null)
+                                    {
+                                        <a asp-page="/Detail" asp-route-id="@row.DurumKaydi.Id" class="btn btn-outline btn-sm">Detay</a>
+                                    }
+                                    <button type="submit" asp-page-handler="Gonder" asp-route-doktorId="@d.DoktorId" class="btn btn-primary btn-sm"
+                                            onclick="return pusulaBulkConfirm(this, 'Doktor bilgisi e-Health\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
+                                        @(status is null ? "Gönder" : "Tekrar Gönder")
+                                    </button>
+                                    @if (SyncLogEntry.CanDelete(row.DurumKaydi))
+                                    {
+                                        <button type="submit" asp-page-handler="Sil" asp-route-doktorId="@d.DoktorId" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
+                                                onclick="return pusulaBulkConfirm(this, 'Doktor kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                            Sil
+                                        </button>
+                                    }
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </form>
+}
+
+@section Scripts {
+    <script>
+        function pusulaRowChecks() {
+            return Array.from(document.querySelectorAll('#bulkForm .row-check'));
+        }
+
+        function pusulaUpdateBulkCount() {
+            var checks = pusulaRowChecks();
+            var checked = checks.filter(function (c) { return c.checked; });
+            document.getElementById('bulkCount').textContent = checked.length + ' seçili';
+            document.getElementById('bulkGonderBtn').disabled = checked.length === 0;
+            var header = document.getElementById('selectAllHeader');
+            if (header) header.checked = checks.length > 0 && checked.length === checks.length;
+        }
+
+        function pusulaSelectAll() {
+            pusulaRowChecks().forEach(function (c) { c.checked = true; });
+            pusulaUpdateBulkCount();
+        }
+
+        function pusulaSelectNone() {
+            pusulaRowChecks().forEach(function (c) { c.checked = false; });
+            pusulaUpdateBulkCount();
+        }
+
+        function pusulaToggleAllHeader(header) {
+            pusulaRowChecks().forEach(function (c) { c.checked = header.checked; });
+            pusulaUpdateBulkCount();
+        }
+
+        // pusulaLockSubmit (bkz. _Layout.cshtml) formdaki ILK submit butonunu kilitliyor --
+        // bu formda BIRDEN FAZLA submit butonu oldugu icin (toplu Gönder + her satirin kendi
+        // Gönder/Sil'i) o yanlis butonu kilitleyebilir. Bunun yerine TIKLANAN butonu (this)
+        // dogrudan kilitliyoruz (Hasta.cshtml'deki ayni cozum).
+        function pusulaBulkConfirm(btn, message) {
+            if (!confirm(message)) return false;
+            btn.disabled = true;
+            btn.textContent = 'İşleniyor…';
+            return true;
+        }
+    </script>
+}

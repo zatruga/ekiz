@@ -1,0 +1,132 @@
+@using System.Security.Claims
+<!DOCTYPE html>
+<html lang="az">
+<head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>@ViewData["Title"] &middot; Pusula &rarr; e-Health Senkron Paneli</title>
+    <link rel="stylesheet" href="~/css/site.css" asp-append-version="true" />
+    <script>
+        // Tema secimini sayfa gorunmeden ONCE uygula -- aksi halde koyu temadan
+        // aciga (ya da tersine) kisa bir "yanlis renk" cakmasi olur.
+        (function () {
+            var stored = localStorage.getItem('pusula-theme');
+            var theme = stored || (window.matchMedia('(prefers-color-scheme: light)').matches ? 'light' : 'dark');
+            document.documentElement.setAttribute('data-theme', theme);
+        })();
+    </script>
+</head>
+<body>
+    @if (User.Identity?.IsAuthenticated == true)
+    {
+        var currentPage = ViewContext.RouteData.Values["page"]?.ToString() ?? "";
+        <div class="app-shell">
+            <aside class="sidebar">
+                <a asp-page="/Index" class="brand">
+                    <span class="brand-mark">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
+                    </span>
+                    <span class="brand-name">Pusula &rarr; e-Health<br /><span class="accent">Senkron Paneli</span></span>
+                </a>
+
+                <div class="nav-section-label">İzleme</div>
+                <a asp-page="/Index" class="nav-link @(currentPage is "/Index" or "/Protokol" ? "active" : "")">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
+                    Protokol Listesi
+                </a>
+                <a asp-page="/Aktivite" class="nav-link @(currentPage is "/Aktivite" or "/Detail" ? "active" : "")">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
+                    Aktivite Akışı
+                </a>
+
+                <div class="nav-section-label">Sistem</div>
+                <a asp-page="/BolumEslestirme" class="nav-link @(currentPage is "/BolumEslestirme" ? "active" : "")">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="7" height="16" rx="1"/><rect x="14" y="4" width="7" height="9" rx="1"/><path d="M14 17h7"/><path d="M14 21h7"/></svg>
+                    Bölüm Eşleştirme
+                </a>
+                <a asp-page="/Doktorlar" class="nav-link @(currentPage is "/Doktorlar" ? "active" : "")">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
+                    Doktorlar
+                </a>
+                @if (User.IsInRole("Admin"))
+                {
+                    <a asp-page="/Ayarlar" class="nav-link @(currentPage is "/Ayarlar" ? "active" : "")">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
+                        Ayarlar
+                    </a>
+                    <a asp-page="/Kullanicilar" class="nav-link @(currentPage is "/Kullanicilar" ? "active" : "")">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
+                        Kullanıcılar
+                    </a>
+                }
+
+                <div class="sidebar-footer">
+                    <button type="button" class="theme-toggle" onclick="pusulaToggleTheme()" aria-label="Açık/koyu tema değiştir">
+                        <svg class="moon-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                        <svg class="sun-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66 4.93 19.07M19.07 4.93 17.66 6.34"/></svg>
+                        <span class="moon-label">Koyu tema</span>
+                        <span class="sun-label">Açık tema</span>
+                    </button>
+
+                    <div class="user-row">
+                        <div style="display:flex; align-items:center; gap:9px; overflow:hidden;">
+                            <span class="user-avatar">@(User.FindFirstValue(ClaimTypes.Name)?.Substring(0, 1).ToUpper())</span>
+                            <span class="user-name">
+                                @User.FindFirstValue(ClaimTypes.Name)
+                                <span class="text-muted" style="display:block; font-size:11px; font-weight:400;">
+                                    @(User.FindFirstValue(ClaimTypes.Role) switch { "Admin" => "Yönetici", "Operator" => "Operatör", "Viewer" => "İzleyici", _ => "" })
+                                </span>
+                            </span>
+                        </div>
+                        <form method="post" asp-page="/Logout">
+                            <button type="submit" class="icon-btn icon-btn-logout" title="Çıkış yap" aria-label="Çıkış yap">
+                                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 21H5a2 2 0 0 1-2-2V5a2 2 0 0 1 2-2h4"/><polyline points="16 17 21 12 16 7"/><line x1="21" y1="12" x2="9" y2="12"/></svg>
+                            </button>
+                        </form>
+                    </div>
+                </div>
+            </aside>
+
+            <div>
+                <div class="mobile-topbar">
+                    <span class="brand-name">Pusula &rarr; e-Health <span class="accent">Senkron</span></span>
+                    <form method="post" asp-page="/Logout">
+                        <button type="submit" class="btn btn-outline btn-sm">Çıkış</button>
+                    </form>
+                </div>
+                <main class="content">
+                    @RenderBody()
+                </main>
+            </div>
+        </div>
+    }
+    else
+    {
+        <main>@RenderBody()</main>
+    }
+    <script>
+        // Cift gonderim koruması -- form gercekten submit olurken (onsubmit, yani
+        // onclick="return confirm(...)" varsa onaylandiktan SONRA) submit butonunu
+        // kilitliyor. KARAR (2026-08-20, canli testte 30 protokolun art arda iki kez
+        // gonderilmesi -- kullanici sonucu gormeden 2 dakika sonra tekrar tikladigi icin
+        // olustu): tek basina yeterli degil (sayfa yenilenmis olabilir), bu yuzden
+        // sunucu tarafinda da "zaten gonderilmis olani atla" mantigi eklendi (bkz.
+        // OnPostBulkGonderAsync) -- bu sadece hizli cift tiklamayi engelliyor.
+        function pusulaLockSubmit(form) {
+            var btn = form.querySelector('button[type="submit"]');
+            if (btn && !btn.disabled) {
+                btn.disabled = true;
+                btn.textContent = 'İşleniyor…';
+            }
+        }
+
+        function pusulaToggleTheme() {
+            var current = document.documentElement.getAttribute('data-theme');
+            var next = current === 'light' ? 'dark' : 'light';
+            document.documentElement.setAttribute('data-theme', next);
+            localStorage.setItem('pusula-theme', next);
+        }
+    </script>
+    @await RenderSectionAsync("Scripts", required: false)
+</body>
+</html>

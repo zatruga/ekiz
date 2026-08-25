@@ -1,0 +1,235 @@
+@page "{id:long}"
+@model PusulaEHealthSync.Web.Pages.DetailModel
+@using PusulaEHealthSync.Persistence
+@{
+    ViewData["Title"] = $"Kayıt #{Model.Entry?.Id}";
+}
+
+@if (Model.Entry is null)
+{
+    <div class="table-wrap empty-state"><p>Kayıt bulunamadı.</p></div>
+}
+else
+{
+    var e = Model.Entry;
+    var rp = Model.RelatedProtokol;
+    var resourceLabel = SyncLogEntry.ResourceTypeLabel(e.ResourceType);
+    var rtClass = SyncLogEntry.ResourceTypeCssClass(e.ResourceType);
+    <p class="breadcrumb">
+        <a asp-page="/Index">Gönderim Paneli</a>
+        @if (rp is not null)
+        {
+            <text> / <a asp-page="/Protokol" asp-route-id="@rp.ProtokolId">Protokol #@rp.ProtokolId</a></text>
+        }
+        / @resourceLabel · Kayıt #@e.Id
+    </p>
+    <div class="page-header">
+        <div>
+            <h1 class="page-title">@(string.IsNullOrWhiteSpace(e.PatientFullName) ? $"Pusula Id {e.PusulaId}" : e.PatientFullName)</h1>
+            <p class="page-subtitle">Pusula Id @e.PusulaId &middot; @e.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm:ss") UTC</p>
+        </div>
+        <div class="resource-chip @rtClass">
+            <div class="resource-avatar @rtClass">
+                @switch (e.ResourceType)
+                {
+                    case "Patient":
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21a8 8 0 0 0-16 0" /><circle cx="12" cy="8" r="5" /></svg>
+                        break;
+                    case "Practitioner":
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 21a8 8 0 0 0-12 0" /><circle cx="12" cy="8" r="5" /><path d="m15 8-2 2-1-1" /></svg>
+                        break;
+                    case "Encounter":
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="5" width="18" height="16" rx="2" /><path d="M3 10h18M8 3v4M16 3v4" /><path d="m9 15 2 2 4-4" /></svg>
+                        break;
+                    case "Composition":
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z" /><path d="M14 2v6h6" /><path d="M9 13h6M9 17h6M9 9h1" /></svg>
+                        break;
+                    default:
+                        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="9" /></svg>
+                        break;
+                }
+            </div>
+            <span class="resource-eyebrow @rtClass" style="margin:0;">@resourceLabel</span>
+        </div>
+        <div style="display:flex; gap:10px;">
+            @if (rp is not null)
+            {
+                <a asp-page="/Protokol" asp-route-id="@rp.ProtokolId" class="btn btn-outline btn-sm">&larr; Protokole dön</a>
+            }
+            <a asp-page="/Index" class="btn btn-outline btn-sm">&larr; Panele dön</a>
+        </div>
+    </div>
+
+    @if (Model.ResendMessage is not null)
+    {
+        <div class="alert alert-danger">@Model.ResendMessage</div>
+    }
+
+    @if (rp is not null || !string.IsNullOrWhiteSpace(e.PatientFullName) || e.BirthDate is not null)
+    {
+        <div class="card info-strip" style="margin-bottom:16px;">
+            @if (rp is not null)
+            {
+                <div class="info-item">
+                    <span class="label">Protokol No</span>
+                    <span class="value">@rp.ProtokolId</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Hasta No</span>
+                    <span class="value">@rp.HastaId</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Bölüm</span>
+                    <span class="value" style="font-family:var(--font-body); font-weight:400;">@(rp.BolumAdi ?? "-")</span>
+                </div>
+                <div class="info-item">
+                    <span class="label">Doktor</span>
+                    <span class="value" style="font-family:var(--font-body); font-weight:400;">@(rp.DoktorAdiSoyadi ?? "-")</span>
+                </div>
+            }
+            <div class="info-item">
+                <span class="label">Ad soyad</span>
+                <span class="value" style="font-family:var(--font-body); font-weight:600;">@(e.PatientFullName ?? rp?.HastaAdiSoyadi ?? "-")</span>
+            </div>
+            <div class="info-item">
+                <span class="label">FIN No</span>
+                <span class="value">@(e.Fin ?? "-")</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Ata adı</span>
+                <span class="value" style="font-family:var(--font-body); font-weight:400;">@(e.FathersName ?? "-")</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Doğum tarihi</span>
+                <span class="value">@(e.BirthDate?.ToString("yyyy-MM-dd") ?? "-")</span>
+            </div>
+            <div class="info-item">
+                <span class="label">Cinsiyet</span>
+                <span class="value" style="font-family:var(--font-body); font-weight:400;">
+                    @(e.Gender switch { "E" => "Erkek", "K" => "Kadın", "D" => "Diğer", _ => e.Gender ?? "-" })
+                </span>
+            </div>
+            <div class="info-item">
+                <span class="label">Kayıt açılma tarihi</span>
+                <span class="value">@(e.RecordOpenedAt?.ToString("yyyy-MM-dd") ?? "-")</span>
+            </div>
+        </div>
+    }
+
+    <div class="card info-strip" style="margin-bottom:24px;">
+        <div class="info-item">
+            <span class="label">Durum</span>
+            <span class="value">
+                @{
+                    var (badgeClass, badgeLabel) = SyncLogEntry.StatusBadge(e);
+                }
+                <span class="badge @badgeClass"><span class="badge-dot"></span>@badgeLabel</span>
+            </span>
+        </div>
+        <div class="info-item">
+            <span class="label">İşlem</span>
+            <span class="value">@(e.Operation?.ToString() ?? "-")</span>
+        </div>
+        <div class="info-item">
+            <span class="label">AZ Kaynak Id</span>
+            <span class="value">@(e.AzResourceId ?? "-")</span>
+        </div>
+        <div class="info-item" style="flex:1; min-width:220px;">
+            <span class="label">Mesaj</span>
+            <span class="value" style="font-family:var(--font-body); font-size:14px; font-weight:400;">@(e.Message ?? "-")</span>
+        </div>
+
+        @if (e.ResourceType is "Patient" or "Encounter" or "Practitioner" or "Composition")
+        {
+            <div style="margin-left:auto; align-self:center; display:flex; gap:10px;">
+                <form method="post" asp-page-handler="Resend" asp-route-id="@e.Id" onsubmit="pusulaLockSubmit(this)">
+                    <button type="submit" class="btn btn-primary"
+                            onclick="return confirm('Bu kayıt e-Health\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                        Tekrar Gönder
+                    </button>
+                </form>
+                @if (SyncLogEntry.CanDelete(e))
+                {
+                    <form method="post" asp-page-handler="Delete" asp-route-id="@e.Id" onsubmit="pusulaLockSubmit(this)">
+                        <button type="submit" class="btn btn-outline"
+                                style="border-color:var(--danger); color:var(--danger);"
+                                onclick="return confirm('Bu kayıt e-Health\'ten KALICI olarak SİLİNECEK. Bu işlem geri alınamaz. Emin misiniz?')">
+                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                            Sil
+                        </button>
+                    </form>
+                }
+            </div>
+        }
+    </div>
+
+    @if (e.AzResourceId is not null)
+    {
+        <div class="card" style="margin-bottom:24px; overflow:hidden;">
+            <div class="json-panel-head" style="border-bottom: @(Model.VerifyAttempted ? "1px solid var(--border)" : "none");">
+                <div>
+                    <span class="json-panel-title">e-Health'te şu an ne var? (canlı sorgu)</span>
+                    <p class="text-muted" style="margin:4px 0 0; font-size:12.5px; max-width:640px;">
+                        Aşağıdaki "Gönderilen"/"Sunucu yanıtı" panelleri o anki denemenin kaydı -- bu ise
+                        şu anda, bu sayfayı her açtığınızda değil, siz istediğinizde bakanlık sistemine
+                        gidip GERÇEKTE ne kayıtlı olduğunu okur. Doğru veriyi doğru yere gönderdiğinizi
+                        böyle teyit edebilirsiniz.
+                    </p>
+                </div>
+                <a asp-page="/Detail" asp-route-id="@e.Id" asp-route-verify="true" asp-route-fromProtokol="@Model.FromProtokol" class="btn btn-outline btn-sm" style="flex-shrink:0;">
+                    <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="8"/><path d="m21 21-4.3-4.3"/></svg>
+                    Canlı Kontrol Et
+                </a>
+            </div>
+
+            @if (Model.VerifyAttempted)
+            {
+                if (Model.VerifySuccess)
+                {
+                    <pre class="json-block">@Model.PrettyLiveData</pre>
+                }
+                else
+                {
+                    <div class="empty-state" style="padding:28px 20px;">
+                        <p>
+                            Bakanlık sisteminde bu id ile bir kayıt bulunamadı (HTTP @Model.VerifyStatusCode).
+                            @(e.Operation == SyncOperation.Delete ? "Bu beklenen bir durum -- bu kayıt zaten silinmişti." : "Beklenmedik bir durum -- kayıt orada olmalıydı, kontrol edin.")
+                        </p>
+                    </div>
+                }
+            }
+        </div>
+    }
+
+    <div class="detail-grid">
+        <div>
+            <p class="section-title">Gönderilen (request)</p>
+            @if (Model.PrettyRequest is null)
+            {
+                <div class="json-panel empty-state" style="padding:36px 20px;"><p>Bu kayıt için gönderilmiş bir istek yok (kayıt atlandı).</p></div>
+            }
+            else
+            {
+                <div class="json-panel">
+                    <div class="json-panel-head"><span class="json-panel-title">Patient JSON</span></div>
+                    <pre class="json-block">@Model.PrettyRequest</pre>
+                </div>
+            }
+        </div>
+        <div>
+            <p class="section-title">Sunucu yanıtı (response)</p>
+            @if (Model.PrettyResponse is null)
+            {
+                <div class="json-panel empty-state" style="padding:36px 20px;"><p>Yanıt yok.</p></div>
+            }
+            else
+            {
+                <div class="json-panel">
+                    <div class="json-panel-head"><span class="json-panel-title">e-Health Response</span></div>
+                    <pre class="json-block">@Model.PrettyResponse</pre>
+                </div>
+            }
+        </div>
+    </div>
+}
