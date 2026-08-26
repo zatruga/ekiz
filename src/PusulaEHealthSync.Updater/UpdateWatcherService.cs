@@ -1,4 +1,5 @@
 using System.Text.Json;
+using System.Text.Json.Serialization;
 using Microsoft.Extensions.Options;
 using PusulaEHealthSync.Updater.Config;
 using PusulaEHealthSync.Updater.Models;
@@ -19,6 +20,17 @@ public class UpdateWatcherService(
     private const string UpdateTriggerFile = "update.trigger";
     private const string RollbackTriggerFile = "rollback.trigger";
     private const string StatusFile = "update-status.json";
+
+    // Web tarafi (UpdateStatusView) State'i string olarak okuyor -- enum'un varsayilan
+    // sayisal serilesmesi (0,1,2,3) sessizce deserialize hatasina yol acip Web'de hicbir
+    // sey degismiyormus gibi gorunmesine sebep oluyordu (bkz. canli olayda bulundu, ilk
+    // GitHub testinde). String olarak yazmak hem bunu cozuyor hem dosyayi elle okurken
+    // (Get-Content) anlasilir kiliyor.
+    private static readonly JsonSerializerOptions JsonOptions = new()
+    {
+        WriteIndented = true,
+        Converters = { new JsonStringEnumConverter() },
+    };
 
     protected override async Task ExecuteAsync(CancellationToken stoppingToken)
     {
@@ -72,7 +84,7 @@ public class UpdateWatcherService(
     private void WriteStatus(UpdateStatus status)
     {
         var path = Path.Combine(options.ControlPath, StatusFile);
-        var json = JsonSerializer.Serialize(status, new JsonSerializerOptions { WriteIndented = true });
+        var json = JsonSerializer.Serialize(status, JsonOptions);
         File.WriteAllText(path, json);
     }
 }
