@@ -1,0 +1,96 @@
+@page
+@model PusulaEHealthSync.Web.Pages.GuncelleModel
+@{
+    ViewData["Title"] = "Sürüm Güncelle";
+    var d = Model.Durum;
+    var (badgeClass, badgeLabel) = d?.State switch
+    {
+        "InProgress" => ("warning", "İşleniyor"),
+        "Success" => ("success", "Başarılı"),
+        "Failed" => ("danger", "Hatalı"),
+        _ => ("neutral", "Bekliyor"),
+    };
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Sürüm Güncelle</h1>
+        <p class="page-subtitle">Geliştirme makinesinde hazırlanan yeni sürümü sunucuya alır ve servisleri yeniden başlatır.</p>
+    </div>
+</div>
+
+<div class="settings-grid">
+    <div class="card card-pad settings-card span-2">
+        <p class="section-title">Durum</p>
+        <p class="card-desc">
+            Güncelleme sırasında dashboard ve senkron servisi birkaç saniye kesintiye uğrar.
+            İşlem öncesi mevcut sürüm otomatik olarak yedeklenir -- bir sorun çıkarsa
+            <strong>"Son Yedeğe Geri Dön"</strong> ile geri alınabilir.
+        </p>
+
+        <div id="durum-panel" style="display:flex; flex-direction:column; gap:10px; margin:18px 0;">
+            <div style="display:flex; align-items:center; gap:10px;">
+                <span id="durum-badge" class="badge @badgeClass"><span class="badge-dot"></span><span id="durum-badge-text">@badgeLabel</span></span>
+                <span id="durum-operasyon" class="text-muted">@(d?.Operation switch { "Guncelleme" => "Güncelleme", "GeriAlma" => "Geri Alma", _ => "" })</span>
+            </div>
+            <p id="durum-mesaj" class="card-desc" style="margin:0;">@(d?.Message ?? "Henüz bir güncelleme çalıştırılmadı.")</p>
+            <p id="durum-zaman" class="text-muted" style="font-size:12.5px; margin:0;">
+                @if (d?.FinishedAtUtc is not null)
+                {
+                    @:Son çalışma: @d.FinishedAtUtc.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm") @(string.IsNullOrWhiteSpace(d.RequestedBy) ? "" : $"· {d.RequestedBy}")
+                }
+            </p>
+        </div>
+
+        <div class="card-actions">
+            <form method="post" asp-page-handler="Guncelle" onsubmit="return pusulaBaslatGuncelleme(this, 'Bu işlem servisleri kısa süreliğine durdurup yeni sürümü yükleyecek. Devam edilsin mi?')">
+                <button id="btn-guncelle" type="submit" class="btn btn-primary">Versiyon Güncelle</button>
+            </form>
+            <form method="post" asp-page-handler="GeriAl" onsubmit="return pusulaBaslatGuncelleme(this, 'En son alınan yedeğe geri dönülecek, emin misiniz?')">
+                <button id="btn-geri-al" type="submit" class="btn btn-outline" style="border-color:var(--danger); color:var(--danger);">Son Yedeğe Geri Dön</button>
+            </form>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        function pusulaBaslatGuncelleme(form, confirmMessage) {
+            if (!confirm(confirmMessage)) return false;
+            pusulaLockSubmit(form);
+            return true;
+        }
+
+        function pusulaDurumUygula(data) {
+            if (!data) return;
+            var badgeMap = { Idle: ['neutral', 'Bekliyor'], InProgress: ['warning', 'İşleniyor'], Success: ['success', 'Başarılı'], Failed: ['danger', 'Hatalı'] };
+            var map = badgeMap[data.state] || badgeMap.Idle;
+            var badge = document.getElementById('durum-badge');
+            badge.className = 'badge ' + map[0];
+            document.getElementById('durum-badge-text').textContent = map[1];
+
+            document.getElementById('durum-operasyon').textContent =
+                data.operation === 'Guncelleme' ? 'Güncelleme' : (data.operation === 'GeriAlma' ? 'Geri Alma' : '');
+            document.getElementById('durum-mesaj').textContent = data.message || 'Henüz bir güncelleme çalıştırılmadı.';
+
+            if (data.finishedAtUtc) {
+                var d = new Date(data.finishedAtUtc);
+                var zamanText = 'Son çalışma: ' + d.toLocaleString('tr-TR');
+                if (data.requestedBy) zamanText += ' · ' + data.requestedBy;
+                document.getElementById('durum-zaman').textContent = zamanText;
+            }
+
+            var isBusy = data.state === 'InProgress';
+            document.getElementById('btn-guncelle').disabled = isBusy;
+            document.getElementById('btn-geri-al').disabled = isBusy;
+        }
+
+        (function pusulaPollDurum() {
+            fetch(window.location.pathname + '?handler=Durum')
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(pusulaDurumUygula)
+                .catch(function () { /* guncelleme sirasinda site kisa sure yanit vermeyebilir -- sessizce yeniden dene */ })
+                .finally(function () { setTimeout(pusulaPollDurum, 2000); });
+        })();
+    </script>
+}

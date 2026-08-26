@@ -19,6 +19,7 @@ builder.Services.Configure<PusulaOptions>(builder.Configuration.GetSection("Pusu
 builder.Services.Configure<EHealthOptions>(builder.Configuration.GetSection("EHealth"));
 builder.Services.Configure<SyncLogOptions>(builder.Configuration.GetSection("SyncLog"));
 builder.Services.Configure<DashboardAuthOptions>(builder.Configuration.GetSection("DashboardAuth"));
+builder.Services.Configure<DeployOptions>(builder.Configuration.GetSection("Deploy"));
 
 builder.Services.AddSingleton<PusulaRepository>();
 builder.Services.AddHttpClient<EHealthClient>();
@@ -69,6 +70,7 @@ builder.Services.AddRazorPages(options =>
     // Ayarlar (canli ortam/kimlik bilgileri dahil) ve Kullanicilar sadece Admin rolune acik.
     options.Conventions.AuthorizePage("/Ayarlar", "AdminOnly");
     options.Conventions.AuthorizePage("/Kullanicilar", "AdminOnly");
+    options.Conventions.AuthorizePage("/Guncelle", "AdminOnly");
 }).AddMvcOptions(options =>
 {
     // Ayarlar sayfasindaki bircok alan (SMTP kullanici adi/sifresi, Canli ortam

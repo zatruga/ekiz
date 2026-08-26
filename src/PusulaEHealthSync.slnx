@@ -1,4 +1,5 @@
 <Solution>
   <Project Path="PusulaEHealthSync.Web/PusulaEHealthSync.Web.csproj" />
   <Project Path="PusulaEHealthSync/PusulaEHealthSync.csproj" />
+  <Project Path="PusulaEHealthSync.Updater/PusulaEHealthSync.Updater.csproj" />
 </Solution>

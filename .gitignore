@@ -30,3 +30,4 @@ Thumbs.db
 
 # Scratch/throwaway exploration project - not part of the shipped solution
 src/ConnTest/*.json
+publish/

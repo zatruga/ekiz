@@ -15,4 +15,37 @@
     <PackageReference Include="Microsoft.Extensions.Http" Version="10.0.11" />
     <PackageReference Include="System.Text.Encoding.CodePages" Version="10.0.0" />
   </ItemGroup>
+
+  <!-- PusulaEHealthSync.Web bu projeyi ProjectReference ile kullaniyor. SDK'nin appsettings*.json
+       icin uyguladigi varsayilan CopyToOutputDirectory/CopyToPublishDirectory item metadata'si,
+       "Content" olsun "None" olsun fark etmeksizin, Web publish edilirken bu projenin
+       appsettings dosyalarinin da Web'in appsettings dosyalariyla AYNI goreli yola kopyalanmaya
+       calisilmasina yol aciyor (NETSDK1152 cakismasi). Cozum: bu dosyalari MSBuild'in otomatik
+       build/publish item takibinden tamamen cikarip (Remove), sadece BU projenin kendi build/
+       publish ciktisina, referans eden projelerin ciktisina degil, elle bir Target ile kopyaliyoruz.
+       Boylece PusulaEHealthSync STANDALONE calistirildiginda (Worker Service) appsettings.json
+       kendi cikti klasorunde olmaya devam ediyor, ama Web'in publish'ine hic sizmiyor.
+  -->
+  <ItemGroup>
+    <Content Remove="appsettings.json" />
+    <Content Remove="appsettings.Development.json" />
+    <None Remove="appsettings.json" />
+    <None Remove="appsettings.Development.json" />
+  </ItemGroup>
+
+  <Target Name="CopyOwnAppSettingsOnBuild" AfterTargets="Build">
+    <ItemGroup>
+      <_OwnAppSettings Include="appsettings.json" Condition="Exists('appsettings.json')" />
+      <_OwnAppSettings Include="appsettings.Development.json" Condition="Exists('appsettings.Development.json')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_OwnAppSettings)" DestinationFolder="$(OutDir)" SkipUnchangedFiles="true" Condition="'$(OutDir)' != ''" />
+  </Target>
+
+  <Target Name="CopyOwnAppSettingsOnPublish" AfterTargets="Publish" Condition="'$(PublishDir)' != ''">
+    <ItemGroup>
+      <_OwnAppSettings Include="appsettings.json" Condition="Exists('appsettings.json')" />
+      <_OwnAppSettings Include="appsettings.Development.json" Condition="Exists('appsettings.Development.json')" />
+    </ItemGroup>
+    <Copy SourceFiles="@(_OwnAppSettings)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
+  </Target>
 </Project>
