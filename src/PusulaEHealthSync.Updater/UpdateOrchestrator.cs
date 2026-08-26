@@ -12,6 +12,11 @@ namespace PusulaEHealthSync.Updater;
 // UZERINE yazmasi (kendi kendini guncelleme) dosya kilidi ve yari-yolda-kesilen-istek
 // riski tasiyor. Web sadece bir "tetikleyici" dosyasi yazar (bkz. UpdateWatcherService),
 // asil is buradaki bagimsiz surecte olur.
+//
+// AKIS (2026-08-26, GitHub'a gecis): git pull + dotnet publish, servisler CALISIRKEN,
+// once bir "Staging" klasorune yapilir -- bu adim yavas olabilir (indirme+derleme) ama
+// kesinti suresine hic yansimiyor. Servisler SADECE staging'den asil klasorlere hizli
+// dosya kopyalama suresince durur.
 [SupportedOSPlatform("windows")]
 public class UpdateOrchestrator(IOptions<DeployOptions> optionsAccessor, ILogger<UpdateOrchestrator> logger)
 {
@@ -34,6 +39,15 @@ public class UpdateOrchestrator(IOptions<DeployOptions> optionsAccessor, ILogger
         {
             logger.LogInformation("Guncelleme basliyor (istek: {RequestedBy}).", requestedBy);
 
+            var (hash, message) = await SyncRepositoryAsync(ct);
+            status.CommitHash = hash;
+            status.CommitMessage = message;
+
+            var stagingWeb = Path.Combine(options.StagingPath, "Web");
+            var stagingWorker = Path.Combine(options.StagingPath, "Worker");
+            await RunProcessAsync("dotnet", ["publish", "src/PusulaEHealthSync.Web", "-c", "Release", "-o", stagingWeb], options.RepoPath, ct);
+            await RunProcessAsync("dotnet", ["publish", "src/PusulaEHealthSync", "-c", "Release", "-o", stagingWorker], options.RepoPath, ct);
+
             StopWindowsService(options.WorkerServiceName);
             await PutAppOfflineAsync(ct);
             await Task.Delay(TimeSpan.FromSeconds(5), ct);
@@ -43,8 +57,8 @@ public class UpdateOrchestrator(IOptions<DeployOptions> optionsAccessor, ILogger
             await RunRobocopyAsync(options.WorkerPath, Path.Combine(backupFolder, "Worker"), [], ct);
             PruneOldBackups();
 
-            await RunRobocopyAsync(options.SourceWebPath, options.WebPath, NeverOverwrite, ct);
-            await RunRobocopyAsync(options.SourceWorkerPath, options.WorkerPath, NeverOverwrite, ct);
+            await RunRobocopyAsync(stagingWeb, options.WebPath, NeverOverwrite, ct);
+            await RunRobocopyAsync(stagingWorker, options.WorkerPath, NeverOverwrite, ct);
 
             RemoveAppOffline();
             StartWindowsService(options.WorkerServiceName);
@@ -52,7 +66,7 @@ public class UpdateOrchestrator(IOptions<DeployOptions> optionsAccessor, ILogger
             status.State = UpdateState.Success;
             status.Message = "Guncelleme basariyla tamamlandi.";
             status.BackupFolder = backupFolder;
-            logger.LogInformation("Guncelleme tamamlandi. Yedek: {Backup}", backupFolder);
+            logger.LogInformation("Guncelleme tamamlandi. Commit: {Hash} Yedek: {Backup}", hash, backupFolder);
         }
         catch (Exception ex)
         {
@@ -108,6 +122,27 @@ public class UpdateOrchestrator(IOptions<DeployOptions> optionsAccessor, ILogger
             status.FinishedAtUtc = DateTime.UtcNow;
         }
         return status;
+    }
+
+    // RepoPath yoksa (ilk calistirma) klonlar, varsa mevcut klonu origin/branch'e sifirlar.
+    // Bu klon SADECE bu servis tarafindan dokunulur (elle duzenlenmez), bu yuzden "git pull"
+    // yerine fetch+hard-reset kullanmak daha ongorulebilir -- yerel bir sapma birikemez.
+    private async Task<(string Hash, string Message)> SyncRepositoryAsync(CancellationToken ct)
+    {
+        if (!Directory.Exists(Path.Combine(options.RepoPath, ".git")))
+        {
+            Directory.CreateDirectory(options.RepoPath);
+            await RunProcessAsync("git", ["clone", "--branch", options.Branch, options.RepoUrl, "."], options.RepoPath, ct);
+        }
+        else
+        {
+            await RunProcessAsync("git", ["fetch", "origin", options.Branch], options.RepoPath, ct);
+            await RunProcessAsync("git", ["reset", "--hard", $"origin/{options.Branch}"], options.RepoPath, ct);
+        }
+
+        var hash = (await RunProcessAsync("git", ["log", "-1", "--format=%H"], options.RepoPath, ct)).Trim();
+        var message = (await RunProcessAsync("git", ["log", "-1", "--format=%s"], options.RepoPath, ct)).Trim();
+        return (hash, message);
     }
 
     private void PruneOldBackups()
@@ -199,5 +234,31 @@ public class UpdateOrchestrator(IOptions<DeployOptions> optionsAccessor, ILogger
         logger.LogInformation("robocopy {Source} -> {Dest} exit={Code}", source, destination, process.ExitCode);
         if (process.ExitCode >= 8)
             throw new InvalidOperationException($"robocopy basarisiz (exit={process.ExitCode}): {source} -> {destination}\n{stdout}");
+    }
+
+    // git/dotnet gibi normal process'ler icin ortak calistirici -- robocopy'nin aksine
+    // buradaki her sey icin 0 disinda bir exit code = hata.
+    private async Task<string> RunProcessAsync(string fileName, IReadOnlyList<string> args, string workingDirectory, CancellationToken ct)
+    {
+        var psi = new ProcessStartInfo(fileName)
+        {
+            WorkingDirectory = workingDirectory,
+            RedirectStandardOutput = true,
+            RedirectStandardError = true,
+            UseShellExecute = false,
+            CreateNoWindow = true,
+        };
+        foreach (var a in args) psi.ArgumentList.Add(a);
+
+        using var process = Process.Start(psi) ?? throw new InvalidOperationException($"{fileName} baslatilamadi.");
+        var stdout = await process.StandardOutput.ReadToEndAsync(ct);
+        var stderr = await process.StandardError.ReadToEndAsync(ct);
+        await process.WaitForExitAsync(ct);
+
+        logger.LogInformation("{FileName} {Args} (in {Dir}) exit={Code}", fileName, string.Join(' ', args), workingDirectory, process.ExitCode);
+        if (process.ExitCode != 0)
+            throw new InvalidOperationException($"{fileName} {string.Join(' ', args)} basarisiz (exit={process.ExitCode}):\n{stdout}\n{stderr}");
+
+        return stdout;
     }
 }

@@ -2,19 +2,24 @@ namespace PusulaEHealthSync.Updater.Config;
 
 public class DeployOptions
 {
-    // Gelistirme makinesindeki paylasilan publish ciktisi (UNC yol, orn. \\DEV-MAKINE\PusulaSyncPublish\Web).
-    public required string SourceWebPath { get; set; }
-    public required string SourceWorkerPath { get; set; }
+    // GitHub deposu -- ozel (private) depo oldugu icin URL'nin icine token gomulu olmali,
+    // orn. "https://ghp_xxx@github.com/kullanici/repo.git" (appsettings.Production.json'da,
+    // repoya asla girmez -- bkz. NeverOverwrite ayni mantik).
+    public required string RepoUrl { get; set; }
+    public string Branch { get; set; } = "main";
 
-    // Sunucudaki calisan uygulamanin bulundugu klasorler.
+    // Sunucuda deponun klonlanacagi/guncellenecegi klasor (Web/Worker kaynak kodu buradan
+    // "dotnet publish" ile derlenir, calisan uygulama klasorlerine degil).
+    public required string RepoPath { get; set; }
+
+    // Derleme once BURAYA yapilir (servisler CALISIRKEN, hicbir kesinti olmadan) -- ancak
+    // derleme basariyla bittikten SONRA servisler durdurulup asil klasorlere kopyalanir.
+    // Boylece indirme/derleme suresi kesinti suresine hic yansimiyor.
+    public required string StagingPath { get; set; }
+
     public required string WebPath { get; set; }
     public required string WorkerPath { get; set; }
-
-    // Guncelleme oncesi otomatik yedeklerin duracagi klasor.
     public required string BackupPath { get; set; }
-
-    // Web dashboard ile bu servis arasindaki dosya-tabanli iletisim klasoru
-    // (tetikleyici dosyalar + durum dosyasi).
     public required string ControlPath { get; set; }
 
     public string WorkerServiceName { get; set; } = "PusulaSyncWorker";

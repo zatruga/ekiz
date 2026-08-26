@@ -13,4 +13,6 @@ public class UpdateStatus
     public DateTime? FinishedAtUtc { get; set; }
     public string? BackupFolder { get; set; }
     public string? RequestedBy { get; set; }
+    public string? CommitHash { get; set; }
+    public string? CommitMessage { get; set; }
 }

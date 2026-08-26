@@ -15,7 +15,7 @@
 <div class="page-header">
     <div>
         <h1 class="page-title">Sürüm Güncelle</h1>
-        <p class="page-subtitle">Geliştirme makinesinde hazırlanan yeni sürümü sunucuya alır ve servisleri yeniden başlatır.</p>
+        <p class="page-subtitle">GitHub deposundaki en son sürümü çeker, derler ve sunucuya alır -- servisler sadece dosya kopyalama sırasında kısa süreliğine durur.</p>
     </div>
 </div>
 
@@ -40,6 +40,16 @@
                     @:Son çalışma: @d.FinishedAtUtc.Value.ToLocalTime().ToString("dd.MM.yyyy HH:mm") @(string.IsNullOrWhiteSpace(d.RequestedBy) ? "" : $"· {d.RequestedBy}")
                 }
             </p>
+            @if (!string.IsNullOrWhiteSpace(d?.CommitHash))
+            {
+                <p id="durum-commit" class="text-muted" style="font-size:12.5px; margin:0; font-family:monospace;">
+                    Sürüm: @d.CommitHash.Substring(0, Math.Min(7, d.CommitHash.Length)) — @d.CommitMessage
+                </p>
+            }
+            else
+            {
+                <p id="durum-commit" class="text-muted" style="font-size:12.5px; margin:0; font-family:monospace; display:none;"></p>
+            }
         </div>
 
         <div class="card-actions">
@@ -78,6 +88,12 @@
                 var zamanText = 'Son çalışma: ' + d.toLocaleString('tr-TR');
                 if (data.requestedBy) zamanText += ' · ' + data.requestedBy;
                 document.getElementById('durum-zaman').textContent = zamanText;
+            }
+
+            var commitEl = document.getElementById('durum-commit');
+            if (data.commitHash) {
+                commitEl.textContent = 'Sürüm: ' + data.commitHash.substring(0, 7) + ' — ' + (data.commitMessage || '');
+                commitEl.style.display = '';
             }
 
             var isBusy = data.state === 'InProgress';
