@@ -15,11 +15,10 @@ else
     var p = Model.Protokol;
     var h = Model.Hasta;
     var isRecete = p.ProtokolTipiId == EncounterMapper.ReceteProtokolTipiId;
-    <p class="breadcrumb"><a asp-page="/Index">Protokol Listesi</a> / Protokol #@p.ProtokolId</p>
+    <p class="breadcrumb"><a asp-page="/Index">Protokol Listesi</a> / Protokol Detay</p>
     <div class="page-header">
         <div>
             <h1 class="page-title">@p.HastaAdiSoyadi</h1>
-            <p class="page-subtitle">Protokol #@p.ProtokolId &middot; @(p.BolumAdi ?? "Bölüm bilinmiyor") &middot; @(p.AcilisTarihi?.ToString("yyyy-MM-dd HH:mm") ?? "-")</p>
         </div>
         <div style="display:flex; gap:8px;">
             <a asp-page="/Hasta" asp-route-id="@p.HastaId" class="btn btn-outline btn-sm">Hasta Detay</a>
@@ -55,8 +54,8 @@ else
             </span>
         </div>
         <div class="info-item">
-            <span class="label">Kayıt açılma tarihi</span>
-            <span class="value">@(h?.CreatedDate?.ToString("yyyy-MM-dd") ?? "-")</span>
+            <span class="label">Protokol açılış tarihi</span>
+            <span class="value">@(p.AcilisTarihi?.ToString("yyyy-MM-dd HH:mm") ?? "-")</span>
         </div>
         <div class="info-item">
             <span class="label">Doktor</span>
@@ -74,20 +73,20 @@ else
             <span class="label">Kapanış</span>
             <span class="value" style="font-family:var(--font-body); font-weight:400;">@(p.KapanisTarihi?.ToString("yyyy-MM-dd HH:mm") ?? "Açık protokol")</span>
         </div>
-    </div>
-
-    <div class="card-title-row" style="justify-content:space-between; margin-bottom:12px;">
-        <p class="section-title">e-Health gönderim durumu</p>
         @if (!isRecete)
         {
-            <form method="post" asp-page-handler="TumunuGonder" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                <button type="submit" class="btn btn-primary btn-sm"
-                        onclick="return confirm('Bu protokol için Hasta, Müayinə, Tanı, İşlem ve Epikriz e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
-                    Tümünü Gönder
-                </button>
-            </form>
+            <div style="margin-left:auto; align-self:center;">
+                <form method="post" asp-page-handler="TumunuGonder" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                    <button type="submit" class="btn btn-primary btn-sm"
+                            onclick="return confirm('Bu protokol için Hasta, Müayinə, Tanı, İşlem ve Epikriz e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                        Tümünü Gönder
+                    </button>
+                </form>
+            </div>
         }
     </div>
+
+    <p class="section-title">e-Health gönderim durumu</p>
     <div class="protokol-split">
     <div class="checklist">
         <div class="checklist-item">
