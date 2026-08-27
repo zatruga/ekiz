@@ -20,6 +20,9 @@ public class UpdateWatcherService(
     private const string UpdateTriggerFile = "update.trigger";
     private const string RollbackTriggerFile = "rollback.trigger";
     private const string StatusFile = "update-status.json";
+    private const string CheckFile = "update-check.json";
+
+    private DateTime lastCheckedAtUtc = DateTime.MinValue;
 
     // Web tarafi (UpdateStatusView) State'i string olarak okuyor -- enum'un varsayilan
     // sayisal serilesmesi (0,1,2,3) sessizce deserialize hatasina yol acip Web'de hicbir
@@ -56,6 +59,15 @@ public class UpdateWatcherService(
                     var status = await orchestrator.RunRollbackAsync(requestedBy, stoppingToken);
                     WriteStatus(status);
                 }
+                else if (DateTime.UtcNow - lastCheckedAtUtc >= TimeSpan.FromSeconds(options.CheckIntervalSeconds))
+                {
+                    // Sadece tetikleyici yokken (guncelleme surerken degil) kontrol et --
+                    // ayni anda hem gercek publish hem de bu hafif fetch calismasin diye.
+                    lastCheckedAtUtc = DateTime.UtcNow;
+                    var deployedHash = ReadStatus()?.CommitHash;
+                    var check = await orchestrator.CheckRemoteAsync(deployedHash, stoppingToken);
+                    WriteCheck(check);
+                }
             }
             catch (Exception ex)
             {
@@ -85,6 +97,21 @@ public class UpdateWatcherService(
     {
         var path = Path.Combine(options.ControlPath, StatusFile);
         var json = JsonSerializer.Serialize(status, JsonOptions);
+        File.WriteAllText(path, json);
+    }
+
+    private UpdateStatus? ReadStatus()
+    {
+        var path = Path.Combine(options.ControlPath, StatusFile);
+        if (!File.Exists(path)) return null;
+        try { return JsonSerializer.Deserialize<UpdateStatus>(File.ReadAllText(path), JsonOptions); }
+        catch { return null; }
+    }
+
+    private void WriteCheck(RemoteCheckStatus check)
+    {
+        var path = Path.Combine(options.ControlPath, CheckFile);
+        var json = JsonSerializer.Serialize(check, JsonOptions);
         File.WriteAllText(path, json);
     }
 }

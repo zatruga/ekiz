@@ -25,4 +25,9 @@ public class DeployOptions
     public string WorkerServiceName { get; set; } = "PusulaSyncWorker";
     public int MaxBackups { get; set; } = 5;
     public int PollSeconds { get; set; } = 3;
+
+    // Tetikleyici kontrolu her PollSeconds'ta bir oluyor (hizli olmali, kullanici butona
+    // basinca beklemesin), ama GitHub'a "yeni surum var mi" sorgusu cok daha seyrek
+    // yeterli -- gereksiz yere surekli git fetch atmamak icin ayri bir aralik.
+    public int CheckIntervalSeconds { get; set; } = 60;
 }

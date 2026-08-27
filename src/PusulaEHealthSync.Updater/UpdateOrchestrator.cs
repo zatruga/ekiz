@@ -124,6 +124,36 @@ public class UpdateOrchestrator(IOptions<DeployOptions> optionsAccessor, ILogger
         return status;
     }
 
+    // Sadece "yeni surum var mi" diye bakar -- calisan dosyalara ASLA dokunmaz. RepoPath
+    // henuz klonlanmamissa (ilk guncelleme hic calistirilmamissa) kontrol atlanir, ilk
+    // "Versiyon Guncelle" tiklamasi zaten klonu olusturacak.
+    public async Task<RemoteCheckStatus> CheckRemoteAsync(string? deployedCommitHash, CancellationToken ct)
+    {
+        var status = new RemoteCheckStatus { DeployedCommitHash = deployedCommitHash, CheckedAtUtc = DateTime.UtcNow };
+        try
+        {
+            if (!Directory.Exists(Path.Combine(options.RepoPath, ".git")))
+            {
+                status.Error = "Henuz hic guncelleme calistirilmadi, kontrol icin once bir kere 'Versiyon Guncelle' calistirilmali.";
+                return status;
+            }
+
+            await RunProcessAsync("git", ["fetch", "origin", options.Branch], options.RepoPath, ct);
+            var hash = (await RunProcessAsync("git", ["log", $"origin/{options.Branch}", "-1", "--format=%H"], options.RepoPath, ct)).Trim();
+            var message = (await RunProcessAsync("git", ["log", $"origin/{options.Branch}", "-1", "--format=%s"], options.RepoPath, ct)).Trim();
+
+            status.LatestCommitHash = hash;
+            status.LatestCommitMessage = message;
+            status.HasUpdate = !string.IsNullOrEmpty(hash) && !string.Equals(hash, deployedCommitHash, StringComparison.OrdinalIgnoreCase);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Uzak surum kontrolu basarisiz.");
+            status.Error = ex.Message;
+        }
+        return status;
+    }
+
     // RepoPath yoksa (ilk calistirma) klonlar, varsa mevcut klonu origin/branch'e sifirlar.
     // Bu klon SADECE bu servis tarafindan dokunulur (elle duzenlenmez), bu yuzden "git pull"
     // yerine fetch+hard-reset kullanmak daha ongorulebilir -- yerel bir sapma birikemez.

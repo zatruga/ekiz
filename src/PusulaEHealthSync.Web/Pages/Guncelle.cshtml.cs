@@ -18,12 +18,15 @@ public class GuncelleModel(IOptions<DeployOptions> optionsAccessor) : PageModel
     private const string UpdateTriggerFile = "update.trigger";
     private const string RollbackTriggerFile = "rollback.trigger";
     private const string StatusFile = "update-status.json";
+    private const string CheckFile = "update-check.json";
 
     public UpdateStatusView? Durum { get; set; }
+    public RemoteCheckView? Kontrol { get; set; }
 
     public void OnGet()
     {
         Durum = OkuDurum();
+        Kontrol = OkuKontrol();
     }
 
     public IActionResult OnPostGuncelleAsync()
@@ -42,6 +45,8 @@ public class GuncelleModel(IOptions<DeployOptions> optionsAccessor) : PageModel
 
     public JsonResult OnGetDurum() => new(OkuDurum());
 
+    public JsonResult OnGetKontrol() => new(OkuKontrol());
+
     private UpdateStatusView? OkuDurum()
     {
         var path = Path.Combine(options.ControlPath, StatusFile);
@@ -50,6 +55,21 @@ public class GuncelleModel(IOptions<DeployOptions> optionsAccessor) : PageModel
         {
             var json = System.IO.File.ReadAllText(path);
             return JsonSerializer.Deserialize<UpdateStatusView>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
+        }
+        catch
+        {
+            return null;
+        }
+    }
+
+    private RemoteCheckView? OkuKontrol()
+    {
+        var path = Path.Combine(options.ControlPath, CheckFile);
+        if (!System.IO.File.Exists(path)) return null;
+        try
+        {
+            var json = System.IO.File.ReadAllText(path);
+            return JsonSerializer.Deserialize<RemoteCheckView>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true });
         }
         catch
         {
@@ -72,4 +92,14 @@ public class UpdateStatusView
     public string? RequestedBy { get; set; }
     public string? CommitHash { get; set; }
     public string? CommitMessage { get; set; }
+}
+
+public class RemoteCheckView
+{
+    public string? LatestCommitHash { get; set; }
+    public string? LatestCommitMessage { get; set; }
+    public string? DeployedCommitHash { get; set; }
+    public bool HasUpdate { get; set; }
+    public DateTime? CheckedAtUtc { get; set; }
+    public string? Error { get; set; }
 }

@@ -10,6 +10,7 @@
         "Failed" => ("danger", "Hatalı"),
         _ => ("neutral", "Bekliyor"),
     };
+    var k = Model.Kontrol;
 }
 
 <div class="page-header">
@@ -60,6 +61,26 @@
                 <button id="btn-geri-al" type="submit" class="btn btn-outline" style="border-color:var(--danger); color:var(--danger);">Son Yedeğe Geri Dön</button>
             </form>
         </div>
+
+        <div id="kontrol-panel" style="margin-top:18px; padding-top:16px; border-top:1px solid var(--border); display:@(k?.HasUpdate == true ? "flex" : "none"); align-items:center; gap:10px;">
+            <span class="badge warning"><span class="badge-dot"></span>Yeni sürüm mevcut</span>
+            <span id="kontrol-mesaj" class="text-muted" style="font-size:13px;">
+                @if (k?.HasUpdate == true)
+                {
+                    @:@(k.LatestCommitHash?.Substring(0, Math.Min(7, k.LatestCommitHash.Length))) — @k.LatestCommitMessage
+                }
+            </span>
+        </div>
+        <p id="kontrol-yok" class="text-muted" style="font-size:12px; margin:14px 0 0; padding-top:16px; border-top:1px solid var(--border); display:@(k?.HasUpdate == true ? "none" : "block");">
+            @if (k?.CheckedAtUtc is not null)
+            {
+                @:GitHub kontrol edildi (@k.CheckedAtUtc.Value.ToLocalTime().ToString("HH:mm")) -- güncel sürüm çalışıyor.
+            }
+            else
+            {
+                @:GitHub sürüm kontrolü henüz yapılmadı.
+            }
+        </p>
     </div>
 </div>
 
@@ -107,6 +128,34 @@
                 .then(pusulaDurumUygula)
                 .catch(function () { /* guncelleme sirasinda site kisa sure yanit vermeyebilir -- sessizce yeniden dene */ })
                 .finally(function () { setTimeout(pusulaPollDurum, 2000); });
+        })();
+
+        function pusulaKontrolUygula(data) {
+            if (!data) return;
+            var panel = document.getElementById('kontrol-panel');
+            var yok = document.getElementById('kontrol-yok');
+            if (data.hasUpdate) {
+                document.getElementById('kontrol-mesaj').textContent =
+                    (data.latestCommitHash ? data.latestCommitHash.substring(0, 7) : '') + ' — ' + (data.latestCommitMessage || '');
+                panel.style.display = 'flex';
+                yok.style.display = 'none';
+            } else {
+                panel.style.display = 'none';
+                yok.style.display = 'block';
+                yok.textContent = data.checkedAtUtc
+                    ? ('GitHub kontrol edildi (' + new Date(data.checkedAtUtc).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) + ') -- güncel sürüm çalışıyor.')
+                    : 'GitHub sürüm kontrolü henüz yapılmadı.';
+            }
+        }
+
+        // Updater arka planda GitHub'i CheckIntervalSeconds'ta bir (varsayilan 60sn) kontrol
+        // ediyor -- burada daha sik sormanin bir anlami yok, ayni araliga yakin poll ediyoruz.
+        (function pusulaPollKontrol() {
+            fetch(window.location.pathname + '?handler=Kontrol')
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(pusulaKontrolUygula)
+                .catch(function () { /* sessizce yeniden dene */ })
+                .finally(function () { setTimeout(pusulaPollKontrol, 30000); });
         })();
     </script>
 }
