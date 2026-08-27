@@ -384,6 +384,30 @@ public class PusulaRepository(IOptions<PusulaOptions> options)
     // Icbari Kodu formatinda bazen sonda nokta oluyor (orn. "1.1.11.") -- AZ'nin resmi
     // az-procedure-codes CodeSystem'i noktasiz (orn. "1.1.11"), bu yuzden cagiran taraf
     // (ProcedureMapper) TrimEnd('.') ile normalize ediyor.
+    //
+    // ONAY KONTROLU (2026-08-27, canli hata -- kullanici: "procedürlerde state kontrolü
+    // yapmıyoruz, bekleyen/onaylanmamış hizmet gönderim listesinde olmamalı"): pi.State<>0
+    // sadece istemin silinmedigini gosteriyor, ONAYLANDIGINI degil. Protokol 50729124 uzerinde
+    // canli dogrulandi: pi.State=1 -> bekleyen (EKQ, henuz gonderilmemeli), pi.State=2 ->
+    // onaylanmis/tamamlanmis (Transtorasik ekokardiyografi, gonderilmesi dogru). Bu yuzden
+    // pi.State<>0 yerine pi.State=2 sartini kullaniyoruz.
+    //
+    // Kullanici ek uyari (2026-08-27): radyolojide pi.State=2 (protokol/fatura seviyesinde
+    // onay) olsa BILE cekim yapilmamis ya da doktor RAPORU henuz onaylanmamis olabilir --
+    // Pusula'nin kendi e-Nabiz entegrasyonu (bkz. docs/sql-exports/enabiz_procs.txt,
+    // usp_GetProtokolIslemByENabiz, HizmetTipiId=3 dali) bu yuzden ayrica RIS.TetkikIslem.
+    // State=6 ("onaylanmis/kesinlesmis", LIS tarafindaki Status=6 ile ayni kural) sartini da
+    // ariyor. Ayni ek kontrolu burada da uyguluyoruz: bir ProtokolIslem'in silinmemis bir
+    // RIS.TetkikIslem kaydi varsa ama o kayit henuz onaylanmamissa (State<>6), pi.State=2
+    // olsa bile o Islem'i gonderim listesinden disarida birakiyoruz. RIS'e hic girmeyen
+    // hizmetler (muayene, idari/faturalama kalemleri vb.) bu ek kontrolden etkilenmez --
+    // onlarda zaten eslesen bir TetkikIslem kaydi olmuyor.
+    //
+    // Ayni risk laboratuvar tipi hizmetlerde de var (kullanici sordu, 2026-08-27): Pusula'nin
+    // kendi export'unda (usp_GetLaboratuvarSonucBilgileriByEnabiz, satir 386) LIS.TestIslem.
+    // State=6 RIS ile BIREBIR ayni "onaylanmis/kesinlesmis" kuralini, ayni sekilde
+    // ProtokolIslemId uzerinden (isim degil, ID uzerinden) kullaniyor -- bu yuzden RIS
+    // kontrolunun aynisini LIS.TestIslem icin de ekliyoruz.
     public async Task<List<IslemRecord>> GetIslemlerByProtokolIdAsync(int protokolId, CancellationToken ct = default)
     {
         const string sql = @"
@@ -401,8 +425,16 @@ public class PusulaRepository(IOptions<PusulaOptions> options)
                   AND OHKH.State <> 0
                 ORDER BY PKH.IsPaket DESC
             ) icb
-            WHERE pi.ProtokolId = @ProtokolId AND pi.State <> 0 AND pi.HizmetId IS NOT NULL
+            WHERE pi.ProtokolId = @ProtokolId AND pi.State = 2 AND pi.HizmetId IS NOT NULL
               AND icb.Kodu IS NOT NULL AND LEN(icb.Kodu) > 0
+              AND NOT EXISTS (
+                  SELECT 1 FROM RIS.TetkikIslem rti
+                  WHERE rti.ProtokolIslemId = pi.Id AND rti.State <> 0 AND rti.State <> 6
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM LIS.TestIslem lti
+                  WHERE lti.ProtokolIslemId = pi.Id AND lti.State <> 0 AND lti.State <> 6
+              )
             ORDER BY pi.Id";
 
         await using var conn = new SqlConnection(_connectionString);
