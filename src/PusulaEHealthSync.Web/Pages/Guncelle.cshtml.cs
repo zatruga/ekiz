@@ -19,14 +19,17 @@ public class GuncelleModel(IOptions<DeployOptions> optionsAccessor) : PageModel
     private const string RollbackTriggerFile = "rollback.trigger";
     private const string StatusFile = "update-status.json";
     private const string CheckFile = "update-check.json";
+    private const string HistoryFile = "update-history.json";
 
     public UpdateStatusView? Durum { get; set; }
     public RemoteCheckView? Kontrol { get; set; }
+    public List<UpdateStatusView> Gecmis { get; set; } = [];
 
     public void OnGet()
     {
         Durum = OkuDurum();
         Kontrol = OkuKontrol();
+        Gecmis = OkuGecmis();
     }
 
     public IActionResult OnPostGuncelleAsync()
@@ -56,6 +59,8 @@ public class GuncelleModel(IOptions<DeployOptions> optionsAccessor) : PageModel
 
     public JsonResult OnGetKontrol() => new(OkuKontrol());
 
+    public JsonResult OnGetGecmis() => new(OkuGecmis());
+
     private UpdateStatusView? OkuDurum()
     {
         var path = Path.Combine(options.ControlPath, StatusFile);
@@ -68,6 +73,21 @@ public class GuncelleModel(IOptions<DeployOptions> optionsAccessor) : PageModel
         catch
         {
             return null;
+        }
+    }
+
+    private List<UpdateStatusView> OkuGecmis()
+    {
+        var path = Path.Combine(options.ControlPath, HistoryFile);
+        if (!System.IO.File.Exists(path)) return [];
+        try
+        {
+            var json = System.IO.File.ReadAllText(path);
+            return JsonSerializer.Deserialize<List<UpdateStatusView>>(json, new JsonSerializerOptions { PropertyNameCaseInsensitive = true }) ?? [];
+        }
+        catch
+        {
+            return [];
         }
     }
 

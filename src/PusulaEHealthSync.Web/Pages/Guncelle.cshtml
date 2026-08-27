@@ -82,6 +82,47 @@
             }
         </p>
     </div>
+
+    <div class="card card-pad settings-card span-2">
+        <p class="section-title">Güncelleme Geçmişi</p>
+        <p class="card-desc">Sunucuya alınan her sürümün ne zaman ve ne içerdiği -- en yeni üstte.</p>
+
+        <ul id="gecmis-liste" style="list-style:none; margin:14px 0 0; padding:0; display:flex; flex-direction:column; gap:0;">
+            @if (Model.Gecmis.Count == 0)
+            {
+                <li id="gecmis-bos" class="text-muted" style="font-size:13px; padding:10px 0;">Henüz kayıtlı bir güncelleme geçmişi yok.</li>
+            }
+            else
+            {
+                @foreach (var h in Model.Gecmis)
+                {
+                    var (hBadgeClass, hBadgeLabel) = h.State switch
+                    {
+                        "Success" => ("success", "Başarılı"),
+                        "Failed" => ("danger", "Hatalı"),
+                        _ => ("neutral", h.State),
+                    };
+                    <li style="display:flex; align-items:baseline; gap:10px; padding:10px 0; border-top:1px solid var(--border);">
+                        <span class="badge @hBadgeClass" style="flex-shrink:0;"><span class="badge-dot"></span>@hBadgeLabel</span>
+                        <span class="text-muted" style="font-size:12px; flex-shrink:0; white-space:nowrap;">
+                            @(h.FinishedAtUtc?.ToLocalTime().ToString("dd.MM.yyyy HH:mm") ?? "")
+                        </span>
+                        <span style="font-size:13px;">
+                            @(h.Operation switch { "Guncelleme" => "Güncelleme", "GeriAlma" => "Geri Alma", _ => h.Operation })
+                            @if (!string.IsNullOrWhiteSpace(h.CommitMessage))
+                            {
+                                @:— @h.CommitMessage
+                            }
+                            else if (!string.IsNullOrWhiteSpace(h.Message))
+                            {
+                                @:— @h.Message
+                            }
+                        </span>
+                    </li>
+                }
+            }
+        </ul>
+    </div>
 </div>
 
 @section Scripts {
@@ -156,6 +197,65 @@
                 .then(pusulaKontrolUygula)
                 .catch(function () { /* sessizce yeniden dene */ })
                 .finally(function () { setTimeout(pusulaPollKontrol, 30000); });
+        })();
+
+        var pusulaGecmisSayisi = @Model.Gecmis.Count;
+        var pusulaBadgeMetin = { Success: 'Başarılı', Failed: 'Hatalı' };
+        var pusulaOperasyonMetin = { Guncelleme: 'Güncelleme', GeriAlma: 'Geri Alma' };
+
+        function pusulaGecmisUygula(data) {
+            if (!data || data.length === pusulaGecmisSayisi) return; // degisiklik yoksa DOM'a dokunma
+            pusulaGecmisSayisi = data.length;
+
+            var liste = document.getElementById('gecmis-liste');
+            liste.textContent = '';
+
+            if (data.length === 0) {
+                var bos = document.createElement('li');
+                bos.id = 'gecmis-bos';
+                bos.className = 'text-muted';
+                bos.style.cssText = 'font-size:13px; padding:10px 0;';
+                bos.textContent = 'Henüz kayıtlı bir güncelleme geçmişi yok.';
+                liste.appendChild(bos);
+                return;
+            }
+
+            data.forEach(function (h) {
+                var li = document.createElement('li');
+                li.style.cssText = 'display:flex; align-items:baseline; gap:10px; padding:10px 0; border-top:1px solid var(--border);';
+
+                var badge = document.createElement('span');
+                badge.className = 'badge ' + (h.state === 'Success' ? 'success' : h.state === 'Failed' ? 'danger' : 'neutral');
+                badge.style.flexShrink = '0';
+                var dot = document.createElement('span');
+                dot.className = 'badge-dot';
+                badge.appendChild(dot);
+                badge.appendChild(document.createTextNode(pusulaBadgeMetin[h.state] || h.state));
+                li.appendChild(badge);
+
+                var zaman = document.createElement('span');
+                zaman.className = 'text-muted';
+                zaman.style.cssText = 'font-size:12px; flex-shrink:0; white-space:nowrap;';
+                zaman.textContent = h.finishedAtUtc ? new Date(h.finishedAtUtc).toLocaleString('tr-TR') : '';
+                li.appendChild(zaman);
+
+                var aciklama = document.createElement('span');
+                aciklama.style.fontSize = '13px';
+                var op = pusulaOperasyonMetin[h.operation] || h.operation || '';
+                var detay = h.commitMessage || h.message || '';
+                aciklama.textContent = detay ? (op + ' — ' + detay) : op;
+                li.appendChild(aciklama);
+
+                liste.appendChild(li);
+            });
+        }
+
+        (function pusulaPollGecmis() {
+            fetch(window.location.pathname + '?handler=Gecmis')
+                .then(function (r) { return r.ok ? r.json() : null; })
+                .then(pusulaGecmisUygula)
+                .catch(function () { /* sessizce yeniden dene */ })
+                .finally(function () { setTimeout(pusulaPollGecmis, 5000); });
         })();
     </script>
 }

@@ -21,6 +21,8 @@ public class UpdateWatcherService(
     private const string RollbackTriggerFile = "rollback.trigger";
     private const string StatusFile = "update-status.json";
     private const string CheckFile = "update-check.json";
+    private const string HistoryFile = "update-history.json";
+    private const int MaxHistoryEntries = 20;
 
     private DateTime lastCheckedAtUtc = DateTime.MinValue;
 
@@ -56,6 +58,7 @@ public class UpdateWatcherService(
                     WriteStatus(new UpdateStatus { State = UpdateState.InProgress, Operation = "Guncelleme", StartedAtUtc = DateTime.UtcNow, RequestedBy = requestedBy });
                     var status = await orchestrator.RunUpdateAsync(requestedBy, stoppingToken);
                     WriteStatus(status);
+                    AppendHistory(status);
                 }
                 else if (File.Exists(rollbackTrigger))
                 {
@@ -63,6 +66,7 @@ public class UpdateWatcherService(
                     WriteStatus(new UpdateStatus { State = UpdateState.InProgress, Operation = "GeriAlma", StartedAtUtc = DateTime.UtcNow, RequestedBy = requestedBy });
                     var status = await orchestrator.RunRollbackAsync(requestedBy, stoppingToken);
                     WriteStatus(status);
+                    AppendHistory(status);
                 }
                 else if (DateTime.UtcNow - lastCheckedAtUtc >= TimeSpan.FromSeconds(options.CheckIntervalSeconds))
                 {
@@ -118,5 +122,31 @@ public class UpdateWatcherService(
         var path = Path.Combine(options.ControlPath, CheckFile);
         var json = JsonSerializer.Serialize(check, JsonOptions);
         File.WriteAllText(path, json);
+    }
+
+    // Her tamamlanan guncelleme/geri-alma islemini kalici bir listeye ekler -- kullanici
+    // "her sürüm bilgisi alt alta görünsün, ne zaman ne değiştirdiğimi bileyim" istedi
+    // (2026-08-27). En yeni basta, en fazla MaxHistoryEntries kayit tutuluyor.
+    private void AppendHistory(UpdateStatus status)
+    {
+        var path = Path.Combine(options.ControlPath, HistoryFile);
+        List<UpdateStatus> history;
+        try
+        {
+            history = File.Exists(path)
+                ? JsonSerializer.Deserialize<List<UpdateStatus>>(File.ReadAllText(path), JsonOptions) ?? []
+                : [];
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Gecmis dosyasi okunamadi, sifirdan baslatiliyor.");
+            history = [];
+        }
+
+        history.Insert(0, status);
+        if (history.Count > MaxHistoryEntries)
+            history.RemoveRange(MaxHistoryEntries, history.Count - MaxHistoryEntries);
+
+        File.WriteAllText(path, JsonSerializer.Serialize(history, JsonOptions));
     }
 }
