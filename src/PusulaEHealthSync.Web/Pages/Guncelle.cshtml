@@ -54,8 +54,9 @@
         </div>
 
         <div class="card-actions">
-            <form method="post" asp-page-handler="Guncelle" onsubmit="return pusulaBaslatGuncelleme(this, 'Bu işlem servisleri kısa süreliğine durdurup yeni sürümü yükleyecek. Devam edilsin mi?')">
-                <button id="btn-guncelle" type="submit" class="btn btn-primary">Versiyon Güncelle</button>
+            <form id="form-ana-buton" method="post" asp-page-handler="@(k?.HasUpdate == true ? "Guncelle" : "KontrolEt")"
+                  data-mode="@(k?.HasUpdate == true ? "guncelle" : "kontrol")" onsubmit="return pusulaAnaButonSubmit(this)">
+                <button id="btn-guncelle" type="submit" class="btn btn-primary">@(k?.HasUpdate == true ? "Versiyon Güncelle" : "Güncelleme Kontrol Et")</button>
             </form>
             <form method="post" asp-page-handler="GeriAl" onsubmit="return pusulaBaslatGuncelleme(this, 'En son alınan yedeğe geri dönülecek, emin misiniz?')">
                 <button id="btn-geri-al" type="submit" class="btn btn-outline" style="border-color:var(--danger); color:var(--danger);">Son Yedeğe Geri Dön</button>
@@ -141,6 +142,17 @@
             return true;
         }
 
+        // Ana buton "kontrol" modundaysa (güncel sürüm/henüz kontrol edilmemiş) sadece bir
+        // git fetch tetikler -- yıkıcı olmadığı için onay penceresi yok. "guncelle" modundaysa
+        // (bkz. pusulaKontrolUygula) gerçek güncelleme akışı devreye girer, o zaman onay istenir.
+        function pusulaAnaButonSubmit(form) {
+            if (form.dataset.mode === 'guncelle') {
+                if (!confirm('Bu işlem servisleri kısa süreliğine durdurup yeni sürümü yükleyecek. Devam edilsin mi?')) return false;
+            }
+            pusulaLockSubmit(form);
+            return true;
+        }
+
         function pusulaDurumUygula(data) {
             if (!data) return;
             var badgeMap = { Idle: ['neutral', 'Bekliyor'], InProgress: ['warning', 'İşleniyor'], Success: ['success', 'Başarılı'], Failed: ['danger', 'Hatalı'] };
@@ -184,6 +196,8 @@
             var panel = document.getElementById('kontrol-panel');
             var yok = document.getElementById('kontrol-yok');
             var liste = document.getElementById('kontrol-liste');
+            var anaForm = document.getElementById('form-ana-buton');
+            var anaBtn = document.getElementById('btn-guncelle');
 
             if (data.hasUpdate) {
                 liste.textContent = '';
@@ -195,23 +209,32 @@
                 });
                 panel.style.display = 'block';
                 yok.style.display = 'none';
+                anaForm.action = window.location.pathname + '?handler=Guncelle';
+                anaForm.dataset.mode = 'guncelle';
+                anaBtn.textContent = 'Versiyon Güncelle';
             } else {
                 panel.style.display = 'none';
                 yok.style.display = 'block';
                 yok.textContent = data.checkedAtUtc
                     ? ('GitHub kontrol edildi (' + new Date(data.checkedAtUtc).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) + ') -- güncel sürüm çalışıyor.')
                     : 'GitHub sürüm kontrolü henüz yapılmadı.';
+                anaForm.action = window.location.pathname + '?handler=KontrolEt';
+                anaForm.dataset.mode = 'kontrol';
+                anaBtn.textContent = 'Güncelleme Kontrol Et';
             }
         }
 
-        // Updater arka planda GitHub'i CheckIntervalSeconds'ta bir (varsayilan 60sn) kontrol
-        // ediyor -- burada daha sik sormanin bir anlami yok, ayni araliga yakin poll ediyoruz.
+        // Updater artik arka planda OTOMATIK kontrol etmiyor (KULLANICI ISTEGI, 2026-08-27:
+        // "1 dakikada bir versiyon güncellemeyi kontrol etmesin") -- kontrol sadece sayfa
+        // acilirken (OnGet) ve "Güncelleme Kontrol Et" butonuyla tetikleniyor. Bu poll sadece
+        // o tetiklemelerin sonucunu (Updater PollSeconds icinde islemis olmali) hizlica
+        // ekrana yansitmak icin var, kendisi yeni bir kontrol BASLATMAZ.
         (function pusulaPollKontrol() {
             fetch(window.location.pathname + '?handler=Kontrol')
                 .then(function (r) { return r.ok ? r.json() : null; })
                 .then(pusulaKontrolUygula)
                 .catch(function () { /* sessizce yeniden dene */ })
-                .finally(function () { setTimeout(pusulaPollKontrol, 30000); });
+                .finally(function () { setTimeout(pusulaPollKontrol, 5000); });
         })();
 
         var pusulaGecmisSayisi = @Model.Gecmis.Count;

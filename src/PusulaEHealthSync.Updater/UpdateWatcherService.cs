@@ -19,12 +19,11 @@ public class UpdateWatcherService(
 
     private const string UpdateTriggerFile = "update.trigger";
     private const string RollbackTriggerFile = "rollback.trigger";
+    private const string CheckTriggerFile = "check.trigger";
     private const string StatusFile = "update-status.json";
     private const string CheckFile = "update-check.json";
     private const string HistoryFile = "update-history.json";
     private const int MaxHistoryEntries = 20;
-
-    private DateTime lastCheckedAtUtc = DateTime.MinValue;
 
     // Web tarafi (UpdateStatusView) State'i string olarak okuyor -- enum'un varsayilan
     // sayisal serilesmesi (0,1,2,3) sessizce deserialize hatasina yol acip Web'de hicbir
@@ -48,6 +47,7 @@ public class UpdateWatcherService(
             {
                 var updateTrigger = Path.Combine(options.ControlPath, UpdateTriggerFile);
                 var rollbackTrigger = Path.Combine(options.ControlPath, RollbackTriggerFile);
+                var checkTrigger = Path.Combine(options.ControlPath, CheckTriggerFile);
 
                 if (File.Exists(updateTrigger))
                 {
@@ -68,11 +68,14 @@ public class UpdateWatcherService(
                     WriteStatus(status);
                     AppendHistory(status);
                 }
-                else if (DateTime.UtcNow - lastCheckedAtUtc >= TimeSpan.FromSeconds(options.CheckIntervalSeconds))
+                else if (File.Exists(checkTrigger))
                 {
-                    // Sadece tetikleyici yokken (guncelleme surerken degil) kontrol et --
-                    // ayni anda hem gercek publish hem de bu hafif fetch calismasin diye.
-                    lastCheckedAtUtc = DateTime.UtcNow;
+                    // KULLANICI ISTEGI (2026-08-27): "1 dakikada bir versiyon güncellemeyi
+                    // kontrol etmesin" -- eskiden burada DateTime.UtcNow - lastCheckedAtUtc >=
+                    // CheckIntervalSeconds (varsayilan 60sn) ile periyodik/otonom calisiyordu,
+                    // artik SADECE talep uzerine (Web tarafinda sayfa acilisi + "Güncelleme
+                    // Kontrol Et" butonu, bkz. Guncelle.cshtml.cs) calisiyor.
+                    SafeReadAndDelete(checkTrigger);
                     var deployedHash = ReadStatus()?.CommitHash;
                     var check = await orchestrator.CheckRemoteAsync(deployedHash, stoppingToken);
                     WriteCheck(check);

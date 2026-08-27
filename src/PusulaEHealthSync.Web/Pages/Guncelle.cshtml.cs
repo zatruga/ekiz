@@ -17,6 +17,7 @@ public class GuncelleModel(IOptions<DeployOptions> optionsAccessor) : PageModel
 
     private const string UpdateTriggerFile = "update.trigger";
     private const string RollbackTriggerFile = "rollback.trigger";
+    private const string CheckTriggerFile = "check.trigger";
     private const string StatusFile = "update-status.json";
     private const string CheckFile = "update-check.json";
     private const string HistoryFile = "update-history.json";
@@ -25,11 +26,36 @@ public class GuncelleModel(IOptions<DeployOptions> optionsAccessor) : PageModel
     public RemoteCheckView? Kontrol { get; set; }
     public List<UpdateStatusView> Gecmis { get; set; } = [];
 
+    // KULLANICI ISTEGI (2026-08-27): "1 dakikada bir versiyon güncellemeyi kontrol
+    // etmesin ... sürüm güncelle butonuna basınca otomatik kontrol etsin sayfa açılırken"
+    // -- Updater artik periyodik/otonom GitHub kontrolu YAPMIYOR (bkz. UpdateWatcherService),
+    // bu yuzden sayfa her acildiginda (F5 dahil) taze bir kontrol talebi birakiyoruz. Zaten
+    // bir guncelleme/geri-alma suruyorsa (InProgress) tetiklemiyoruz -- diger tetikleyicilerle
+    // ayni guard.
     public void OnGet()
     {
         Durum = OkuDurum();
         Kontrol = OkuKontrol();
         Gecmis = OkuGecmis();
+
+        if (Durum?.State != "InProgress")
+        {
+            Directory.CreateDirectory(options.ControlPath);
+            System.IO.File.WriteAllText(Path.Combine(options.ControlPath, CheckTriggerFile), "sayfa-acilisi");
+        }
+    }
+
+    // Ana buton "güncel sürüm/kontrol edilmemiş" durumunda GUNCELLEME degil, sadece bir
+    // kontrol talebi birakir (bkz. Guncelle.cshtml'de k?.HasUpdate'e gore buton metni/hedefi
+    // degisiyor). Yikici bir islem olmadigi icin (sadece git fetch) burada onay penceresi yok.
+    public IActionResult OnPostKontrolEtAsync()
+    {
+        if (OkuDurum()?.State != "InProgress")
+        {
+            Directory.CreateDirectory(options.ControlPath);
+            System.IO.File.WriteAllText(Path.Combine(options.ControlPath, CheckTriggerFile), "manuel");
+        }
+        return RedirectToPage();
     }
 
     public IActionResult OnPostGuncelleAsync()
