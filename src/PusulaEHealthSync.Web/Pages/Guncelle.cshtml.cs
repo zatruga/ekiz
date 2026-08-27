@@ -31,15 +31,24 @@ public class GuncelleModel(IOptions<DeployOptions> optionsAccessor) : PageModel
 
     public IActionResult OnPostGuncelleAsync()
     {
-        Directory.CreateDirectory(options.ControlPath);
-        System.IO.File.WriteAllText(Path.Combine(options.ControlPath, UpdateTriggerFile), User.Identity?.Name ?? "bilinmiyor");
+        // Islem zaten surerken ikinci bir tetikleyici yazmayi engeller -- kullanici emin
+        // olamayip birden fazla kez tikleyince (canli olayda gorulen davranis) gereksiz
+        // bir ikinci kesinti dongusu baslamasin diye.
+        if (OkuDurum()?.State != "InProgress")
+        {
+            Directory.CreateDirectory(options.ControlPath);
+            System.IO.File.WriteAllText(Path.Combine(options.ControlPath, UpdateTriggerFile), User.Identity?.Name ?? "bilinmiyor");
+        }
         return RedirectToPage();
     }
 
     public IActionResult OnPostGeriAlAsync()
     {
-        Directory.CreateDirectory(options.ControlPath);
-        System.IO.File.WriteAllText(Path.Combine(options.ControlPath, RollbackTriggerFile), User.Identity?.Name ?? "bilinmiyor");
+        if (OkuDurum()?.State != "InProgress")
+        {
+            Directory.CreateDirectory(options.ControlPath);
+            System.IO.File.WriteAllText(Path.Combine(options.ControlPath, RollbackTriggerFile), User.Identity?.Name ?? "bilinmiyor");
+        }
         return RedirectToPage();
     }
 

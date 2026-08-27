@@ -29,7 +29,7 @@ public class UpdateOrchestrator(IOptions<DeployOptions> optionsAccessor, ILogger
 
     private const string AppOfflineFileName = "app_offline.htm";
     private const string AppOfflineHtml =
-        "<html><body style=\"font-family:sans-serif;text-align:center;padding-top:80px;\">" +
+        "<html><head><meta charset=\"utf-8\"></head><body style=\"font-family:sans-serif;text-align:center;padding-top:80px;\">" +
         "<h2>Sistem güncelleniyor</h2><p>Birkaç saniye içinde tekrar deneyin.</p></body></html>";
 
     public async Task<UpdateStatus> RunUpdateAsync(string? requestedBy, CancellationToken ct)
@@ -225,7 +225,7 @@ public class UpdateOrchestrator(IOptions<DeployOptions> optionsAccessor, ILogger
     private Task PutAppOfflineAsync(CancellationToken ct)
     {
         Directory.CreateDirectory(options.WebPath);
-        return File.WriteAllTextAsync(Path.Combine(options.WebPath, AppOfflineFileName), AppOfflineHtml, ct);
+        return File.WriteAllTextAsync(Path.Combine(options.WebPath, AppOfflineFileName), AppOfflineHtml, System.Text.Encoding.UTF8, ct);
     }
 
     private void RemoveAppOffline()

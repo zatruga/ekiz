@@ -50,12 +50,17 @@ public class UpdateWatcherService(
                 if (File.Exists(updateTrigger))
                 {
                     var requestedBy = SafeReadAndDelete(updateTrigger);
+                    // Once "Isleniyor" yazilmazsa Web tarafi tum sure boyunca ("Bekliyor")
+                    // hicbir sey degismiyormus gibi goruyor -- canli olayda bulundu, kullanici
+                    // emin olamayip butona birden fazla kez basmisti.
+                    WriteStatus(new UpdateStatus { State = UpdateState.InProgress, Operation = "Guncelleme", StartedAtUtc = DateTime.UtcNow, RequestedBy = requestedBy });
                     var status = await orchestrator.RunUpdateAsync(requestedBy, stoppingToken);
                     WriteStatus(status);
                 }
                 else if (File.Exists(rollbackTrigger))
                 {
                     var requestedBy = SafeReadAndDelete(rollbackTrigger);
+                    WriteStatus(new UpdateStatus { State = UpdateState.InProgress, Operation = "GeriAlma", StartedAtUtc = DateTime.UtcNow, RequestedBy = requestedBy });
                     var status = await orchestrator.RunRollbackAsync(requestedBy, stoppingToken);
                     WriteStatus(status);
                 }
