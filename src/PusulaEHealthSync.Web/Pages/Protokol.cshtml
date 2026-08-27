@@ -76,7 +76,18 @@ else
         </div>
     </div>
 
-    <p class="section-title">e-Health gönderim durumu</p>
+    <div class="card-title-row" style="justify-content:space-between; margin-bottom:12px;">
+        <p class="section-title">e-Health gönderim durumu</p>
+        @if (!isRecete)
+        {
+            <form method="post" asp-page-handler="TumunuGonder" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                <button type="submit" class="btn btn-primary btn-sm"
+                        onclick="return confirm('Bu protokol için Hasta, Müayinə, Tanı, İşlem ve Epikriz e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                    Tümünü Gönder
+                </button>
+            </form>
+        }
+    </div>
     <div class="protokol-split">
     <div class="checklist">
         <div class="checklist-item">

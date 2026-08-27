@@ -98,6 +98,26 @@ public class ProtokolModel(
     // (liveMode:true) -- eskiden sadece $validate calisiyordu. Muayine gonderiminde hasta
     // e-Health'te yoksa EncounterSyncService onu otomatik olarak once canli gonderir,
     // kullanicinin ayrica "once hastayi gonder" diye ugrasmasina gerek kalmaz.
+    // Master "Tümünü Gönder" -- KULLANICI ISTEGI (2026-08-27): "e-Health gönderim durumu
+    // alanının yanına tümünü gönder butonu koyalım" -- baslik satirinda tek tikla butun
+    // protokolu gonderen bir kisayol. EncounterSyncService.SyncOneAsync zaten Hasta ->
+    // Muayine -> Tani -> Islem'i CASCADE olarak gonderiyor (bkz. o dosyadaki SyncOneAsync),
+    // burada ayrica tek tek cagirmaya gerek yok -- sadece cascade'e DAHIL OLMAYAN Epikriz'i
+    // (Composition) ayrica gonderiyoruz. Reçete protokolleri e-Health'e hic gonderilmedigi
+    // icin (sayfadaki diger butonlar gibi) bu durumda hicbir sey yapmiyor.
+    public async Task<IActionResult> OnPostTumunuGonderAsync(int id, CancellationToken ct)
+    {
+        Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
+        if (Protokol is null) return NotFound();
+
+        if (Protokol.ProtokolTipiId != EncounterMapper.ReceteProtokolTipiId)
+        {
+            await encounterSyncService.SyncOneAsync(Protokol.ProtokolId, liveMode: true, ct);
+            await compositionSyncService.SyncOneAsync(Protokol.ProtokolId, liveMode: true, ct);
+        }
+        return RedirectToPage("/Protokol", new { id });
+    }
+
     public async Task<IActionResult> OnPostGonderHastaAsync(int id, CancellationToken ct)
     {
         Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
