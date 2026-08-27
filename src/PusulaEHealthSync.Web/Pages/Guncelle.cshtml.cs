@@ -125,10 +125,15 @@ public class UpdateStatusView
 
 public class RemoteCheckView
 {
-    public string? LatestCommitHash { get; set; }
-    public string? LatestCommitMessage { get; set; }
     public string? DeployedCommitHash { get; set; }
+    public List<PendingCommitView> PendingCommits { get; set; } = [];
     public bool HasUpdate { get; set; }
     public DateTime? CheckedAtUtc { get; set; }
     public string? Error { get; set; }
+}
+
+public class PendingCommitView
+{
+    public string Hash { get; set; } = "";
+    public string Message { get; set; } = "";
 }

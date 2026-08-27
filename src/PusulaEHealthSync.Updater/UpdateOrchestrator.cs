@@ -139,12 +139,28 @@ public class UpdateOrchestrator(IOptions<DeployOptions> optionsAccessor, ILogger
             }
 
             await RunProcessAsync("git", ["fetch", "origin", options.Branch], options.RepoPath, ct);
-            var hash = (await RunProcessAsync("git", ["log", $"origin/{options.Branch}", "-1", "--format=%H"], options.RepoPath, ct)).Trim();
-            var message = (await RunProcessAsync("git", ["log", $"origin/{options.Branch}", "-1", "--format=%s"], options.RepoPath, ct)).Trim();
 
-            status.LatestCommitHash = hash;
-            status.LatestCommitMessage = message;
-            status.HasUpdate = !string.IsNullOrEmpty(hash) && !string.Equals(hash, deployedCommitHash, StringComparison.OrdinalIgnoreCase);
+            // Sunucudaki commit biliniyorsa aradaki TUM commit'leri listele (deployedHash
+            // haric, origin/branch dahil) -- boylece "guncelle" derse gercekte neler
+            // gelecek, sadece en son commit degil, tam olarak gorulebiliyor. Ilk kontrolde
+            // (henuz hic deploy edilmemisse) sunucudaki referans noktasi olmadigi icin son
+            // 10 commit'i gosteriyoruz.
+            List<string> logArgs = string.IsNullOrEmpty(deployedCommitHash)
+                ? ["log", $"origin/{options.Branch}", "-10", "--format=%H%x09%s"]
+                : ["log", $"{deployedCommitHash}..origin/{options.Branch}", "--format=%H%x09%s"];
+            var logOutput = await RunProcessAsync("git", logArgs, options.RepoPath, ct);
+
+            status.PendingCommits = logOutput
+                .Split('\n', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries)
+                .Select(line =>
+                {
+                    var tabIndex = line.IndexOf('\t');
+                    return tabIndex > 0
+                        ? new PendingCommit { Hash = line[..tabIndex], Message = line[(tabIndex + 1)..] }
+                        : new PendingCommit { Hash = line, Message = "" };
+                })
+                .ToList();
+            status.HasUpdate = status.PendingCommits.Count > 0;
         }
         catch (Exception ex)
         {

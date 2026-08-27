@@ -62,14 +62,22 @@
             </form>
         </div>
 
-        <div id="kontrol-panel" style="margin-top:18px; padding-top:16px; border-top:1px solid var(--border); display:@(k?.HasUpdate == true ? "flex" : "none"); align-items:center; gap:10px;">
-            <span class="badge warning"><span class="badge-dot"></span>Yeni sürüm mevcut</span>
-            <span id="kontrol-mesaj" class="text-muted" style="font-size:13px;">
-                @if (k?.HasUpdate == true)
+        <div id="kontrol-panel" style="margin-top:18px; padding-top:16px; border-top:1px solid var(--border); display:@(k?.HasUpdate == true ? "block" : "none");">
+            <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
+                <span class="badge warning"><span class="badge-dot"></span>Yeni sürüm mevcut</span>
+                <span class="text-muted" style="font-size:12.5px;">Güncelleyince gelecek değişiklikler:</span>
+            </div>
+            <ul id="kontrol-liste" style="list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;">
+                @if (k?.PendingCommits is not null)
                 {
-                    @:@(k.LatestCommitHash?.Substring(0, Math.Min(7, k.LatestCommitHash.Length))) — @k.LatestCommitMessage
+                    @foreach (var pc in k.PendingCommits)
+                    {
+                        <li style="font-size:13px; font-family:monospace;">
+                            @(pc.Hash.Substring(0, Math.Min(7, pc.Hash.Length))) — @pc.Message
+                        </li>
+                    }
                 }
-            </span>
+            </ul>
         </div>
         <p id="kontrol-yok" class="text-muted" style="font-size:12px; margin:14px 0 0; padding-top:16px; border-top:1px solid var(--border); display:@(k?.HasUpdate == true ? "none" : "block");">
             @if (k?.CheckedAtUtc is not null)
@@ -175,10 +183,17 @@
             if (!data) return;
             var panel = document.getElementById('kontrol-panel');
             var yok = document.getElementById('kontrol-yok');
+            var liste = document.getElementById('kontrol-liste');
+
             if (data.hasUpdate) {
-                document.getElementById('kontrol-mesaj').textContent =
-                    (data.latestCommitHash ? data.latestCommitHash.substring(0, 7) : '') + ' — ' + (data.latestCommitMessage || '');
-                panel.style.display = 'flex';
+                liste.textContent = '';
+                (data.pendingCommits || []).forEach(function (pc) {
+                    var li = document.createElement('li');
+                    li.style.cssText = 'font-size:13px; font-family:monospace;';
+                    li.textContent = pc.hash.substring(0, 7) + ' — ' + pc.message;
+                    liste.appendChild(li);
+                });
+                panel.style.display = 'block';
                 yok.style.display = 'none';
             } else {
                 panel.style.display = 'none';
