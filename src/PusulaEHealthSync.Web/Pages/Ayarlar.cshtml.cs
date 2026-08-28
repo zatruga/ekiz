@@ -21,14 +21,19 @@ public class AyarlarModel(SettingsStore settings) : PageModel
     public int OpenProtokolSendAfterDays { get; set; }
 
     // -- Kaynak veritabani baglantisi -------------------------------------------------------
-    // KULLANICI ISTEGI (2026-08-28): "bu sistem pusulaya tamamen bağlı kalmasın ... db
-    // bilgilerini yazdığımız bir ayar alanı bir panel olmalı" -- ileride farkli hastane
-    // sistemlerine baglanabilme hedefinin ilk somut adimi. Baglanti dizesi kimlik bilgisi
-    // icerdigi icin sifre alanlariyla AYNI kalip kullaniliyor (bos = degistirme, tanimli mi
-    // bilgisi ayri gosteriliyor).
+    // KULLANICI ISTEGI (2026-08-28): "connection string şeklinde yazmayalım, db ip, db adı,
+    // kullanıcı adı şeklinde olsun" -- Sunucu/Veritabani/Kullanici acik metin (her acilista
+    // gosterilir, digerlerinden farkli), Sifre ise diger sifre alanlariyla AYNI kalip (bos =
+    // degistirme, tanimli mi bilgisi ayri gosteriliyor).
     [BindProperty]
-    public string PusulaConnectionString { get; set; } = "";
-    public bool PusulaConnectionStringIsSet { get; set; }
+    public string PusulaDbServer { get; set; } = "";
+    [BindProperty]
+    public string PusulaDbName { get; set; } = "";
+    [BindProperty]
+    public string PusulaDbUser { get; set; } = "";
+    [BindProperty]
+    public string PusulaDbPassword { get; set; } = "";
+    public bool PusulaDbPasswordIsSet { get; set; }
 
     // -- Ortam / Endpoint -----------------------------------------------------------------
     [BindProperty]
@@ -111,7 +116,10 @@ public class AyarlarModel(SettingsStore settings) : PageModel
 
     public async Task<IActionResult> OnPostVeritabaniAsync(CancellationToken ct)
     {
-        await SetPasswordIfProvidedAsync(SettingsStore.PusulaConnectionStringKey, PusulaConnectionString, ct);
+        await settings.SetStringAsync(SettingsStore.PusulaDbServerKey, Clean(PusulaDbServer), ct);
+        await settings.SetStringAsync(SettingsStore.PusulaDbNameKey, Clean(PusulaDbName), ct);
+        await settings.SetStringAsync(SettingsStore.PusulaDbUserKey, Clean(PusulaDbUser), ct);
+        await SetPasswordIfProvidedAsync(SettingsStore.PusulaDbPasswordKey, PusulaDbPassword, ct);
         return await SavedAsync("veritabani", ct);
     }
 
@@ -218,7 +226,10 @@ public class AyarlarModel(SettingsStore settings) : PageModel
         if (!skipProtokol)
             OpenProtokolSendAfterDays = await settings.GetIntAsync(SettingsStore.OpenProtokolSendAfterDaysKey, SettingsStore.OpenProtokolSendAfterDaysDefault, ct);
 
-        PusulaConnectionStringIsSet = !string.IsNullOrWhiteSpace(await settings.GetStringAsync(SettingsStore.PusulaConnectionStringKey, "", ct));
+        PusulaDbServer = await settings.GetStringAsync(SettingsStore.PusulaDbServerKey, "", ct);
+        PusulaDbName = await settings.GetStringAsync(SettingsStore.PusulaDbNameKey, "", ct);
+        PusulaDbUser = await settings.GetStringAsync(SettingsStore.PusulaDbUserKey, "", ct);
+        PusulaDbPasswordIsSet = !string.IsNullOrWhiteSpace(await settings.GetStringAsync(SettingsStore.PusulaDbPasswordKey, "", ct));
 
         EHealthEnvironment = await settings.GetStringAsync(SettingsStore.EHealthEnvironmentKey, SettingsStore.EHealthEnvironmentDefault, ct);
         TestBaseUrl = await settings.GetStringAsync(SettingsStore.EHealthTestBaseUrlKey, "", ct);

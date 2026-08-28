@@ -10,16 +10,31 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
     private readonly string _fallbackConnectionString = options.Value.ConnectionString;
 
     // KULLANICI ISTEGI (2026-08-28): "bu sistem pusulaya tamamen bağlı kalmasın ... db
-    // bilgilerini yazdığımız bir ayar alanı bir panel olmalı" -- ileride farklı hastane
-    // sistemlerine baglanabilme hedefinin ilk somut adimi. Baglanti dizesi artik
-    // appsettings.Production.json'a gomulu SABIT bir deger degil, Ayarlar sayfasindan
-    // girilebilen bir SettingsStore kaydi -- EHealthClient.OverrideOrAsync ile AYNI kalip
-    // (Ayarlar'daki alan bos birakilirsa appsettings/user-secrets'taki degere duser), bu
-    // yuzden hicbir sey degistirilmeden mevcut sunucu davranisi aynen calismaya devam eder.
+    // bilgilerini yazdığımız bir ayar alanı bir panel olmalı ... connection string şeklinde
+    // yazmayalım, db ip, db adı, kullanıcı adı şeklinde olsun" -- ileride farklı hastane
+    // sistemlerine baglanabilme hedefinin ilk somut adimi. Ayarlar sayfasindan Sunucu/
+    // Veritabani/Kullanici/Sifre ayri ayri girilir, ADO.NET connection string'i burada
+    // SqlConnectionStringBuilder ile birlestiriyoruz -- kullanicinin sozdizimi bilmesine
+    // gerek yok. Sunucu/Veritabani/Kullanici'dan biri bile bos ise appsettings/user-secrets'
+    // taki PusulaOptions.ConnectionString'e duser (EHealthClient.OverrideOrAsync ile AYNI
+    // kalip) -- hicbir sey girilmeden mevcut sunucu davranisi aynen calismaya devam eder.
     private async Task<string> ConnectionStringAsync(CancellationToken ct)
     {
-        var stored = await settings.GetStringAsync(SettingsStore.PusulaConnectionStringKey, "", ct);
-        return string.IsNullOrWhiteSpace(stored) ? _fallbackConnectionString : stored;
+        var server = await settings.GetStringAsync(SettingsStore.PusulaDbServerKey, "", ct);
+        var database = await settings.GetStringAsync(SettingsStore.PusulaDbNameKey, "", ct);
+        var user = await settings.GetStringAsync(SettingsStore.PusulaDbUserKey, "", ct);
+        if (string.IsNullOrWhiteSpace(server) || string.IsNullOrWhiteSpace(database) || string.IsNullOrWhiteSpace(user))
+            return _fallbackConnectionString;
+
+        var password = await settings.GetStringAsync(SettingsStore.PusulaDbPasswordKey, "", ct);
+        return new SqlConnectionStringBuilder
+        {
+            DataSource = server,
+            InitialCatalog = database,
+            UserID = user,
+            Password = password,
+            TrustServerCertificate = true,
+        }.ConnectionString;
     }
 
     // Tek bir hastayi Pusula Id'sine gore okur -- ilk (Patient) senkronizasyon testleri icin.

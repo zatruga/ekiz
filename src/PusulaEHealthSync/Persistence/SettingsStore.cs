@@ -13,10 +13,16 @@ public class SettingsStore
     public const int OpenProtokolSendAfterDaysDefault = 7;
 
     // -- Kaynak veritabani baglantisi -----------------------------------------------------
-    // Bos birakilirsa PusulaRepository appsettings/user-secrets'taki PusulaOptions.
-    // ConnectionString'e duser -- EHealth ortam ayarlariyla ayni kalip (bkz. PusulaRepository.
-    // ConnectionStringAsync), mevcut davranis hicbir sey girilmeden de calisir.
-    public const string PusulaConnectionStringKey = "Pusula.ConnectionString";
+    // KULLANICI ISTEGI (2026-08-28): tek bir "connection string" alani yerine ayri Sunucu/
+    // Veritabani/Kullanici/Sifre alanlari -- kullanicinin ADO.NET sozdizimi bilmesine gerek
+    // kalmasin diye. Ucu bos birakilirsa (Server/Name/User'dan biri eksikse) PusulaRepository
+    // appsettings/user-secrets'taki PusulaOptions.ConnectionString'e duser -- EHealth ortam
+    // ayarlariyla ayni kalip (bkz. PusulaRepository.ConnectionStringAsync), mevcut davranis
+    // hicbir sey girilmeden de calisir.
+    public const string PusulaDbServerKey = "Pusula.Db.Server";
+    public const string PusulaDbNameKey = "Pusula.Db.Name";
+    public const string PusulaDbUserKey = "Pusula.Db.User";
+    public const string PusulaDbPasswordKey = "Pusula.Db.Password";
 
     // -- Ortam / Endpoint (Test - Canlı) ------------------------------------------------
     // Bos birakilirsa EHealthClient appsettings/user-secrets'taki EHealthOptions'a (mevcut

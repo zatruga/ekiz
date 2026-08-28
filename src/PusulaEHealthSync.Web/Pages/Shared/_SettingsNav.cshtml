@@ -1,0 +1,36 @@
+@model string
+@{
+    // KULLANICI ISTEGI (2026-08-28): Ayarlar sayfasi gruplu (sol basliklar, sag icerik)
+    // duzene geciyor, "Sürüm Güncelle" de artik ana uygulama menusunde ayri bir satir
+    // degil, bu grubun altinda bir baslik. Ayarlar ve Guncelle FARKLI sayfalar (ayri
+    // PageModel/JS) oldugu icin bu nav iki sayfada da ORTAK -- Ayarlar'daki 4 grup
+    // butonu kendi sayfasindaysa JS ile sekme degistirir, degilse (yani Guncelle'deyken)
+    // /Ayarlar'a yonlendirir; "Sürüm Güncelle" ise her zaman gercek bir link.
+    var active = Model ?? "ortam";
+}
+<div class="proto-filters">
+    <div class="status-list">
+        <button type="button" class="status-opt settings-nav-tab @(active == "ortam" ? "active" : "")" data-settings-tab="ortam" onclick="pusulaSettingsNavClick('ortam')">Ortam &middot; Sistem Ayarları</button>
+        <button type="button" class="status-opt settings-nav-tab @(active == "oto" ? "active" : "")" data-settings-tab="oto" onclick="pusulaSettingsNavClick('oto')">Otomatik Gönderim Ayarları</button>
+        <button type="button" class="status-opt settings-nav-tab @(active == "param" ? "active" : "")" data-settings-tab="param" onclick="pusulaSettingsNavClick('param')">Gönderim Parametreleri</button>
+        <button type="button" class="status-opt settings-nav-tab @(active == "mail" ? "active" : "")" data-settings-tab="mail" onclick="pusulaSettingsNavClick('mail')">Mail Bilgilendirme</button>
+        <a asp-page="/Guncelle" class="status-opt @(active == "guncelle" ? "active" : "")" style="text-decoration:none;">Sürüm Güncelle</a>
+    </div>
+</div>
+
+<script>
+    // Hedef sekme BU sayfada varsa (Ayarlar'daysak) JS ile gecis yapar, yoksa (Guncelle'deysek)
+    // /Ayarlar'a gerçek navigasyonla gider -- bkz. _SettingsNav.cshtml ust not.
+    function pusulaSettingsNavClick(tab) {
+        var panel = document.getElementById('panel-' + tab);
+        if (!panel) {
+            window.location.href = '@Url.Page("/Ayarlar")';
+            return;
+        }
+        document.querySelectorAll('.settings-nav-tab').forEach(function (b) { b.classList.remove('active'); });
+        document.querySelectorAll('.settings-panel').forEach(function (p) { p.classList.remove('active'); });
+        var btn = document.querySelector('.settings-nav-tab[data-settings-tab="' + tab + '"]');
+        if (btn) btn.classList.add('active');
+        panel.classList.add('active');
+    }
+</script>
