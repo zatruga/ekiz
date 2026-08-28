@@ -20,6 +20,16 @@ public class AyarlarModel(SettingsStore settings) : PageModel
     [Range(0, 365, ErrorMessage = "0 ile 365 arasında bir gün değeri girin.")]
     public int OpenProtokolSendAfterDays { get; set; }
 
+    // -- Kaynak veritabani baglantisi -------------------------------------------------------
+    // KULLANICI ISTEGI (2026-08-28): "bu sistem pusulaya tamamen bağlı kalmasın ... db
+    // bilgilerini yazdığımız bir ayar alanı bir panel olmalı" -- ileride farkli hastane
+    // sistemlerine baglanabilme hedefinin ilk somut adimi. Baglanti dizesi kimlik bilgisi
+    // icerdigi icin sifre alanlariyla AYNI kalip kullaniliyor (bos = degistirme, tanimli mi
+    // bilgisi ayri gosteriliyor).
+    [BindProperty]
+    public string PusulaConnectionString { get; set; } = "";
+    public bool PusulaConnectionStringIsSet { get; set; }
+
     // -- Ortam / Endpoint -----------------------------------------------------------------
     [BindProperty]
     public string EHealthEnvironment { get; set; } = SettingsStore.EHealthEnvironmentDefault;
@@ -98,6 +108,12 @@ public class AyarlarModel(SettingsStore settings) : PageModel
     public string MailRecipients { get; set; } = "";
 
     public async Task OnGetAsync(CancellationToken ct) => await LoadAsync(ct);
+
+    public async Task<IActionResult> OnPostVeritabaniAsync(CancellationToken ct)
+    {
+        await SetPasswordIfProvidedAsync(SettingsStore.PusulaConnectionStringKey, PusulaConnectionString, ct);
+        return await SavedAsync("veritabani", ct);
+    }
 
     public async Task<IActionResult> OnPostProtokolAsync(CancellationToken ct)
     {
@@ -201,6 +217,8 @@ public class AyarlarModel(SettingsStore settings) : PageModel
     {
         if (!skipProtokol)
             OpenProtokolSendAfterDays = await settings.GetIntAsync(SettingsStore.OpenProtokolSendAfterDaysKey, SettingsStore.OpenProtokolSendAfterDaysDefault, ct);
+
+        PusulaConnectionStringIsSet = !string.IsNullOrWhiteSpace(await settings.GetStringAsync(SettingsStore.PusulaConnectionStringKey, "", ct));
 
         EHealthEnvironment = await settings.GetStringAsync(SettingsStore.EHealthEnvironmentKey, SettingsStore.EHealthEnvironmentDefault, ct);
         TestBaseUrl = await settings.GetStringAsync(SettingsStore.EHealthTestBaseUrlKey, "", ct);

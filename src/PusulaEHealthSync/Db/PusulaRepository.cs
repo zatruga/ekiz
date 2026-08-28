@@ -1,12 +1,26 @@
 using Microsoft.Data.SqlClient;
 using Microsoft.Extensions.Options;
 using PusulaEHealthSync.Config;
+using PusulaEHealthSync.Persistence;
 
 namespace PusulaEHealthSync.Db;
 
-public class PusulaRepository(IOptions<PusulaOptions> options)
+public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore settings)
 {
-    private readonly string _connectionString = options.Value.ConnectionString;
+    private readonly string _fallbackConnectionString = options.Value.ConnectionString;
+
+    // KULLANICI ISTEGI (2026-08-28): "bu sistem pusulaya tamamen bağlı kalmasın ... db
+    // bilgilerini yazdığımız bir ayar alanı bir panel olmalı" -- ileride farklı hastane
+    // sistemlerine baglanabilme hedefinin ilk somut adimi. Baglanti dizesi artik
+    // appsettings.Production.json'a gomulu SABIT bir deger degil, Ayarlar sayfasindan
+    // girilebilen bir SettingsStore kaydi -- EHealthClient.OverrideOrAsync ile AYNI kalip
+    // (Ayarlar'daki alan bos birakilirsa appsettings/user-secrets'taki degere duser), bu
+    // yuzden hicbir sey degistirilmeden mevcut sunucu davranisi aynen calismaya devam eder.
+    private async Task<string> ConnectionStringAsync(CancellationToken ct)
+    {
+        var stored = await settings.GetStringAsync(SettingsStore.PusulaConnectionStringKey, "", ct);
+        return string.IsNullOrWhiteSpace(stored) ? _fallbackConnectionString : stored;
+    }
 
     // Tek bir hastayi Pusula Id'sine gore okur -- ilk (Patient) senkronizasyon testleri icin.
     public async Task<HastaRecord?> GetHastaByIdAsync(int hastaId, CancellationToken ct = default)
@@ -18,7 +32,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options)
             FROM hasta.hasta
             WHERE Id = @Id";
 
-        await using var conn = new SqlConnection(_connectionString);
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@Id", hastaId);
@@ -41,7 +55,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options)
             FROM hasta.hasta
             ORDER BY ModifiedDate DESC";
 
-        await using var conn = new SqlConnection(_connectionString);
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@Top", top);
@@ -88,7 +102,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options)
         }
         sql += " ORDER BY p.AcilisTarihi DESC";
 
-        await using var conn = new SqlConnection(_connectionString);
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(sql, conn);
         if (!hasSearch)
@@ -129,7 +143,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options)
             LEFT JOIN Ortak.Bolum b ON b.Id = p.BolumId
             WHERE p.Id = @Id";
 
-        await using var conn = new SqlConnection(_connectionString);
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@Id", protokolId);
@@ -147,7 +161,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options)
             FROM IK.Personel
             WHERE Id = @Id";
 
-        await using var conn = new SqlConnection(_connectionString);
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@Id", personelId);
@@ -186,7 +200,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options)
             WHERE p.HastaId = @HastaId
             ORDER BY p.AcilisTarihi DESC";
 
-        await using var conn = new SqlConnection(_connectionString);
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@HastaId", hastaId);
@@ -216,7 +230,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options)
             WHERE p.HastaId = @HastaId AND p.State <> 0
             ORDER BY p.AcilisTarihi DESC";
 
-        await using var conn = new SqlConnection(_connectionString);
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@HastaId", hastaId);
@@ -242,7 +256,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options)
             WHERE p.DoktorId = @DoktorId
             ORDER BY p.AcilisTarihi DESC";
 
-        await using var conn = new SqlConnection(_connectionString);
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@DoktorId", doktorId);
@@ -267,7 +281,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options)
             ORDER BY CASE WHEN Epikriz IS NOT NULL AND LEN(Epikriz) > 0 THEN 1 ELSE 0 END DESC,
                      ISNULL(ModifiedDate, CreatedDate) DESC";
 
-        await using var conn = new SqlConnection(_connectionString);
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@ProtokolId", protokolId);
@@ -311,7 +325,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options)
             FROM LIS.uv_LaboratuarSonucKayitBilgileriByProtokolId
             WHERE VisitId = @ProtokolId AND Status = 6";
 
-        await using var conn = new SqlConnection(_connectionString);
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 60 };
         cmd.Parameters.AddWithValue("@ProtokolId", protokolId);
@@ -352,7 +366,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options)
             WHERE pi.ProtokolId = @ProtokolId AND pi.State <> 0 AND ic.Kodu IS NOT NULL AND LEN(ic.Kodu) > 0
             ORDER BY CASE WHEN pi.IsBirincilTani = 1 THEN 0 ELSE 1 END, pi.Id";
 
-        await using var conn = new SqlConnection(_connectionString);
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@ProtokolId", protokolId);
@@ -437,7 +451,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options)
               )
             ORDER BY pi.Id";
 
-        await using var conn = new SqlConnection(_connectionString);
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@ProtokolId", protokolId);
@@ -473,7 +487,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options)
             GROUP BY p.DoktorId, pers.Adi, pers.Soyadi, pers.TCKimlikNo
             ORDER BY Adet DESC";
 
-        await using var conn = new SqlConnection(_connectionString);
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@FromDate", DateTime.Now.AddDays(-days));
@@ -508,7 +522,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options)
             GROUP BY p.BolumId, b.Adi
             ORDER BY Adet DESC";
 
-        await using var conn = new SqlConnection(_connectionString);
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@FromDate", DateTime.Now.AddDays(-days));
@@ -541,7 +555,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options)
         var idList = protokolIds.ToList();
         var placeholders = idList.Select((_, i) => $"@id{i}").ToList();
 
-        await using var conn = new SqlConnection(_connectionString);
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(string.Format(sql, string.Join(",", placeholders)), conn);
         for (var i = 0; i < idList.Count; i++)

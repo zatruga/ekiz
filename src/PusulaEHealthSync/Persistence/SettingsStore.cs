@@ -12,6 +12,12 @@ public class SettingsStore
     public const string OpenProtokolSendAfterDaysKey = "OpenProtokolSendAfterDays";
     public const int OpenProtokolSendAfterDaysDefault = 7;
 
+    // -- Kaynak veritabani baglantisi -----------------------------------------------------
+    // Bos birakilirsa PusulaRepository appsettings/user-secrets'taki PusulaOptions.
+    // ConnectionString'e duser -- EHealth ortam ayarlariyla ayni kalip (bkz. PusulaRepository.
+    // ConnectionStringAsync), mevcut davranis hicbir sey girilmeden de calisir.
+    public const string PusulaConnectionStringKey = "Pusula.ConnectionString";
+
     // -- Ortam / Endpoint (Test - Canlı) ------------------------------------------------
     // Bos birakilirsa EHealthClient appsettings/user-secrets'taki EHealthOptions'a (mevcut
     // sabit Test/sandbox degerleri) duser -- bu yuzden mevcut davranis hicbir sey

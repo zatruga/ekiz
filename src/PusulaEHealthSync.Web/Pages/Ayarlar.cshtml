@@ -14,6 +14,29 @@
 <div class="settings-grid">
 
     <div class="card card-pad settings-card span-2">
+        <p class="section-title">Kaynak Veritabanı Bağlantısı</p>
+        <p class="card-desc">
+            Hastane bilgi sisteminin (şu an Pusula) veritabanı bağlantı bilgisi. Boş bırakılırsa
+            mevcut sunucu yapılandırması (appsettings/user-secrets) kullanılmaya devam eder --
+            burada bir şey girmeden mevcut davranış bozulmaz.
+        </p>
+        <form method="post" asp-page-handler="Veritabani" style="display:flex; flex-direction:column; flex:1;">
+            <div class="field">
+                <label for="pusulaConnectionString">Bağlantı dizesi (connection string) @(Model.PusulaConnectionStringIsSet ? "(tanımlı -- değiştirmek için yeniden girin)" : "(tanımlı değil)")</label>
+                <input type="password" id="pusulaConnectionString" asp-for="PusulaConnectionString" autocomplete="new-password"
+                       placeholder="değiştirmek için girin, boş bırakılırsa mevcut bağlantı saklı kalır" />
+            </div>
+            <div class="card-actions">
+                <button type="submit" class="btn btn-primary">Veritabanı Bağlantısını Kaydet</button>
+                @if (Model.Saved && Model.SavedSection == "veritabani")
+                {
+                    <span class="rchip success">Kaydedildi</span>
+                }
+            </div>
+        </form>
+    </div>
+
+    <div class="card card-pad settings-card span-2">
         <p class="section-title">Ortam &middot; Sistem Adresleri</p>
         <p class="card-desc">
             Sistem şu an hangi e-Health ortamına gönderim yapacak. Alanlar boş bırakılırsa Test ortamı için
