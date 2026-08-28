@@ -32,13 +32,19 @@ public class GuncelleModel(IOptions<DeployOptions> optionsAccessor) : PageModel
     // bu yuzden sayfa her acildiginda (F5 dahil) taze bir kontrol talebi birakiyoruz. Zaten
     // bir guncelleme/geri-alma suruyorsa (InProgress) tetiklemiyoruz -- diger tetikleyicilerle
     // ayni guard.
+    //
+    // DUZELTME (2026-08-28, yerelde bulundu): ControlPath yerel gelistirme ortaminda
+    // (appsettings.Development.json) hic tanimli degil -- Directory.CreateDirectory("")
+    // ArgumentException atip sayfayi tamamen cokertiyordu ("Sürüm Güncelle" artik Ayarlar
+    // menusunden her ziyarette erisiliyor, bu yuzden fark edildi). ControlPath bos ise
+    // (deploy ayari hic yapilmamis bir ortamda) hicbir dosya yazmadan sessizce atlanir.
     public void OnGet()
     {
         Durum = OkuDurum();
         Kontrol = OkuKontrol();
         Gecmis = OkuGecmis();
 
-        if (Durum?.State != "InProgress")
+        if (Durum?.State != "InProgress" && !string.IsNullOrWhiteSpace(options.ControlPath))
         {
             Directory.CreateDirectory(options.ControlPath);
             System.IO.File.WriteAllText(Path.Combine(options.ControlPath, CheckTriggerFile), "sayfa-acilisi");
@@ -50,7 +56,7 @@ public class GuncelleModel(IOptions<DeployOptions> optionsAccessor) : PageModel
     // degisiyor). Yikici bir islem olmadigi icin (sadece git fetch) burada onay penceresi yok.
     public IActionResult OnPostKontrolEtAsync()
     {
-        if (OkuDurum()?.State != "InProgress")
+        if (OkuDurum()?.State != "InProgress" && !string.IsNullOrWhiteSpace(options.ControlPath))
         {
             Directory.CreateDirectory(options.ControlPath);
             System.IO.File.WriteAllText(Path.Combine(options.ControlPath, CheckTriggerFile), "manuel");
@@ -63,7 +69,7 @@ public class GuncelleModel(IOptions<DeployOptions> optionsAccessor) : PageModel
         // Islem zaten surerken ikinci bir tetikleyici yazmayi engeller -- kullanici emin
         // olamayip birden fazla kez tikleyince (canli olayda gorulen davranis) gereksiz
         // bir ikinci kesinti dongusu baslamasin diye.
-        if (OkuDurum()?.State != "InProgress")
+        if (OkuDurum()?.State != "InProgress" && !string.IsNullOrWhiteSpace(options.ControlPath))
         {
             Directory.CreateDirectory(options.ControlPath);
             System.IO.File.WriteAllText(Path.Combine(options.ControlPath, UpdateTriggerFile), User.Identity?.Name ?? "bilinmiyor");
@@ -73,7 +79,7 @@ public class GuncelleModel(IOptions<DeployOptions> optionsAccessor) : PageModel
 
     public IActionResult OnPostGeriAlAsync()
     {
-        if (OkuDurum()?.State != "InProgress")
+        if (OkuDurum()?.State != "InProgress" && !string.IsNullOrWhiteSpace(options.ControlPath))
         {
             Directory.CreateDirectory(options.ControlPath);
             System.IO.File.WriteAllText(Path.Combine(options.ControlPath, RollbackTriggerFile), User.Identity?.Name ?? "bilinmiyor");
