@@ -105,4 +105,25 @@ public class SyncLogEntry
     // buton gizlenmeli.
     public static bool CanDelete(SyncLogEntry? entry) =>
         entry is { AzResourceId: not null } && entry is not { Status: SyncStatus.Success, Operation: SyncOperation.Delete };
+
+    // Genel Bakış panelindeki "Hata Kategorileri" icin -- EHealthErrorFormatter zaten her
+    // hatada okunabilir, detayli bir mesaj uretiyor (bkz. o dosya), ama tek tek yuzlerce
+    // satiri okumak yerine "hangi TUR hata ne kadar sik" sorusuna cevap lazim. Burada anahtar
+    // kelime eslestirmesiyle mesaj TEKRAR (SQL'de degil, sadece sunum katmaninda) gruplaniyor
+    // -- EHealthErrorFormatter'in kendi cikardigi metni degistirmiyor, sadece siniflandiriyor.
+    public static (string Label, string Description) ErrorCategory(string? message)
+    {
+        var m = message ?? "";
+        if (m.Contains("FIN", StringComparison.OrdinalIgnoreCase))
+            return ("FIN formatı hatalı", "TC Kimlik/FIN alanı AZ FIN biçimine uymuyor");
+        if (m.Contains("ICD", StringComparison.OrdinalIgnoreCase) || m.Contains("tanı", StringComparison.OrdinalIgnoreCase))
+            return ("ICD tanı eksik/geçersiz", "Protokolde tanı yok ya da AZ CodeSystem'de karşılığı bulunamadı");
+        if (m.Contains("zaman aşımı", StringComparison.OrdinalIgnoreCase) || m.Contains("timeout", StringComparison.OrdinalIgnoreCase) || m.Contains("yanıt ver", StringComparison.OrdinalIgnoreCase))
+            return ("Zaman aşımı / bağlantı", "e-Health sunucusu süresi içinde yanıt vermedi");
+        if (m.Contains("e-Health", StringComparison.OrdinalIgnoreCase) && (m.Contains("adres", StringComparison.OrdinalIgnoreCase) || m.Contains("BaseUrl", StringComparison.OrdinalIgnoreCase) || m.Contains("kimlik", StringComparison.OrdinalIgnoreCase)))
+            return ("e-Health bağlantı ayarı eksik", "Ayarlar sayfasında Test/Canlı ortam bilgisi eksik ya da hatalı");
+        if (m.Contains("409") || m.Contains("bulunamadı", StringComparison.OrdinalIgnoreCase) || m.Contains("referans", StringComparison.OrdinalIgnoreCase) || m.Contains("reference", StringComparison.OrdinalIgnoreCase))
+            return ("Referans bulunamadı", "Bağlı bir kayıt (Hasta/Müayinə) e-Health'te artık mevcut değil");
+        return ("Diğer", "Yukarıdaki kategorilere girmeyen tekil hatalar");
+    }
 }

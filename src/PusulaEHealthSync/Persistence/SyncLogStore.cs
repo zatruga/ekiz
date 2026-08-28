@@ -2,6 +2,8 @@ using Microsoft.Data.Sqlite;
 
 namespace PusulaEHealthSync.Persistence;
 
+public record DailyTrendPoint(DateOnly Day, int Success, int Failed);
+
 // SQLite'a yazar/okur. Baslangicta secildi (bkz. konusma) -- kurulum gerektirmeyen tek
 // dosya, ileride web dashboard'un da okuyacagi tablo. Ihtiyac buyurse SQL Server'a
 // tasinabilir, sema kucuk oldugu icin maliyeti dusuk.
@@ -186,6 +188,51 @@ public class SyncLogStore
         using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
             result.Add(ReadEntry(reader));
+        return result;
+    }
+
+    // Genel Bakış paneli -- gönderim trendi grafiği icin gunluk basarili/hatali sayilari.
+    // CreatedAtUtc ISO 8601 metin oldugu icin ilk 10 karakteri (yyyy-MM-dd) gun anahtari
+    // olarak yeterli, ayrica tarih donusumu gerekmiyor (QueryAsync'teki ayni gozlem).
+    // Aralikta hic kaydi olmayan gunler de 0/0 olarak listede yer alir (grafik bosluksuz
+    // cizilsin diye) -- SQL'den sadece VEROLAN gunler doner, eksik gunler burada doldurulur.
+    public async Task<List<DailyTrendPoint>> GetDailyTrendAsync(DateTime fromUtc, DateTime toUtcExclusive, CancellationToken ct = default)
+    {
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+            SELECT substr(CreatedAtUtc, 1, 10) AS Day, Status, COUNT(*)
+            FROM SyncLog
+            WHERE CreatedAtUtc >= $from AND CreatedAtUtc < $to
+            GROUP BY Day, Status";
+        cmd.Parameters.AddWithValue("$from", fromUtc.ToString("O"));
+        cmd.Parameters.AddWithValue("$to", toUtcExclusive.ToString("O"));
+
+        var byDay = new Dictionary<string, (int Success, int Failed)>();
+        using (var reader = await cmd.ExecuteReaderAsync(ct))
+        {
+            while (await reader.ReadAsync(ct))
+            {
+                var day = reader.GetString(0);
+                var status = reader.GetString(1);
+                var count = reader.GetInt32(2);
+                var cur = byDay.GetValueOrDefault(day);
+                byDay[day] = status switch
+                {
+                    nameof(SyncStatus.Success) => (cur.Success + count, cur.Failed),
+                    nameof(SyncStatus.Failed) => (cur.Success, cur.Failed + count),
+                    _ => cur,
+                };
+            }
+        }
+
+        var result = new List<DailyTrendPoint>();
+        for (var day = DateOnly.FromDateTime(fromUtc); day < DateOnly.FromDateTime(toUtcExclusive); day = day.AddDays(1))
+        {
+            var v = byDay.GetValueOrDefault(day.ToString("yyyy-MM-dd"));
+            result.Add(new DailyTrendPoint(day, v.Success, v.Failed));
+        }
         return result;
     }
 
