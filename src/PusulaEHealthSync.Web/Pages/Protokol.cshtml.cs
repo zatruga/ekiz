@@ -472,8 +472,20 @@ public class ProtokolModel(
             {
                 var items = g.Select(i => labs[i]).ToList();
                 var groupName = g.Key.StartsWith("__solo_") ? (items[0].Lab.TetkikAdi ?? "-") : g.Key;
-                var hasOwnRow = items.Any(x => x.Lab.TetkikAdi == g.Key);
-                var ordered = items.OrderByDescending(x => x.Lab.TetkikAdi == g.Key).ThenBy(x => x.Lab.TetkikAdi).ToList();
+
+                // Panelin KENDI satiri (orn. "Hemogram") genelde bir sonuc degeri TASIMAZ --
+                // zaten LabResultObservationMapper'da bu yuzden Skipped kaliyor. Grup
+                // basligiyla AYNI ismi tekrar ayrı bir satir olarak gostermek kafa
+                // karistiriyordu (KULLANICI ISTEGI, 2026-08-29: "2. yazan hemogram ... ana
+                // testin tekrarı ise hiç yazdırmayalım") -- deger tasimiyorsa listeden
+                // cikariliyor, grup zaten basligindaki adla temsil ediliyor.
+                var visible = items
+                    .Where(x => x.Lab.TetkikAdi != g.Key || !string.IsNullOrWhiteSpace(x.Lab.TetkikSonucu))
+                    .ToList();
+                if (visible.Count == 0) visible = items; // hepsi filtrelenirse (beklenmez) hicbiri kaybolmasin
+
+                var ordered = visible.OrderByDescending(x => x.Lab.TetkikAdi == g.Key).ThenBy(x => x.Lab.TetkikAdi).ToList();
+                var hasOwnRow = ordered.Any(x => x.Lab.TetkikAdi == g.Key);
                 return new LabGroup(groupName, hasOwnRow, ordered);
             })
             .ToList();
