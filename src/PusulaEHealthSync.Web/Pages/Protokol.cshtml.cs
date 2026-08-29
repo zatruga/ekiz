@@ -48,7 +48,25 @@ public class ProtokolModel(
     // okunmuyordu. PanelAdi (bkz. LabResultRecord) doluysa o satir bir alt parametredir --
     // panelin KENDI satiri (ornek: "Hemogram") panelAdi=null ama TetkikAdi'si baska
     // satirlarin PanelAdi'siyla ESLESIR, bu yuzden grup adi olarak kullanilabilir.
-    public record LabGroup(string GroupName, bool HasOwnRow, List<(LabResultRecord Lab, SyncLogEntry? Durum)> Items);
+    public record LabGroup(string GroupName, bool HasOwnRow, List<(LabResultRecord Lab, SyncLogEntry? Durum)> Items)
+    {
+        // KULLANICI ISTEGI (2026-08-29): "grup olan testlerin satırına diğerleri gibi
+        // gönderim [durumunu] yazmanı istiyorum ... gönder butonu tıklandığında tüm alt
+        // parametreleri hepsini göndersin" -- grup basligi da tekil satirlar gibi bir durum
+        // rozeti ve Gönder/Sil aksiyonlari gostersin diye. Tek bir rozet gerektigi icin
+        // (grupta karisik durumlar olabilir) en "dikkat cekici" olana gore ozetleniyor --
+        // herhangi biri Hatali ise Hatali, hepsi basariliysa Gönderildi, aksi halde Kısmen.
+        public (string CssClass, string Label) AggregateBadge()
+        {
+            if (Items.Any(x => x.Durum?.Status == SyncStatus.Failed)) return ("danger", "Hatalı");
+            if (Items.All(x => BasariylaGonderildi(x.Durum))) return ("success", "Gönderildi");
+            if (Items.Any(x => BasariylaGonderildi(x.Durum))) return ("warning", "Kısmen gönderildi");
+            return ("neutral", "Gönderilmedi");
+        }
+
+        public bool Gonderilebilir => Items.Any(x => !BasariylaGonderildi(x.Durum));
+        public bool Silinebilir => Items.Any(x => SyncLogEntry.CanDelete(x.Durum));
+    }
     public List<LabGroup> LabGroups { get; set; } = [];
 
     // Baslik satirindaki "Tümünü Sil"/"Tümünü Gönder" butonlarinin gorunurlugu -- KULLANICI
@@ -397,6 +415,51 @@ public class ProtokolModel(
                 if (BasariylaGonderildi(labStatuses.GetValueOrDefault(lab.LabaratuarSonucId))) continue;
                 await labResultSyncService.SyncOneAsync(lab, Protokol, azPatientId, azEncounterId, liveMode: true, ct);
             }
+        }
+        return RedirectToPage("/Protokol", new { id });
+    }
+
+    // KULLANICI ISTEGI (2026-08-29): "grup olan testlerin satırına ... gönder butonu
+    // tıklandığında tüm alt parametreleri hepsini göndersin" -- OnPostTumunuGonderLabAsync
+    // ile AYNI kalip ama SADECE tek bir panele (grupAdi) ait olanlar. BuildLabGroups AYNEN
+    // ekranda gosterilen gruplamayla ayni sonucu versin diye burada da cagriliyor.
+    public async Task<IActionResult> OnPostGonderLabGrubuAsync(int id, string grupAdi, CancellationToken ct)
+    {
+        Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
+        if (Protokol is null) return NotFound();
+
+        var (azPatientId, azEncounterId) = await GetIdleriLabIcinAsync(Protokol, ct);
+        if (azPatientId is not null)
+        {
+            var labs = await pusulaRepository.GetLabResultsByProtokolIdAsync(Protokol.ProtokolId, ct);
+            var labStatuses = await syncLog.GetLatestByPusulaIdsAsync("Observation", labs.Select(l => l.LabaratuarSonucId).ToList(), ct);
+            var withStatus = labs.Select(l => (l, labStatuses.GetValueOrDefault(l.LabaratuarSonucId))).ToList();
+            var group = BuildLabGroups(withStatus).FirstOrDefault(g => g.GroupName == grupAdi);
+            if (group is not null)
+            {
+                foreach (var (lab, durum) in group.Items)
+                {
+                    if (BasariylaGonderildi(durum)) continue;
+                    await labResultSyncService.SyncOneAsync(lab, Protokol, azPatientId, azEncounterId, liveMode: true, ct);
+                }
+            }
+        }
+        return RedirectToPage("/Protokol", new { id });
+    }
+
+    public async Task<IActionResult> OnPostSilLabGrubuAsync(int id, string grupAdi, CancellationToken ct)
+    {
+        Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
+        if (Protokol is null) return NotFound();
+
+        var labs = await pusulaRepository.GetLabResultsByProtokolIdAsync(Protokol.ProtokolId, ct);
+        var labStatuses = await syncLog.GetLatestByPusulaIdsAsync("Observation", labs.Select(l => l.LabaratuarSonucId).ToList(), ct);
+        var withStatus = labs.Select(l => (l, labStatuses.GetValueOrDefault(l.LabaratuarSonucId))).ToList();
+        var group = BuildLabGroups(withStatus).FirstOrDefault(g => g.GroupName == grupAdi);
+        if (group is not null)
+        {
+            foreach (var (_, durum) in group.Items.Where(x => SyncLogEntry.CanDelete(x.Durum)))
+                await deleteService.DeleteAsync(durum!, ct);
         }
         return RedirectToPage("/Protokol", new { id });
     }

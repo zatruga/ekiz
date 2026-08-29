@@ -512,10 +512,32 @@ else
                     }
                     else
                     {
+                        var (groupBadgeClass, groupBadgeLabel) = group.AggregateBadge();
                         <details class="lab-panel-group">
                             <summary class="lab-panel-summary">
                                 <span class="side-row-name">@group.GroupName</span>
-                                <span class="count">+@(group.HasOwnRow ? group.Items.Count - 1 : group.Items.Count)</span>
+                                <span class="lab-panel-summary-actions">
+                                    <span class="count">+@(group.HasOwnRow ? group.Items.Count - 1 : group.Items.Count)</span>
+                                    <span class="badge @groupBadgeClass" style="padding:3px 9px; font-size:11px;"><span class="badge-dot"></span>@groupBadgeLabel</span>
+                                    @if (group.Gonderilebilir)
+                                    {
+                                        <form method="post" asp-page-handler="GonderLabGrubu" asp-route-id="@p.ProtokolId" asp-route-grupAdi="@group.GroupName" onsubmit="pusulaLockSubmit(this)">
+                                            <button type="submit" class="icon-btn-gonder" title="Tüm alt parametreleri gönder"
+                                                    onclick="event.stopPropagation(); return confirm('Bu panelin tüm alt parametreleri e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                                            </button>
+                                        </form>
+                                    }
+                                    @if (group.Silinebilir)
+                                    {
+                                        <form method="post" asp-page-handler="SilLabGrubu" asp-route-id="@p.ProtokolId" asp-route-grupAdi="@group.GroupName" onsubmit="pusulaLockSubmit(this)">
+                                            <button type="submit" class="icon-btn-sil" title="Tüm alt parametreleri sil"
+                                                    onclick="event.stopPropagation(); return confirm('Bu panelin gönderilmiş TÜM alt parametreleri e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                            </button>
+                                        </form>
+                                    }
+                                </span>
                             </summary>
                             @foreach (var (lab, durum) in group.Items)
                             {
