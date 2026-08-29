@@ -347,16 +347,22 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
     // sahip BIRDEN FAZLA satir olabiliyor (eski/pasif kayitlar dahil) -- LEFT JOIN bunlari
     // CARPIYORDU (1 lab sonucu x 3 eslesen Test kaydi = 3 tekrarlanan satir). OUTER APPLY + TOP 1
     // ile (aktif olanlar tercih edilip en son eklenen) tek satira indirgeniyor.
+    //
+    // PANEL/ALT-PARAMETRE GRUPLAMASI (2026-08-29, kullanici istegi -- "alt paremetreli testleri
+    // ayrı ayrı göstermesin ana testin yanını artı ile gösterebilir", ornek: "EOS % hemogramın
+    // alt testi"): kullanicinin bulup dogruladigi LIS.TestParametre tablosu (TestId=ust panel,
+    // AltTestId=alt parametre) uzerinden, bu satirin ait oldugu panelin adini (varsa) da
+    // cekiyoruz -- Protokol.cshtml.cs bunu kullanip alt parametreleri ust test altinda gruplar.
     public async Task<List<LabResultRecord>> GetLabResultsByProtokolIdAsync(int protokolId, CancellationToken ct = default)
     {
         const string sql = @"
             SELECT lab.LabaratuarSonucId, lab.VisitId, lab.Status, lab.TetkikAdi, lab.TetkikSonucu, lab.TetkikSonucuBirimi,
                    lab.TetkikSonucuReferansDegeri, lab.TetkikSonucuReferansDegerAraligindaMi, lab.LoincKodu,
                    lab.TetkikSonucTarihi, lab.TetkikSonucOnayTarihi,
-                   icb.Kodu AS IcbariKodu, icb.Adi AS IcbariAdi
+                   icb.Kodu AS IcbariKodu, icb.Adi AS IcbariAdi, panel.PanelAdi
             FROM LIS.uv_LaboratuarSonucKayitBilgileriByProtokolId lab
             OUTER APPLY (
-                SELECT TOP 1 t.HizmetId
+                SELECT TOP 1 t.Id AS TestId, t.HizmetId
                 FROM LIS.Test t
                 WHERE t.LoincKodu = lab.LoincKodu
                 ORDER BY CASE WHEN t.State <> 0 THEN 0 ELSE 1 END, t.Id DESC
@@ -372,6 +378,13 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
                   AND OHKH.State <> 0
                 ORDER BY PKH.IsPaket DESC
             ) icb
+            OUTER APPLY (
+                SELECT TOP 1 parentTest.Adi AS PanelAdi
+                FROM LIS.TestParametre tp
+                INNER JOIN LIS.Test parentTest ON parentTest.Id = tp.TestId
+                WHERE tp.AltTestId = t.TestId AND tp.State <> 0
+                ORDER BY tp.Sira
+            ) panel
             WHERE lab.VisitId = @ProtokolId AND lab.Status = 6";
 
         await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
@@ -398,6 +411,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
                 TetkikSonucOnayTarihi = reader.IsDBNull(10) ? null : reader.GetDateTime(10),
                 IcbariKodu = reader.IsDBNull(11) ? null : reader.GetString(11),
                 IcbariAdi = reader.IsDBNull(12) ? null : reader.GetString(12),
+                PanelAdi = reader.IsDBNull(13) ? null : reader.GetString(13),
             });
         }
         return result;

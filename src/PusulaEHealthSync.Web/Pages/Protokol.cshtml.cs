@@ -36,13 +36,20 @@ public class ProtokolModel(
     public List<(IslemRecord Islem, SyncLogEntry? Durum)> Islemler { get; set; } = [];
 
     // Laboratuvar (Tetkik) -- KULLANICI ISTEGI (2026-08-29): "tetkik kısmına başlayalım,
-    // laboratuvar önce". GetLabResultsByProtokolIdAsync zaten sadece Status=6 (onaylanmis/
-    // kesinlesmis) sonuclari donduruyor. procedure-code extension'i BILEREK eklenmedi (bkz.
-    // LabResultObservationMapper) -- once canli $validate ile sunucunun bunu gercekten
-    // reddedip reddetmedigi gorulecek (KULLANICI KARARI, 2026-08-29).
+    // laboratuvar önce". GetLabResultsByProtokolIdAsync sadece Status=6 (onaylanmis/kesinlesmis)
+    // sonuclari donduruyor, procedure-code eslesmesi olmayanlar Skipped (bkz. LabResultObservationMapper).
     public List<(LabResultRecord Lab, SyncLogEntry? Durum)> Labs { get; set; } = [];
     public bool LabsGonderilebilir => Labs.Any(l => !BasariylaGonderildi(l.Durum));
     public bool LabsSilinebilir => Labs.Any(l => SyncLogEntry.CanDelete(l.Durum));
+
+    // KULLANICI ISTEGI (2026-08-29): "alt paremetreli testleri ayrı ayrı göstermesin ana
+    // testin yanını artı ile gösterebilir" (ornek: EOS % hemogramin alt parametresi). Tek bir
+    // panelde 20+ satir olabildigi icin (canli gorulen: 89 satirlik bir protokol) duz liste
+    // okunmuyordu. PanelAdi (bkz. LabResultRecord) doluysa o satir bir alt parametredir --
+    // panelin KENDI satiri (ornek: "Hemogram") panelAdi=null ama TetkikAdi'si baska
+    // satirlarin PanelAdi'siyla ESLESIR, bu yuzden grup adi olarak kullanilabilir.
+    public record LabGroup(string GroupName, bool HasOwnRow, List<(LabResultRecord Lab, SyncLogEntry? Durum)> Items);
+    public List<LabGroup> LabGroups { get; set; } = [];
 
     // Baslik satirindaki "Tümünü Sil"/"Tümünü Gönder" butonlarinin gorunurlugu -- KULLANICI
     // ISTEGI (2026-08-25): "tanı ve procedür başlıklarında tümünü sil ve eğer silinmiş ise
@@ -97,6 +104,7 @@ public class ProtokolModel(
         var labs = await pusulaRepository.GetLabResultsByProtokolIdAsync(Protokol.ProtokolId, ct);
         var labStatuses = await syncLog.GetLatestByPusulaIdsAsync("Observation", labs.Select(l => l.LabaratuarSonucId).ToList(), ct);
         Labs = labs.Select(l => (l, labStatuses.GetValueOrDefault(l.LabaratuarSonucId))).ToList();
+        LabGroups = BuildLabGroups(Labs);
 
         GenelMuayene = await pusulaRepository.GetGenelMuayeneByProtokolIdAsync(Protokol.ProtokolId, ct);
         EpikrizSendEnabled = await settings.GetBoolAsync(SettingsStore.EpikrizSendEnabledKey, true, ct);
@@ -437,5 +445,37 @@ public class ProtokolModel(
         }
 
         return (azPatientId, azEncounterId);
+    }
+
+    private static List<LabGroup> BuildLabGroups(List<(LabResultRecord Lab, SyncLogEntry? Durum)> labs)
+    {
+        // Bir satirin PanelAdi'si varsa dogrudan grup adidir (alt parametre). PanelAdi'si
+        // olmayan bir satir, eger TetkikAdi'si BASKA satirlarin PanelAdi'siyla eslesirse
+        // panelin KENDI satiridir (orn. "Hemogram") -- grup adi olarak kendi TetkikAdi'si
+        // kullanilir ve HasOwnRow=true isaretlenir. Digerleri bagimsiz, tek satirlik grup.
+        var panelNames = labs
+            .Where(x => !string.IsNullOrWhiteSpace(x.Lab.PanelAdi))
+            .Select(x => x.Lab.PanelAdi!)
+            .ToHashSet();
+
+        string GroupKey(int index)
+        {
+            var lab = labs[index].Lab;
+            if (!string.IsNullOrWhiteSpace(lab.PanelAdi)) return lab.PanelAdi;
+            if (!string.IsNullOrWhiteSpace(lab.TetkikAdi) && panelNames.Contains(lab.TetkikAdi)) return lab.TetkikAdi;
+            return $"__solo_{lab.LabaratuarSonucId}";
+        }
+
+        return Enumerable.Range(0, labs.Count)
+            .GroupBy(GroupKey)
+            .Select(g =>
+            {
+                var items = g.Select(i => labs[i]).ToList();
+                var groupName = g.Key.StartsWith("__solo_") ? (items[0].Lab.TetkikAdi ?? "-") : g.Key;
+                var hasOwnRow = items.Any(x => x.Lab.TetkikAdi == g.Key);
+                var ordered = items.OrderByDescending(x => x.Lab.TetkikAdi == g.Key).ThenBy(x => x.Lab.TetkikAdi).ToList();
+                return new LabGroup(groupName, hasOwnRow, ordered);
+            })
+            .ToList();
     }
 }

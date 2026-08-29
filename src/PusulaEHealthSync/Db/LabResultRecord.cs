@@ -41,5 +41,11 @@ public class LabResultRecord
     public string? IcbariKodu { get; set; }
     public string? IcbariAdi { get; set; }
 
+    // Protokol Detay'da alt parametreleri (RDW-SD, EOS % vb.) ana testin (Hemogram vb.)
+    // altinda gruplamak icin -- LIS.TestParametre (TestId=ust panel, AltTestId=alt parametre)
+    // uzerinden bulunan ust test adi. Bu satirin KENDISI bir panelin alt parametresi degilse
+    // (bagimsiz bir test, ya da panelin kendisi -- orn. "Hemogram" satirinin kendisi) null.
+    public string? PanelAdi { get; set; }
+
     public bool IsApproved => Status == 6;
 }

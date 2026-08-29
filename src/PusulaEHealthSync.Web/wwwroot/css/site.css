@@ -1042,6 +1042,21 @@ input[type="checkbox"].row-check,
 .side-row-name { font-size: 12.5px; color: var(--text); line-height: 1.35; }
 .side-row-actions { display: flex; align-items: center; gap: 6px; flex-shrink: 0; }
 
+/* Laboratuvar panel gruplamasi -- KULLANICI ISTEGI (2026-08-29): "alt paremetreli testleri
+   ayrı ayrı göstermesin ana testin yanını artı ile gösterebilir" (orn. EOS %, Hemogram'in
+   alt parametresi). Native <details>/<summary> -- JS/kutuphane gerekmiyor. */
+.lab-panel-group { border-bottom: 1px solid var(--border); }
+.lab-panel-group:last-child { border-bottom: none; }
+.lab-panel-summary {
+  display: flex; align-items: center; justify-content: space-between; gap: 10px;
+  padding: 11px 14px; cursor: pointer;
+}
+.lab-panel-summary::-webkit-details-marker { display: none; }
+.lab-panel-summary:hover { background: var(--surface-hover); }
+.lab-panel-summary .count { font-family: var(--font-heading); font-size: 11px; font-weight: 600; color: var(--primary); background: var(--primary-soft); padding: 1px 8px; border-radius: 999px; }
+.lab-panel-group .side-row { padding-left: 28px; background: var(--bg-elevated); }
+.lab-panel-header-row { background: var(--surface-hover) !important; }
+
 /* KULLANICI ISTEGI (2026-08-25, dorduncu tur): "böyle hiç bir zaman kalmamalıyım bunu bir
    şekilde ya silmeli yada tekrar gönder yapabilmeliyim" -- Sil'in yaninda ayni boyutta
    Detay (goz) ve Gönder (yenile) icon-butonlari da eklendi, HER ucu ayni gorunmesin diye
