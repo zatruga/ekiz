@@ -434,7 +434,9 @@ else
             async Task RenderLabRow(PusulaEHealthSync.Db.LabResultRecord lab, SyncLogEntry? durum, int protokolId, bool isPanelHeader)
             {
                 var (labBadgeClass, labBadgeLabel) = SyncLogEntry.StatusBadge(durum);
-                <div class="side-row @(isPanelHeader ? "lab-panel-header-row" : "")">
+                var labDate = lab.TetkikSonucOnayTarihi ?? lab.TetkikSonucTarihi;
+                <div class="side-row @(isPanelHeader ? "lab-panel-header-row" : "")" data-lab-date="@(labDate?.ToString("yyyy-MM-ddTHH:mm:ss"))">
+                    <span class="lab-date-col" title="@(labDate?.ToString("dd.MM.yyyy HH:mm"))">@(labDate?.ToString("dd.MM.yyyy") ?? "-")</span>
                     <div class="side-row-main">
                         <span class="side-row-name">@(lab.TetkikAdi ?? "-")</span>
                         <div style="color:var(--text-faint); font-size:11.5px; margin-top:2px;">
@@ -504,6 +506,12 @@ else
             }
             else
             {
+                <div class="lab-list-header">
+                    <button type="button" class="lab-sort-btn" onclick="pusulaSortLabRows()">
+                        Tarih <span class="arrow" id="labSortArrow">↓</span>
+                    </button>
+                </div>
+                <div id="lab-rows">
                 @foreach (var group in Model.LabGroups)
                 {
                     if (group.Items.Count == 1)
@@ -513,8 +521,10 @@ else
                     else
                     {
                         var (groupBadgeClass, groupBadgeLabel) = group.AggregateBadge();
-                        <details class="lab-panel-group">
+                        var groupDate = group.Items.Select(x => x.Lab.TetkikSonucOnayTarihi ?? x.Lab.TetkikSonucTarihi).FirstOrDefault();
+                        <details class="lab-panel-group" data-lab-date="@(groupDate?.ToString("yyyy-MM-ddTHH:mm:ss"))">
                             <summary class="lab-panel-summary">
+                                <span class="lab-date-col" title="@(groupDate?.ToString("dd.MM.yyyy HH:mm"))">@(groupDate?.ToString("dd.MM.yyyy") ?? "-")</span>
                                 <span class="side-row-name">@group.GroupName</span>
                                 <span class="lab-panel-summary-actions">
                                     <span class="count">+@(group.HasOwnRow ? group.Items.Count - 1 : group.Items.Count)</span>
@@ -546,9 +556,38 @@ else
                         </details>
                     }
                 }
+                </div>
             }
         </div>
         </div>
     </div>
     </div>
+}
+
+@section Scripts {
+    <script>
+        // KULLANICI ISTEGI (2026-08-29, protokol 50853078): Tarih basligina tiklayinca lab
+        // satirlarini (ve panel gruplarini -- gruplama BOZULMAZ, sadece grup/tekil satirlar
+        // en ust seviyede tarihe gore siralanir) A-Z/Z-A sirala. DOM node'lari appendChild ile
+        // TASINIYOR (klonlanmiyor) -- form/event handler'lar ve acik <details> durumu korunur.
+        let pusulaLabSortDir = null;
+        function pusulaSortLabRows() {
+            var container = document.getElementById('lab-rows');
+            if (!container) return;
+            var items = Array.prototype.filter.call(container.children, function (el) {
+                return el.hasAttribute('data-lab-date');
+            });
+            pusulaLabSortDir = pusulaLabSortDir === 'asc' ? 'desc' : 'asc';
+            items.sort(function (a, b) {
+                var da = a.getAttribute('data-lab-date') || '';
+                var db = b.getAttribute('data-lab-date') || '';
+                if (da === db) return 0;
+                if (pusulaLabSortDir === 'asc') return da < db ? -1 : 1;
+                return da > db ? -1 : 1;
+            });
+            items.forEach(function (el) { container.appendChild(el); });
+            var arrow = document.getElementById('labSortArrow');
+            if (arrow) arrow.textContent = pusulaLabSortDir === 'asc' ? '↑' : '↓';
+        }
+    </script>
 }
