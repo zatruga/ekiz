@@ -550,6 +550,57 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
         return result;
     }
 
+    // Protokol Listesi'ndeki "Sadece İcbari Sigorta hastaları" filtresi icin (KULLANICI
+    // ISTEGI, 2026-08-29) -- GetIslemlerByProtokolIdAsync/GetIcbariIslemlerAsync ile AYNI
+    // eslesme kurallari (tam gerekce orada), ama verilen bir protokol Id kumesi icin sadece
+    // "en az bir icbari-eslesen İşlemi var mi" sorusuna DISTINCT bir ProtokolId listesiyle
+    // cevap verir -- tarih araligina degil, cagiran tarafin zaten elindeki aday listesine
+    // bagli, boylece arama (tarih yok sayilan) ile de dogru calisir.
+    public async Task<HashSet<int>> GetIcbariProtokolIdsAsync(IReadOnlyCollection<int> protokolIds, CancellationToken ct = default)
+    {
+        var result = new HashSet<int>();
+        if (protokolIds.Count == 0) return result;
+
+        var idList = protokolIds.ToList();
+        var placeholders = idList.Select((_, i) => $"@id{i}").ToList();
+        var sql = $@"
+            SELECT DISTINCT pi.ProtokolId
+            FROM Hasta.ProtokolIslem pi
+            INNER JOIN Ortak.Hizmet oh ON oh.Id = pi.HizmetId
+            OUTER APPLY (
+                SELECT TOP 1 PKH.Kodu
+                FROM Ortak.HizmetKurumHizmet OHKH
+                INNER JOIN Pazarlama.KurumHizmet PKH ON PKH.Id = OHKH.KurumHizmetId
+                WHERE OHKH.HizmetId = oh.Id
+                  AND PKH.KurumHizmetKategoriId = 13
+                  AND PKH.State <> 0
+                  AND OHKH.State <> 0
+                ORDER BY PKH.IsPaket DESC
+            ) icb
+            WHERE pi.ProtokolId IN ({string.Join(",", placeholders)})
+              AND pi.State = 2 AND pi.HizmetId IS NOT NULL
+              AND icb.Kodu IS NOT NULL AND LEN(icb.Kodu) > 0
+              AND NOT EXISTS (
+                  SELECT 1 FROM RIS.TetkikIslem rti
+                  WHERE rti.ProtokolIslemId = pi.Id AND rti.State <> 0 AND rti.State <> 6
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM LIS.TestIslem lti
+                  WHERE lti.ProtokolIslemId = pi.Id AND lti.State <> 0 AND lti.State <> 6
+              )";
+
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
+        await conn.OpenAsync(ct);
+        await using var cmd = new SqlCommand(sql, conn);
+        for (var i = 0; i < idList.Count; i++)
+            cmd.Parameters.AddWithValue($"@id{i}", idList[i]);
+
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            result.Add(reader.GetInt32(0));
+        return result;
+    }
+
     // Doktorlar ekrani icin -- KULLANICI ISTEGI (2026-08-24): "doktor takibini Protokol
     // Detay'dan kaldiralim, sistem tarafinda doktorlar diye ayri bir yer olsun". IK.Personel'in
     // tamami yerine son N gunde GERCEKTEN protokolu olan doktorlar, kullanim sikligina gore.

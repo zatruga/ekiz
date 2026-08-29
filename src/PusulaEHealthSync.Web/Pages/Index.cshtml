@@ -63,6 +63,14 @@
             </div>
         </div>
 
+        <div class="filter-group">
+            <p class="filter-group-title">Ödeyen kurum</p>
+            <div class="toggle-row" style="margin-bottom:0;">
+                <input type="checkbox" id="icbariSadece" name="IcbariSadece" value="true" checked="@Model.IcbariSadece" />
+                <label for="icbariSadece">Sadece İcbari Sigorta hastaları</label>
+            </div>
+        </div>
+
         <button type="submit" class="btn btn-primary btn-block">Filtrele</button>
     </form>
 
@@ -95,6 +103,7 @@
                     <input type="hidden" name="Search" value="@Model.Search" />
                     <input type="hidden" name="HastaDurumu" value="@Model.HastaDurumu" />
                     <input type="hidden" name="ProtokolDurumu" value="@Model.ProtokolDurumu" />
+                    <input type="hidden" name="IcbariSadece" value="@Model.IcbariSadece" />
                     <input type="hidden" name="P" value="@Model.PageNumber" />
                     <div class="bulk-toolbar">
                         <button type="button" class="btn btn-outline btn-sm" onclick="document.querySelectorAll('#voidedForm .row-check').forEach(c => c.checked = true)">Tümünü Seç</button>
@@ -144,6 +153,7 @@
                 <input type="hidden" name="Search" value="@Model.Search" />
                 <input type="hidden" name="HastaDurumu" value="@Model.HastaDurumu" />
                 <input type="hidden" name="ProtokolDurumu" value="@Model.ProtokolDurumu" />
+                    <input type="hidden" name="IcbariSadece" value="@Model.IcbariSadece" />
                 <input type="hidden" name="P" value="@Model.PageNumber" />
 
                 <div class="bulk-toolbar">
@@ -234,11 +244,11 @@
                 }
                 @if (Model.PageNumber > 1)
                 {
-                    <a class="btn btn-outline btn-sm" asp-page="/Index" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Search="@Model.Search" asp-route-HastaDurumu="@Model.HastaDurumu" asp-route-ProtokolDurumu="@Model.ProtokolDurumu" asp-route-P="@(Model.PageNumber - 1)">&larr; Önceki</a>
+                    <a class="btn btn-outline btn-sm" asp-page="/Index" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Search="@Model.Search" asp-route-HastaDurumu="@Model.HastaDurumu" asp-route-ProtokolDurumu="@Model.ProtokolDurumu" asp-route-IcbariSadece="@Model.IcbariSadece" asp-route-P="@(Model.PageNumber - 1)">&larr; Önceki</a>
                 }
                 @if (Model.HasNextPage)
                 {
-                    <a class="btn btn-outline btn-sm" asp-page="/Index" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Search="@Model.Search" asp-route-HastaDurumu="@Model.HastaDurumu" asp-route-ProtokolDurumu="@Model.ProtokolDurumu" asp-route-P="@(Model.PageNumber + 1)">Sonraki &rarr;</a>
+                    <a class="btn btn-outline btn-sm" asp-page="/Index" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Search="@Model.Search" asp-route-HastaDurumu="@Model.HastaDurumu" asp-route-ProtokolDurumu="@Model.ProtokolDurumu" asp-route-IcbariSadece="@Model.IcbariSadece" asp-route-P="@(Model.PageNumber + 1)">Sonraki &rarr;</a>
                 }
             </div>
         }

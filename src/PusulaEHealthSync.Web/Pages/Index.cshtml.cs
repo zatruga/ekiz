@@ -38,6 +38,12 @@ public class IndexModel(
     [BindProperty(SupportsGet = true)]
     public string ProtokolDurumu { get; set; } = "Tumu";
 
+    // KULLANICI ISTEGI (2026-08-29): "icbari hastaları diye bir checkbox ekleyelim,
+    // işaretlendiğinde kurumu icbari olanlar listelensin" -- Genel Bakış'taki İcbari
+    // Sigorta bölümüyle AYNI eslesme kurali (GetIcbariProtokolIdsAsync, bkz. o metot).
+    [BindProperty(SupportsGet = true)]
+    public bool IcbariSadece { get; set; }
+
     [BindProperty(SupportsGet = true)]
     public int P { get; set; } = 1;
 
@@ -124,6 +130,13 @@ public class IndexModel(
         };
         var filteredList = filtered.ToList();
 
+        if (IcbariSadece)
+        {
+            var icbariProtokolIds = await pusulaRepository.GetIcbariProtokolIdsAsync(
+                filteredList.Select(r => r.Protokol.ProtokolId).Distinct().ToList(), ct);
+            filteredList = filteredList.Where(r => icbariProtokolIds.Contains(r.Protokol.ProtokolId)).ToList();
+        }
+
         HasNextPage = filteredList.Count > PageNumber * PageSize;
         Rows = filteredList.Skip((PageNumber - 1) * PageSize).Take(PageSize).ToList();
     }
@@ -181,7 +194,7 @@ public class IndexModel(
             ? "Hiçbir protokol seçilmedi."
             : $"{selectedProtokolIds.Count} protokol işlendi -- {ok} gönderildi, {alreadySent} zaten gönderilmişti (atlandı), {skipped} atlandı, {failed} hata.";
 
-        return RedirectToPage("/Index", new { From, To, Search, HastaDurumu, ProtokolDurumu, P });
+        return RedirectToPage("/Index", new { From, To, Search, HastaDurumu, ProtokolDurumu, IcbariSadece, P });
     }
 
     // Pusula'da State=0'a dusmus (iptal/silinmis) ama e-Health'te hala kayitli gorunen
@@ -218,6 +231,6 @@ public class IndexModel(
             ? "Hiçbir kayıt seçilmedi."
             : $"{selectedLogIds.Count} iptal edilmiş protokolün e-Health kaydı silinmeye çalışıldı -- {ok} silindi, {failed} hata.";
 
-        return RedirectToPage("/Index", new { From, To, Search, HastaDurumu, ProtokolDurumu, P });
+        return RedirectToPage("/Index", new { From, To, Search, HastaDurumu, ProtokolDurumu, IcbariSadece, P });
     }
 }
