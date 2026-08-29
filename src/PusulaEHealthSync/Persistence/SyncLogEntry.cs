@@ -116,6 +116,8 @@ public class SyncLogEntry
     public static (string Label, string Description) ErrorCategory(string? message)
     {
         var m = message ?? "";
+        if (m.Contains("Instance count for", StringComparison.OrdinalIgnoreCase) && m.Contains("cardinality", StringComparison.OrdinalIgnoreCase))
+            return ("Zorunlu alan eksik/hatalı", "FHIR profilinde zorunlu tutulan bir alan boş bırakılmış ya da yanlış sayıda dolu");
         if (m.Contains("FIN", StringComparison.OrdinalIgnoreCase))
             return ("FIN formatı hatalı", "TC Kimlik/FIN alanı AZ FIN biçimine uymuyor");
         if (m.Contains("ICD", StringComparison.OrdinalIgnoreCase) || m.Contains("tanı", StringComparison.OrdinalIgnoreCase))
@@ -133,23 +135,51 @@ public class SyncLogEntry
     // daha anlaşılır gösteremez miyiz?" -- EHealthErrorFormatter'in cikardigi mesaj teknik
     // olarak dogru ama ham (orn. "HTTP 409: Non-existent reference: Practitioner/01a02302-
     // ...-6525140e95b9") -- ozellikle GUID'li referans hatalari hastane IT personeli icin
-    // "ne yapmam lazim" sorusuna cevap vermiyor. Bu metot AYNI ErrorCategory siniflandirmasini
-    // kullanip (iki yerde farkli mantik olmasin diye) her kategori icin TEK CUMLELIK, GUID
-    // icermeyen, "ne yapilmali" diyen bir aciklama uretir. Taniyamadigi bir kalip icin ham
-    // mesaji oldugu gibi doner -- asla "bilinmeyen hata" gibi bilgi kaybettiren bir metinle
-    // degistirmez.
+    // "ne yapmam lazim" sorusuna cevap vermiyor.
+    //
+    // GENISLETME (2026-08-29, kullanici tekrar sikayet etti -- "bu hata mesajlarını sana bir
+    // çok kez dedim anlaşılır bir sekilde yorumlayarak göster"): mesaj sunucudan genelde " | "
+    // ile ayrilmis BIRDEN FAZLA sorunu tek satirda listeler (orn. "Instance count for
+    // 'Observation.value[x].unit' is 0 ... | Instance count for '...system' is 0 ..."). Eskiden
+    // sadece TEK bir bilinen kalibi (Non-existent reference) taniyip gerisini oldugu gibi
+    // basiyordu -- bu yuzden "Instance count ... cardinality" (FHIR zorunlu alan eksik) gibi
+    // COK SIK cikan bir kalip hala ham gorunuyordu. Artik her " | " parcasi AYRI AYRI
+    // yorumlanip birlestiriliyor -- taniyamadigi bir parca icin o parcayi oldugu gibi
+    // dondurur, asla "bilinmeyen hata" gibi bilgi kaybettiren bir metinle degistirmez.
     public static string FriendlyError(string? message)
     {
         if (string.IsNullOrWhiteSpace(message)) return "Sebep belirtilmedi";
 
-        var refMatch = System.Text.RegularExpressions.Regex.Match(message, @"[Nn]on-existent reference:\s*(\w+)/");
+        var segments = message.Split('|', StringSplitOptions.TrimEntries | StringSplitOptions.RemoveEmptyEntries);
+        if (segments.Length == 0) return message;
+
+        var friendly = segments.Select(InterpretSegment).Distinct().ToList();
+        return string.Join(" ", friendly);
+    }
+
+    private static string InterpretSegment(string segment)
+    {
+        var refMatch = System.Text.RegularExpressions.Regex.Match(segment, @"[Nn]on-existent reference:\s*(\w+)/");
         if (refMatch.Success)
         {
             var refType = ResourceTypeLabel(refMatch.Groups[1].Value);
             return $"Bağlı olduğu {refType} kaydı e-Health'te artık bulunamıyor (silinmiş ya da hiç gönderilmemiş olabilir) -- önce {refType} tekrar gönderilmeli.";
         }
 
-        var (label, _) = ErrorCategory(message);
+        var cardMatch = System.Text.RegularExpressions.Regex.Match(
+            segment, @"Instance count for '([^']+)' is (\d+), which is not within the specified cardinality of (\d+)\.\.(\*|\d+)");
+        if (cardMatch.Success)
+        {
+            var fieldPath = cardMatch.Groups[1].Value;
+            var actual = int.Parse(cardMatch.Groups[2].Value);
+            var min = int.Parse(cardMatch.Groups[3].Value);
+            var fieldLabel = FriendlyFieldName(fieldPath);
+            return actual < min
+                ? $"Zorunlu bir alan eksik: {fieldLabel}."
+                : $"'{fieldLabel}' alanında beklenenden fazla değer gönderilmiş.";
+        }
+
+        var (label, _) = ErrorCategory(segment);
         return label switch
         {
             "FIN formatı hatalı" => "TC Kimlik/FIN numarası AZ FIN biçimine uymuyor -- Pusula'daki hasta kaydı kontrol edilmeli.",
@@ -157,7 +187,33 @@ public class SyncLogEntry
             "Zaman aşımı / bağlantı" => "e-Health sunucusu zamanında yanıt vermedi -- bağlantı sorunu olabilir, tekrar denenmeli.",
             "e-Health bağlantı ayarı eksik" => "Ayarlar sayfasında e-Health bağlantı bilgileri eksik ya da hatalı.",
             "Referans bulunamadı" => "Bağlı bir kayıt e-Health'te artık mevcut değil -- önce o kayıt tekrar gönderilmeli.",
-            _ => message,
+            _ => segment.Trim(),
         };
+    }
+
+    // FHIR alan yolunu ("Observation.value[x].unit" gibi) hastane IT personelinin anlayacagi
+    // bir Turkce etikete cevirir -- teknik yolu da parantez icinde SAKLAR (bilgi kaybetmemek
+    // icin), sadece taniyamadigi bir alan icin ham yolu oldugu gibi doner.
+    private static string FriendlyFieldName(string fieldPath)
+    {
+        var lastSegment = fieldPath.Split('.')[^1].Split(':')[^1];
+        var label = lastSegment switch
+        {
+            "unit" => "sonuç birimi",
+            "system" => "kod sistemi",
+            "code" => "kod",
+            "display" => "görünen ad",
+            "value[x]" => "sonuç değeri",
+            "subject" => "hasta referansı",
+            "encounter" => "müayinə referansı",
+            "procedure-code" => "prosedür/İcbari kodu",
+            "local-system-unique-id" => "sistem içi kimlik",
+            "identifier" => "kimlik numarası",
+            "status" => "durum",
+            "category" => "kategori",
+            "extension" => "ek alan (extension)",
+            _ => null,
+        };
+        return label is null ? fieldPath : $"{label} ({fieldPath})";
     }
 }
