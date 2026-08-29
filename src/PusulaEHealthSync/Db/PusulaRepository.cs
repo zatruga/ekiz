@@ -353,13 +353,23 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
     // alt testi"): kullanicinin bulup dogruladigi LIS.TestParametre tablosu (TestId=ust panel,
     // AltTestId=alt parametre) uzerinden, bu satirin ait oldugu panelin adini (varsa) da
     // cekiyoruz -- Protokol.cshtml.cs bunu kullanip alt parametreleri ust test altinda gruplar.
+    //
+    // ALT PARAMETRE ICBARI KODU FALLBACK (2026-08-29, kullanici sorusu -- "alt parametreleri
+    // gönderirken ana parametre kodun icbari kodu ile gönderelim mi?"): EOS %, RDW-SD gibi
+    // alt parametrelerin kendi basina bir fatura/Icbari kaydi genelde YOK -- sadece butun panel
+    // ("Hemogram") tek bir hizmet olarak faturalaniyor. Bu yuzden alt parametrenin KENDI Icbari
+    // eslesmesi bulunamazsa (icb.Kodu NULL), panelin (ust testin) Icbari koduna DUSULUYOR
+    // (COALESCE) -- boylece "sadece panel geneli faturalanan" alt parametreler de artik
+    // procedure-code doldurulabildigi icin Skipped olmuyor.
     public async Task<List<LabResultRecord>> GetLabResultsByProtokolIdAsync(int protokolId, CancellationToken ct = default)
     {
         const string sql = @"
             SELECT lab.LabaratuarSonucId, lab.VisitId, lab.Status, lab.TetkikAdi, lab.TetkikSonucu, lab.TetkikSonucuBirimi,
                    lab.TetkikSonucuReferansDegeri, lab.TetkikSonucuReferansDegerAraligindaMi, lab.LoincKodu,
                    lab.TetkikSonucTarihi, lab.TetkikSonucOnayTarihi,
-                   icb.Kodu AS IcbariKodu, icb.Adi AS IcbariAdi, panel.PanelAdi
+                   COALESCE(icb.Kodu, panelIcb.Kodu) AS IcbariKodu,
+                   COALESCE(icb.Adi, panelIcb.Adi) AS IcbariAdi,
+                   panel.PanelAdi
             FROM LIS.uv_LaboratuarSonucKayitBilgileriByProtokolId lab
             OUTER APPLY (
                 SELECT TOP 1 t.Id AS TestId, t.HizmetId
@@ -379,12 +389,22 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
                 ORDER BY PKH.IsPaket DESC
             ) icb
             OUTER APPLY (
-                SELECT TOP 1 parentTest.Adi AS PanelAdi
+                SELECT TOP 1 parentTest.Adi AS PanelAdi, parentTest.HizmetId AS PanelHizmetId
                 FROM LIS.TestParametre tp
                 INNER JOIN LIS.Test parentTest ON parentTest.Id = tp.TestId
                 WHERE tp.AltTestId = t.TestId AND tp.State <> 0
                 ORDER BY tp.Sira
             ) panel
+            OUTER APPLY (
+                SELECT TOP 1 PKH2.Kodu, PKH2.Adi
+                FROM Ortak.HizmetKurumHizmet OHKH2
+                INNER JOIN Pazarlama.KurumHizmet PKH2 ON PKH2.Id = OHKH2.KurumHizmetId
+                WHERE OHKH2.HizmetId = panel.PanelHizmetId
+                  AND PKH2.KurumHizmetKategoriId = 13
+                  AND PKH2.State <> 0
+                  AND OHKH2.State <> 0
+                ORDER BY PKH2.IsPaket DESC
+            ) panelIcb
             WHERE lab.VisitId = @ProtokolId AND lab.Status = 6";
 
         await using var conn = new SqlConnection(await ConnectionStringAsync(ct));

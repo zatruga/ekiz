@@ -38,6 +38,9 @@ public class LabResultRecord
     // Hizmet/ProtokolIslem baglantisi vermiyor, ama LoincKodu'yu LIS.Test.LoincKodu ile
     // eslestirip oradan HizmetId -> Icbari kodu zincirine ulasilabildigi CANLI dogrulandi
     // (2026-08-29, kullanici SELECT'i). Bkz. PusulaRepository.GetLabResultsByProtokolIdAsync.
+    // Alt parametrenin (EOS %, RDW-SD vb.) KENDI Icbari eslesmesi yoksa (genelde panel bir
+    // butun olarak faturalandigi icin ayri bir kaydi olmuyor), panelin (ust testin, orn.
+    // "Hemogram") Icbari koduna otomatik dusuyor (KULLANICI KARARI, 2026-08-29).
     public string? IcbariKodu { get; set; }
     public string? IcbariAdi { get; set; }
 
