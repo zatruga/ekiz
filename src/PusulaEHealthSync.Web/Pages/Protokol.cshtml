@@ -465,13 +465,7 @@ else
                     var (labBadgeClass, labBadgeLabel) = SyncLogEntry.StatusBadge(durum);
                     <div class="side-row">
                         <div class="side-row-main">
-                            <span class="side-row-name">
-                                @(lab.TetkikAdi ?? "-")
-                                @if (lab.DisindaMi)
-                                {
-                                    <span class="badge danger" style="padding:1px 7px; font-size:10px; margin-left:6px;">Referans dışı</span>
-                                }
-                            </span>
+                            <span class="side-row-name">@(lab.TetkikAdi ?? "-")</span>
                             <div style="color:var(--text-faint); font-size:11.5px; margin-top:2px;">
                                 @(string.IsNullOrWhiteSpace(lab.TetkikSonucu) ? "-" : lab.TetkikSonucu) @lab.TetkikSonucuBirimi
                                 @(string.IsNullOrWhiteSpace(lab.TetkikSonucuReferansDegeri) ? "" : $"(ref: {lab.TetkikSonucuReferansDegeri})")

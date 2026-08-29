@@ -342,6 +342,11 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
     // KurumHizmetKategoriId=13) ulasiliyor. 20 satirlik canli ornekte 19/20 HizmetId, cogunda
     // Icbari kodu da bulundu -- bulunamayanlar (LOINC yok ya da Icbari listede olmayan hizmet)
     // LabResultObservationMapper'da Skipped olacak (procedure-code doldurulamiyorsa gonderilemez).
+    //
+    // DUZELTME (2026-08-29, canli hata -- "test isimleri coklamis"): LIS.Test'te AYNI LoincKodu'na
+    // sahip BIRDEN FAZLA satir olabiliyor (eski/pasif kayitlar dahil) -- LEFT JOIN bunlari
+    // CARPIYORDU (1 lab sonucu x 3 eslesen Test kaydi = 3 tekrarlanan satir). OUTER APPLY + TOP 1
+    // ile (aktif olanlar tercih edilip en son eklenen) tek satira indirgeniyor.
     public async Task<List<LabResultRecord>> GetLabResultsByProtokolIdAsync(int protokolId, CancellationToken ct = default)
     {
         const string sql = @"
@@ -350,7 +355,12 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
                    lab.TetkikSonucTarihi, lab.TetkikSonucOnayTarihi,
                    icb.Kodu AS IcbariKodu, icb.Adi AS IcbariAdi
             FROM LIS.uv_LaboratuarSonucKayitBilgileriByProtokolId lab
-            LEFT JOIN LIS.Test t ON t.LoincKodu = lab.LoincKodu
+            OUTER APPLY (
+                SELECT TOP 1 t.HizmetId
+                FROM LIS.Test t
+                WHERE t.LoincKodu = lab.LoincKodu
+                ORDER BY CASE WHEN t.State <> 0 THEN 0 ELSE 1 END, t.Id DESC
+            ) t
             LEFT JOIN Ortak.Hizmet oh ON oh.Id = t.HizmetId
             OUTER APPLY (
                 SELECT TOP 1 PKH.Kodu, PKH.Adi

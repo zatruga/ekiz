@@ -21,8 +21,13 @@ public class LabResultRecord
     public string? TetkikSonucuBirimi { get; set; }
     public string? TetkikSonucuReferansDegeri { get; set; }
 
-    // "1" = sonuc referans araligi DISINDA (view'deki ResultWaring H/L/HH/LL/HHH/LLL kodlarindan
-    // hesaplaniyor) -- alan adi "...AraligindaMi" olsa da anlami TERSTIR (kod incelendi, 2026-08-21).
+    // GUVENILMEZ (2026-08-29, canli hata -- kullanici: "test sonucu referans değerin içinde
+    // olmasına rağmen neden referans dışı vermiş"): bu alanin "1" degerinin gercekte ne
+    // anlama geldigi 2026-08-21'de "TERSTIR" diye not edilmisti, ama canli veride (orn. 43.1,
+    // 38.00-52.0 araliginda oldugu HALDE DisindaMi=true) bu yorum da dogrulanmiyor. Anlami
+    // KESIN olarak cozulene kadar hicbir yerde (UI'da "Referans dışı" rozeti, FHIR
+    // Observation.interpretation) KULLANILMIYOR -- yanlis "anormal" isareti hem hastaneye hem
+    // e-Health'e gitmesin diye. Ham deger yine de okunuyor, ileride cozulunce buradan acilir.
     public bool DisindaMi { get; set; }
     public string? LoincKodu { get; set; }
     public DateTime? TetkikSonucTarihi { get; set; }

@@ -24,7 +24,6 @@ public static class LabResultObservationMapper
 {
     private const string LoincSystem = "http://loinc.org";
     private const string CategorySystem = "http://terminology.hl7.org/CodeSystem/observation-category";
-    private const string InterpretationSystem = "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation";
     private const string ProcedureCodeExtensionUrl = "http://fhir.az/StructureDefinition/procedure-code";
     private const string ProcedureCodeSystem = "http://fhir.az/CodeSystem/az-procedure-codes";
 
@@ -97,19 +96,10 @@ public static class LabResultObservationMapper
             };
         }
 
-        if (lab.DisindaMi)
-        {
-            observation["interpretation"] = new JsonArray
-            {
-                new JsonObject
-                {
-                    ["coding"] = new JsonArray
-                    {
-                        new JsonObject { ["system"] = InterpretationSystem, ["code"] = "A", ["display"] = "Abnormal" },
-                    },
-                },
-            };
-        }
+        // interpretation KASITLI OLARAK EKLENMIYOR -- lab.DisindaMi'nin gercek anlami canli
+        // veride dogrulanamadi (bkz. LabResultRecord'daki not, 2026-08-29). Yanlis "anormal"
+        // isareti gercek bir sonuc yerine e-Health'e gitmesin diye anlam kesinlesene kadar
+        // bu alan hic gonderilmiyor -- profilde 0..1 (opsiyonel), atlamak gecerli.
 
         return new MappingResult.Success(observation);
     }
