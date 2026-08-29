@@ -512,29 +512,49 @@ public class ProtokolModel(
 
     private static List<LabGroup> BuildLabGroups(List<(LabResultRecord Lab, SyncLogEntry? Durum)> labs)
     {
-        // Bir satirin PanelAdi'si varsa dogrudan grup adidir (alt parametre). PanelAdi'si
+        // Bir satirin PanelAdi'si varsa dogrudan panel adidir (alt parametre). PanelAdi'si
         // olmayan bir satir, eger TetkikAdi'si BASKA satirlarin PanelAdi'siyla eslesirse
-        // panelin KENDI satiridir (orn. "Hemogram") -- grup adi olarak kendi TetkikAdi'si
-        // kullanilir ve HasOwnRow=true isaretlenir. Digerleri bagimsiz, tek satirlik grup.
+        // panelin KENDI satiridir (orn. "Hemogram").
         var panelNames = labs
             .Where(x => !string.IsNullOrWhiteSpace(x.Lab.PanelAdi))
             .Select(x => x.Lab.PanelAdi!)
             .ToHashSet();
 
+        string? PanelName(LabResultRecord lab)
+        {
+            if (!string.IsNullOrWhiteSpace(lab.PanelAdi)) return lab.PanelAdi;
+            if (!string.IsNullOrWhiteSpace(lab.TetkikAdi) && panelNames.Contains(lab.TetkikAdi)) return lab.TetkikAdi;
+            return null;
+        }
+
+        // KULLANICI SORUSU (2026-08-29, protokol 50853078 -- yatan hasta, ayni panel
+        // (orn. "İdrar Tetkiki") yatis boyunca birden cok kez istenmis): sadece panel adina
+        // gore gruplarsak TUM yatisin ayni adli tekrarlari (farkli gunlerde, farkli sonuclar)
+        // TEK grupta toplanip mukerrer gibi gorunuyordu. Gonderim tarafinda birlestirme YOK
+        // (her satir kendi LabaratuarSonucId'siyle ayri Observation, effectiveDateTime de
+        // satirin kendi onay/sonuc tarihinden doluyor) -- sorun sadece bu listedeki gorunumdu.
+        // Duzeltme: grup anahtarina panelin o SATIRA ait onay tarihini (gun bazinda) de
+        // katiyoruz, boylece ayni panelin farkli gunlerdeki tekrarlari AYRI gruplar olarak
+        // listelenir. Tarih etiketi sadece ayni panel adi BIRDEN FAZLA gunde tekrarlanmissa
+        // basliga eklenir (tek seferlik testlerde gereksiz kalabalik olmasin).
+        string DateBucket(LabResultRecord lab) =>
+            (lab.TetkikSonucOnayTarihi ?? lab.TetkikSonucTarihi)?.ToString("yyyy-MM-dd") ?? "-";
+
         string GroupKey(int index)
         {
             var lab = labs[index].Lab;
-            if (!string.IsNullOrWhiteSpace(lab.PanelAdi)) return lab.PanelAdi;
-            if (!string.IsNullOrWhiteSpace(lab.TetkikAdi) && panelNames.Contains(lab.TetkikAdi)) return lab.TetkikAdi;
-            return $"__solo_{lab.LabaratuarSonucId}";
+            var panel = PanelName(lab);
+            if (panel is null) return $"__solo_{lab.LabaratuarSonucId}";
+            return $"{panel}||{DateBucket(lab)}";
         }
 
-        return Enumerable.Range(0, labs.Count)
+        var rawGroups = Enumerable.Range(0, labs.Count)
             .GroupBy(GroupKey)
             .Select(g =>
             {
                 var items = g.Select(i => labs[i]).ToList();
-                var groupName = g.Key.StartsWith("__solo_") ? (items[0].Lab.TetkikAdi ?? "-") : g.Key;
+                var isSolo = g.Key.StartsWith("__solo_");
+                var panelName = isSolo ? (items[0].Lab.TetkikAdi ?? "-") : PanelName(items[0].Lab)!;
 
                 // Panelin KENDI satiri (orn. "Hemogram") genelde bir sonuc degeri TASIMAZ --
                 // zaten LabResultObservationMapper'da bu yuzden Skipped kaliyor. Grup
@@ -543,13 +563,27 @@ public class ProtokolModel(
                 // testin tekrarı ise hiç yazdırmayalım") -- deger tasimiyorsa listeden
                 // cikariliyor, grup zaten basligindaki adla temsil ediliyor.
                 var visible = items
-                    .Where(x => x.Lab.TetkikAdi != g.Key || !string.IsNullOrWhiteSpace(x.Lab.TetkikSonucu))
+                    .Where(x => x.Lab.TetkikAdi != panelName || !string.IsNullOrWhiteSpace(x.Lab.TetkikSonucu))
                     .ToList();
                 if (visible.Count == 0) visible = items; // hepsi filtrelenirse (beklenmez) hicbiri kaybolmasin
 
-                var ordered = visible.OrderByDescending(x => x.Lab.TetkikAdi == g.Key).ThenBy(x => x.Lab.TetkikAdi).ToList();
-                var hasOwnRow = ordered.Any(x => x.Lab.TetkikAdi == g.Key);
-                return new LabGroup(groupName, hasOwnRow, ordered);
+                var ordered = visible.OrderByDescending(x => x.Lab.TetkikAdi == panelName).ThenBy(x => x.Lab.TetkikAdi).ToList();
+                var hasOwnRow = ordered.Any(x => x.Lab.TetkikAdi == panelName);
+                var dateBucket = DateBucket(items[0].Lab);
+                return (PanelName: panelName, DateBucket: dateBucket, HasOwnRow: hasOwnRow, Items: ordered);
+            })
+            .ToList();
+
+        var panelOccurrenceCount = rawGroups.CountBy(g => g.PanelName).ToDictionary(x => x.Key, x => x.Value);
+
+        return rawGroups
+            .Select(g =>
+            {
+                var showDate = panelOccurrenceCount[g.PanelName] > 1 && g.DateBucket != "-";
+                var groupName = showDate
+                    ? $"{g.PanelName} ({DateTime.Parse(g.DateBucket).ToString("dd.MM.yyyy")})"
+                    : g.PanelName;
+                return new LabGroup(groupName, g.HasOwnRow, g.Items);
             })
             .ToList();
     }
