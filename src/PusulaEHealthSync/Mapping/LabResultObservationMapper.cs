@@ -117,22 +117,28 @@ public static class LabResultObservationMapper
     // (birim bilgisiyle) gonderiyoruz -- daha kullanisli/yapisal. Sayi degilse (orn. "Pozitif",
     // "Negatif", serbest metin) valueString'e duser. Turkce/Azerice veri virgulu ondalik
     // ayraci olarak kullanabiliyor -- once nokta ile normalize ediliyor.
+    //
+    // DUZELTME (2026-08-29, canli hata -- INR): AZ profilinde valueQuantity kullanilirsa
+    // unit VE system ZORUNLU (1..1) -- sunucu "Instance count for 'Observation.value[x].unit'
+    // is 0" diyerek reddetti. INR gibi birimsiz/oransal sonuclarda TetkikSonucuBirimi bos
+    // oluyor -- boyle durumda sayisal olsa bile UCUM kodu UYDURMAK yerine valueString'e
+    // dusuyoruz (yanlis/tahmini bir birim gondermek, hic birim gondermemekten daha kotu).
     private static void ApplyValue(JsonObject observation, LabResultRecord lab)
     {
         if (string.IsNullOrWhiteSpace(lab.TetkikSonucu))
             return;
 
         var normalized = lab.TetkikSonucu.Trim().Replace(',', '.');
-        if (decimal.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out var numeric))
+        if (decimal.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out var numeric)
+            && !string.IsNullOrWhiteSpace(lab.TetkikSonucuBirimi))
         {
-            var quantity = new JsonObject { ["value"] = numeric };
-            if (!string.IsNullOrWhiteSpace(lab.TetkikSonucuBirimi))
+            observation["valueQuantity"] = new JsonObject
             {
-                quantity["unit"] = lab.TetkikSonucuBirimi;
-                quantity["system"] = "http://unitsofmeasure.org";
-                quantity["code"] = lab.TetkikSonucuBirimi;
-            }
-            observation["valueQuantity"] = quantity;
+                ["value"] = numeric,
+                ["unit"] = lab.TetkikSonucuBirimi,
+                ["system"] = "http://unitsofmeasure.org",
+                ["code"] = lab.TetkikSonucuBirimi,
+            };
         }
         else
         {
