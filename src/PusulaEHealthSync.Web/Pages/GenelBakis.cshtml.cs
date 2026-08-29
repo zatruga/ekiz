@@ -33,6 +33,7 @@ public class GenelBakisModel(PusulaRepository pusulaRepository, SyncLogStore syn
     public int TodaySentCount { get; set; }
     public double OverallSuccessRatePct { get; set; }
     public double SuccessRateDeltaPct { get; set; }
+    public bool SuccessRateHasBaseline { get; set; }
     public int FailedCount { get; set; }
     public int PendingCount { get; set; }
 
@@ -42,7 +43,7 @@ public class GenelBakisModel(PusulaRepository pusulaRepository, SyncLogStore syn
 
     public List<DailyTrendPoint> Trend { get; set; } = [];
     public List<ResourceBreakdownRow> Breakdown { get; set; } = [];
-    public List<SyncLogEntry> RecentErrors { get; set; } = [];
+    public List<RecentErrorGroup> RecentErrors { get; set; } = [];
     public List<DeptVolumeRow> DeptVolume { get; set; } = [];
     public List<NotReadyGroup> NotReadyGroups { get; set; } = [];
     public List<ErrorCategoryGroup> ErrorCategories { get; set; } = [];
@@ -63,6 +64,14 @@ public class GenelBakisModel(PusulaRepository pusulaRepository, SyncLogStore syn
     public record ErrorCategoryGroup(string Label, string Description, int Count);
     public record IcbariRow(string PatientName, int ProtokolId, string ServiceName, string Reason);
     public record TrendLabel(double X, string Text, string Anchor);
+
+    // KULLANICI ISTEGI (2026-08-29): "hataları daha anlaşılır gösteremez miyiz" -- ham
+    // Failed satirlarini oldugu gibi listelemek (eski RecentErrors) ayni hastanin ayni
+    // sebeple art arda BASARISIZ OLAN her denemesini AYRI satir olarak gosteriyordu (canli
+    // testte Rauf İmaməliyev icin ayni 409 hatasi 4 kez ust uste gorundu) -- okunmasi
+    // zordu. Burada AYNI (hasta, kaynak turu, mesaj) kombinasyonu TEK satirda, kac kez
+    // denendigi (Count) ve en son ne zaman (LastSeenUtc) ile birlikte gosteriliyor.
+    public record RecentErrorGroup(string PatientFullName, string ResourceTypeLabel, string RawMessage, string FriendlyMessage, int Count, DateTime LastSeenUtc, long LastEntryId);
 
     // Trend grafigi (SVG) sunucu tarafinda ONCEDEN hesaplanip cshtml'e hazir path/etiket
     // olarak veriliyor -- KULLANICI ISTEGI degil ama proje kurali: "no external CDN/font/
@@ -122,7 +131,8 @@ public class GenelBakisModel(PusulaRepository pusulaRepository, SyncLogStore syn
         var prevCounts = await syncLog.GetStatusCountsAsync(null, prevFromUtc, PeriodFromUtc, ct);
         var prevSuccess = prevCounts.GetValueOrDefault(nameof(SyncStatus.Success));
         var prevFailed = prevCounts.GetValueOrDefault(nameof(SyncStatus.Failed));
-        var prevRate = (prevSuccess + prevFailed) == 0 ? 0 : prevSuccess * 100.0 / (prevSuccess + prevFailed);
+        SuccessRateHasBaseline = (prevSuccess + prevFailed) > 0;
+        var prevRate = SuccessRateHasBaseline ? prevSuccess * 100.0 / (prevSuccess + prevFailed) : 0;
         SuccessRateDeltaPct = Math.Round(OverallSuccessRatePct - prevRate, 1);
 
         var trendFrom = today.AddDays(-13).ToDateTime(TimeOnly.MinValue);
@@ -139,7 +149,24 @@ public class GenelBakisModel(PusulaRepository pusulaRepository, SyncLogStore syn
                 Breakdown.Add(new ResourceBreakdownRow(rt, SyncLogEntry.ResourceTypeLabel(rt), s, w, d));
         }
 
-        RecentErrors = await syncLog.QueryAsync("Failed", null, 6, 0, PeriodFromUtc, PeriodToUtcExclusive, ct);
+        var failedEntries = await syncLog.QueryAsync("Failed", null, 500, 0, PeriodFromUtc, PeriodToUtcExclusive, ct);
+        RecentErrors = failedEntries
+            .GroupBy(e => (e.PatientFullName, e.ResourceType, e.Message))
+            .Select(g =>
+            {
+                var latest = g.OrderByDescending(x => x.Id).First();
+                return new RecentErrorGroup(
+                    string.IsNullOrWhiteSpace(latest.PatientFullName) ? "-" : latest.PatientFullName,
+                    SyncLogEntry.ResourceTypeLabel(latest.ResourceType),
+                    latest.Message ?? "Sebep belirtilmedi",
+                    SyncLogEntry.FriendlyError(latest.Message),
+                    g.Count(),
+                    latest.CreatedAtUtc,
+                    latest.Id);
+            })
+            .OrderByDescending(g => g.LastSeenUtc)
+            .Take(8)
+            .ToList();
 
         var periodProtocols = Donem == "0" ? todayProtocols : await pusulaRepository.GetProtokolListAsync(PeriodFromUtc, PeriodToUtcExclusive, null, ct);
         var deptGroups = periodProtocols
@@ -162,7 +189,6 @@ public class GenelBakisModel(PusulaRepository pusulaRepository, SyncLogStore syn
             .Take(6)
             .ToList();
 
-        var failedEntries = await syncLog.QueryAsync("Failed", null, 500, 0, PeriodFromUtc, PeriodToUtcExclusive, ct);
         ErrorCategories = failedEntries
             .Select(e => SyncLogEntry.ErrorCategory(e.Message))
             .GroupBy(c => c.Label)

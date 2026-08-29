@@ -126,4 +126,36 @@ public class SyncLogEntry
             return ("Referans bulunamadı", "Bağlı bir kayıt (Hasta/Müayinə) e-Health'te artık mevcut değil");
         return ("Diğer", "Yukarıdaki kategorilere girmeyen tekil hatalar");
     }
+
+    // KULLANICI ISTEGI (2026-08-29, Genel Bakış'ta canli veriyle test ederken): "hataları
+    // daha anlaşılır gösteremez miyiz?" -- EHealthErrorFormatter'in cikardigi mesaj teknik
+    // olarak dogru ama ham (orn. "HTTP 409: Non-existent reference: Practitioner/01a02302-
+    // ...-6525140e95b9") -- ozellikle GUID'li referans hatalari hastane IT personeli icin
+    // "ne yapmam lazim" sorusuna cevap vermiyor. Bu metot AYNI ErrorCategory siniflandirmasini
+    // kullanip (iki yerde farkli mantik olmasin diye) her kategori icin TEK CUMLELIK, GUID
+    // icermeyen, "ne yapilmali" diyen bir aciklama uretir. Taniyamadigi bir kalip icin ham
+    // mesaji oldugu gibi doner -- asla "bilinmeyen hata" gibi bilgi kaybettiren bir metinle
+    // degistirmez.
+    public static string FriendlyError(string? message)
+    {
+        if (string.IsNullOrWhiteSpace(message)) return "Sebep belirtilmedi";
+
+        var refMatch = System.Text.RegularExpressions.Regex.Match(message, @"[Nn]on-existent reference:\s*(\w+)/");
+        if (refMatch.Success)
+        {
+            var refType = ResourceTypeLabel(refMatch.Groups[1].Value);
+            return $"Bağlı olduğu {refType} kaydı e-Health'te artık bulunamıyor (silinmiş ya da hiç gönderilmemiş olabilir) -- önce {refType} tekrar gönderilmeli.";
+        }
+
+        var (label, _) = ErrorCategory(message);
+        return label switch
+        {
+            "FIN formatı hatalı" => "TC Kimlik/FIN numarası AZ FIN biçimine uymuyor -- Pusula'daki hasta kaydı kontrol edilmeli.",
+            "ICD tanı eksik/geçersiz" => "Protokolde geçerli bir ICD-10 tanı kodu yok -- Pusula'da tanı girilmeli.",
+            "Zaman aşımı / bağlantı" => "e-Health sunucusu zamanında yanıt vermedi -- bağlantı sorunu olabilir, tekrar denenmeli.",
+            "e-Health bağlantı ayarı eksik" => "Ayarlar sayfasında e-Health bağlantı bilgileri eksik ya da hatalı.",
+            "Referans bulunamadı" => "Bağlı bir kayıt e-Health'te artık mevcut değil -- önce o kayıt tekrar gönderilmeli.",
+            _ => message,
+        };
+    }
 }

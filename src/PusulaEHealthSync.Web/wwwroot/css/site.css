@@ -1251,8 +1251,10 @@ a.err-row { cursor: pointer; }
 a.err-row:hover { background: var(--surface-hover); }
 .err-badge { flex-shrink: 0; width: 28px; height: 28px; border-radius: 8px; background: var(--danger-soft); color: var(--danger); display: flex; align-items: center; justify-content: center; }
 .err-main { flex: 1; min-width: 0; }
-.err-title { font-size: 13px; color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
-.err-sub { font-size: 11.5px; color: var(--text-faint); margin-top: 2px; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+.err-title { font-size: 13px; color: var(--text); font-weight: 500; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; display: flex; align-items: center; gap: 6px; }
+.err-count-badge { font-family: var(--font-heading); font-size: 10.5px; font-weight: 700; color: var(--danger); background: var(--danger-soft); border-radius: 999px; padding: 1px 7px; flex-shrink: 0; }
+.err-sub { font-size: 12px; color: var(--text); margin-top: 2px; line-height: 1.4; }
+.err-raw { font-size: 10.5px; color: var(--text-faint); margin-top: 3px; font-family: var(--font-heading); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .err-time { font-size: 11px; color: var(--text-faint); flex-shrink: 0; font-family: var(--font-heading); }
 
 .dept-row { display: flex; align-items: center; gap: 10px; padding: 9px 0; border-top: 1px solid var(--border); }

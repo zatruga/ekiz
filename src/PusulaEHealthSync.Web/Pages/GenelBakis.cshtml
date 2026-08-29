@@ -1,6 +1,5 @@
 @page
 @model PusulaEHealthSync.Web.Pages.GenelBakisModel
-@using PusulaEHealthSync.Persistence
 @{
     ViewData["Title"] = "Genel Bakış";
     var todayIso = Model.Today.ToString("yyyy-MM-dd");
@@ -52,7 +51,14 @@
             <span class="kpi-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>
         </div>
         <span class="kpi-value success">@Model.OverallSuccessRatePct.ToString("0.0")<span style="font-size:18px;">%</span></span>
-        <span class="kpi-sub"><span class="@(Model.SuccessRateDeltaPct >= 0 ? "up" : "down")">@(Model.SuccessRateDeltaPct >= 0 ? "▲" : "▼") %@Math.Abs(Model.SuccessRateDeltaPct).ToString("0.#")</span> önceki döneme göre</span>
+        @if (Model.SuccessRateHasBaseline)
+        {
+            <span class="kpi-sub"><span class="@(Model.SuccessRateDeltaPct >= 0 ? "up" : "down")">@(Model.SuccessRateDeltaPct >= 0 ? "▲" : "▼") %@Math.Abs(Model.SuccessRateDeltaPct).ToString("0.#")</span> önceki döneme göre</span>
+        }
+        else
+        {
+            <span class="kpi-sub">önceki dönemde veri yok</span>
+        }
         <svg class="kpi-ring" width="46" height="46" viewBox="0 0 46 46" aria-hidden="true">
             <circle cx="23" cy="23" r="19" fill="none" stroke="var(--surface-hover)" stroke-width="5" />
             <circle cx="23" cy="23" r="19" fill="none" stroke="var(--success)" stroke-width="5" stroke-linecap="round"
@@ -144,13 +150,23 @@
         {
             foreach (var e in Model.RecentErrors)
             {
-                <a asp-page="/Detail" asp-route-id="@e.Id" class="err-row">
+                <a asp-page="/Detail" asp-route-id="@e.LastEntryId" class="err-row">
                     <span class="err-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></span>
                     <span class="err-main">
-                        <span class="err-title">@e.PatientFullName &middot; @SyncLogEntry.ResourceTypeLabel(e.ResourceType)</span>
-                        <div class="err-sub">@(e.Message ?? "Sebep belirtilmedi")</div>
+                        <span class="err-title">
+                            @e.PatientFullName &middot; @e.ResourceTypeLabel
+                            @if (e.Count > 1)
+                            {
+                                <span class="err-count-badge">&times;@e.Count</span>
+                            }
+                        </span>
+                        <div class="err-sub">@e.FriendlyMessage</div>
+                        @if (e.FriendlyMessage != e.RawMessage)
+                        {
+                            <div class="err-raw">@e.RawMessage</div>
+                        }
                     </span>
-                    <span class="err-time">@PusulaEHealthSync.Web.Pages.GenelBakisModel.RelativeTime(e.CreatedAtUtc)</span>
+                    <span class="err-time">@PusulaEHealthSync.Web.Pages.GenelBakisModel.RelativeTime(e.LastSeenUtc)</span>
                 </a>
             }
         }
