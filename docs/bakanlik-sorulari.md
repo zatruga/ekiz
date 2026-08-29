@@ -26,4 +26,26 @@ hiç canlı test edilmedi (2026-08-28).
 
 ---
 
+### 2. Laboratuvar Observation -- procedure-code extension'ı tüm testler için zorunlu mu?
+
+**Soru:** `az-lab-result-observation` profilinde `extension:procedure-code`
+(Azərbaycan Prosedür Kodları Value Set'e bağlı, Procedure kaynağındaki İcbari
+kodla aynı sistem) cardinality **1..1** -- yani her lab Observation'ı için
+zorunlu görünüyor. Ama Procedure kaynağında (kullanıcı kararı, 2026-08-25)
+sadece İcbari Sigorta Fiyat Listesi ile eşleşen hizmetleri gönderiyoruz --
+laboratuvar testlerinin TAMAMI bu listede olmayabilir. Eşleşmeyen bir test
+için bu zorunlu alanı nasıl dolduracağız? Ya (a) LOINC kodu tek başına
+yeterli görülüp bu extension aslında opsiyonel/koşullu mu uygulanıyor, ya da
+(b) İcbari dışındaki testler için de kapsayan farklı/genel bir prosedür kodu
+kaynağı var mı, ya da (c) İcbari eşleşmesi olmayan lab sonuçları hiç
+gönderilmemeli mi?
+
+**Neden çıktı:** Tetkik (laboratuvar) entegrasyonuna başlarken IG'nin ham
+StructureDefinition JSON'ı incelendi (2026-08-29) -- `procedure-code`
+extension'ının min=1 olduğu doğrulandı, henüz hiç canlı $validate denenmedi.
+
+**Durum:** Açık.
+
+---
+
 *(Yeni sorular buraya eklenecek.)*
