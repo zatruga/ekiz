@@ -27,6 +27,8 @@
   --teal-soft: rgba(45, 212, 191, 0.14);
   --indigo: #818CF8;
   --indigo-soft: rgba(129, 140, 248, 0.14);
+  --cyan: #22D3EE;
+  --cyan-soft: rgba(34, 211, 238, 0.14);
 
   --text: #E6EAF2;
   --text-muted: #8B95A8;
@@ -72,6 +74,8 @@
   --teal-soft: rgba(13, 148, 136, 0.10);
   --indigo: #4F46E5;
   --indigo-soft: rgba(79, 70, 229, 0.10);
+  --cyan: #0891B2;
+  --cyan-soft: rgba(8, 145, 178, 0.10);
 
   --text: #0F172A;
   --text-muted: #55617A;
@@ -504,6 +508,7 @@ tbody tr:hover { background: var(--surface-hover); }
 .badge.rt-composition { background: var(--warning-soft); color: var(--warning); }
 .badge.rt-condition { background: var(--teal-soft); color: var(--teal); }
 .badge.rt-procedure { background: var(--indigo-soft); color: var(--indigo); }
+.badge.rt-observation { background: var(--cyan-soft); color: var(--cyan); }
 
 /* ---------- Kayit Detayi -- kaynak turu basligi ---------- */
 /* Hangi kayit turunun (Hasta/Doktor/Müayinə/Epikriz) detayinda olundugu ilk bakista
@@ -527,6 +532,7 @@ tbody tr:hover { background: var(--surface-hover); }
 .resource-chip.rt-composition { background: var(--warning-soft); }
 .resource-chip.rt-condition { background: var(--teal-soft); }
 .resource-chip.rt-procedure { background: var(--indigo-soft); }
+.resource-chip.rt-observation { background: var(--cyan-soft); }
 
 .resource-avatar {
   flex-shrink: 0;
@@ -546,6 +552,7 @@ tbody tr:hover { background: var(--surface-hover); }
 .resource-avatar.rt-composition { background: var(--warning-soft); color: var(--warning); }
 .resource-avatar.rt-condition { background: var(--teal-soft); color: var(--teal); }
 .resource-avatar.rt-procedure { background: var(--indigo-soft); color: var(--indigo); }
+.resource-avatar.rt-observation { background: var(--cyan-soft); color: var(--cyan); }
 
 .resource-eyebrow {
   display: block;
@@ -562,6 +569,7 @@ tbody tr:hover { background: var(--surface-hover); }
 .resource-eyebrow.rt-composition { color: var(--warning); }
 .resource-eyebrow.rt-condition { color: var(--teal); }
 .resource-eyebrow.rt-procedure { color: var(--indigo); }
+.resource-eyebrow.rt-observation { color: var(--cyan); }
 
 /* ---------- Empty state ---------- */
 

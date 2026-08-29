@@ -49,6 +49,7 @@ builder.Services.AddSingleton<ConditionSyncService>();
 builder.Services.AddSingleton<ProcedureSyncService>();
 builder.Services.AddSingleton<EncounterSyncService>();
 builder.Services.AddSingleton<CompositionSyncService>();
+builder.Services.AddSingleton<LabResultSyncService>();
 builder.Services.AddSingleton<DeleteService>();
 builder.Services.AddSingleton<IPasswordHasher<object>, PasswordHasher<object>>();
 

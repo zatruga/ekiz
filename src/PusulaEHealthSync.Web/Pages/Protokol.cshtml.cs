@@ -22,6 +22,7 @@ public class ProtokolModel(
     CompositionSyncService compositionSyncService,
     ConditionSyncService conditionSyncService,
     ProcedureSyncService procedureSyncService,
+    LabResultSyncService labResultSyncService,
     DeleteService deleteService,
     EHealthClient eHealthClient) : PageModel
 {
@@ -33,6 +34,15 @@ public class ProtokolModel(
     public SyncLogEntry? EpikrizDurumKaydi { get; set; }
     public List<(IcdTaniRecord Tani, SyncLogEntry? Durum)> Tanilar { get; set; } = [];
     public List<(IslemRecord Islem, SyncLogEntry? Durum)> Islemler { get; set; } = [];
+
+    // Laboratuvar (Tetkik) -- KULLANICI ISTEGI (2026-08-29): "tetkik kısmına başlayalım,
+    // laboratuvar önce". GetLabResultsByProtokolIdAsync zaten sadece Status=6 (onaylanmis/
+    // kesinlesmis) sonuclari donduruyor. procedure-code extension'i BILEREK eklenmedi (bkz.
+    // LabResultObservationMapper) -- once canli $validate ile sunucunun bunu gercekten
+    // reddedip reddetmedigi gorulecek (KULLANICI KARARI, 2026-08-29).
+    public List<(LabResultRecord Lab, SyncLogEntry? Durum)> Labs { get; set; } = [];
+    public bool LabsGonderilebilir => Labs.Any(l => !BasariylaGonderildi(l.Durum));
+    public bool LabsSilinebilir => Labs.Any(l => SyncLogEntry.CanDelete(l.Durum));
 
     // Baslik satirindaki "Tümünü Sil"/"Tümünü Gönder" butonlarinin gorunurlugu -- KULLANICI
     // ISTEGI (2026-08-25): "tanı ve procedür başlıklarında tümünü sil ve eğer silinmiş ise
@@ -83,6 +93,10 @@ public class ProtokolModel(
         var islemler = await pusulaRepository.GetIslemlerByProtokolIdAsync(Protokol.ProtokolId, ct);
         var islemStatuses = await syncLog.GetLatestByPusulaIdsAsync("Procedure", islemler.Select(i => i.Id).ToList(), ct);
         Islemler = islemler.Select(i => (i, islemStatuses.GetValueOrDefault(i.Id))).ToList();
+
+        var labs = await pusulaRepository.GetLabResultsByProtokolIdAsync(Protokol.ProtokolId, ct);
+        var labStatuses = await syncLog.GetLatestByPusulaIdsAsync("Observation", labs.Select(l => l.LabaratuarSonucId).ToList(), ct);
+        Labs = labs.Select(l => (l, labStatuses.GetValueOrDefault(l.LabaratuarSonucId))).ToList();
 
         GenelMuayene = await pusulaRepository.GetGenelMuayeneByProtokolIdAsync(Protokol.ProtokolId, ct);
         EpikrizSendEnabled = await settings.GetBoolAsync(SettingsStore.EpikrizSendEnabledKey, true, ct);
@@ -324,6 +338,84 @@ public class ProtokolModel(
     // kontrol ediliyor -- yoksa Muayine kendi kendini iyilestiriyor (EncounterSyncService
     // zaten FindExistingIdAsync ile canli arama yapip bulamazsa YENİ bir Encounter olusturur
     // ve cascade ile Tanı/İşlem'i de otomatik yeniden gonderir).
+    public async Task<IActionResult> OnPostSilLabAsync(int id, long durumId, CancellationToken ct)
+    {
+        var entry = await syncLog.GetByIdAsync(durumId, ct);
+        if (entry is not null)
+            await deleteService.DeleteAsync(entry, ct);
+        return RedirectToPage("/Protokol", new { id });
+    }
+
+    public async Task<IActionResult> OnPostTumunuSilLabAsync(int id, CancellationToken ct)
+    {
+        Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
+        if (Protokol is null) return NotFound();
+
+        var labs = await pusulaRepository.GetLabResultsByProtokolIdAsync(Protokol.ProtokolId, ct);
+        var labStatuses = await syncLog.GetLatestByPusulaIdsAsync("Observation", labs.Select(l => l.LabaratuarSonucId).ToList(), ct);
+        foreach (var durum in labStatuses.Values.Where(SyncLogEntry.CanDelete))
+            await deleteService.DeleteAsync(durum, ct);
+        return RedirectToPage("/Protokol", new { id });
+    }
+
+    public async Task<IActionResult> OnPostGonderLabAsync(int id, int labId, CancellationToken ct)
+    {
+        Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
+        if (Protokol is null) return NotFound();
+
+        var (azPatientId, azEncounterId) = await GetIdleriLabIcinAsync(Protokol, ct);
+        if (azPatientId is not null)
+        {
+            var labs = await pusulaRepository.GetLabResultsByProtokolIdAsync(Protokol.ProtokolId, ct);
+            var lab = labs.FirstOrDefault(l => l.LabaratuarSonucId == labId);
+            if (lab is not null)
+                await labResultSyncService.SyncOneAsync(lab, Protokol, azPatientId, azEncounterId, liveMode: true, ct);
+        }
+        return RedirectToPage("/Protokol", new { id });
+    }
+
+    public async Task<IActionResult> OnPostTumunuGonderLabAsync(int id, CancellationToken ct)
+    {
+        Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
+        if (Protokol is null) return NotFound();
+
+        var (azPatientId, azEncounterId) = await GetIdleriLabIcinAsync(Protokol, ct);
+        if (azPatientId is not null)
+        {
+            var labs = await pusulaRepository.GetLabResultsByProtokolIdAsync(Protokol.ProtokolId, ct);
+            var labStatuses = await syncLog.GetLatestByPusulaIdsAsync("Observation", labs.Select(l => l.LabaratuarSonucId).ToList(), ct);
+            foreach (var lab in labs)
+            {
+                if (BasariylaGonderildi(labStatuses.GetValueOrDefault(lab.LabaratuarSonucId))) continue;
+                await labResultSyncService.SyncOneAsync(lab, Protokol, azPatientId, azEncounterId, liveMode: true, ct);
+            }
+        }
+        return RedirectToPage("/Protokol", new { id });
+    }
+
+    // Tanı/İşlem'deki GetGercekIdleriAsync'in aksine burada Muayine (Encounter) HENUZ
+    // gonderilmemisse otomatik gondermeye ZORLAMIYORUZ -- Observation.encounter opsiyonel
+    // (bkz. LabResultObservationMapper), lab sonucu tek basina (sadece Hasta'ya bagli olarak)
+    // gonderilebilir. Kayitli Encounter id'si varsa GERCEKTEN gecerli mi diye canli kontrol
+    // ediliyor (GetGercekIdleriAsync'teki ayni "409 riskini onle" mantigi) -- gecersizse
+    // sadece referans eklenmiyor, yeni bir Encounter OLUSTURULMUYOR.
+    private async Task<(string? AzPatientId, string? AzEncounterId)> GetIdleriLabIcinAsync(ProtokolListItem protokol, CancellationToken ct)
+    {
+        var patientStatuses = await syncLog.GetLatestByPusulaIdsAsync("Patient", [protokol.HastaId], ct);
+        var encounterStatuses = await syncLog.GetLatestByPusulaIdsAsync("Encounter", [protokol.ProtokolId], ct);
+        var azPatientId = patientStatuses.GetValueOrDefault(protokol.HastaId)?.AzResourceId;
+        var azEncounterId = encounterStatuses.GetValueOrDefault(protokol.ProtokolId)?.AzResourceId;
+
+        if (azEncounterId is not null)
+        {
+            var check = await eHealthClient.GetAsync("Encounter", azEncounterId, ct);
+            if (!check.Success)
+                azEncounterId = null;
+        }
+
+        return (azPatientId, azEncounterId);
+    }
+
     private async Task<(string? AzPatientId, string? AzEncounterId)> GetGercekIdleriAsync(ProtokolListItem protokol, CancellationToken ct)
     {
         var patientStatuses = await syncLog.GetLatestByPusulaIdsAsync("Patient", [protokol.HastaId], ct);

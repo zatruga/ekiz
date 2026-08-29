@@ -54,6 +54,7 @@ public class SyncLogEntry
         "Composition" => "Epikriz",
         "Condition" => "Tanı",
         "Procedure" => "İşlem",
+        "Observation" => "Tetkik",
         _ => resourceType,
     };
 
@@ -69,6 +70,7 @@ public class SyncLogEntry
         "Composition" => "rt-composition",
         "Condition" => "rt-condition",
         "Procedure" => "rt-procedure",
+        "Observation" => "rt-observation",
         _ => "rt-patient",
     };
 
