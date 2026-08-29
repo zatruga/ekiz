@@ -35,6 +35,15 @@ public static class LabResultObservationMapper
         if (string.IsNullOrWhiteSpace(lab.IcbariKodu))
             return new MappingResult.Skipped("İcbari Sigorta Fiyat Listesi eşleşmesi bulunamadı -- Observation.extension:procedure-code zorunlu alanı doldurulamıyor, bu test sonucu gönderilemiyor");
 
+        // KULLANICI ISTEGI (2026-08-29, canli hata -- "Hemogram" satirinin kendisi "Hatalı"
+        // gorunuyordu): panelin KENDI satiri (orn. "Hemogram") genelde bir sipariş/toplayici
+        // kayittir, tek basina bir olcum degeri tasimaz -- TetkikSonucu bos. AZ profilindeki
+        // "az-lab-value-or-component" kurali (value VEYA component ZORUNLU) bu yuzden
+        // sunucu tarafinda reddediliyordu. Deger yoksa (component da hic uretmiyoruz) bu satir
+        // gonderilecek gecerli bir Observation degildir -- Skipped, gercek bir hata degil.
+        if (string.IsNullOrWhiteSpace(lab.TetkikSonucu))
+            return new MappingResult.Skipped("Bu satırın kendi bir sonuç değeri yok (panel/sipariş satırı olabilir) -- tek başına bir Observation olarak gönderilemez");
+
         var icbariKodu = lab.IcbariKodu.TrimEnd('.');
 
         var observation = new JsonObject
