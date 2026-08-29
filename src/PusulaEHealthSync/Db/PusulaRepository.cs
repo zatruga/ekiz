@@ -331,14 +331,38 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
     // Status=6 (onaylanmis/kesinlesmis) filtresi burada, SQL tarafinda uygulaniyor -- sadece
     // Epikriz'deki KilitDurumuId=1 kuraliyla AYNI mantik: hala islemde olan sonuclar hic
     // donmez, C# tarafinda ayrica filtrelemeye gerek yok.
+    //
+    // ICBARI KODU KOPRUSU (2026-08-29, canli hata -- e-Health sunucusu Observation.extension:
+    // procedure-code'u 1..1 ZORUNLU olarak reddetti, bkz. docs/bakanlik-sorulari.md soru #2):
+    // COMED view'i (bagli sunucu) Hasta.ProtokolIslem'e baglanan bir kolon DONDURMUYOR, ama
+    // kullanicinin canli SELECT'iyle (2026-08-29) dogrulandi ki LIS.Test (YEREL tablo, Pusula'nin
+    // kendi laboratuvar test katalogu) hem LoincKodu hem HizmetId tasiyor -- view'in LoincKodu'su
+    // LIS.Test.LoincKodu ile eslestirilince Ortak.Hizmet'e, oradan da GetIslemlerByProtokolIdAsync
+    // ile AYNI Icbari eslestirme zincirine (Ortak.HizmetKurumHizmet -> Pazarlama.KurumHizmet,
+    // KurumHizmetKategoriId=13) ulasiliyor. 20 satirlik canli ornekte 19/20 HizmetId, cogunda
+    // Icbari kodu da bulundu -- bulunamayanlar (LOINC yok ya da Icbari listede olmayan hizmet)
+    // LabResultObservationMapper'da Skipped olacak (procedure-code doldurulamiyorsa gonderilemez).
     public async Task<List<LabResultRecord>> GetLabResultsByProtokolIdAsync(int protokolId, CancellationToken ct = default)
     {
         const string sql = @"
-            SELECT LabaratuarSonucId, VisitId, Status, TetkikAdi, TetkikSonucu, TetkikSonucuBirimi,
-                   TetkikSonucuReferansDegeri, TetkikSonucuReferansDegerAraligindaMi, LoincKodu,
-                   TetkikSonucTarihi, TetkikSonucOnayTarihi
-            FROM LIS.uv_LaboratuarSonucKayitBilgileriByProtokolId
-            WHERE VisitId = @ProtokolId AND Status = 6";
+            SELECT lab.LabaratuarSonucId, lab.VisitId, lab.Status, lab.TetkikAdi, lab.TetkikSonucu, lab.TetkikSonucuBirimi,
+                   lab.TetkikSonucuReferansDegeri, lab.TetkikSonucuReferansDegerAraligindaMi, lab.LoincKodu,
+                   lab.TetkikSonucTarihi, lab.TetkikSonucOnayTarihi,
+                   icb.Kodu AS IcbariKodu, icb.Adi AS IcbariAdi
+            FROM LIS.uv_LaboratuarSonucKayitBilgileriByProtokolId lab
+            LEFT JOIN LIS.Test t ON t.LoincKodu = lab.LoincKodu
+            LEFT JOIN Ortak.Hizmet oh ON oh.Id = t.HizmetId
+            OUTER APPLY (
+                SELECT TOP 1 PKH.Kodu, PKH.Adi
+                FROM Ortak.HizmetKurumHizmet OHKH
+                INNER JOIN Pazarlama.KurumHizmet PKH ON PKH.Id = OHKH.KurumHizmetId
+                WHERE OHKH.HizmetId = oh.Id
+                  AND PKH.KurumHizmetKategoriId = 13
+                  AND PKH.State <> 0
+                  AND OHKH.State <> 0
+                ORDER BY PKH.IsPaket DESC
+            ) icb
+            WHERE lab.VisitId = @ProtokolId AND lab.Status = 6";
 
         await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
@@ -362,6 +386,8 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
                 LoincKodu = reader.IsDBNull(8) ? null : reader.GetString(8),
                 TetkikSonucTarihi = reader.IsDBNull(9) ? null : reader.GetDateTime(9),
                 TetkikSonucOnayTarihi = reader.IsDBNull(10) ? null : reader.GetDateTime(10),
+                IcbariKodu = reader.IsDBNull(11) ? null : reader.GetString(11),
+                IcbariAdi = reader.IsDBNull(12) ? null : reader.GetString(12),
             });
         }
         return result;

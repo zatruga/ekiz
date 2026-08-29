@@ -15,22 +15,28 @@ namespace PusulaEHealthSync.Mapping;
 // local-system-unique-id extension (1..1, base AZObservation profilinden -- ProcedureMapper/
 // ConditionMapper ile AYNI kalip).
 //
-// KASITLI EKSIK: extension:procedure-code (profilde 1..1 zorunlu gorunuyor, bkz.
-// docs/bakanlik-sorulari.md soru #2) BURAYA EKLENMEDI -- LIS view'i (ayri bir bagli sunucudaki
-// COMED LIS sisteminden geliyor, bkz. LabResultRecord ustundeki not) Hasta.ProtokolIslem/Ortak.
-// Hizmet'e baglanan bir kolon DONDURMUYOR, yani Icbari/prosedur koduna ulasacak bir JOIN yok.
-// KULLANICI KARARI (2026-08-29): "once canli $validate ile test et" -- sunucunun bu alani
-// GERCEKTEN reddedip reddetmedigini once gorelim, teoriye gore degil.
+// procedure-code extension (1..1 -- CANLI $validate ile dogrulandi, 2026-08-29: sunucu
+// bunsuz "Instance count for 'Observation.extension:procedure-code' is 0" diye reddetti).
+// Icbari kodu artik GetLabResultsByProtokolIdAsync'teki LIS.Test koprusuyle geliyor (bkz. o
+// metottaki gerekce) -- bulunamazsa (LOINC eslesmesi yok ya da o hizmet Icbari Sigorta Fiyat
+// Listesi'nde degil) bu test sonucu SKIPPED olur, cunku zorunlu alan doldurulamaz.
 public static class LabResultObservationMapper
 {
     private const string LoincSystem = "http://loinc.org";
     private const string CategorySystem = "http://terminology.hl7.org/CodeSystem/observation-category";
     private const string InterpretationSystem = "http://terminology.hl7.org/CodeSystem/v3-ObservationInterpretation";
+    private const string ProcedureCodeExtensionUrl = "http://fhir.az/StructureDefinition/procedure-code";
+    private const string ProcedureCodeSystem = "http://fhir.az/CodeSystem/az-procedure-codes";
 
     public static MappingResult Map(LabResultRecord lab, string azPatientId, string? azEncounterId)
     {
         if (string.IsNullOrWhiteSpace(lab.LoincKodu))
             return new MappingResult.Skipped("LOINC kodu eksik -- Observation.code için zorunlu, bu test sonucu gönderilemiyor");
+
+        if (string.IsNullOrWhiteSpace(lab.IcbariKodu))
+            return new MappingResult.Skipped("İcbari Sigorta Fiyat Listesi eşleşmesi bulunamadı -- Observation.extension:procedure-code zorunlu alanı doldurulamıyor, bu test sonucu gönderilemiyor");
+
+        var icbariKodu = lab.IcbariKodu.TrimEnd('.');
 
         var observation = new JsonObject
         {
@@ -63,6 +69,17 @@ public static class LabResultObservationMapper
                 {
                     ["url"] = "http://fhir.az/StructureDefinition/local-system-unique-id",
                     ["valueString"] = lab.LabaratuarSonucId.ToString(),
+                },
+                new JsonObject
+                {
+                    ["url"] = ProcedureCodeExtensionUrl,
+                    ["valueCodeableConcept"] = new JsonObject
+                    {
+                        ["coding"] = new JsonArray
+                        {
+                            new JsonObject { ["system"] = ProcedureCodeSystem, ["code"] = icbariKodu, ["display"] = lab.IcbariAdi ?? icbariKodu },
+                        },
+                    },
                 },
             },
         };

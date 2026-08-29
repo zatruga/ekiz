@@ -26,32 +26,26 @@ hiç canlı test edilmedi (2026-08-28).
 
 ---
 
-### 2. Laboratuvar Observation -- procedure-code extension'ı tüm testler için zorunlu mu?
+*(Yeni sorular buraya eklenecek.)*
+
+## Kapanan sorular
+
+### Laboratuvar Observation -- procedure-code extension'ı tüm testler için zorunlu mu?
 
 **Soru:** `az-lab-result-observation` profilinde `extension:procedure-code`
-(Azərbaycan Prosedür Kodları Value Set'e bağlı, Procedure kaynağındaki İcbari
-kodla aynı sistem) cardinality **1..1** -- yani her lab Observation'ı için
-zorunlu görünüyor. Ama Procedure kaynağında (kullanıcı kararı, 2026-08-25)
-sadece İcbari Sigorta Fiyat Listesi ile eşleşen hizmetleri gönderiyoruz --
-laboratuvar testlerinin TAMAMI bu listede olmayabilir. Eşleşmeyen bir test
-için bu zorunlu alanı nasıl dolduracağız? Ya (a) LOINC kodu tek başına
-yeterli görülüp bu extension aslında opsiyonel/koşullu mu uygulanıyor, ya da
-(b) İcbari dışındaki testler için de kapsayan farklı/genel bir prosedür kodu
-kaynağı var mı, ya da (c) İcbari eşleşmesi olmayan lab sonuçları hiç
-gönderilmemeli mi?
+cardinality 1..1 -- LOINC kodu tek başına yeterli mi, yoksa her lab
+Observation'ı İcbari Sigorta Fiyat Listesi'ndeki bir hizmete de mi bağlanmalı?
 
-**Neden çıktı:** Tetkik (laboratuvar) entegrasyonuna başlarken IG'nin ham
-StructureDefinition JSON'ı incelendi (2026-08-29) -- `procedure-code`
-extension'ının min=1 olduğu doğrulandı, henüz hiç canlı $validate denenmedi.
-
-**Durum:** İlk kısmı CANLI $validate ile doğrulandı (2026-08-29) -- sunucu
-gerçekten reddetti: `"Instance count for 'Observation.extension:procedure-code'
-is 0, which is not within the specified cardinality of 1..1"`. Yani LOINC tek
-başına KESİNLİKLE yetmiyor, procedure-code zorunlu. Kalan asıl soru hâlâ açık:
-İcbari eşleşmesi olmayan lab testleri için bu kodu nereden bulacağız (b/c
-seçenekleri hâlâ geçerli) -- Pusula tarafında `LIS.TestIslem.ProtokolIslemId`
-üzerinden bir köprü olup olmadığı araştırılıyor.
-
----
-
-*(Yeni sorular buraya eklenecek.)*
+**Cevap (2026-08-29):** Zorunlu -- CANLI $validate ile doğrulandı, sunucu
+`"Instance count for 'Observation.extension:procedure-code' is 0, which is
+not within the specified cardinality of 1..1"` diyerek reddetti. Pusula
+tarafında köprü de bulundu: COMED view'i (`LIS.uv_LaboratuarSonucKayitBilgileriByProtokolId`)
+doğrudan bir Hizmet bağlantısı vermiyor, ama `LIS.Test` (Pusula'nın kendi
+laboratuvar test kataloğu, YEREL tablo) hem `LoincKodu` hem `HizmetId` taşıyor
+-- kullanıcının canlı SELECT'iyle (2026-08-29, 20 satırlık örnek, 19/20
+eşleşti) doğrulandı. Zincir: view.LoincKodu -> LIS.Test.LoincKodu -> HizmetId
+-> Ortak.Hizmet -> (Procedure kaynağıyla AYNI) İcbari eşleştirmesi. Uygulandı:
+`PusulaRepository.GetLabResultsByProtokolIdAsync` artık bu zinciri JOIN
+ediyor, `LabResultObservationMapper` İcbari kodu bulunamayan (LOINC eşleşmesi
+yok ya da o hizmet İcbari listede değil) test sonuçlarını Skipped bırakıyor
+-- procedure-code doldurulamadan gönderilemez.

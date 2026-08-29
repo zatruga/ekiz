@@ -28,5 +28,13 @@ public class LabResultRecord
     public DateTime? TetkikSonucTarihi { get; set; }
     public DateTime? TetkikSonucOnayTarihi { get; set; }
 
+    // AZ Observation icin ZORUNLU procedure-code extension'ini doldurabilmek icin --
+    // LIS.uv_LaboratuarSonucKayitBilgileriByProtokolId (COMED bagli sunucu) kendisi bir
+    // Hizmet/ProtokolIslem baglantisi vermiyor, ama LoincKodu'yu LIS.Test.LoincKodu ile
+    // eslestirip oradan HizmetId -> Icbari kodu zincirine ulasilabildigi CANLI dogrulandi
+    // (2026-08-29, kullanici SELECT'i). Bkz. PusulaRepository.GetLabResultsByProtokolIdAsync.
+    public string? IcbariKodu { get; set; }
+    public string? IcbariAdi { get; set; }
+
     public bool IsApproved => Status == 6;
 }
