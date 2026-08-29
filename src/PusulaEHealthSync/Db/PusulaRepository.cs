@@ -684,24 +684,31 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
     // olarak daha once basariyla gonderilmis protokol Id'lerinin SU ANKI State'ini okur.
     // Sadece verilen id kumesiyle sinirli (SyncLogStore'daki "sent" kayitlar), tum tabloyu
     // taramaz.
+    // KULLANICI ISTEGI oncesi bulunan potansiyel ayni hata (bkz. GetIcbariProtokolIdsAsync'teki
+    // 2026-08-29 duzeltme notu): burada da "gonderilmis TUM Encounter'lar" seti zamanla
+    // 2100 SQL Server parametre sinirini asabilir -- her Index sayfa yuklemesinde calistigi
+    // icin ayni sekilde onceden parcalara bolunuyor.
     public async Task<Dictionary<int, byte>> GetStatesByIdsAsync(IReadOnlyCollection<int> protokolIds, CancellationToken ct = default)
     {
         var result = new Dictionary<int, byte>();
         if (protokolIds.Count == 0) return result;
 
-        const string sql = "SELECT Id, State FROM hasta.protokol WHERE Id IN ({0})";
-        var idList = protokolIds.ToList();
-        var placeholders = idList.Select((_, i) => $"@id{i}").ToList();
-
         await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
-        await using var cmd = new SqlCommand(string.Format(sql, string.Join(",", placeholders)), conn);
-        for (var i = 0; i < idList.Count; i++)
-            cmd.Parameters.AddWithValue($"@id{i}", idList[i]);
 
-        await using var reader = await cmd.ExecuteReaderAsync(ct);
-        while (await reader.ReadAsync(ct))
-            result[reader.GetInt32(0)] = Convert.ToByte(reader.GetValue(1));
+        foreach (var batch in protokolIds.Distinct().Chunk(IcbariBatchSize))
+        {
+            const string sql = "SELECT Id, State FROM hasta.protokol WHERE Id IN ({0})";
+            var placeholders = batch.Select((_, i) => $"@id{i}").ToList();
+
+            await using var cmd = new SqlCommand(string.Format(sql, string.Join(",", placeholders)), conn);
+            for (var i = 0; i < batch.Length; i++)
+                cmd.Parameters.AddWithValue($"@id{i}", batch[i]);
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+                result[reader.GetInt32(0)] = Convert.ToByte(reader.GetValue(1));
+        }
         return result;
     }
 
