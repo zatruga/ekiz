@@ -44,7 +44,13 @@ gönderilmemeli mi?
 StructureDefinition JSON'ı incelendi (2026-08-29) -- `procedure-code`
 extension'ının min=1 olduğu doğrulandı, henüz hiç canlı $validate denenmedi.
 
-**Durum:** Açık.
+**Durum:** İlk kısmı CANLI $validate ile doğrulandı (2026-08-29) -- sunucu
+gerçekten reddetti: `"Instance count for 'Observation.extension:procedure-code'
+is 0, which is not within the specified cardinality of 1..1"`. Yani LOINC tek
+başına KESİNLİKLE yetmiyor, procedure-code zorunlu. Kalan asıl soru hâlâ açık:
+İcbari eşleşmesi olmayan lab testleri için bu kodu nereden bulacağız (b/c
+seçenekleri hâlâ geçerli) -- Pusula tarafında `LIS.TestIslem.ProtokolIslemId`
+üzerinden bir köprü olup olmadığı araştırılıyor.
 
 ---
 
