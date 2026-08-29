@@ -124,7 +124,16 @@ else
                         </td>
                         <td class="mono text-muted">@(e.AzResourceId ?? "-")</td>
                         <td class="text-muted">@(e.Operation?.ToString() ?? "-")</td>
-                        <td class="cell-wide text-muted">@(e.Message ?? "-")</td>
+                        <td class="cell-wide text-muted">
+                            @if (e.Status == SyncStatus.Failed && e.Message is not null)
+                            {
+                                <span title="@e.Message">@SyncLogEntry.FriendlyError(e.Message)</span>
+                            }
+                            else
+                            {
+                                @(e.Message ?? "-")
+                            }
+                        </td>
                         <td><a asp-page="/Detail" asp-route-id="@e.Id" class="btn btn-outline btn-sm">Detay</a></td>
                     </tr>
                 }

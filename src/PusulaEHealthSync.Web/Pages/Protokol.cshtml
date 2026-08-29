@@ -99,7 +99,10 @@ else
                     }
                     else
                     {
-                        <text>Son deneme: @Model.HastaDurumKaydi.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC @(Model.HastaDurumKaydi.Message is not null ? $"-- {Model.HastaDurumKaydi.Message}" : "")</text>
+                        var displayMsg = Model.HastaDurumKaydi.Message is null ? ""
+                            : Model.HastaDurumKaydi.Status == SyncStatus.Failed ? SyncLogEntry.FriendlyError(Model.HastaDurumKaydi.Message)
+                            : Model.HastaDurumKaydi.Message;
+                        <text>Son deneme: @Model.HastaDurumKaydi.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC @(string.IsNullOrEmpty(displayMsg) ? "" : $"-- {displayMsg}")</text>
                     }
                 </span>
             </div>
@@ -159,7 +162,10 @@ else
                     }
                     else
                     {
-                        <text> Son deneme: @Model.MuayineDurumKaydi.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC @(Model.MuayineDurumKaydi.Message is not null ? $"-- {Model.MuayineDurumKaydi.Message}" : "")</text>
+                        var displayMsg = Model.MuayineDurumKaydi.Message is null ? ""
+                            : Model.MuayineDurumKaydi.Status == SyncStatus.Failed ? SyncLogEntry.FriendlyError(Model.MuayineDurumKaydi.Message)
+                            : Model.MuayineDurumKaydi.Message;
+                        <text> Son deneme: @Model.MuayineDurumKaydi.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC @(string.IsNullOrEmpty(displayMsg) ? "" : $"-- {displayMsg}")</text>
                     }
                 </span>
             </div>
@@ -240,7 +246,10 @@ else
                     }
                     else
                     {
-                        <text> Son deneme: @Model.EpikrizDurumKaydi.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC @(Model.EpikrizDurumKaydi.Message is not null ? $"-- {Model.EpikrizDurumKaydi.Message}" : "")</text>
+                        var displayMsg = Model.EpikrizDurumKaydi.Message is null ? ""
+                            : Model.EpikrizDurumKaydi.Status == SyncStatus.Failed ? SyncLogEntry.FriendlyError(Model.EpikrizDurumKaydi.Message)
+                            : Model.EpikrizDurumKaydi.Message;
+                        <text> Son deneme: @Model.EpikrizDurumKaydi.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC @(string.IsNullOrEmpty(displayMsg) ? "" : $"-- {displayMsg}")</text>
                     }
                 </span>
             </div>

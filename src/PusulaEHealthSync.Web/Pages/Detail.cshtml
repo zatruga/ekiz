@@ -136,7 +136,19 @@ else
         </div>
         <div class="info-item" style="flex:1; min-width:220px;">
             <span class="label">Mesaj</span>
-            <span class="value" style="font-family:var(--font-body); font-size:14px; font-weight:400;">@(e.Message ?? "-")</span>
+            @if (e.Status == SyncStatus.Failed && e.Message is not null)
+            {
+                var friendly = SyncLogEntry.FriendlyError(e.Message);
+                <span class="value" style="font-family:var(--font-body); font-size:14px; font-weight:400;">@friendly</span>
+                @if (friendly != e.Message)
+                {
+                    <span class="value" style="font-family:var(--font-heading); font-size:11.5px; font-weight:400; color:var(--text-faint); display:block; margin-top:3px;">@e.Message</span>
+                }
+            }
+            else
+            {
+                <span class="value" style="font-family:var(--font-body); font-size:14px; font-weight:400;">@(e.Message ?? "-")</span>
+            }
         </div>
 
         @if (e.ResourceType is "Patient" or "Encounter" or "Practitioner" or "Composition")
