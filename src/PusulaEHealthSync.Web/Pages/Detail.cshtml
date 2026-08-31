@@ -151,29 +151,29 @@ else
             }
         </div>
 
-        @if (e.ResourceType is "Patient" or "Encounter" or "Practitioner" or "Composition")
-        {
-            <div style="margin-left:auto; align-self:center; display:flex; gap:10px;">
-                <form method="post" asp-page-handler="Resend" asp-route-id="@e.Id" onsubmit="pusulaLockSubmit(this)">
+        <div style="margin-left:auto; align-self:center; display:flex; gap:10px;">
+            @if (e.ResourceType is "Patient" or "Encounter" or "Practitioner" or "Composition" or "Condition" or "Procedure" or "Observation" or "DiagnosticReport")
+            {
+                <form method="post" asp-page-handler="Resend" asp-route-id="@e.Id" asp-route-fromProtokol="@Model.FromProtokol" onsubmit="pusulaLockSubmit(this)">
                     <button type="submit" class="btn btn-primary"
                             onclick="return confirm('Bu kayıt e-Health\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
                         <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
                         Tekrar Gönder
                     </button>
                 </form>
-                @if (SyncLogEntry.CanDelete(e))
-                {
-                    <form method="post" asp-page-handler="Delete" asp-route-id="@e.Id" onsubmit="pusulaLockSubmit(this)">
-                        <button type="submit" class="btn btn-outline"
-                                style="border-color:var(--danger); color:var(--danger);"
-                                onclick="return confirm('Bu kayıt e-Health\'ten KALICI olarak SİLİNECEK. Bu işlem geri alınamaz. Emin misiniz?')">
-                            <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                            Sil
-                        </button>
-                    </form>
-                }
-            </div>
-        }
+            }
+            @if (SyncLogEntry.CanDelete(e))
+            {
+                <form method="post" asp-page-handler="Delete" asp-route-id="@e.Id" onsubmit="pusulaLockSubmit(this)">
+                    <button type="submit" class="btn btn-outline"
+                            style="border-color:var(--danger); color:var(--danger);"
+                            onclick="return confirm('Bu kayıt e-Health\'ten KALICI olarak SİLİNECEK. Bu işlem geri alınamaz. Emin misiniz?')">
+                        <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                        Sil
+                    </button>
+                </form>
+            }
+        </div>
     </div>
 
     @if (e.AzResourceId is not null)
