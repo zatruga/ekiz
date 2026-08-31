@@ -337,13 +337,50 @@ else
     <div class="tab-detail-anchor" id="tab-detail-anchor">
         <p id="tab-detail-empty" class="tab-detail-empty">Yukarıdan <b style="color:var(--text-muted);">Müayinə</b> veya <b style="color:var(--text-muted);">Laboratuvar</b> satırına tıklayın, listesi burada açılsın.</p>
 
+        @{
+            var (muayineOzetClass, muayineOzetLabel, muayineOzetS, muayineOzetT) = Model.MuayineIcerikOzet();
+            var (taniOzetClass, taniOzetLabel, taniOzetS, taniOzetT) = Model.TanilarOzet();
+            var (islemOzetClass, islemOzetLabel, islemOzetS, islemOzetT) = Model.IslemlerOzet();
+        }
         <div class="side-card tab-panel-content" id="tab-panel-muayine">
             <div class="side-card-head">
-                <span class="rt-name">Müayinə &rarr; Tanı &amp; İşlem</span>
+                <span class="rt-name">
+                    Müayinə &rarr; Tanı &amp; İşlem
+                    @if (muayineOzetT > 0)
+                    {
+                        <span class="badge @muayineOzetClass" style="padding:3px 9px; font-size:11px;">@muayineOzetS/@muayineOzetT @muayineOzetLabel</span>
+                    }
+                </span>
+                <div class="side-card-actions">
+                    @if (Model.TaniIslemGonderilebilir)
+                    {
+                        <form method="post" asp-page-handler="TumunuGonderMuayineIcerik" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                            <button type="submit" class="btn btn-primary btn-sm"
+                                    onclick="return confirm('Henüz gönderilmemiş/hatalı tüm tanı ve işlemler e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                                Tümünü Gönder
+                            </button>
+                        </form>
+                    }
+                    @if (Model.TaniIslemSilinebilir)
+                    {
+                        <form method="post" asp-page-handler="TumunuSilMuayineIcerik" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                            <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
+                                    onclick="return confirm('Gönderilmiş TÜM tanı ve işlem kayıtları e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                Tümünü Sil
+                            </button>
+                        </form>
+                    }
+                </div>
             </div>
             <div class="side-card-section">
                 <div class="side-card-head">
-                    <span class="rt-name">Tanı (Condition) <span class="count">@Model.Tanilar.Count</span></span>
+                    <span class="rt-name">
+                        Tanı (Condition) <span class="count">@Model.Tanilar.Count</span>
+                        @if (taniOzetT > 0)
+                        {
+                            <span class="badge @taniOzetClass" style="padding:3px 9px; font-size:11px;">@taniOzetS/@taniOzetT @taniOzetLabel</span>
+                        }
+                    </span>
                     <div class="side-card-actions">
                         @if (Model.TanilarGonderilebilir)
                         {
@@ -413,7 +450,13 @@ else
 
             <div class="side-card-section">
                 <div class="side-card-head">
-                    <span class="rt-name">İşlem (Procedure) <span class="count">@Model.Islemler.Count</span></span>
+                    <span class="rt-name">
+                        İşlem (Procedure) <span class="count">@Model.Islemler.Count</span>
+                        @if (islemOzetT > 0)
+                        {
+                            <span class="badge @islemOzetClass" style="padding:3px 9px; font-size:11px;">@islemOzetS/@islemOzetT @islemOzetLabel</span>
+                        }
+                    </span>
                     <div class="side-card-actions">
                         @if (Model.IslemlerGonderilebilir)
                         {
@@ -535,10 +578,39 @@ else
             }
         }
 
+        @{
+            var (labOzetClass, labOzetLabel, labOzetS, labOzetT) = Model.LabsOzet();
+        }
         <div class="side-card tab-panel-content" id="tab-panel-lab">
             <div class="side-card-section">
                 <div class="side-card-head">
-                    <span class="rt-name">Laboratuvar (Tetkik) <span class="count">@Model.Labs.Count</span></span>
+                    <span class="rt-name">
+                        Laboratuvar (Tetkik) <span class="count">@Model.Labs.Count</span>
+                        @if (labOzetT > 0)
+                        {
+                            <span class="badge @labOzetClass" style="padding:3px 9px; font-size:11px;">@labOzetS/@labOzetT @labOzetLabel</span>
+                        }
+                    </span>
+                    <div class="side-card-actions">
+                        @if (Model.LabsGonderilebilir)
+                        {
+                            <form method="post" asp-page-handler="TumunuGonderLab" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                <button type="submit" class="btn btn-primary btn-sm"
+                                        onclick="return confirm('Henüz gönderilmemiş/hatalı tüm laboratuvar sonuçları e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                                    Tümünü Gönder
+                                </button>
+                            </form>
+                        }
+                        @if (Model.LabsSilinebilir)
+                        {
+                            <form method="post" asp-page-handler="TumunuSilLab" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
+                                        onclick="return confirm('Gönderilmiş TÜM laboratuvar kayıtları e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                    Tümünü Sil
+                                </button>
+                            </form>
+                        }
+                    </div>
                 </div>
                 @if (Model.Labs.Count == 0)
                 {
