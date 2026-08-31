@@ -26,6 +26,28 @@ hiç canlı test edilmedi (2026-08-28).
 
 ---
 
+### 2. Laboratuvar hizmetleri -- hem Observation hem Procedure olarak mı gönderilmeli?
+
+**Soru:** Bir laboratuvar testi (ör. "Tam sidik analizi") hem `az-lab-result-observation`
+(sonuç değerleriyle, LOINC koduyla) hem de -- Pusula'da İcbari Sigorta Fiyat
+Listesi'nde ayrı bir faturalama kalemi olarak da bulunduğu için -- `az-procedure`
+olarak mı gönderilmeli, yoksa aynı klinik olayın iki kaynak tipinde tekrar
+gönderilmesi (mükerrer) mi sayılır? IG'de bunu netleştiren bir kural bulunamadı.
+
+**Neden çıktı:** Protokol 50853078 incelenirken (2026-08-31) fark edildi --
+`Hasta.ProtokolIslem` tablosunda laboratuvar testlerinin (Tam sidik analizi,
+Metotreksat, AST/ALT/Urea/Kreatinin paneli) kendi İcbari kodlu satırları da
+var, `pi.State` alanı gevşetilince (bkz. `GetIslemlerByProtokolIdAsync`) bu
+kalemler İşlem (Procedure) gönderim listesine de girebiliyordu. Bakanlıktan
+kesin cevap gelene kadar GÜVENLİ TARAF seçildi: `PusulaRepository.cs`'de bu
+tür kalemler (`pi.HizmetId`, `LIS.Test.HizmetId` ile eşleşiyorsa) İşlem
+listesinden hariç tutuluyor -- yani şimdilik SADECE Observation olarak
+gönderiliyorlar, Procedure olarak tekrar gönderilmiyorlar.
+
+**Durum:** Açık.
+
+---
+
 *(Yeni sorular buraya eklenecek.)*
 
 ## Kapanan sorular

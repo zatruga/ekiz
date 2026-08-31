@@ -507,6 +507,21 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
     // State=6 RIS ile BIREBIR ayni "onaylanmis/kesinlesmis" kuralini, ayni sekilde
     // ProtokolIslemId uzerinden (isim degil, ID uzerinden) kullaniyor -- bu yuzden RIS
     // kontrolunun aynisini LIS.TestIslem icin de ekliyoruz.
+    //
+    // DUZELTME (2026-08-31, protokol 50853078 -- kullanici: "procedür olarak sadece serum
+    // takılması gelmiş"): pi.State=2 SABIT deger, State=5 gibi daha ILERI/tamamlanmis
+    // durumlari da disarida birakiyordu (canli ornekte Metotreksat/AST/ALT/Urea/Kreatinin/
+    // Tam sidik analizi hep State=5 idi). Kullanici karari: State>=2 ARANMALI (0/1 hala
+    // bekleyen/iptal, 2 ve uzeri onaylanmis sayiliyor). AMA bu State=5 kalemlerin hepsi
+    // AYNI ZAMANDA laboratuvar hizmetiydi (LIS.Test.HizmetId ile eslesiyor) ve
+    // RisLinked/LisLinked=0 cikti -- yani var olan NOT EXISTS (LIS.TestIslem...) kontrolu
+    // COMED bagli sunucu uzerinden yururlen testler icin ETKISIZ (o tabloya hic yazilmiyor
+    // olmalilar). State filtresini gevsetince bu lab kalemleri Islem listesine sizip Tetkik
+    // (Observation) tarafinda zaten gonderilen AYNI testi Procedure olarak IKINCI KEZ
+    // gonderme riski dogurdu. Bu yuzden ayri bir NOT EXISTS (LIS.Test.HizmetId=pi.HizmetId)
+    // kontrolu eklendi -- GetLabResultsByProtokolIdAsync'teki AYNI LIS.Test tablosu, bir
+    // hizmetin "aslinda bir laboratuvar testi" oldugunu RIS/LIS.TestIslem'den BAGIMSIZ
+    // sekilde guvenilir tespit ediyor.
     public async Task<List<IslemRecord>> GetIslemlerByProtokolIdAsync(int protokolId, CancellationToken ct = default)
     {
         const string sql = @"
@@ -524,7 +539,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
                   AND OHKH.State <> 0
                 ORDER BY PKH.IsPaket DESC
             ) icb
-            WHERE pi.ProtokolId = @ProtokolId AND pi.State = 2 AND pi.HizmetId IS NOT NULL
+            WHERE pi.ProtokolId = @ProtokolId AND pi.State >= 2 AND pi.HizmetId IS NOT NULL
               AND icb.Kodu IS NOT NULL AND LEN(icb.Kodu) > 0
               AND NOT EXISTS (
                   SELECT 1 FROM RIS.TetkikIslem rti
@@ -533,6 +548,9 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
               AND NOT EXISTS (
                   SELECT 1 FROM LIS.TestIslem lti
                   WHERE lti.ProtokolIslemId = pi.Id AND lti.State <> 0 AND lti.State <> 6
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM LIS.Test lt WHERE lt.HizmetId = pi.HizmetId
               )
             ORDER BY pi.Id";
 
@@ -560,10 +578,11 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
     }
 
     // Genel Bakış paneli -- "İcbari Sigorta Gönderim Kapsamı" bölümü icin. GetIslemlerByProtokolIdAsync
-    // ile BIREBIR ayni eslesme/onay kurallari (icbari eslesmesi + pi.State=2 + RIS/LIS State=6
-    // kontrolu -- tam gerekce orada), ama tek protokol yerine bir tarih araligindaki TUM
-    // protokoller uzerinden calisir. Cagiran taraf (GenelBakis) her IslemId'yi SyncLogStore'daki
-    // Procedure kayitlariyla eslestirip hangisinin gonderildigini/gonderilemedigini bulur.
+    // ile BIREBIR ayni eslesme/onay kurallari (icbari eslesmesi + pi.State>=2 + RIS/LIS State=6
+    // + LIS.Test.HizmetId disarida birakma -- tam gerekce orada), ama tek protokol yerine bir
+    // tarih araligindaki TUM protokoller uzerinden calisir. Cagiran taraf (GenelBakis) her
+    // IslemId'yi SyncLogStore'daki Procedure kayitlariyla eslestirip hangisinin
+    // gonderildigini/gonderilemedigini bulur.
     public async Task<List<IcbariIslemRecord>> GetIcbariIslemlerAsync(DateTime fromDate, DateTime toDateExclusive, CancellationToken ct = default)
     {
         const string sql = @"
@@ -584,7 +603,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
                 ORDER BY PKH.IsPaket DESC
             ) icb
             WHERE p.AcilisTarihi >= @FromDate AND p.AcilisTarihi < @ToDateExclusive
-              AND pi.State = 2 AND pi.HizmetId IS NOT NULL
+              AND pi.State >= 2 AND pi.HizmetId IS NOT NULL
               AND icb.Kodu IS NOT NULL AND LEN(icb.Kodu) > 0
               AND NOT EXISTS (
                   SELECT 1 FROM RIS.TetkikIslem rti
@@ -593,6 +612,9 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
               AND NOT EXISTS (
                   SELECT 1 FROM LIS.TestIslem lti
                   WHERE lti.ProtokolIslemId = pi.Id AND lti.State <> 0 AND lti.State <> 6
+              )
+              AND NOT EXISTS (
+                  SELECT 1 FROM LIS.Test lt WHERE lt.HizmetId = pi.HizmetId
               )
             ORDER BY p.AcilisTarihi DESC";
 
@@ -660,7 +682,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
                     ORDER BY PKH.IsPaket DESC
                 ) icb
                 WHERE pi.ProtokolId IN ({string.Join(",", placeholders)})
-                  AND pi.State = 2 AND pi.HizmetId IS NOT NULL
+                  AND pi.State >= 2 AND pi.HizmetId IS NOT NULL
                   AND icb.Kodu IS NOT NULL AND LEN(icb.Kodu) > 0
                   AND NOT EXISTS (
                       SELECT 1 FROM RIS.TetkikIslem rti
@@ -669,6 +691,9 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
                   AND NOT EXISTS (
                       SELECT 1 FROM LIS.TestIslem lti
                       WHERE lti.ProtokolIslemId = pi.Id AND lti.State <> 0 AND lti.State <> 6
+                  )
+                  AND NOT EXISTS (
+                      SELECT 1 FROM LIS.Test lt WHERE lt.HizmetId = pi.HizmetId
                   )";
 
             await using var cmd = new SqlCommand(sql, conn);
