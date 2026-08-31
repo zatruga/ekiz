@@ -470,11 +470,21 @@ public class ProtokolModel(
     // gonderilebilir. Kayitli Encounter id'si varsa GERCEKTEN gecerli mi diye canli kontrol
     // ediliyor (GetGercekIdleriAsync'teki ayni "409 riskini onle" mantigi) -- gecersizse
     // sadece referans eklenmiyor, yeni bir Encounter OLUSTURULMUYOR.
+    //
+    // DUZELTME (2026-08-31, protokol 50819013 -- kullanici: "tüm bilgileri yeniden
+    // göndermeme rağmen ... Bağlı olduğu Hasta kaydı e-Health'te artık bulunamıyor"):
+    // azPatientId ESKIDEN SyncLog'daki en son BASARILI Patient gonderiminin AzResourceId'sini
+    // KORU SORGULAMADAN kullaniyordu -- Muayine/Epikriz ayni anda basariyla gonderilebiliyordu
+    // (canli kanit: bu protokolde ikisi de basarili) cunku EncounterSyncService (satir 48)
+    // Patient'i HIC bizim SyncLog'umuzdan degil, DOGRUDAN CANLI eHealthClient.FindExistingIdAsync
+    // ile arıyor. SyncLog'daki kayitli id ile e-Health'teki GERCEK id farklilasabiliyor (orn.
+    // hasta e-Health tarafinda yeniden olusturulmus/id degismis) -- bu durumda Lab/Tani/Islem
+    // hala ESKI/gecersiz id'yi gonderip "Non-existent reference: Patient/..." aliyordu. Artik
+    // Encounter ile AYNI sekilde CANLI arama yapiyoruz -- cache'e guvenmiyoruz.
     private async Task<(string? AzPatientId, string? AzEncounterId)> GetIdleriLabIcinAsync(ProtokolListItem protokol, CancellationToken ct)
     {
-        var patientStatuses = await syncLog.GetLatestByPusulaIdsAsync("Patient", [protokol.HastaId], ct);
+        var azPatientId = await eHealthClient.FindExistingIdAsync("Patient", protokol.HastaId.ToString(), ct);
         var encounterStatuses = await syncLog.GetLatestByPusulaIdsAsync("Encounter", [protokol.ProtokolId], ct);
-        var azPatientId = patientStatuses.GetValueOrDefault(protokol.HastaId)?.AzResourceId;
         var azEncounterId = encounterStatuses.GetValueOrDefault(protokol.ProtokolId)?.AzResourceId;
 
         if (azEncounterId is not null)
@@ -487,11 +497,14 @@ public class ProtokolModel(
         return (azPatientId, azEncounterId);
     }
 
+    // DUZELTME (2026-08-31): GetIdleriLabIcinAsync'teki AYNI gerekce -- azPatientId artik
+    // SyncLog cache'i yerine CANLI eHealthClient.FindExistingIdAsync ile araniyor (Encounter'in
+    // kendi Patient cozumleme mantigiyla BIREBIR ayni), stale/gecersiz id yuzunden Tanı/İşlem
+    // gonderiminin "Non-existent reference: Patient/..." almasini onlemek icin.
     private async Task<(string? AzPatientId, string? AzEncounterId)> GetGercekIdleriAsync(ProtokolListItem protokol, CancellationToken ct)
     {
-        var patientStatuses = await syncLog.GetLatestByPusulaIdsAsync("Patient", [protokol.HastaId], ct);
+        var azPatientId = await eHealthClient.FindExistingIdAsync("Patient", protokol.HastaId.ToString(), ct);
         var encounterStatuses = await syncLog.GetLatestByPusulaIdsAsync("Encounter", [protokol.ProtokolId], ct);
-        var azPatientId = patientStatuses.GetValueOrDefault(protokol.HastaId)?.AzResourceId;
         var azEncounterId = encounterStatuses.GetValueOrDefault(protokol.ProtokolId)?.AzResourceId;
 
         if (azEncounterId is not null)
