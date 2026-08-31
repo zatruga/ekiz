@@ -577,6 +577,60 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
         return result;
     }
 
+    // Radyoloji (DiagnosticReport) icin -- RIS.TetkikIslem.State=6, GetIslemlerByProtokolIdAsync'teki
+    // "onaylanmis/kesinlesmis" kurali ile AYNI (bkz. o metottaki gerekce). Icbari koprusu de
+    // BIREBIR ayni OUTER APPLY -- procedure-code extension AZ DiagnosticReport'ta da 1..1 zorunlu.
+    // Rapor bos gelen (henuz yazilmamis, sadece onaylanmis metadata) satirlar mapper'da Skipped
+    // olarak islenir, burada filtrelenmiyor -- Lab'daki ayni "SQL filtrelemez, mapper Skip'ler"
+    // yaklasimi (kullaniciya neden gonderilmedigi gorunur kalsin diye).
+    public async Task<List<RadiologyReportRecord>> GetRadiologyReportsByProtokolIdAsync(int protokolId, CancellationToken ct = default)
+    {
+        const string sql = @"
+            SELECT rti.Id, rti.ProtokolIslemId, pi.HizmetId, oh.Adi AS HizmetAdi,
+                   rti.Rapor, rti.CalismaTarihi, rti.OnaylanmaTarihi, rti.RaporuOnaylayanDoktorId,
+                   icb.Kodu AS IcbariKodu, icb.Adi AS IcbariAdi
+            FROM RIS.TetkikIslem rti
+            INNER JOIN Hasta.ProtokolIslem pi ON pi.Id = rti.ProtokolIslemId
+            INNER JOIN Ortak.Hizmet oh ON oh.Id = pi.HizmetId
+            OUTER APPLY (
+                SELECT TOP 1 PKH.Kodu, PKH.Adi
+                FROM Ortak.HizmetKurumHizmet OHKH
+                INNER JOIN Pazarlama.KurumHizmet PKH ON PKH.Id = OHKH.KurumHizmetId
+                WHERE OHKH.HizmetId = oh.Id
+                  AND PKH.KurumHizmetKategoriId = 13
+                  AND PKH.State <> 0
+                  AND OHKH.State <> 0
+                ORDER BY PKH.IsPaket DESC
+            ) icb
+            WHERE pi.ProtokolId = @ProtokolId AND rti.State = 6
+            ORDER BY rti.Id";
+
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
+        await conn.OpenAsync(ct);
+        await using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@ProtokolId", protokolId);
+
+        var result = new List<RadiologyReportRecord>();
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            result.Add(new RadiologyReportRecord
+            {
+                TetkikIslemId = reader.GetInt32(0),
+                ProtokolIslemId = reader.GetInt32(1),
+                HizmetId = reader.GetInt32(2),
+                HizmetAdi = reader.IsDBNull(3) ? null : reader.GetString(3),
+                Rapor = reader.IsDBNull(4) ? null : reader.GetString(4),
+                CalismaTarihi = reader.IsDBNull(5) ? null : reader.GetDateTime(5),
+                OnaylanmaTarihi = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
+                RaporuOnaylayanDoktorId = reader.IsDBNull(7) ? null : reader.GetInt32(7),
+                IcbariKodu = reader.IsDBNull(8) ? null : reader.GetString(8),
+                IcbariAdi = reader.IsDBNull(9) ? (reader.IsDBNull(8) ? null : reader.GetString(8)) : reader.GetString(9),
+            });
+        }
+        return result;
+    }
+
     // Genel Bakış paneli -- "İcbari Sigorta Gönderim Kapsamı" bölümü icin. GetIslemlerByProtokolIdAsync
     // ile BIREBIR ayni eslesme/onay kurallari (icbari eslesmesi + pi.State>=2 + RIS/LIS State=6
     // + LIS.Test.HizmetId disarida birakma -- tam gerekce orada), ama tek protokol yerine bir

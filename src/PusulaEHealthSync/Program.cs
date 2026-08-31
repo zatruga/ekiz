@@ -50,6 +50,7 @@ builder.Services.AddSingleton<ProcedureSyncService>();
 builder.Services.AddSingleton<EncounterSyncService>();
 builder.Services.AddSingleton<CompositionSyncService>();
 builder.Services.AddSingleton<LabResultSyncService>();
+builder.Services.AddSingleton<RadiologyReportSyncService>();
 
 builder.Services.AddHostedService<Worker>();
 

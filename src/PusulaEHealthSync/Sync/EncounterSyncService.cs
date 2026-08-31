@@ -23,6 +23,7 @@ public class EncounterSyncService(
     PractitionerSyncService practitionerSyncService,
     ConditionSyncService conditionSyncService,
     ProcedureSyncService procedureSyncService,
+    RadiologyReportSyncService radiologyReportSyncService,
     BolumMappingStore bolumMappingStore,
     SettingsStore settings,
     ILogger<EncounterSyncService> logger)
@@ -168,6 +169,7 @@ public class EncounterSyncService(
         {
             var diagnosisEntry = await SyncDiagnosesAsync(protokol, hasta, azPatientId, azPractitionerId, azEncounterId, bolumMap, ct);
             await SyncProceduresAsync(protokol, azPatientId, azEncounterId, ct);
+            await SyncRadiologyReportsAsync(protokol, azPatientId, azEncounterId, ct);
             if (diagnosisEntry is not null) return diagnosisEntry;
         }
 
@@ -189,6 +191,59 @@ public class EncounterSyncService(
         var islemler = await repository.GetIslemlerByProtokolIdAsync(protokol.ProtokolId, ct);
         foreach (var islem in islemler)
             await procedureSyncService.SyncOneAsync(islem, protokol, azPatientId, azEncounterId, liveMode: true, ct);
+    }
+
+    // AZ DiagnosticReport (radyoloji) -- SyncProceduresAsync'TEN SONRA cagrilmali: her raporun
+    // extension:related-procedure'u (1..1 zorunlu) ayni ProtokolIslemId ile az once gonderilmis
+    // olan Procedure'e referans verir, bu yuzden syncLog'daki Procedure kaydi burada ONCEDEN
+    // yazilmis olmali (bkz. RadiologyReportMapper). Radyolog (Practitioner) icin de
+    // SyncDiagnosesAsync'teki doktor participant'la AYNI kural: sadece kendi SyncLog
+    // gecmisimize bakilir, hic denenmemisse liveMode'da BIR KEZ denenir, basarisiz gecmisi
+    // varsa BURADA tekrar denenmez (ayni radyolog birden fazla raporda gecebilir, "PersonelId
+    // basina bir kez dene" cache'i bu yuzden method-local bir Dictionary'de tutuluyor).
+    private async Task SyncRadiologyReportsAsync(ProtokolListItem protokol, string azPatientId, string azEncounterId, CancellationToken ct)
+    {
+        if (!await settings.GetBoolAsync(SettingsStore.RadiologyReportSendEnabledKey, true, ct)) return;
+
+        var reports = await repository.GetRadiologyReportsByProtokolIdAsync(protokol.ProtokolId, ct);
+        if (reports.Count == 0) return;
+
+        var procedureIds = reports.Select(r => r.ProtokolIslemId).Distinct().ToList();
+        var procedureStatuses = await syncLog.GetLatestByPusulaIdsAsync("Procedure", procedureIds, ct);
+
+        var doktorIds = reports.Where(r => r.RaporuOnaylayanDoktorId is not null).Select(r => r.RaporuOnaylayanDoktorId!.Value).Distinct().ToList();
+        var practitionerStatuses = doktorIds.Count == 0
+            ? new Dictionary<int, SyncLogEntry>()
+            : await syncLog.GetLatestByPusulaIdsAsync("Practitioner", doktorIds, ct);
+        var practitionerCache = new Dictionary<int, string?>();
+
+        foreach (var report in reports)
+        {
+            var azProcedureId = procedureStatuses.GetValueOrDefault(report.ProtokolIslemId) is { Status: SyncStatus.Success, AzResourceId: not null } procStatus
+                ? procStatus.AzResourceId
+                : null;
+
+            string? azPractitionerId = null;
+            if (report.RaporuOnaylayanDoktorId is { } doktorId)
+            {
+                if (!practitionerCache.TryGetValue(doktorId, out azPractitionerId))
+                {
+                    var lastAttempt = practitionerStatuses.GetValueOrDefault(doktorId);
+                    if (lastAttempt is { Status: SyncStatus.Success, AzResourceId: not null })
+                    {
+                        azPractitionerId = lastAttempt.AzResourceId;
+                    }
+                    else if (lastAttempt is null)
+                    {
+                        var practitionerResult = await practitionerSyncService.SyncOneAsync(doktorId, liveMode: true, ct);
+                        azPractitionerId = practitionerResult.Status == SyncStatus.Success ? practitionerResult.AzResourceId : null;
+                    }
+                    practitionerCache[doktorId] = azPractitionerId;
+                }
+            }
+
+            await radiologyReportSyncService.SyncOneAsync(report, protokol, azPatientId, azEncounterId, azProcedureId, azPractitionerId, liveMode: true, ct);
+        }
     }
 
     // Encounter.diagnosis -- KULLANICI ISTEGI (2026-08-24, bakanlik geri bildirimi):

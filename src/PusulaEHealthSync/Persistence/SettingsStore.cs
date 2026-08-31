@@ -73,6 +73,12 @@ public class SettingsStore
     public const string ConditionSendEnabledKey = "Condition.SendEnabled";
     public const string ProcedureSendEnabledKey = "Procedure.SendEnabled";
 
+    // Radyoloji (DiagnosticReport) -- Procedure ile AYNI cascade noktasindan (Encounter
+    // basariyla yazildiktan sonra) tetiklenir ama KENDI ayri anahtariyla acilip kapatilabilir
+    // (Procedure gonderimini kapatmak radyolojiyi de kapatmamali, ikisi ayri karar). Varsayilan:
+    // ACIK. Bkz. EncounterSyncService.SyncRadiologyReportsAsync.
+    public const string RadiologyReportSendEnabledKey = "RadiologyReport.SendEnabled";
+
     // Lab (DiagnosticReport) HENUZ YAZILMADI -- veri kaynagi netlesmedi (bkz. konusma
     // 2026-08-20): legacy LIS.TestIslem/NumuneIslem tablolari bos (0 satir, "-old" suffix'li
     // arsiv), yeni [EMR.Laboratory].[Order] tablosu ise sadece siparis metadata'si tutuyor

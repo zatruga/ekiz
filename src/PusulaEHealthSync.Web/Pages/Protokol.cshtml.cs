@@ -23,6 +23,7 @@ public class ProtokolModel(
     ConditionSyncService conditionSyncService,
     ProcedureSyncService procedureSyncService,
     LabResultSyncService labResultSyncService,
+    RadiologyReportSyncService radiologyReportSyncService,
     DeleteService deleteService,
     EHealthClient eHealthClient) : PageModel
 {
@@ -109,6 +110,24 @@ public class ProtokolModel(
     }
     public List<LabGroup> LabGroups { get; set; } = [];
 
+    // Radyoloji (DiagnosticReport) -- Lab ile AYNI kalip. GetRadiologyReportsByProtokolIdAsync
+    // sadece RIS.TetkikIslem.State=6 (onaylanmis/kesinlesmis) raporlari donduruyor, Icbari
+    // eslesmesi ya da ilgili Procedure gonderimi eksikse RadiologyReportMapper Skipped doner.
+    public List<(RadiologyReportRecord Report, SyncLogEntry? Durum)> RadiologyReports { get; set; } = [];
+    public bool RadiologyGonderilebilir => RadiologyReports.Any(r => !BasariylaGonderildi(r.Durum));
+    public bool RadiologySilinebilir => RadiologyReports.Any(r => SyncLogEntry.CanDelete(r.Durum));
+
+    public (string CssClass, string Label) RadiologyAggregateBadge()
+    {
+        if (RadiologyReports.Count == 0) return ("neutral", "Gönderilmedi");
+        if (RadiologyReports.Any(x => x.Durum?.Status == SyncStatus.Failed)) return ("danger", "Hatalı");
+        if (RadiologyReports.All(x => BasariylaGonderildi(x.Durum))) return ("success", "Gönderildi");
+        if (RadiologyReports.Any(x => BasariylaGonderildi(x.Durum))) return ("warning", "Kısmen gönderildi");
+        return ("neutral", "Gönderilmedi");
+    }
+
+    public (string CssClass, string Label, int Success, int Total) RadiologyOzet() => Ozet(RadiologyReports.Select(r => r.Durum));
+
     // Baslik satirindaki "Tümünü Sil"/"Tümünü Gönder" butonlarinin gorunurlugu -- KULLANICI
     // ISTEGI (2026-08-25): "tanı ve procedür başlıklarında tümünü sil ve eğer silinmiş ise
     // tümünü gönder butonu olmalı". Silinebilir olan (en az bir AzResourceId'li, henuz
@@ -163,6 +182,10 @@ public class ProtokolModel(
         var labStatuses = await syncLog.GetLatestByPusulaIdsAsync("Observation", labs.Select(l => l.LabaratuarSonucId).ToList(), ct);
         Labs = labs.Select(l => (l, labStatuses.GetValueOrDefault(l.LabaratuarSonucId))).ToList();
         LabGroups = BuildLabGroups(Labs);
+
+        var radiologyReports = await pusulaRepository.GetRadiologyReportsByProtokolIdAsync(Protokol.ProtokolId, ct);
+        var radiologyStatuses = await syncLog.GetLatestByPusulaIdsAsync("DiagnosticReport", radiologyReports.Select(r => r.TetkikIslemId).ToList(), ct);
+        RadiologyReports = radiologyReports.Select(r => (r, radiologyStatuses.GetValueOrDefault(r.TetkikIslemId))).ToList();
 
         GenelMuayene = await pusulaRepository.GetGenelMuayeneByProtokolIdAsync(Protokol.ProtokolId, ct);
         EpikrizSendEnabled = await settings.GetBoolAsync(SettingsStore.EpikrizSendEnabledKey, true, ct);
@@ -561,6 +584,91 @@ public class ProtokolModel(
         }
 
         return (azPatientId, azEncounterId);
+    }
+
+    // Radyoloji manuel "Gönder" -- Lab'daki GetIdleriLabIcinAsync ile AYNI (Encounter canli
+    // dogrulanir, yoksa YENIDEN OLUSTURULMAZ, sadece referans eklenmez). related-procedure ve
+    // performer icin BURADA cascade/otomatik gonderim YAPILMIYOR -- ikisi de normalde Muayine
+    // gonderildiginde EncounterSyncService.SyncRadiologyReportsAsync tarafindan zaten
+    // cozulmus/gonderilmis olur; bu sadece o SONUCU (SyncLog'daki mevcut durumu) okur.
+    // Procedure hic gonderilmemisse (orn. Icbari eslesmesi yok) manuel Gönder de RadiologyReportMapper
+    // tarafindan ayni sekilde Skipped'e duser -- kullanici once İşlem'i cozmeli.
+    private async Task<(string? AzProcedureId, string? AzPractitionerId)> GetRadiologyBaglantiIdleriAsync(RadiologyReportRecord report, CancellationToken ct)
+    {
+        var procedureStatuses = await syncLog.GetLatestByPusulaIdsAsync("Procedure", [report.ProtokolIslemId], ct);
+        var azProcedureId = procedureStatuses.GetValueOrDefault(report.ProtokolIslemId) is { Status: SyncStatus.Success, AzResourceId: not null } proc
+            ? proc.AzResourceId
+            : null;
+
+        string? azPractitionerId = null;
+        if (report.RaporuOnaylayanDoktorId is { } doktorId)
+        {
+            var practitionerStatuses = await syncLog.GetLatestByPusulaIdsAsync("Practitioner", [doktorId], ct);
+            azPractitionerId = practitionerStatuses.GetValueOrDefault(doktorId) is { Status: SyncStatus.Success, AzResourceId: not null } prac
+                ? prac.AzResourceId
+                : null;
+        }
+
+        return (azProcedureId, azPractitionerId);
+    }
+
+    public async Task<IActionResult> OnPostGonderRadiologyAsync(int id, int tetkikIslemId, CancellationToken ct)
+    {
+        Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
+        if (Protokol is null) return NotFound();
+
+        var (azPatientId, azEncounterId) = await GetIdleriLabIcinAsync(Protokol, ct);
+        if (azPatientId is not null)
+        {
+            var reports = await pusulaRepository.GetRadiologyReportsByProtokolIdAsync(Protokol.ProtokolId, ct);
+            var report = reports.FirstOrDefault(r => r.TetkikIslemId == tetkikIslemId);
+            if (report is not null)
+            {
+                var (azProcedureId, azPractitionerId) = await GetRadiologyBaglantiIdleriAsync(report, ct);
+                await radiologyReportSyncService.SyncOneAsync(report, Protokol, azPatientId, azEncounterId, azProcedureId, azPractitionerId, liveMode: true, ct);
+            }
+        }
+        return RedirectToPage("/Protokol", new { id });
+    }
+
+    public async Task<IActionResult> OnPostTumunuGonderRadiologyAsync(int id, CancellationToken ct)
+    {
+        Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
+        if (Protokol is null) return NotFound();
+
+        var (azPatientId, azEncounterId) = await GetIdleriLabIcinAsync(Protokol, ct);
+        if (azPatientId is not null)
+        {
+            var reports = await pusulaRepository.GetRadiologyReportsByProtokolIdAsync(Protokol.ProtokolId, ct);
+            var radiologyStatuses = await syncLog.GetLatestByPusulaIdsAsync("DiagnosticReport", reports.Select(r => r.TetkikIslemId).ToList(), ct);
+            foreach (var report in reports)
+            {
+                if (BasariylaGonderildi(radiologyStatuses.GetValueOrDefault(report.TetkikIslemId))) continue;
+                var (azProcedureId, azPractitionerId) = await GetRadiologyBaglantiIdleriAsync(report, ct);
+                await radiologyReportSyncService.SyncOneAsync(report, Protokol, azPatientId, azEncounterId, azProcedureId, azPractitionerId, liveMode: true, ct);
+            }
+        }
+        return RedirectToPage("/Protokol", new { id });
+    }
+
+    public async Task<IActionResult> OnPostSilRadiologyAsync(int id, long durumId, CancellationToken ct)
+    {
+        var entry = await syncLog.GetByIdAsync(durumId, ct);
+        if (entry is not null)
+            await deleteService.DeleteAsync(entry, ct);
+        return RedirectToPage("/Protokol", new { id });
+    }
+
+    public async Task<IActionResult> OnPostTumunuSilRadiologyAsync(int id, CancellationToken ct)
+    {
+        Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
+        if (Protokol is null) return NotFound();
+
+        var reports = await pusulaRepository.GetRadiologyReportsByProtokolIdAsync(Protokol.ProtokolId, ct);
+        var radiologyStatuses = await syncLog.GetLatestByPusulaIdsAsync("DiagnosticReport", reports.Select(r => r.TetkikIslemId).ToList(), ct);
+        foreach (var durum in radiologyStatuses.Values.Where(SyncLogEntry.CanDelete))
+            await deleteService.DeleteAsync(durum, ct);
+        return RedirectToPage("/Protokol", new { id });
     }
 
     private static List<LabGroup> BuildLabGroups(List<(LabResultRecord Lab, SyncLogEntry? Durum)> labs)

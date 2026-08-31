@@ -55,6 +55,7 @@ public class SyncLogEntry
         "Condition" => "Tanı",
         "Procedure" => "İşlem",
         "Observation" => "Tetkik",
+        "DiagnosticReport" => "Radyoloji Raporu",
         _ => resourceType,
     };
 
@@ -71,6 +72,7 @@ public class SyncLogEntry
         "Condition" => "rt-condition",
         "Procedure" => "rt-procedure",
         "Observation" => "rt-observation",
+        "DiagnosticReport" => "rt-observation",
         _ => "rt-patient",
     };
 
