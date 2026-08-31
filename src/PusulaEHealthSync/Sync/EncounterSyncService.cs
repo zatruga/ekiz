@@ -98,9 +98,31 @@ public class EncounterSyncService(
             var practitionerStatuses = await syncLog.GetLatestByPusulaIdsAsync("Practitioner", [protokol.DoktorId.Value], ct);
             var lastAttempt = practitionerStatuses.GetValueOrDefault(protokol.DoktorId.Value);
 
+            // DUZELTME (2026-08-31, canli olayda bulundu -- kullanici: "muayene kısmında doktor
+            // gönderilmedi diye hata verdi ... doktor gönderilmemişse tekrar göndersin sonra
+            // muayeneyi göndersin demiştik"): daha once BASARIYLA gonderilmis bir doktorun
+            // kayitli AZ id'si KORUSUZ/SORGULANMADAN kullaniliyordu -- Patient/Encounter'daki
+            // AYNI "stale cache" sorunu (bkz. Protokol.cshtml.cs GetGercekIdleriAsync'teki ayni
+            // gerekce): doktor kaydi e-Health tarafinda sonradan kaybolmus/silinmis olabilir,
+            // biz hala eski id'yi gecerli sanip Encounter.participant'a referans veriyorduk --
+            // "HTTP 409: Non-existent reference: Practitioner/..." ile Encounter'in KENDISI
+            // basarisiz oluyordu. Artik kullanmadan once GET ile CANLI dogrulaniyor (hafif,
+            // OKUMA amacli bir cagri -- bakanlik geri bildirimindeki "her Muayine'de tekrar
+            // GONDERIYORSUNUZ" sikayetiyle CELISMIYOR, zaten yazma yapmiyor); gecersizse
+            // "hic denenmemis" gibi ele alinip BIR KEZ yeniden canli gonderiliyor.
             if (lastAttempt is { Status: SyncStatus.Success, AzResourceId: not null })
             {
-                azPractitionerId = lastAttempt.AzResourceId;
+                var check = await eHealthClient.GetAsync("Practitioner", lastAttempt.AzResourceId, ct);
+                if (check.Success)
+                {
+                    azPractitionerId = lastAttempt.AzResourceId;
+                }
+                else if (liveMode)
+                {
+                    logger.LogInformation("hasta.protokol.Id={Id}: doktor (DoktorId={DoktorId}) kayitli AZ id'si artik gecersiz, yeniden gonderiliyor", protokol.ProtokolId, protokol.DoktorId);
+                    var retryResult = await practitionerSyncService.SyncOneAsync(protokol.DoktorId.Value, liveMode: true, ct);
+                    azPractitionerId = retryResult.Status == SyncStatus.Success ? retryResult.AzResourceId : null;
+                }
             }
             else if (lastAttempt is null && liveMode)
             {
