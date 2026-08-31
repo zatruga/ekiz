@@ -119,15 +119,6 @@ public class ProtokolModel(
     public bool IslemlerSilinebilir => Islemler.Any(i => SyncLogEntry.CanDelete(i.Durum));
     public bool IslemlerGonderilebilir => Islemler.Any(i => !BasariylaGonderildi(i.Durum));
 
-    // KULLANICI ISTEGI (2026-08-31): "Müayinə → Tanı & İşlem" ust basligina da Gönder/Sil
-    // butonu -- Tanı VE İşlem'i BIRLIKTE, tek tiklamada gonderiyor/siliyor (bkz.
-    // OnPostTumunuGonderMuayineIcerikAsync/OnPostTumunuSilMuayineIcerikAsync). Encounter'in
-    // kendi "Gönder"i (checklist'teki) ZATEN Tanı/İşlem'i cascade ile gonderiyor
-    // (EncounterSyncService.SyncDiagnosesAsync/SyncProceduresAsync) -- ama Encounter'i
-    // TEKRAR yazmadan SADECE Tanı+İşlem'i gondermek/silmek istenen bu senaryo icin ayri.
-    public bool TaniIslemGonderilebilir => TanilarGonderilebilir || IslemlerGonderilebilir;
-    public bool TaniIslemSilinebilir => TanilarSilinebilir || IslemlerSilinebilir;
-
     // KULLANICI ISTEGI (2026-08-25, dorduncu tur): "tanıyı sildim silinemedi yazısı
     // yazıyordu sonradan tekrar gönder dedim hata da kaldı ... böyle hiç bir zaman
     // kalmamalıyım bunu bir şekilde ya silmeli yada tekrar gönder yapabilmeliyim" -- eger
@@ -399,56 +390,6 @@ public class ProtokolModel(
                 await procedureSyncService.SyncOneAsync(islem, Protokol, azPatientId, azEncounterId, liveMode: true, ct);
             }
         }
-        return RedirectToPage("/Protokol", new { id });
-    }
-
-    // KULLANICI ISTEGI (2026-08-31): "Müayinə → Tanı & İşlem" ust basligina Gönder/Sil --
-    // OnPostTumunuGonderTaniAsync + OnPostTumunuGonderIslemAsync ile BIREBIR ayni mantik,
-    // TEK istekte ikisini birden yapiyor. Encounter'a DOKUNMUYOR (bkz. yukaridaki
-    // TaniIslemGonderilebilir yorumu) -- sadece kendi listelerindeki gonderilmemis/silinebilir
-    // kayitlari isliyor.
-    public async Task<IActionResult> OnPostTumunuGonderMuayineIcerikAsync(int id, CancellationToken ct)
-    {
-        Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
-        if (Protokol is null) return NotFound();
-
-        var (azPatientId, azEncounterId) = await GetGercekIdleriAsync(Protokol, ct);
-        if (azPatientId is not null && azEncounterId is not null)
-        {
-            var tanilar = await pusulaRepository.GetTanilarByProtokolIdAsync(Protokol.ProtokolId, ct);
-            var taniStatuses = await syncLog.GetLatestByPusulaIdsAsync("Condition", tanilar.Select(t => t.Id).ToList(), ct);
-            foreach (var tani in tanilar)
-            {
-                if (BasariylaGonderildi(taniStatuses.GetValueOrDefault(tani.Id))) continue;
-                await conditionSyncService.SyncOneAsync(tani, Protokol, azPatientId, azEncounterId, liveMode: true, ct);
-            }
-
-            var islemler = await pusulaRepository.GetIslemlerByProtokolIdAsync(Protokol.ProtokolId, ct);
-            var islemStatuses = await syncLog.GetLatestByPusulaIdsAsync("Procedure", islemler.Select(i => i.Id).ToList(), ct);
-            foreach (var islem in islemler)
-            {
-                if (BasariylaGonderildi(islemStatuses.GetValueOrDefault(islem.Id))) continue;
-                await procedureSyncService.SyncOneAsync(islem, Protokol, azPatientId, azEncounterId, liveMode: true, ct);
-            }
-        }
-        return RedirectToPage("/Protokol", new { id });
-    }
-
-    public async Task<IActionResult> OnPostTumunuSilMuayineIcerikAsync(int id, CancellationToken ct)
-    {
-        Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
-        if (Protokol is null) return NotFound();
-
-        var tanilar = await pusulaRepository.GetTanilarByProtokolIdAsync(Protokol.ProtokolId, ct);
-        var taniStatuses = await syncLog.GetLatestByPusulaIdsAsync("Condition", tanilar.Select(t => t.Id).ToList(), ct);
-        foreach (var durum in taniStatuses.Values.Where(SyncLogEntry.CanDelete))
-            await deleteService.DeleteAsync(durum, ct);
-
-        var islemler = await pusulaRepository.GetIslemlerByProtokolIdAsync(Protokol.ProtokolId, ct);
-        var islemStatuses = await syncLog.GetLatestByPusulaIdsAsync("Procedure", islemler.Select(i => i.Id).ToList(), ct);
-        foreach (var durum in islemStatuses.Values.Where(SyncLogEntry.CanDelete))
-            await deleteService.DeleteAsync(durum, ct);
-
         return RedirectToPage("/Protokol", new { id });
     }
 

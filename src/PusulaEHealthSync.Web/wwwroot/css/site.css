@@ -940,10 +940,16 @@ input[type="checkbox"].row-check,
   flex-wrap: wrap;
 }
 
-.checklist-item .rt-info { display: flex; flex-direction: column; gap: 3px; }
+/* KULLANICI ISTEGI (2026-08-31): "uzun bir açıklama olduğunda satır kaydırma yapıp alt
+   satır oluşsun gönder butonları kayma olmasın" -- rt-info'nun min-width:auto (flex
+   varsayilani) UZUN aciklama metni yuzunden hic kucul(e)meyip, bunun yerine TUM satirin
+   (flex-wrap:wrap ile) rt-right'i yeni bir "satira" itmesine sebep oluyordu. flex:1 +
+   min-width:0 ile rt-info artik KENDI icinde metni sarabiliyor (normal kelime kaydirma),
+   ozet/aksiyon sutunlari (flex-shrink:0) hep AYNI satirda, sagda sabit kaliyor. */
+.checklist-item .rt-info { display: flex; flex-direction: column; gap: 3px; flex: 1 1 260px; min-width: 0; }
 .checklist-item .rt-name { font-weight: 600; font-size: 14.5px; color: var(--text); }
 .checklist-item .rt-desc { font-size: 12.5px; color: var(--text-muted); }
-.checklist-item .rt-right { display: flex; align-items: center; gap: 14px; }
+.checklist-item .rt-right { display: flex; align-items: center; gap: 14px; flex-shrink: 0; }
 
 /* KULLANICI ISTEGI (2026-08-31): "benim orta alana yazdığım gibi yazsın" -- Müayinə/
    Laboratuvar checklist satırının ORTASINA (açıklama ile aksiyon butonlari arasina), alt
@@ -1016,22 +1022,14 @@ input[type="checkbox"].row-check,
 /* KULLANICI ISTEGI (2026-08-25): "başlıkların arka fonu böyle soluk yesil olsun insanı
    rahatsız etmeyen, başlık olduğu belli olsun" -- var(--success-soft), zaten badge'lerde
    kullanilan ayni yumusak yesil tonu. */
-/* KULLANICI ISTEGI (2026-08-31): "muayene ve tanı alanı başlıkları aynı renk şerit
-   halinde böyle olmasın, detay ekranında kullandığımız simge ve başlık gibi ortada
-   gözüksün" -- eskiden HER başlık (Müayinə/Tanı/İşlem/Laboratuvar) ayrım gözetmeksizin
-   ayni sabit var(--success-soft) yesil serit arka planini kullaniyordu. Artik notr bir
-   arka plan + Detail.cshtml'deki AYNI .resource-chip/.resource-avatar/.resource-eyebrow
-   (kaynak turune gore renkli ikon+etiket) kucuk versiyonu (.resource-chip--sm) -- 3
-   sutunlu grid (bos sutun | chip | aksiyonlar) sayesinde chip aksiyon butonlarinin
-   genisliginden bagimsiz her zaman GERCEKTEN ortada duruyor. */
 .side-card-head {
-  display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  display: flex;
   align-items: center;
+  justify-content: space-between;
   gap: 10px;
   padding: 12px 14px;
   border-bottom: 1px solid var(--border);
-  background: var(--surface);
+  background: var(--success-soft);
   flex-wrap: wrap;
 }
 .side-card-head .rt-name { font-weight: 600; font-size: 13.5px; color: var(--text); display: flex; align-items: center; gap: 8px; }
@@ -1043,7 +1041,20 @@ input[type="checkbox"].row-check,
   padding: 2px 8px;
   border-radius: 999px;
 }
-.side-card-actions { display: flex; align-items: center; gap: 8px; justify-self: end; flex-wrap: wrap; }
+.side-card-actions { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+
+/* KULLANICI ISTEGI (2026-08-31): "al[t] başlıklar eski haline dönsün sadece ana başlık
+   olsun" -- Tanı/İşlem/Laboratuvar alt başlıkları eski (duz yesil serit) haline
+   donduruldu, sadece EN UST "Müayinə → Tanı & İşlem" ana başlığı Detail.cshtml'deki
+   resource-chip kalibini (kucuk versiyonu, .resource-chip--sm) koruyor -- bu modifier
+   SADECE o basliga ekleniyor, 3 sutunlu grid ile chip aksiyon alaninin genisliginden
+   bagimsiz GERCEKTEN ortada duruyor. */
+.side-card-head--chip {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  background: var(--surface);
+}
+.side-card-head--chip .side-card-actions { justify-self: end; }
 
 .resource-chip--sm { padding: 3px 12px 3px 3px; gap: 8px; }
 .resource-chip--sm .resource-avatar { width: 26px; height: 26px; }
