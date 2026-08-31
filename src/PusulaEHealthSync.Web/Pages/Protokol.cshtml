@@ -77,7 +77,7 @@ else
         {
             <div style="margin-left:auto; align-self:center;">
                 <form method="post" asp-page-handler="TumunuGonder" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                    <button type="submit" class="btn btn-primary btn-sm"
+                    <button type="submit" class="btn btn-bulk btn-sm"
                             onclick="return confirm('Bu protokol için Hasta, Müayinə, Tanı, İşlem, Epikriz, Laboratuvar ve Radyoloji e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
                         Tümünü Gönder
                     </button>
@@ -251,7 +251,7 @@ else
                 @if (Model.LabsGonderilebilir)
                 {
                     <form method="post" asp-page-handler="TumunuGonderLab" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                        <button type="submit" class="btn btn-primary btn-sm" onclick="event.stopPropagation(); return confirm('Henüz gönderilmemiş/hatalı tüm laboratuvar sonuçları e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                        <button type="submit" class="btn btn-bulk btn-sm" onclick="event.stopPropagation(); return confirm('Henüz gönderilmemiş/hatalı tüm laboratuvar sonuçları e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
                             Tümünü Gönder
                         </button>
                     </form>
@@ -301,7 +301,7 @@ else
                 @if (Model.RadiologyGonderilebilir)
                 {
                     <form method="post" asp-page-handler="TumunuGonderRadiology" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                        <button type="submit" class="btn btn-primary btn-sm" onclick="event.stopPropagation(); return confirm('Henüz gönderilmemiş/hatalı tüm radyoloji raporları e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                        <button type="submit" class="btn btn-bulk btn-sm" onclick="event.stopPropagation(); return confirm('Henüz gönderilmemiş/hatalı tüm radyoloji raporları e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
                             Tümünü Gönder
                         </button>
                     </form>
@@ -454,7 +454,7 @@ else
                         @if (Model.TanilarGonderilebilir)
                         {
                             <form method="post" asp-page-handler="TumunuGonderTani" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                                <button type="submit" class="btn btn-primary btn-sm"
+                                <button type="submit" class="btn btn-bulk btn-sm"
                                         onclick="return confirm('Henüz gönderilmemiş/hatalı tüm tanılar e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
                                     Tümünü Gönder
                                 </button>
@@ -530,7 +530,7 @@ else
                         @if (Model.IslemlerGonderilebilir)
                         {
                             <form method="post" asp-page-handler="TumunuGonderIslem" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                                <button type="submit" class="btn btn-primary btn-sm"
+                                <button type="submit" class="btn btn-bulk btn-sm"
                                         onclick="return confirm('Henüz gönderilmemiş/hatalı tüm işlemler e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
                                     Tümünü Gönder
                                 </button>
@@ -709,7 +709,7 @@ else
                         @if (Model.LabsGonderilebilir)
                         {
                             <form method="post" asp-page-handler="TumunuGonderLab" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                                <button type="submit" class="btn btn-primary btn-sm"
+                                <button type="submit" class="btn btn-bulk btn-sm"
                                         onclick="return confirm('Henüz gönderilmemiş/hatalı tüm laboratuvar sonuçları e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
                                     Tümünü Gönder
                                 </button>
@@ -804,7 +804,7 @@ else
                         @if (Model.RadiologyGonderilebilir)
                         {
                             <form method="post" asp-page-handler="TumunuGonderRadiology" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                                <button type="submit" class="btn btn-primary btn-sm"
+                                <button type="submit" class="btn btn-bulk btn-sm"
                                         onclick="return confirm('Henüz gönderilmemiş/hatalı tüm radyoloji raporları e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
                                     Tümünü Gönder
                                 </button>

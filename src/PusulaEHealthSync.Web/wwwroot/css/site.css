@@ -323,6 +323,15 @@ main.content {
 .btn-outline { background: transparent; border-color: var(--border-strong); color: var(--text-muted); }
 .btn-outline:hover:not(:disabled) { border-color: var(--primary); color: var(--primary); background: var(--primary-soft); }
 
+/* KULLANICI ISTEGI (2026-08-31): "tekrar gönder ile tümünü gönderin renkleri aynı olmasın
+   karıştırılıyor" -- tek kayitlik "Gönder"/"Tekrar Gönder" (.btn-primary, mavi) ile toplu
+   "Tümünü Gönder" (bolgesel/coklu kayit) arasinda hicbir gorsel fark yoktu. Ikincisine
+   ayri bir renk (violet -- Practitioner rozetlerinde/Icbari panelinde zaten "ikincil vurgu"
+   olarak kullanilan ayni ton) verildi, boylece "tek mi toplu mu gönderiyorum" bir bakista
+   ayirt edilebiliyor. */
+.btn-bulk { background: var(--violet); color: #fff; }
+.btn-bulk:hover:not(:disabled) { filter: brightness(1.08); }
+
 .btn-sm { padding: 7px 14px; font-size: 13px; }
 .btn-block { width: 100%; justify-content: center; }
 
