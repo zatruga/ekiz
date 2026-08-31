@@ -208,6 +208,15 @@ public class ProtokolModel(
     // burada ayrica tek tek cagirmaya gerek yok -- sadece cascade'e DAHIL OLMAYAN Epikriz'i
     // (Composition) ayrica gonderiyoruz. Reçete protokolleri e-Health'e hic gonderilmedigi
     // icin (sayfadaki diger butonlar gibi) bu durumda hicbir sey yapmiyor.
+    // DUZELTME (2026-08-31, kullanici: "hasta bilgilerine yaptığımız tümünü gönder butonu lab
+    // ve rad için gönderim yapmıyor"): Lab hicbir zaman Encounter cascade'inin parcasi degildi
+    // (Patient'e bagli tasarim, Muayine'den bagimsiz gonderilebilir -- bkz. LabResultSyncService
+    // basindaki not), Radyoloji ise cascade'e dahil (EncounterSyncService.SyncRadiologyReportsAsync)
+    // ama SADECE o an gonderilen Islem'lerin AZ id'sine bagli oldugu icin sonucu buradan
+    // GOZLEMLENEMIYORDU. "Tümünü Gönder" adindan beklenti acikca "gercekten her sey" oldugu icin
+    // Lab ve Radyoloji de ayni "sadece basarisiz/gonderilmemis olanlari gonder" kuraliyla BURADA
+    // da aciqca tetikleniyor -- OnPostTumunuGonderLabAsync/OnPostTumunuGonderRadiologyAsync ile
+    // AYNI paylasilan metotlar (SendAllLabsAsync/SendAllRadiologyAsync).
     public async Task<IActionResult> OnPostTumunuGonderAsync(int id, CancellationToken ct)
     {
         Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
@@ -217,6 +226,8 @@ public class ProtokolModel(
         {
             await encounterSyncService.SyncOneAsync(Protokol.ProtokolId, liveMode: true, ct);
             await compositionSyncService.SyncOneAsync(Protokol.ProtokolId, liveMode: true, ct);
+            await SendAllLabsAsync(Protokol, ct);
+            await SendAllRadiologyAsync(Protokol, ct);
         }
         return RedirectToPage("/Protokol", new { id });
     }
@@ -468,18 +479,22 @@ public class ProtokolModel(
         Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
         if (Protokol is null) return NotFound();
 
-        var (azPatientId, azEncounterId) = await GetIdleriLabIcinAsync(Protokol, ct);
-        if (azPatientId is not null)
-        {
-            var labs = await pusulaRepository.GetLabResultsByProtokolIdAsync(Protokol.ProtokolId, ct);
-            var labStatuses = await syncLog.GetLatestByPusulaIdsAsync("Observation", labs.Select(l => l.LabaratuarSonucId).ToList(), ct);
-            foreach (var lab in labs)
-            {
-                if (BasariylaGonderildi(labStatuses.GetValueOrDefault(lab.LabaratuarSonucId))) continue;
-                await labResultSyncService.SyncOneAsync(lab, Protokol, azPatientId, azEncounterId, liveMode: true, ct);
-            }
-        }
+        await SendAllLabsAsync(Protokol, ct);
         return RedirectToPage("/Protokol", new { id });
+    }
+
+    private async Task SendAllLabsAsync(ProtokolListItem protokol, CancellationToken ct)
+    {
+        var (azPatientId, azEncounterId) = await GetIdleriLabIcinAsync(protokol, ct);
+        if (azPatientId is null) return;
+
+        var labs = await pusulaRepository.GetLabResultsByProtokolIdAsync(protokol.ProtokolId, ct);
+        var labStatuses = await syncLog.GetLatestByPusulaIdsAsync("Observation", labs.Select(l => l.LabaratuarSonucId).ToList(), ct);
+        foreach (var lab in labs)
+        {
+            if (BasariylaGonderildi(labStatuses.GetValueOrDefault(lab.LabaratuarSonucId))) continue;
+            await labResultSyncService.SyncOneAsync(lab, protokol, azPatientId, azEncounterId, liveMode: true, ct);
+        }
     }
 
     // KULLANICI ISTEGI (2026-08-29): "grup olan testlerin satırına ... gönder butonu
@@ -636,19 +651,23 @@ public class ProtokolModel(
         Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
         if (Protokol is null) return NotFound();
 
-        var (azPatientId, azEncounterId) = await GetIdleriLabIcinAsync(Protokol, ct);
-        if (azPatientId is not null)
-        {
-            var reports = await pusulaRepository.GetRadiologyReportsByProtokolIdAsync(Protokol.ProtokolId, ct);
-            var radiologyStatuses = await syncLog.GetLatestByPusulaIdsAsync("DiagnosticReport", reports.Select(r => r.TetkikIslemId).ToList(), ct);
-            foreach (var report in reports)
-            {
-                if (BasariylaGonderildi(radiologyStatuses.GetValueOrDefault(report.TetkikIslemId))) continue;
-                var (azProcedureId, azPractitionerId) = await GetRadiologyBaglantiIdleriAsync(report, ct);
-                await radiologyReportSyncService.SyncOneAsync(report, Protokol, azPatientId, azEncounterId, azProcedureId, azPractitionerId, liveMode: true, ct);
-            }
-        }
+        await SendAllRadiologyAsync(Protokol, ct);
         return RedirectToPage("/Protokol", new { id });
+    }
+
+    private async Task SendAllRadiologyAsync(ProtokolListItem protokol, CancellationToken ct)
+    {
+        var (azPatientId, azEncounterId) = await GetIdleriLabIcinAsync(protokol, ct);
+        if (azPatientId is null) return;
+
+        var reports = await pusulaRepository.GetRadiologyReportsByProtokolIdAsync(protokol.ProtokolId, ct);
+        var radiologyStatuses = await syncLog.GetLatestByPusulaIdsAsync("DiagnosticReport", reports.Select(r => r.TetkikIslemId).ToList(), ct);
+        foreach (var report in reports)
+        {
+            if (BasariylaGonderildi(radiologyStatuses.GetValueOrDefault(report.TetkikIslemId))) continue;
+            var (azProcedureId, azPractitionerId) = await GetRadiologyBaglantiIdleriAsync(report, ct);
+            await radiologyReportSyncService.SyncOneAsync(report, protokol, azPatientId, azEncounterId, azProcedureId, azPractitionerId, liveMode: true, ct);
+        }
     }
 
     public async Task<IActionResult> OnPostSilRadiologyAsync(int id, long durumId, CancellationToken ct)
