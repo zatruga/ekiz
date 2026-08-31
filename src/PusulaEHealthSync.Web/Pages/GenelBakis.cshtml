@@ -226,7 +226,7 @@
         <div class="cat-grid">
             @foreach (var c in Model.ErrorCategories)
             {
-                <a asp-page="/Aktivite" asp-route-Status="Failed" asp-route-From="@periodFromIso" asp-route-To="@periodToIso" class="cat-tile" target="_blank" rel="noopener">
+                <a asp-page="/Aktivite" asp-route-Status="Failed" asp-route-Kategori="@c.Label" asp-route-From="@periodFromIso" asp-route-To="@periodToIso" class="cat-tile" target="_blank" rel="noopener">
                     <div class="cat-count">@c.Count</div>
                     <div class="cat-name">@c.Label</div>
                     <div class="cat-desc">@c.Description</div>

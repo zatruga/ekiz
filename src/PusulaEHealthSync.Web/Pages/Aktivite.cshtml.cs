@@ -36,6 +36,13 @@ public class AktiviteModel(SyncLogStore syncLog) : PageModel
     [BindProperty(SupportsGet = true)]
     public int P { get; set; } = 1;
 
+    // Genel Bakış'taki "Hata Kategorileri" kutucuklarından geliyor -- SyncLogEntry.ErrorCategory
+    // ile ayni etiketle eslesen Failed kayitlarini gosterir. Bu bir DB sutunu degil (mesaj
+    // metninden turetiliyor), o yuzden SQL'de degil, gecici olarak genis bir Failed kumesi
+    // cekilip burada bellek icinde filtreleniyor -- GenelBakis'teki ayni yaklasimin devami.
+    [BindProperty(SupportsGet = true)]
+    public string? Kategori { get; set; }
+
     public DateOnly EffectiveFrom { get; set; }
     public DateOnly EffectiveTo { get; set; }
 
@@ -51,10 +58,20 @@ public class AktiviteModel(SyncLogStore syncLog) : PageModel
 
         StatusCounts = await syncLog.GetStatusCountsAsync(ResourceType, fromUtc, toUtcExclusive);
 
-        var take = PageSize + 1; // bir fazla cekip "sonraki sayfa var mi" anlamak icin
-        var rows = await syncLog.QueryAsync(Status, ResourceType, take, (PageNumber - 1) * PageSize, fromUtc, toUtcExclusive);
-        HasNextPage = rows.Count > PageSize;
-        Entries = rows.Take(PageSize).ToList();
+        if (Status == "Failed" && !string.IsNullOrWhiteSpace(Kategori))
+        {
+            var allFailed = await syncLog.QueryAsync("Failed", ResourceType, 2000, 0, fromUtc, toUtcExclusive);
+            var filtered = allFailed.Where(e => SyncLogEntry.ErrorCategory(e.Message).Label == Kategori).ToList();
+            HasNextPage = filtered.Count > PageNumber * PageSize;
+            Entries = filtered.Skip((PageNumber - 1) * PageSize).Take(PageSize).ToList();
+        }
+        else
+        {
+            var take = PageSize + 1; // bir fazla cekip "sonraki sayfa var mi" anlamak icin
+            var rows = await syncLog.QueryAsync(Status, ResourceType, take, (PageNumber - 1) * PageSize, fromUtc, toUtcExclusive);
+            HasNextPage = rows.Count > PageSize;
+            Entries = rows.Take(PageSize).ToList();
+        }
     }
 
     public int TotalCount => StatusCounts.Values.Sum();

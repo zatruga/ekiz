@@ -441,6 +441,37 @@ a.stat-card.active { border-color: var(--primary); background: var(--primary-sof
   font-weight: 500;
 }
 
+.filter-chip-bar { margin-bottom: 14px; }
+
+.filter-chip {
+  display: inline-flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--danger);
+  background: var(--danger-soft);
+  border: 1px solid var(--danger);
+  border-radius: 999px;
+  padding: 6px 8px 6px 14px;
+}
+
+.filter-chip strong { font-weight: 600; }
+
+.filter-chip-x {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  width: 20px;
+  height: 20px;
+  border-radius: 50%;
+  color: inherit;
+  text-decoration: none;
+  font-size: 16px;
+  line-height: 1;
+}
+
+.filter-chip-x:hover { background: rgba(0, 0, 0, .08); }
+
 /* ---------- Table ---------- */
 
 .table-wrap {

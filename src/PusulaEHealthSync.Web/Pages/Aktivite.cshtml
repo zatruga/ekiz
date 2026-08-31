@@ -24,6 +24,7 @@
     <label for="to">Bitiş</label>
     <input type="date" id="to" name="To" value="@toIso" onchange="this.form.submit()" />
     <input type="hidden" name="Status" value="@Model.Status" />
+    <input type="hidden" name="Kategori" value="@Model.Kategori" />
     <select name="ResourceType" onchange="this.form.submit()">
         <option value="">Tüm kayıt türleri</option>
         <option value="Patient" selected="@(Model.ResourceType == "Patient")">@SyncLogEntry.ResourceTypeLabel("Patient")</option>
@@ -63,7 +64,7 @@
         </div>
         <span class="stat-value warning">@Model.SkippedCount</span>
     </a>
-    <a asp-page="/Aktivite" asp-route-Status="Failed" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" class="stat-card danger @(Model.Status == "Failed" ? "active" : "")">
+    <a asp-page="/Aktivite" asp-route-Status="Failed" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Kategori="@Model.Kategori" class="stat-card danger @(Model.Status == "Failed" ? "active" : "")">
         <div class="stat-top">
             <span class="stat-label">Hatalı</span>
             <span class="stat-icon">
@@ -73,6 +74,16 @@
         <span class="stat-value danger">@Model.FailedCount</span>
     </a>
 </div>
+
+@if (Model.Status == "Failed" && !string.IsNullOrWhiteSpace(Model.Kategori))
+{
+    <div class="filter-chip-bar">
+        <span class="filter-chip">
+            Kategori: <strong>@Model.Kategori</strong>
+            <a asp-page="/Aktivite" asp-route-Status="Failed" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" class="filter-chip-x" title="Kategori filtresini kaldır">&times;</a>
+        </span>
+    </div>
+}
 
 @if (Model.Entries.Count == 0)
 {
@@ -144,11 +155,11 @@ else
     <div class="pagination">
         @if (Model.PageNumber > 1)
         {
-            <a class="btn btn-outline btn-sm" asp-page="/Aktivite" asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-P="@(Model.PageNumber - 1)">&larr; Önceki</a>
+            <a class="btn btn-outline btn-sm" asp-page="/Aktivite" asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Kategori="@Model.Kategori" asp-route-P="@(Model.PageNumber - 1)">&larr; Önceki</a>
         }
         @if (Model.HasNextPage)
         {
-            <a class="btn btn-outline btn-sm" asp-page="/Aktivite" asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-P="@(Model.PageNumber + 1)">Sonraki &rarr;</a>
+            <a class="btn btn-outline btn-sm" asp-page="/Aktivite" asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Kategori="@Model.Kategori" asp-route-P="@(Model.PageNumber + 1)">Sonraki &rarr;</a>
         }
     </div>
 }
