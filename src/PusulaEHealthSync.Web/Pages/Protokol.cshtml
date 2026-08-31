@@ -177,19 +177,10 @@ else
                     }
                 </span>
             </div>
-            @if (taniRowOzetT > 0 || islemRowOzetT > 0)
-            {
-                <div class="checklist-item-summary">
-                    @if (taniRowOzetT > 0)
-                    {
-                        <span class="line @taniRowOzetClass">Tanı @taniRowOzetS/@taniRowOzetT @taniRowOzetLabel</span>
-                    }
-                    @if (islemRowOzetT > 0)
-                    {
-                        <span class="line @islemRowOzetClass">İşlem @islemRowOzetS/@islemRowOzetT @islemRowOzetLabel</span>
-                    }
-                </div>
-            }
+            <div class="checklist-item-summary">
+                <span class="line @taniRowOzetClass">Tanı @taniRowOzetS/@taniRowOzetT @taniRowOzetLabel</span>
+                <span class="line @islemRowOzetClass">İşlem @islemRowOzetS/@islemRowOzetT @islemRowOzetLabel</span>
+            </div>
             <div class="rt-right">
                 @{
                     var encStatus = Model.MuayineDurumKaydi?.Status;

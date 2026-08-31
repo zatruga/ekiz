@@ -66,7 +66,10 @@ public class ProtokolModel(
     {
         var list = durumlar.ToList();
         var total = list.Count;
-        if (total == 0) return ("neutral", "", 0, 0);
+        // KULLANICI ISTEGI (2026-08-31): "muayene de gönderilen tanı ve işlem yoksada
+        // yine yeşil olarak 0/0 gibi yazsın" -- hic kayit yoksa "yapilacak bir sey yok"
+        // durumu, yesil (success) sayiliyor, gri (neutral) degil.
+        if (total == 0) return ("success", "", 0, 0);
         var success = list.Count(BasariylaGonderildi);
         if (list.Any(d => d?.Status == SyncStatus.Failed)) return ("danger", "hatalı", success, total);
         if (success == total) return ("success", "başarılı", success, total);
