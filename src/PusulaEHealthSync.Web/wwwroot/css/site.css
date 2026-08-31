@@ -509,6 +509,22 @@ tbody tr:hover { background: var(--surface-hover); }
 .text-muted { color: var(--text-muted); }
 .cell-wide { white-space: normal; max-width: 420px; }
 
+/* Genis, yatay kaydirilan tablolarda son sutunu (Detay butonu) her zaman gorunur
+   tutmak icin -- KULLANICI GERI BILDIRIMI (2026-08-31, Aktivite akisi): "liste
+   yarim kalmis gibi duruyor" -- tablo sag kenardan aniden kesiliyordu, kaydirmak
+   gerektigi belli olmuyordu. Son sutun sabitlenip solundaki golge kaydirilabilir
+   icerik oldugunu isaret ediyor. */
+.sticky-last-col td:last-child,
+.sticky-last-col th:last-child {
+  position: sticky;
+  right: 0;
+  z-index: 1;
+  background: var(--surface);
+  box-shadow: -6px 0 10px -6px rgba(0, 0, 0, .22);
+}
+
+.sticky-last-col tbody tr:hover td:last-child { background: var(--surface-hover); }
+
 /* ---------- Badges ---------- */
 
 .badge {
