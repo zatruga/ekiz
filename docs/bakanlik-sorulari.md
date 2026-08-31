@@ -44,6 +44,29 @@ tür kalemler (`pi.HizmetId`, `LIS.Test.HizmetId` ile eşleşiyorsa) İşlem
 listesinden hariç tutuluyor -- yani şimdilik SADECE Observation olarak
 gönderiliyorlar, Procedure olarak tekrar gönderilmiyorlar.
 
+---
+
+### 3. Portal'da laboratuvar sonucu "Ölçü Vahidi" ve "Referans" sütunları neden boş?
+
+**Soru:** `az-lab-result-observation` Observation'larında `valueQuantity.unit`
+(ör. "mg/dL") ve `referenceRange[0].text` (ör. "8,6 - 10,2") gönderiliyor,
+sunucu bunları AYNEN kaydediyor (canlı GET ile doğrulandı -- gönderilenle
+sunucudaki birebir aynı), ama e-Health portalının "Laborator Nəticələr"
+ekranındaki "Ölçü Vahidi" ve "Referans" sütunları boş ("-") görünüyor. Bu
+portalın kendi görüntüleme sınırlaması mı, yoksa `referenceRange`'i serbest
+metin (`.text`) yerine yapılandırılmış `low`/`high` (Quantity) olarak mı
+göndermemiz bekleniyor? `valueQuantity.unit`/`code` doğru UCUM biçiminde mi
+olmalı (ör. Pusula'dan gelen "µg/dl" gibi ham birim string'leri bazen geçerli
+UCUM değil) yoksa bu da görüntülemeyi etkilemiyor mu?
+
+**Neden çıktı:** Protokol 50819013 üzerinde kullanıcı fark etti (2026-08-31)
+-- 6 laboratuvar sonucu da başarıyla gönderildi (Status=Success), portalda
+sonuç değeri görünüyor ama birim/referans sütunları hep boş. Canlı GET ile
+veri kaybı olmadığı kanıtlandı; sorun ya bakanlık portalının görüntüleme
+tarafında ya da beklenen alan yapısı (`text` vs `low`/`high`) farklı.
+
+**Durum:** Açık.
+
 **Durum:** Açık.
 
 ---
