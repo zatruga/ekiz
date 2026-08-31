@@ -939,6 +939,18 @@ input[type="checkbox"].row-check,
 .checklist-item .rt-desc { font-size: 12.5px; color: var(--text-muted); }
 .checklist-item .rt-right { display: flex; align-items: center; gap: 14px; }
 
+/* KULLANICI ISTEGI (2026-08-31): "benim orta alana yazdığım gibi yazsın" -- Müayinə/
+   Laboratuvar checklist satırının ORTASINA (açıklama ile aksiyon butonlari arasina), alt
+   listelerin (Tanı/İşlem/Laboratuvar) kaç tanesinin gönderildiğini gösteren kısa bir özet.
+   .checklist-item zaten justify-content:space-between -- ucuncu bir eleman eklenince
+   dogal olarak ortaya duser, ekstra bir flex kuralina gerek yok. */
+.checklist-item-summary { display: flex; flex-direction: column; gap: 2px; text-align: right; flex-shrink: 0; }
+.checklist-item-summary .line { font-size: 12px; font-weight: 600; white-space: nowrap; }
+.checklist-item-summary .line.success { color: var(--success); }
+.checklist-item-summary .line.warning { color: var(--warning); }
+.checklist-item-summary .line.danger { color: var(--danger); }
+.checklist-item-summary .line.neutral { color: var(--text-muted); }
+
 .hasta-mini-card {
   display: flex;
   flex-wrap: wrap;

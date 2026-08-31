@@ -138,6 +138,10 @@ else
              tıklayınca sayfa altındaki ortak alanda gösteriliyor (bkz. pusulaShowTab).
              Gönder/Sil/Detay hâlâ tıklamayı tetiklemesin diye stopPropagation kullanıyor
              (lab panel gruplarındaki AYNI teknik). -->
+        @{
+            var (taniRowOzetClass, taniRowOzetLabel, taniRowOzetS, taniRowOzetT) = Model.TanilarOzet();
+            var (islemRowOzetClass, islemRowOzetLabel, islemRowOzetS, islemRowOzetT) = Model.IslemlerOzet();
+        }
         <div class="checklist-item checklist-item--tab" data-tab="muayine" onclick="pusulaShowTab('muayine')">
             <div class="rt-info">
                 <span class="rt-name">Müayinə (Encounter) <span class="tab-chevron">&#9656;</span></span>
@@ -173,6 +177,19 @@ else
                     }
                 </span>
             </div>
+            @if (taniRowOzetT > 0 || islemRowOzetT > 0)
+            {
+                <div class="checklist-item-summary">
+                    @if (taniRowOzetT > 0)
+                    {
+                        <span class="line @taniRowOzetClass">Tanı @taniRowOzetS/@taniRowOzetT @taniRowOzetLabel</span>
+                    }
+                    @if (islemRowOzetT > 0)
+                    {
+                        <span class="line @islemRowOzetClass">İşlem @islemRowOzetS/@islemRowOzetT @islemRowOzetLabel</span>
+                    }
+                </div>
+            }
             <div class="rt-right">
                 @{
                     var encStatus = Model.MuayineDurumKaydi?.Status;
@@ -212,6 +229,7 @@ else
              Observation gönderimini temsil ediyor. -->
         @{
             var (labAggClass, labAggLabel) = Model.LabsAggregateBadge();
+            var (labRowOzetClass, labRowOzetLabel, labRowOzetS, labRowOzetT) = Model.LabsOzet();
         }
         <div class="checklist-item checklist-item--tab" data-tab="lab" onclick="pusulaShowTab('lab')">
             <div class="rt-info">
@@ -227,6 +245,12 @@ else
                     }
                 </span>
             </div>
+            @if (labRowOzetT > 0)
+            {
+                <div class="checklist-item-summary">
+                    <span class="line @labRowOzetClass">Laboratuvar @labRowOzetS/@labRowOzetT @labRowOzetLabel</span>
+                </div>
+            }
             <div class="rt-right">
                 @if (Model.Labs.Count > 0)
                 {
