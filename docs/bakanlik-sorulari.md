@@ -46,24 +46,40 @@ gönderiliyorlar, Procedure olarak tekrar gönderilmiyorlar.
 
 ---
 
-### 3. Portal'da laboratuvar sonucu "Ölçü Vahidi" ve "Referans" sütunları neden boş?
+### 3. Ölçü birimini ve referans aralığını gönderiyoruz ama portalda görünmüyor
 
-**Soru:** `az-lab-result-observation` Observation'larında `valueQuantity.unit`
-(ör. "mg/dL") ve `referenceRange[0].text` (ör. "8,6 - 10,2") gönderiliyor,
-sunucu bunları AYNEN kaydediyor (canlı GET ile doğrulandı -- gönderilenle
-sunucudaki birebir aynı), ama e-Health portalının "Laborator Nəticələr"
-ekranındaki "Ölçü Vahidi" ve "Referans" sütunları boş ("-") görünüyor. Bu
-portalın kendi görüntüleme sınırlaması mı, yoksa `referenceRange`'i serbest
-metin (`.text`) yerine yapılandırılmış `low`/`high` (Quantity) olarak mı
-göndermemiz bekleniyor? `valueQuantity.unit`/`code` doğru UCUM biçiminde mi
-olmalı (ör. Pusula'dan gelen "µg/dl" gibi ham birim string'leri bazen geçerli
-UCUM değil) yoksa bu da görüntülemeyi etkilemiyor mu?
+**Soru/bildirim:** Laboratuvar sonuçlarında ölçü birimini (`valueQuantity.unit`)
+ve referans aralığını (`referenceRange[0].text`) EKSİKSİZ gönderiyoruz ve
+bakanlık sunucusu bunları kaydediyor -- ama e-Health portalının "Laborator
+Nəticələr" ekranındaki "Ölçü Vahidi" ve "Referans" sütunları boş ("-")
+görünüyor. Bizim tarafımızda bir eksiklik yok, buna rağmen kullanıcıya
+gösterilmiyor -- portalın görüntüleme tarafında bir sorun olmalı, kontrol
+edilmesini rica ediyoruz.
+
+**Kanıt (protokol 50819013, "Kalsium" testi, `Observation/01a05699-553b-768c-b4e3-3ce691b6ae0c`):**
+
+Gönderdiğimiz veri:
+```json
+"valueQuantity": {"value": 8.7, "unit": "mg/dL", "system": "http://unitsofmeasure.org", "code": "mg/dL"},
+"referenceRange": [{"text": "8,6 - 10,2"}]
+```
+
+Bakanlık sunucusundan CANLI GET ile geri okunan veri (2026-08-31, birebir aynı):
+```json
+"valueQuantity": {"code": "mg/dL", "unit": "mg/dL", "value": 8.7, "system": "http://unitsofmeasure.org"},
+"referenceRange": [{"text": "8,6 - 10,2"}]
+```
+
+Yani veri kaybı YOK, sunucu tarafında doğru saklanıyor -- sorun portalın
+bunu okuyup göstermemesi. (Yan soru: `referenceRange`'i serbest metin
+yerine yapılandırılmış `low`/`high` olarak göndermemiz gerekiyorsa, ya da
+`valueQuantity.unit` için beklenen UCUM biçimiyle ilgili bir kısıtlama
+varsa -- ör. Pusula'dan gelen "µg/dl" gibi ham birim string'leri bazen
+geçerli UCUM değil -- bunu da netleştirmelerini rica ediyoruz.)
 
 **Neden çıktı:** Protokol 50819013 üzerinde kullanıcı fark etti (2026-08-31)
 -- 6 laboratuvar sonucu da başarıyla gönderildi (Status=Success), portalda
-sonuç değeri görünüyor ama birim/referans sütunları hep boş. Canlı GET ile
-veri kaybı olmadığı kanıtlandı; sorun ya bakanlık portalının görüntüleme
-tarafında ya da beklenen alan yapısı (`text` vs `low`/`high`) farklı.
+sonuç değeri görünüyor ama birim/referans sütunları hep boş.
 
 **Durum:** Açık.
 
