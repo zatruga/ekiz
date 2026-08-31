@@ -42,6 +42,20 @@ public class ProtokolModel(
     public bool LabsGonderilebilir => Labs.Any(l => !BasariylaGonderildi(l.Durum));
     public bool LabsSilinebilir => Labs.Any(l => SyncLogEntry.CanDelete(l.Durum));
 
+    // KULLANICI ISTEGI (2026-08-31): "sağ tarafta ... çok ucsuz bucaksız uzayıp gidiyor"
+    // -- Tanı/İşlem/Laboratuvar artik sag sutunda degil, checklist satirina tiklayinca
+    // sayfa altinda ortak bir alanda goruntuleniyor (bkz. Protokol.cshtml, pusulaShowTab).
+    // Bu satirdaki tek rozet, LabGroup.AggregateBadge() ile AYNI mantik (en dikkat cekici
+    // duruma gore ozetleniyor) ama TUM Labs listesi uzerinden.
+    public (string CssClass, string Label) LabsAggregateBadge()
+    {
+        if (Labs.Count == 0) return ("neutral", "Gönderilmedi");
+        if (Labs.Any(x => x.Durum?.Status == SyncStatus.Failed)) return ("danger", "Hatalı");
+        if (Labs.All(x => BasariylaGonderildi(x.Durum))) return ("success", "Gönderildi");
+        if (Labs.Any(x => BasariylaGonderildi(x.Durum))) return ("warning", "Kısmen gönderildi");
+        return ("neutral", "Gönderilmedi");
+    }
+
     // KULLANICI ISTEGI (2026-08-29): "alt paremetreli testleri ayrı ayrı göstermesin ana
     // testin yanını artı ile gösterebilir" (ornek: EOS % hemogramin alt parametresi). Tek bir
     // panelde 20+ satir olabildigi icin (canli gorulen: 89 satirlik bir protokol) duz liste

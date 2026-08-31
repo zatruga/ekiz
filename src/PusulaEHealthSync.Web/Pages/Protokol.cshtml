@@ -87,7 +87,6 @@ else
     </div>
 
     <p class="section-title">e-Health gönderim durumu</p>
-    <div class="protokol-split">
     <div class="checklist">
         <div class="checklist-item">
             <div class="rt-info">
@@ -134,9 +133,14 @@ else
             </div>
         </div>
 
-        <div class="checklist-item checklist-item--source">
+        <!-- KULLANICI ISTEGI (2026-08-31): "işlem procedürü muayeninin altına alalım ...
+             açılır kapanır şekilde". Tanı/İşlem artık ayrı bir sağ sütunda değil -- bu satıra
+             tıklayınca sayfa altındaki ortak alanda gösteriliyor (bkz. pusulaShowTab).
+             Gönder/Sil/Detay hâlâ tıklamayı tetiklemesin diye stopPropagation kullanıyor
+             (lab panel gruplarındaki AYNI teknik). -->
+        <div class="checklist-item checklist-item--tab" data-tab="muayine" onclick="pusulaShowTab('muayine')">
             <div class="rt-info">
-                <span class="rt-name">Müayinə (Encounter) <span class="text-muted" style="font-weight:400; font-size:12px;">&rarr; Tanı &amp; İşlem sağda</span></span>
+                <span class="rt-name">Müayinə (Encounter) <span class="tab-chevron">&#9656;</span></span>
                 <span class="rt-desc">
                     @if (isRecete)
                     {
@@ -158,14 +162,14 @@ else
                     }
                     @if (Model.MuayineDurumKaydi is null)
                     {
-                        <text> Bu protokol için henüz bir gönderim denemesi yapılmadı. Hasta e-Health'te henüz yoksa "Gönder" onu da otomatik olarak önce gönderir.</text>
+                        <text> Bu protokol için henüz bir gönderim denemesi yapılmadı. Hasta e-Health'te henüz yoksa "Gönder" onu da otomatik olarak önce gönderir. Tanı ve İşlem, Müayinə ile birlikte otomatik gönderilir -- listelerini görmek için bu satıra tıklayın.</text>
                     }
                     else
                     {
                         var displayMsg = Model.MuayineDurumKaydi.Message is null ? ""
                             : Model.MuayineDurumKaydi.Status == SyncStatus.Failed ? SyncLogEntry.FriendlyError(Model.MuayineDurumKaydi.Message)
                             : Model.MuayineDurumKaydi.Message;
-                        <text> Son deneme: @Model.MuayineDurumKaydi.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC @(string.IsNullOrEmpty(displayMsg) ? "" : $"-- {displayMsg}")</text>
+                        <text> Son deneme: @Model.MuayineDurumKaydi.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC @(string.IsNullOrEmpty(displayMsg) ? "" : $"-- {displayMsg}") Tanı ve İşlem listesi için bu satıra tıklayın.</text>
                     }
                 </span>
             </div>
@@ -177,13 +181,12 @@ else
                 <span class="badge @encBadgeClass"><span class="badge-dot"></span>@encBadgeLabel</span>
                 @if (Model.MuayineDurumKaydi is not null)
                 {
-                    <a asp-page="/Detail" asp-route-id="@Model.MuayineDurumKaydi.Id" asp-route-fromProtokol="@p.ProtokolId" class="btn btn-outline btn-sm">Detay</a>
+                    <a asp-page="/Detail" asp-route-id="@Model.MuayineDurumKaydi.Id" asp-route-fromProtokol="@p.ProtokolId" class="btn btn-outline btn-sm" onclick="event.stopPropagation()">Detay</a>
                 }
                 @if (!isRecete)
                 {
                     <form method="post" asp-page-handler="GonderMuayine" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                        <button type="submit" class="btn btn-primary btn-sm"
-                                onclick="return confirm('Hasta gerekiyorsa önce o, ardından Müayinə e-Health\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
+                        <button type="submit" class="btn btn-primary btn-sm" onclick="event.stopPropagation(); return confirm('Hasta gerekiyorsa önce o, ardından Müayinə e-Health\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
                             @(encStatus is null ? "Gönder" : "Tekrar Gönder")
                         </button>
                     </form>
@@ -192,7 +195,7 @@ else
                 {
                     <form method="post" asp-page-handler="SilMuayine" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                         <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                                onclick="return confirm('Müayinə kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                onclick="event.stopPropagation(); return confirm('Müayinə kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
                             Sil
                         </button>
                     </form>
@@ -200,13 +203,53 @@ else
             </div>
         </div>
 
-        <div class="checklist-item">
+        <!-- KULLANICI ISTEGI (2026-08-31): "laboratuarıda laboratuar alanına" -- eskiden
+             burada ayrı, pasif bir "Laboratuvar (DiagnosticReport) - Hazır değil" satırı
+             vardı, gerçek çalışan Tetkik listesi ise sağ sütundaydı (aynı isim iki farklı
+             yerde, kafa karıştırıyordu). Artık TEK satır -- gerçek durumu gösteriyor, tıklanınca
+             sayfa altında listeleniyor. DiagnosticReport (rapor gruplama kaynağı) kasıtlı
+             olarak hâlâ yazılmadı (IG zorunlu kılmıyor) ama bu satırın ADI artık gerçek
+             Observation gönderimini temsil ediyor. -->
+        @{
+            var (labAggClass, labAggLabel) = Model.LabsAggregateBadge();
+        }
+        <div class="checklist-item checklist-item--tab" data-tab="lab" onclick="pusulaShowTab('lab')">
             <div class="rt-info">
-                <span class="rt-name">Laboratuvar (DiagnosticReport)</span>
-                <span class="rt-desc">Mapping ve kod henüz yazılmadı.</span>
+                <span class="rt-name">Laboratuvar (Tetkik) <span class="tab-chevron">&#9656;</span></span>
+                <span class="rt-desc">
+                    @if (Model.Labs.Count == 0)
+                    {
+                        <text>Bu protokol için onaylanmış (kesinleşmiş) laboratuvar sonucu bulunamadı.</text>
+                    }
+                    else
+                    {
+                        <text>@Model.Labs.Count sonuç -- listesi için bu satıra tıklayın.</text>
+                    }
+                </span>
             </div>
             <div class="rt-right">
-                <span class="rchip disabled">Hazır değil</span>
+                @if (Model.Labs.Count > 0)
+                {
+                    <span class="count-chip">@Model.Labs.Count</span>
+                }
+                <span class="badge @labAggClass"><span class="badge-dot"></span>@labAggLabel</span>
+                @if (Model.LabsGonderilebilir)
+                {
+                    <form method="post" asp-page-handler="TumunuGonderLab" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                        <button type="submit" class="btn btn-primary btn-sm" onclick="event.stopPropagation(); return confirm('Henüz gönderilmemiş/hatalı tüm laboratuvar sonuçları e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                            Tümünü Gönder
+                        </button>
+                    </form>
+                }
+                @if (Model.LabsSilinebilir)
+                {
+                    <form method="post" asp-page-handler="TumunuSilLab" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                        <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
+                                onclick="event.stopPropagation(); return confirm('Gönderilmiş TÜM laboratuvar kayıtları e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                            Tümünü Sil
+                        </button>
+                    </form>
+                }
             </div>
         </div>
 
@@ -285,157 +328,165 @@ else
         </div>
     </div>
 
-    <div class="side-panel">
-        <div class="side-panel-link">
-            <span class="link-arrow">&#8627;</span>
-            <span>Soldaki <b class="text-muted" style="color:var(--success);">Müayinə (Encounter)</b> satırına bağlı -- "Gönder" ile birlikte otomatik gönderilir</span>
-        </div>
-        <div class="side-card">
-        <div class="side-card-section">
-            <div class="side-card-head">
-                <span class="rt-name">Tanı (Condition) <span class="count">@Model.Tanilar.Count</span></span>
-                <div class="side-card-actions">
-                    @if (Model.TanilarGonderilebilir)
-                    {
-                        <form method="post" asp-page-handler="TumunuGonderTani" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                            <button type="submit" class="btn btn-primary btn-sm"
-                                    onclick="return confirm('Henüz gönderilmemiş/hatalı tüm tanılar e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
-                                Tümünü Gönder
-                            </button>
-                        </form>
-                    }
-                    @if (Model.TanilarSilinebilir)
-                    {
-                        <form method="post" asp-page-handler="TumunuSilTani" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                            <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                                    onclick="return confirm('Gönderilmiş TÜM tanı kayıtları e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
-                                Tümünü Sil
-                            </button>
-                        </form>
-                    }
-                </div>
-            </div>
-            @if (Model.Tanilar.Count == 0)
-            {
-                <div class="side-card-empty">Bu protokol için ICD-10 tanısı bulunamadı.</div>
-            }
-            else
-            {
-                @foreach (var (tani, durum) in Model.Tanilar)
-                {
-                    var (taniBadgeClass, taniBadgeLabel) = SyncLogEntry.StatusBadge(durum);
-                    <div class="side-row">
-                        <div class="side-row-main">
-                            <span class="side-row-code">@tani.Kodu</span>
-                            <span class="side-row-name">@(tani.Adi ?? "-")</span>
-                        </div>
-                        <div class="side-row-actions">
-                            <span class="badge @taniBadgeClass" style="padding:3px 9px; font-size:11px;"><span class="badge-dot"></span>@taniBadgeLabel</span>
-                            @if (durum is not null)
-                            {
-                                <a asp-page="/Detail" asp-route-id="@durum.Id" asp-route-fromProtokol="@p.ProtokolId" class="icon-btn-detay" title="Detay">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                                </a>
-                            }
-                            @if (!PusulaEHealthSync.Web.Pages.ProtokolModel.BasariylaGonderildi(durum))
-                            {
-                                <form method="post" asp-page-handler="GonderTani" asp-route-id="@p.ProtokolId" asp-route-taniId="@tani.Id" onsubmit="pusulaLockSubmit(this)">
-                                    <button type="submit" class="icon-btn-gonder" title="@(durum is null ? "Gönder" : "Tekrar Gönder")"
-                                            onclick="return confirm('Bu tanı e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
-                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
-                                    </button>
-                                </form>
-                            }
-                            @if (SyncLogEntry.CanDelete(durum))
-                            {
-                                <form method="post" asp-page-handler="SilTani" asp-route-id="@p.ProtokolId" asp-route-durumId="@durum!.Id" onsubmit="pusulaLockSubmit(this)">
-                                    <button type="submit" class="icon-btn-sil" title="Sil"
-                                            onclick="return confirm('Bu tanı kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
-                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                    </button>
-                                </form>
-                            }
-                        </div>
-                    </div>
-                }
-            }
-        </div>
+    <!-- KULLANICI ISTEGI (2026-08-31): "bir alan daha açalım listeleme alanı ... üst taraftaki
+         başlıklar tıklanılabilir olsun ... alt taraftaki alanda bu bilgiler gösterilsin".
+         Aynı anda TEK panel görünür (pusulaShowTab) -- sayfa yüksekliği artık kaç kayıt olursa
+         olsun sabit kalıyor, tüm listeler burada birikip sayfayı uzatmıyor. Hangi panelin açık
+         olduğu sessionStorage'da tutuluyor (protokol id'sine göre) -- Gönder/Sil sonrası sayfa
+         yenilendiğinde (RedirectToPage) kullanıcı kaldığı yerde kalsın diye. -->
+    <div class="tab-detail-anchor" id="tab-detail-anchor">
+        <p id="tab-detail-empty" class="tab-detail-empty">Yukarıdan <b style="color:var(--text-muted);">Müayinə</b> veya <b style="color:var(--text-muted);">Laboratuvar</b> satırına tıklayın, listesi burada açılsın.</p>
 
-        <div class="side-card-section">
+        <div class="side-card tab-panel-content" id="tab-panel-muayine">
             <div class="side-card-head">
-                <span class="rt-name">İşlem (Procedure) <span class="count">@Model.Islemler.Count</span></span>
-                <div class="side-card-actions">
-                    @if (Model.IslemlerGonderilebilir)
-                    {
-                        <form method="post" asp-page-handler="TumunuGonderIslem" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                            <button type="submit" class="btn btn-primary btn-sm"
-                                    onclick="return confirm('Henüz gönderilmemiş/hatalı tüm işlemler e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
-                                Tümünü Gönder
-                            </button>
-                        </form>
-                    }
-                    @if (Model.IslemlerSilinebilir)
-                    {
-                        <form method="post" asp-page-handler="TumunuSilIslem" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                            <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                                    onclick="return confirm('Gönderilmiş TÜM işlem kayıtları e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
-                                Tümünü Sil
-                            </button>
-                        </form>
-                    }
-                </div>
+                <span class="rt-name">Müayinə &rarr; Tanı &amp; İşlem</span>
             </div>
-            @if (Model.Islemler.Count == 0)
-            {
-                <div class="side-card-empty">Bu protokol için İCBARI SİGORTA FİYAT LİSTESİ ile eşleşen hizmet bulunamadı.</div>
-            }
-            else
-            {
-                <div class="list-header">
-                    <button type="button" class="sort-btn" onclick="pusulaSortRows('islem-rows', 'islemSortArrow')">
-                        Tarih <span class="arrow" id="islemSortArrow">↓</span>
-                    </button>
+            <div class="side-card-section">
+                <div class="side-card-head">
+                    <span class="rt-name">Tanı (Condition) <span class="count">@Model.Tanilar.Count</span></span>
+                    <div class="side-card-actions">
+                        @if (Model.TanilarGonderilebilir)
+                        {
+                            <form method="post" asp-page-handler="TumunuGonderTani" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                <button type="submit" class="btn btn-primary btn-sm"
+                                        onclick="return confirm('Henüz gönderilmemiş/hatalı tüm tanılar e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                                    Tümünü Gönder
+                                </button>
+                            </form>
+                        }
+                        @if (Model.TanilarSilinebilir)
+                        {
+                            <form method="post" asp-page-handler="TumunuSilTani" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
+                                        onclick="return confirm('Gönderilmiş TÜM tanı kayıtları e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                    Tümünü Sil
+                                </button>
+                            </form>
+                        }
+                    </div>
                 </div>
-                <div id="islem-rows">
-                @foreach (var (islem, durum) in Model.Islemler)
+                @if (Model.Tanilar.Count == 0)
                 {
-                    var (islemBadgeClass, islemBadgeLabel) = SyncLogEntry.StatusBadge(durum);
-                    <div class="side-row" data-sort-date="@(islem.IslemTarihi?.ToString("yyyy-MM-ddTHH:mm:ss"))">
-                        <span class="date-col" title="@(islem.IslemTarihi?.ToString("dd.MM.yyyy HH:mm"))">@(islem.IslemTarihi?.ToString("dd.MM.yyyy") ?? "-")</span>
-                        <div class="side-row-main">
-                            <span class="side-row-name">@(islem.HizmetAdi ?? "-")</span>
+                    <div class="side-card-empty">Bu protokol için ICD-10 tanısı bulunamadı.</div>
+                }
+                else
+                {
+                    @foreach (var (tani, durum) in Model.Tanilar)
+                    {
+                        var (taniBadgeClass, taniBadgeLabel) = SyncLogEntry.StatusBadge(durum);
+                        <div class="side-row">
+                            <div class="side-row-main">
+                                <span class="side-row-code">@tani.Kodu</span>
+                                <span class="side-row-name">@(tani.Adi ?? "-")</span>
+                            </div>
+                            <div class="side-row-actions">
+                                <span class="badge @taniBadgeClass" style="padding:3px 9px; font-size:11px;"><span class="badge-dot"></span>@taniBadgeLabel</span>
+                                @if (durum is not null)
+                                {
+                                    <a asp-page="/Detail" asp-route-id="@durum.Id" asp-route-fromProtokol="@p.ProtokolId" class="icon-btn-detay" title="Detay">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                                    </a>
+                                }
+                                @if (!PusulaEHealthSync.Web.Pages.ProtokolModel.BasariylaGonderildi(durum))
+                                {
+                                    <form method="post" asp-page-handler="GonderTani" asp-route-id="@p.ProtokolId" asp-route-taniId="@tani.Id" onsubmit="pusulaLockSubmit(this)">
+                                        <button type="submit" class="icon-btn-gonder" title="@(durum is null ? "Gönder" : "Tekrar Gönder")"
+                                                onclick="return confirm('Bu tanı e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                                        </button>
+                                    </form>
+                                }
+                                @if (SyncLogEntry.CanDelete(durum))
+                                {
+                                    <form method="post" asp-page-handler="SilTani" asp-route-id="@p.ProtokolId" asp-route-durumId="@durum!.Id" onsubmit="pusulaLockSubmit(this)">
+                                        <button type="submit" class="icon-btn-sil" title="Sil"
+                                                onclick="return confirm('Bu tanı kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                        </button>
+                                    </form>
+                                }
+                            </div>
                         </div>
-                        <div class="side-row-actions">
-                            <span class="badge @islemBadgeClass" style="padding:3px 9px; font-size:11px;"><span class="badge-dot"></span>@islemBadgeLabel</span>
-                            @if (durum is not null)
-                            {
-                                <a asp-page="/Detail" asp-route-id="@durum.Id" asp-route-fromProtokol="@p.ProtokolId" class="icon-btn-detay" title="Detay">
-                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
-                                </a>
-                            }
-                            @if (!PusulaEHealthSync.Web.Pages.ProtokolModel.BasariylaGonderildi(durum))
-                            {
-                                <form method="post" asp-page-handler="GonderIslem" asp-route-id="@p.ProtokolId" asp-route-islemId="@islem.Id" onsubmit="pusulaLockSubmit(this)">
-                                    <button type="submit" class="icon-btn-gonder" title="@(durum is null ? "Gönder" : "Tekrar Gönder")"
-                                            onclick="return confirm('Bu işlem e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
-                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
-                                    </button>
-                                </form>
-                            }
-                            @if (SyncLogEntry.CanDelete(durum))
-                            {
-                                <form method="post" asp-page-handler="SilIslem" asp-route-id="@p.ProtokolId" asp-route-durumId="@durum!.Id" onsubmit="pusulaLockSubmit(this)">
-                                    <button type="submit" class="icon-btn-sil" title="Sil"
-                                            onclick="return confirm('Bu işlem kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
-                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                    </button>
-                                </form>
-                            }
+                    }
+                }
+            </div>
+
+            <div class="side-card-section">
+                <div class="side-card-head">
+                    <span class="rt-name">İşlem (Procedure) <span class="count">@Model.Islemler.Count</span></span>
+                    <div class="side-card-actions">
+                        @if (Model.IslemlerGonderilebilir)
+                        {
+                            <form method="post" asp-page-handler="TumunuGonderIslem" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                <button type="submit" class="btn btn-primary btn-sm"
+                                        onclick="return confirm('Henüz gönderilmemiş/hatalı tüm işlemler e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                                    Tümünü Gönder
+                                </button>
+                            </form>
+                        }
+                        @if (Model.IslemlerSilinebilir)
+                        {
+                            <form method="post" asp-page-handler="TumunuSilIslem" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
+                                        onclick="return confirm('Gönderilmiş TÜM işlem kayıtları e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                    Tümünü Sil
+                                </button>
+                            </form>
+                        }
+                    </div>
+                </div>
+                @if (Model.Islemler.Count == 0)
+                {
+                    <div class="side-card-empty">Bu protokol için İCBARI SİGORTA FİYAT LİSTESİ ile eşleşen hizmet bulunamadı.</div>
+                }
+                else
+                {
+                    <div class="list-header">
+                        <button type="button" class="sort-btn" onclick="pusulaSortRows('islem-rows', 'islemSortArrow')">
+                            Tarih <span class="arrow" id="islemSortArrow">↓</span>
+                        </button>
+                    </div>
+                    <div id="islem-rows">
+                    @foreach (var (islem, durum) in Model.Islemler)
+                    {
+                        var (islemBadgeClass, islemBadgeLabel) = SyncLogEntry.StatusBadge(durum);
+                        <div class="side-row" data-sort-date="@(islem.IslemTarihi?.ToString("yyyy-MM-ddTHH:mm:ss"))">
+                            <span class="date-col" title="@(islem.IslemTarihi?.ToString("dd.MM.yyyy HH:mm"))">@(islem.IslemTarihi?.ToString("dd.MM.yyyy") ?? "-")</span>
+                            <div class="side-row-main">
+                                <span class="side-row-name">@(islem.HizmetAdi ?? "-")</span>
+                            </div>
+                            <div class="side-row-actions">
+                                <span class="badge @islemBadgeClass" style="padding:3px 9px; font-size:11px;"><span class="badge-dot"></span>@islemBadgeLabel</span>
+                                @if (durum is not null)
+                                {
+                                    <a asp-page="/Detail" asp-route-id="@durum.Id" asp-route-fromProtokol="@p.ProtokolId" class="icon-btn-detay" title="Detay">
+                                        <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 16v-4"/><path d="M12 8h.01"/></svg>
+                                    </a>
+                                }
+                                @if (!PusulaEHealthSync.Web.Pages.ProtokolModel.BasariylaGonderildi(durum))
+                                {
+                                    <form method="post" asp-page-handler="GonderIslem" asp-route-id="@p.ProtokolId" asp-route-islemId="@islem.Id" onsubmit="pusulaLockSubmit(this)">
+                                        <button type="submit" class="icon-btn-gonder" title="@(durum is null ? "Gönder" : "Tekrar Gönder")"
+                                                onclick="return confirm('Bu işlem e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                                        </button>
+                                    </form>
+                                }
+                                @if (SyncLogEntry.CanDelete(durum))
+                                {
+                                    <form method="post" asp-page-handler="SilIslem" asp-route-id="@p.ProtokolId" asp-route-durumId="@durum!.Id" onsubmit="pusulaLockSubmit(this)">
+                                        <button type="submit" class="icon-btn-sil" title="Sil"
+                                                onclick="return confirm('Bu işlem kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                            <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                        </button>
+                                    </form>
+                                }
+                            </div>
                         </div>
+                    }
                     </div>
                 }
-                </div>
-            }
+            </div>
         </div>
 
         @{
@@ -484,91 +535,71 @@ else
             }
         }
 
-        <div class="side-card-section">
-            <div class="side-card-head">
-                <span class="rt-name">Laboratuvar (Tetkik) <span class="count">@Model.Labs.Count</span></span>
-                <div class="side-card-actions">
-                    @if (Model.LabsGonderilebilir)
-                    {
-                        <form method="post" asp-page-handler="TumunuGonderLab" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                            <button type="submit" class="btn btn-primary btn-sm"
-                                    onclick="return confirm('Henüz gönderilmemiş/hatalı tüm laboratuvar sonuçları e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
-                                Tümünü Gönder
-                            </button>
-                        </form>
-                    }
-                    @if (Model.LabsSilinebilir)
-                    {
-                        <form method="post" asp-page-handler="TumunuSilLab" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                            <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                                    onclick="return confirm('Gönderilmiş TÜM laboratuvar kayıtları e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
-                                Tümünü Sil
-                            </button>
-                        </form>
-                    }
+        <div class="side-card tab-panel-content" id="tab-panel-lab">
+            <div class="side-card-section">
+                <div class="side-card-head">
+                    <span class="rt-name">Laboratuvar (Tetkik) <span class="count">@Model.Labs.Count</span></span>
                 </div>
-            </div>
-            @if (Model.Labs.Count == 0)
-            {
-                <div class="side-card-empty">Bu protokol için onaylanmış (kesinleşmiş) laboratuvar sonucu bulunamadı.</div>
-            }
-            else
-            {
-                <div class="list-header">
-                    <button type="button" class="sort-btn" onclick="pusulaSortRows('lab-rows', 'labSortArrow')">
-                        Tarih <span class="arrow" id="labSortArrow">↓</span>
-                    </button>
-                </div>
-                <div id="lab-rows">
-                @foreach (var group in Model.LabGroups)
+                @if (Model.Labs.Count == 0)
                 {
-                    if (group.Items.Count == 1)
-                    {
-                        await RenderLabRow(group.Items[0].Lab, group.Items[0].Durum, p.ProtokolId, false);
-                    }
-                    else
-                    {
-                        var (groupBadgeClass, groupBadgeLabel) = group.AggregateBadge();
-                        var groupDate = group.Items.Select(x => x.Lab.TetkikSonucOnayTarihi ?? x.Lab.TetkikSonucTarihi).FirstOrDefault();
-                        <details class="lab-panel-group" data-sort-date="@(groupDate?.ToString("yyyy-MM-ddTHH:mm:ss"))">
-                            <summary class="lab-panel-summary">
-                                <span class="date-col" title="@(groupDate?.ToString("dd.MM.yyyy HH:mm"))">@(groupDate?.ToString("dd.MM.yyyy") ?? "-")</span>
-                                <span class="side-row-name">@group.GroupName</span>
-                                <span class="lab-panel-summary-actions">
-                                    <span class="count">+@(group.HasOwnRow ? group.Items.Count - 1 : group.Items.Count)</span>
-                                    <span class="badge @groupBadgeClass" style="padding:3px 9px; font-size:11px;"><span class="badge-dot"></span>@groupBadgeLabel</span>
-                                    @if (group.Gonderilebilir)
-                                    {
-                                        <form method="post" asp-page-handler="GonderLabGrubu" asp-route-id="@p.ProtokolId" asp-route-grupAdi="@group.GroupName" onsubmit="pusulaLockSubmit(this)">
-                                            <button type="submit" class="icon-btn-gonder" title="Tüm alt parametreleri gönder"
-                                                    onclick="event.stopPropagation(); return confirm('Bu panelin tüm alt parametreleri e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
-                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
-                                            </button>
-                                        </form>
-                                    }
-                                    @if (group.Silinebilir)
-                                    {
-                                        <form method="post" asp-page-handler="SilLabGrubu" asp-route-id="@p.ProtokolId" asp-route-grupAdi="@group.GroupName" onsubmit="pusulaLockSubmit(this)">
-                                            <button type="submit" class="icon-btn-sil" title="Tüm alt parametreleri sil"
-                                                    onclick="event.stopPropagation(); return confirm('Bu panelin gönderilmiş TÜM alt parametreleri e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
-                                                <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                            </button>
-                                        </form>
-                                    }
-                                </span>
-                            </summary>
-                            @foreach (var (lab, durum) in group.Items)
-                            {
-                                await RenderLabRow(lab, durum, p.ProtokolId, lab.TetkikAdi == group.GroupName);
-                            }
-                        </details>
-                    }
+                    <div class="side-card-empty">Bu protokol için onaylanmış (kesinleşmiş) laboratuvar sonucu bulunamadı.</div>
                 }
-                </div>
-            }
+                else
+                {
+                    <div class="list-header">
+                        <button type="button" class="sort-btn" onclick="pusulaSortRows('lab-rows', 'labSortArrow')">
+                            Tarih <span class="arrow" id="labSortArrow">↓</span>
+                        </button>
+                    </div>
+                    <div id="lab-rows">
+                    @foreach (var group in Model.LabGroups)
+                    {
+                        if (group.Items.Count == 1)
+                        {
+                            await RenderLabRow(group.Items[0].Lab, group.Items[0].Durum, p.ProtokolId, false);
+                        }
+                        else
+                        {
+                            var (groupBadgeClass, groupBadgeLabel) = group.AggregateBadge();
+                            var groupDate = group.Items.Select(x => x.Lab.TetkikSonucOnayTarihi ?? x.Lab.TetkikSonucTarihi).FirstOrDefault();
+                            <details class="lab-panel-group" data-sort-date="@(groupDate?.ToString("yyyy-MM-ddTHH:mm:ss"))">
+                                <summary class="lab-panel-summary">
+                                    <span class="date-col" title="@(groupDate?.ToString("dd.MM.yyyy HH:mm"))">@(groupDate?.ToString("dd.MM.yyyy") ?? "-")</span>
+                                    <span class="side-row-name">@group.GroupName</span>
+                                    <span class="lab-panel-summary-actions">
+                                        <span class="count">+@(group.HasOwnRow ? group.Items.Count - 1 : group.Items.Count)</span>
+                                        <span class="badge @groupBadgeClass" style="padding:3px 9px; font-size:11px;"><span class="badge-dot"></span>@groupBadgeLabel</span>
+                                        @if (group.Gonderilebilir)
+                                        {
+                                            <form method="post" asp-page-handler="GonderLabGrubu" asp-route-id="@p.ProtokolId" asp-route-grupAdi="@group.GroupName" onsubmit="pusulaLockSubmit(this)">
+                                                <button type="submit" class="icon-btn-gonder" title="Tüm alt parametreleri gönder"
+                                                        onclick="event.stopPropagation(); return confirm('Bu panelin tüm alt parametreleri e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
+                                                </button>
+                                            </form>
+                                        }
+                                        @if (group.Silinebilir)
+                                        {
+                                            <form method="post" asp-page-handler="SilLabGrubu" asp-route-id="@p.ProtokolId" asp-route-grupAdi="@group.GroupName" onsubmit="pusulaLockSubmit(this)">
+                                                <button type="submit" class="icon-btn-sil" title="Tüm alt parametreleri sil"
+                                                        onclick="event.stopPropagation(); return confirm('Bu panelin gönderilmiş TÜM alt parametreleri e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                                    <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                                </button>
+                                            </form>
+                                        }
+                                    </span>
+                                </summary>
+                                @foreach (var (lab, durum) in group.Items)
+                                {
+                                    await RenderLabRow(lab, durum, p.ProtokolId, lab.TetkikAdi == group.GroupName);
+                                }
+                            </details>
+                        }
+                    }
+                    </div>
+                }
+            </div>
         </div>
-        </div>
-    </div>
     </div>
 }
 
@@ -601,5 +632,32 @@ else
             var arrow = document.getElementById(arrowId);
             if (arrow) arrow.textContent = dir === 'asc' ? '↑' : '↓';
         }
+
+        // KULLANICI ISTEGI (2026-08-31): "üst taraftaki başlıklar tıklanılabilir olsun ...
+        // alt taraftaki alanda bu bilgiler gösterilsin". Aynı anda TEK panel görünür --
+        // sayfa yüksekliği artık liste uzunluğundan bağımsız. Hangi panelin açık olduğu
+        // protokol id'sine göre sessionStorage'da tutuluyor -- Gönder/Sil bir tam sayfa
+        // yenilemesi (RedirectToPage) tetiklediği için, bu olmasa kullanıcı her işlemden
+        // sonra "yukarı çık, tekrar tıkla" yapmak zorunda kalırdı.
+        var pusulaTabKey = 'pusula-protokol-tab-@(Model.Protokol?.ProtokolId ?? 0)';
+
+        function pusulaShowTab(name) {
+            document.querySelectorAll('.checklist-item--tab').forEach(function (el) {
+                el.classList.toggle('active', el.dataset.tab === name);
+            });
+            document.getElementById('tab-detail-empty').style.display = 'none';
+            document.querySelectorAll('.tab-panel-content').forEach(function (el) {
+                el.classList.toggle('active', el.id === 'tab-panel-' + name);
+            });
+            try { sessionStorage.setItem(pusulaTabKey, name); } catch (e) { /* gizli mod vb. -- sessizce yoksay */ }
+        }
+
+        (function pusulaRestoreTab() {
+            var saved = null;
+            try { saved = sessionStorage.getItem(pusulaTabKey); } catch (e) { /* yoksay */ }
+            if (saved && document.getElementById('tab-panel-' + saved)) {
+                pusulaShowTab(saved);
+            }
+        })();
     </script>
 }

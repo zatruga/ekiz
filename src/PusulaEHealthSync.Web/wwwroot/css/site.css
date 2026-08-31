@@ -947,62 +947,48 @@ input[type="checkbox"].row-check,
   color: var(--text-muted);
 }
 
-/* ---------- Protokol Detay -- Tanı/İşlem sağ panel ----------
-   KULLANICI ISTEGI (2026-08-25): "bence de sağ tarafta olması daha güzel ... bu liste
-   uzun yatışlı hastalarda daha uzun olacak sol taraf ile bağlantısı olmadan aşağıya
-   doğru büyüyor olmalı" -- .protokol-split iki sütunu ayri, bagimsiz yukseklikte tutar
-   (grid align-items:start), sag panel sticky DEGIL, kendi icerigi kadar asagi buyur.
-   KULLANICI ISTEGI (2026-08-25, ikinci tur): "sağ tarafı biraz daha genişlendir" --
-   440px'ten 520px'e cikarildi. "tanı kısmının başlangıcı muayene alanının çizgisi ile
-   aynı olsun" -- ayri bir aciklama satiri KALDIRILDI, bunun yerine .side-panel'e
-   Hasta satirinin YAKLASIK yuksekligi kadar margin-top verildi (asagida DUZELTME
-   notuna bkz. -- bu bir tahmin, mukemmel piksel eslesmesi CSS Grid subgrid gerektirir
-   ama subgrid satirlari PAYLASTIRIR, bu da "bagimsiz buyume" kuralini bozar, o yuzden
-   kasitli olarak tercih edilmedi). "tanı ile procedür alanını arasında boşluk olmasın"
-   -- iki ayri .side-card yerine TEK karta, ic bolumler (.side-card-section) araciligiyla
-   birlestirildi (checklist'teki "tek kart, sac tel ayirici" gorunumuyle ayni mantik). */
-.protokol-split { display: grid; grid-template-columns: 1fr 520px; gap: 24px; align-items: start; }
-@media (max-width: 980px) { .protokol-split { grid-template-columns: 1fr; } }
+/* ---------- Protokol Detay -- tıklanabilir başlık + sayfa altında ortak liste ----------
+   KULLANICI ISTEGI (2026-08-31, uc turlu tasarim gorusmesi -- gorsel taslak onceden
+   Artifact ile paylasilip onaylandi): "sağ tarafta ... hastanın dosyasına bağlı olarak
+   procedür ve laboratuar alanı çok ucsuz bucaksız uzayıp gidiyor" -- eski iki-sutunlu
+   .protokol-split/.side-panel (sag sutun Tanı/İşlem/Laboratuvar icin, potansiyel olarak
+   yuzlerce satir) TAMAMEN KALDIRILDI. Yerine: checklist tek sutun, Müayinə/Laboratuvar
+   satirlarina tiklaninca (.checklist-item--tab) ilgili liste sayfa ALTINDAKI TEK ortak
+   alanda (.tab-detail-anchor) goruniyor -- ayni anda sadece bir panel acik, sayfa
+   yuksekligi artik kayit sayisindan bagimsiz sabit kaliyor. */
+.checklist-item--tab { cursor: pointer; }
+.checklist-item--tab:hover { background: var(--surface-hover); }
+.checklist-item--tab.active { background: var(--primary-soft); }
+.checklist-item--tab.active .rt-name { color: var(--primary); }
+.tab-chevron { display: inline-block; font-size: 11px; color: var(--text-faint); transition: transform 0.15s ease; }
+.checklist-item--tab.active .tab-chevron { transform: rotate(90deg); color: var(--primary); }
 
-.side-panel { display: flex; flex-direction: column; gap: 0; }
-
-/* KULLANICI ISTEGI (2026-08-25, ucuncu tur): "az önce denemelerimizde üstünde açıklama
-   yazmıştın o hoşuma gitmişti onu yeniden koy" -- kaldirilmis olan aciklama satiri geri
-   geldi. Karti Muayine satiriyla hizalamak icin ONCEDEN .side-panel'e verilen 78px'lik
-   margin-top artik BURADAN cikarilip .side-card'a tasindi ve notun kendi yuksekligini
-   (~38px) telafi edecek sekilde azaltildi -- toplamda yine Muayine'nin USTUYLE yaklasik
-   ayni hizada baslar. */
-.side-panel-link {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  font-size: 12.5px;
-  color: var(--text-muted);
-  padding: 2px 2px 4px;
-}
-.side-panel-link .link-arrow {
+.count-chip {
   font-family: var(--font-heading);
-  font-size: 20px;
-  line-height: 1;
-  color: var(--success);
-  flex-shrink: 0;
+  font-size: 11px;
+  color: var(--text-faint);
+  background: var(--surface-hover);
+  padding: 2px 8px;
+  border-radius: 999px;
 }
 
-/* Muayine (Encounter) satirindan sag panele gorsel baglanti -- KULLANICI ISTEGI
-   (2026-08-25): "bu alanı görsel olarak okla çizgi ile ve muayeneye bağlı olduğunu
-   gösterelim". Sol tarafta .checklist-item--source (Muayine satirinin kendisi) yesil
-   aksan kenarlik alir, sag kartta da AYNI yesil kenarlik (+ayni baslangic yuksekligi)
-   kullanilir -- pixel-hesapli, kirilgan bir baglanti cizgisine gerek kalmadan ayni renk
-   ve hizanin kendisi "bunlar birbirine bagli" hissini verir. */
-.checklist-item--source { border-left: 3px solid var(--success); padding-left: 19px; }
+.tab-detail-anchor { margin-top: 24px; }
+.tab-detail-empty {
+  border: 1px dashed var(--border-strong);
+  border-radius: var(--radius-lg);
+  padding: 40px 20px;
+  text-align: center;
+  color: var(--text-faint);
+  font-size: 13px;
+}
+.tab-panel-content { display: none; }
+.tab-panel-content.active { display: block; }
 
 .side-card {
   background: var(--surface);
   border: 1px solid var(--border);
-  border-left: 3px solid var(--success);
   border-radius: var(--radius-lg);
   overflow: hidden;
-  margin-top: 40px;
 }
 
 /* Tanı ve İşlem artik AYNI .side-card icinde iki .side-card-section -- aralarinda bosluk
