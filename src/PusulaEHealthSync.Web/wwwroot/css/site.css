@@ -1062,10 +1062,12 @@ input[type="checkbox"].row-check,
 .lab-panel-group .side-row { padding-left: 28px; background: var(--bg-elevated); }
 .lab-panel-header-row { background: var(--surface-hover) !important; }
 
-/* KULLANICI ISTEGI (2026-08-29, protokol 50853078): tarihi her lab satirinin basina sabit
-   genislikte bir "sutun" gibi getir + basliga tiklayinca A-Z/Z-A sirala. tabular-nums rakamlarin
-   satirdan satira ayni hizada durmasini saglar (ondalik/rakam kolonlari icin onerilen). */
-.lab-date-col {
+/* KULLANICI ISTEGI (2026-08-29, protokol 50853078 -- sonra 2026-08-31'de Tanı/İşlem'e de
+   genellendi): tarihi her satirin basina sabit genislikte bir "sutun" gibi getir + basliga
+   tiklayinca A-Z/Z-A sirala. Lab'a ozel degil -- Tanı/İşlem/ileride baska gonderim
+   listelerinde de AYNI siniflar kullaniliyor (bkz. Protokol.cshtml, pusulaSortRows()).
+   tabular-nums rakamlarin satirdan satira ayni hizada durmasini saglar. */
+.date-col {
   flex: 0 0 64px;
   font-family: var(--font-heading);
   font-size: 11px;
@@ -1073,21 +1075,21 @@ input[type="checkbox"].row-check,
   color: var(--text-faint);
   padding-top: 1px;
 }
-.lab-panel-summary .lab-date-col { flex-basis: 64px; }
-.lab-list-header {
+.lab-panel-summary .date-col { flex-basis: 64px; }
+.list-header {
   display: flex; align-items: center; gap: 10px;
   padding: 6px 14px; border-bottom: 1px solid var(--border);
   background: var(--bg-elevated);
 }
-.lab-sort-btn {
+.sort-btn {
   flex: 0 0 64px;
   display: flex; align-items: center; gap: 3px;
   font-family: var(--font-heading); font-size: 10.5px; font-weight: 600;
   text-transform: uppercase; letter-spacing: 0.03em;
   color: var(--text-faint); background: none; border: none; padding: 0; cursor: pointer;
 }
-.lab-sort-btn:hover { color: var(--primary); }
-.lab-sort-btn .arrow { font-size: 11px; }
+.sort-btn:hover { color: var(--primary); }
+.sort-btn .arrow { font-size: 11px; }
 
 /* KULLANICI ISTEGI (2026-08-25, dorduncu tur): "böyle hiç bir zaman kalmamalıyım bunu bir
    şekilde ya silmeli yada tekrar gönder yapabilmeliyim" -- Sil'in yaninda ayni boyutta
