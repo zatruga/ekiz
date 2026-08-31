@@ -587,7 +587,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
     {
         const string sql = @"
             SELECT rti.Id, rti.ProtokolIslemId, pi.HizmetId, oh.Adi AS HizmetAdi,
-                   rti.Rapor, rti.CalismaTarihi, rti.OnaylanmaTarihi, rti.RaporuOnaylayanDoktorId,
+                   COALESCE(rti.RaporRtf, rti.Rapor) AS Rapor, rti.CalismaTarihi, rti.OnaylanmaTarihi, rti.RaporuOnaylayanDoktorId,
                    icb.Kodu AS IcbariKodu, icb.Adi AS IcbariAdi
             FROM RIS.TetkikIslem rti
             INNER JOIN Hasta.ProtokolIslem pi ON pi.Id = rti.ProtokolIslemId

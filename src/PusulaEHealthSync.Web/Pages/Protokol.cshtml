@@ -657,7 +657,8 @@ else
                     <div class="side-row-main">
                         <span class="side-row-name">@(report.HizmetAdi ?? "-")</span>
                         <div style="color:var(--text-faint); font-size:11.5px; margin-top:2px;">
-                            @(string.IsNullOrWhiteSpace(report.Rapor) ? "Rapor metni boş -- gönderilemez" : (report.Rapor.Length > 160 ? report.Rapor[..160] + "…" : report.Rapor))
+                            @{ var raporDuzMetin = PusulaEHealthSync.Mapping.RtfText.ToPlainText(report.Rapor); }
+                            @(string.IsNullOrWhiteSpace(raporDuzMetin) ? "Rapor metni boş -- gönderilemez" : (raporDuzMetin.Length > 160 ? raporDuzMetin[..160] + "…" : raporDuzMetin))
                         </div>
                     </div>
                     <div class="side-row-actions">

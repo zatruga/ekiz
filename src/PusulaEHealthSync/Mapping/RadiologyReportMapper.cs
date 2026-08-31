@@ -37,7 +37,13 @@ public static class RadiologyReportMapper
         if (string.IsNullOrWhiteSpace(azProcedureId))
             return new MappingResult.Skipped("İlişkili tetkik işlemi (Procedure) e-Health'e henüz gönderilmedi -- DiagnosticReport.extension:related-procedure zorunlu alanı doldurulamıyor, bu rapor gönderilemiyor");
 
-        if (string.IsNullOrWhiteSpace(report.Rapor))
+        // DUZELTME (2026-08-31, canli hata -- "?" karakterleri): Rapor alani artik HAM RTF
+        // tasiyor (bkz. RadiologyReportRecord/GetRadiologyReportsByProtokolIdAsync) -- Epikriz
+        // ile AYNI RtfText.ToPlainText cozumu, Pusula'nin kendi RTF->duz metin cikariminin
+        // Azerice/Turkce ozel karakterlerde bazen "?" uretmesini (codepage 1254 ANSI fallback
+        // kaybı) atlamak icin.
+        var conclusion = RtfText.ToPlainText(report.Rapor);
+        if (string.IsNullOrWhiteSpace(conclusion))
             return new MappingResult.Skipped("Rapor metni boş -- gönderilecek içerik yok");
 
         var icbariKodu = report.IcbariKodu.TrimEnd('.');
@@ -66,7 +72,7 @@ public static class RadiologyReportMapper
                 },
             },
             ["subject"] = new JsonObject { ["reference"] = $"Patient/{azPatientId}" },
-            ["conclusion"] = report.Rapor.Trim(),
+            ["conclusion"] = conclusion,
             ["extension"] = new JsonArray
             {
                 new JsonObject

@@ -1,10 +1,17 @@
 namespace PusulaEHealthSync.Db;
 
 // RIS.TetkikIslem -- Lab/Islem'deki State=6 kuraliyla AYNI ("onaylanmis/kesinlesmis").
-// Rapor kolonu (duz metin) canli veriyle dogrulandi (2026-08-31): State=6 olan satirlarda
-// dolu, Azerice serbest metin radyoloji raporu. RaporRtf (bicimlendirilmis surum) KASITLI
-// olarak okunmuyor -- DiagnosticReport.conclusion duz metin bekliyor, RTF kontrol karakterleri
-// (bkz. canli ornek) hicbir FHIR alanina uymuyor.
+//
+// DUZELTME (2026-08-31, canli hata -- kullanici: MRT raporunda "Bel f?q?r?l?rinin..." gibi
+// "?" isaretleri): duz metin Rapor kolonu ILK BASTA kullanildi ("zaten temiz metin" sanildi,
+// canli SQL ornek satirinda -- USG raporu -- dogru gorunmustu), ama bu SATIRA OZGU bir
+// tesadufti -- GENELDE Rapor kolonu Pusula'nin KENDI RTF->duz metin cikarimindan geliyor ve
+// bu cikarim Azerice/Turkce ozel karakterleri (codepage 1254 ANSI fallback) bazen "?" ile
+// degistiriyor. Tedavi.GenelMuayene.Epikriz icin AYNI sorun zaten cozulmustu (bkz. RtfText.cs)
+// -- o cozum RAW RTF'i (RaporRtf) SAKLAYIP donusumu MAPPER katmaninda RtfText.ToPlainText ile
+// yapiyor. Ayni kalip burada da uygulaniyor: Rapor alani artik HAM RTF (RaporRtf sutunu, o
+// bos ise duz Rapor'a fallback) tutuyor, RadiologyReportMapper kendi RtfText.ToPlainText
+// cagrisini yapiyor.
 public class RadiologyReportRecord
 {
     public int TetkikIslemId { get; set; }
