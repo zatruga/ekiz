@@ -76,8 +76,8 @@ public class UpdateWatcherService(
                     // artik SADECE talep uzerine (Web tarafinda sayfa acilisi + "Güncelleme
                     // Kontrol Et" butonu, bkz. Guncelle.cshtml.cs) calisiyor.
                     SafeReadAndDelete(checkTrigger);
-                    var deployedHash = ReadStatus()?.CommitHash;
-                    var check = await orchestrator.CheckRemoteAsync(deployedHash, stoppingToken);
+                    var deployedStatus = ReadStatus();
+                    var check = await orchestrator.CheckRemoteAsync(deployedStatus?.CommitHash, deployedStatus?.Version, stoppingToken);
                     WriteCheck(check);
                 }
             }

@@ -4,6 +4,11 @@ public class RemoteCheckStatus
 {
     public string? DeployedCommitHash { get; set; }
 
+    // UpdateStatus.Version ile ayni gerekce (2026-08-31) -- su an calisan surum ve
+    // guncellenirse ulasilacak surum, kullaniciya once numara olarak gosteriliyor.
+    public string? DeployedVersion { get; set; }
+    public string? PendingVersion { get; set; }
+
     // GitHub'da olup henuz sunucuya alinmamis TUM commit'ler, en yeni basta -- sadece son
     // commit degil, guncelleme yapilirsa neler geleceginin tam listesi (2026-08-27, kullanici
     // "guncellemeden once neler gelecek onceden bileyim" istedi).

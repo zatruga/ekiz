@@ -39,9 +39,10 @@ public class UpdateOrchestrator(IOptions<DeployOptions> optionsAccessor, ILogger
         {
             logger.LogInformation("Guncelleme basliyor (istek: {RequestedBy}).", requestedBy);
 
-            var (hash, message) = await SyncRepositoryAsync(ct);
+            var (hash, message, version) = await SyncRepositoryAsync(ct);
             status.CommitHash = hash;
             status.CommitMessage = message;
+            status.Version = version;
 
             var stagingWeb = Path.Combine(options.StagingPath, "Web");
             var stagingWorker = Path.Combine(options.StagingPath, "Worker");
@@ -127,9 +128,9 @@ public class UpdateOrchestrator(IOptions<DeployOptions> optionsAccessor, ILogger
     // Sadece "yeni surum var mi" diye bakar -- calisan dosyalara ASLA dokunmaz. RepoPath
     // henuz klonlanmamissa (ilk guncelleme hic calistirilmamissa) kontrol atlanir, ilk
     // "Versiyon Guncelle" tiklamasi zaten klonu olusturacak.
-    public async Task<RemoteCheckStatus> CheckRemoteAsync(string? deployedCommitHash, CancellationToken ct)
+    public async Task<RemoteCheckStatus> CheckRemoteAsync(string? deployedCommitHash, string? deployedVersion, CancellationToken ct)
     {
-        var status = new RemoteCheckStatus { DeployedCommitHash = deployedCommitHash, CheckedAtUtc = DateTime.UtcNow };
+        var status = new RemoteCheckStatus { DeployedCommitHash = deployedCommitHash, DeployedVersion = deployedVersion, CheckedAtUtc = DateTime.UtcNow };
         try
         {
             if (!Directory.Exists(Path.Combine(options.RepoPath, ".git")))
@@ -139,6 +140,19 @@ public class UpdateOrchestrator(IOptions<DeployOptions> optionsAccessor, ILogger
             }
 
             await RunProcessAsync("git", ["fetch", "origin", options.Branch], options.RepoPath, ct);
+
+            // Guncellenirse ulasilacak surum numarasi -- calisma klasorune DOKUNMADAN
+            // (checkout yok) sadece origin ucundaki VERSION dosyasinin icerigini okur.
+            // Eski bir commit'te (VERSION eklenmeden once) origin/branch olsa bile bu
+            // sessizce basarisiz olabilir -- o durumda null kalir, Web tarafi hash'e duser.
+            try
+            {
+                status.PendingVersion = (await RunProcessAsync("git", ["show", $"origin/{options.Branch}:VERSION"], options.RepoPath, ct)).Trim();
+            }
+            catch (Exception ex)
+            {
+                logger.LogInformation(ex, "origin/{Branch}:VERSION okunamadi (dosya henuz yok olabilir).", options.Branch);
+            }
 
             // Sunucudaki commit biliniyorsa aradaki TUM commit'leri listele (deployedHash
             // haric, origin/branch dahil) -- boylece "guncelle" derse gercekte neler
@@ -173,7 +187,7 @@ public class UpdateOrchestrator(IOptions<DeployOptions> optionsAccessor, ILogger
     // RepoPath yoksa (ilk calistirma) klonlar, varsa mevcut klonu origin/branch'e sifirlar.
     // Bu klon SADECE bu servis tarafindan dokunulur (elle duzenlenmez), bu yuzden "git pull"
     // yerine fetch+hard-reset kullanmak daha ongorulebilir -- yerel bir sapma birikemez.
-    private async Task<(string Hash, string Message)> SyncRepositoryAsync(CancellationToken ct)
+    private async Task<(string Hash, string Message, string? Version)> SyncRepositoryAsync(CancellationToken ct)
     {
         if (!Directory.Exists(Path.Combine(options.RepoPath, ".git")))
         {
@@ -188,7 +202,13 @@ public class UpdateOrchestrator(IOptions<DeployOptions> optionsAccessor, ILogger
 
         var hash = (await RunProcessAsync("git", ["log", "-1", "--format=%H"], options.RepoPath, ct)).Trim();
         var message = (await RunProcessAsync("git", ["log", "-1", "--format=%s"], options.RepoPath, ct)).Trim();
-        return (hash, message);
+
+        // VERSION dosyasi bu commit'te henuz yoksa (eski bir surume geri alinmis vb.)
+        // Version null kalir -- Web tarafi bu durumda hash'e duser (bkz. Guncelle.cshtml).
+        var versionPath = Path.Combine(options.RepoPath, "VERSION");
+        var version = File.Exists(versionPath) ? File.ReadAllText(versionPath).Trim() : null;
+
+        return (hash, message, version);
     }
 
     private void PruneOldBackups()

@@ -46,8 +46,10 @@
             </p>
             @if (!string.IsNullOrWhiteSpace(d?.CommitHash))
             {
+                var kisaHash = d.CommitHash.Substring(0, Math.Min(7, d.CommitHash.Length));
+                var surumEtiket = string.IsNullOrWhiteSpace(d.Version) ? kisaHash : $"{d.Version} ({kisaHash})";
                 <p id="durum-commit" class="text-muted" style="font-size:12.5px; margin:0; font-family:monospace;">
-                    Sürüm: @d.CommitHash.Substring(0, Math.Min(7, d.CommitHash.Length)) — @d.CommitMessage
+                    Sürüm: @surumEtiket — @d.CommitMessage
                 </p>
             }
             else
@@ -68,7 +70,7 @@
 
         <div id="kontrol-panel" style="margin-top:18px; padding-top:16px; border-top:1px solid var(--border); display:@(k?.HasUpdate == true ? "block" : "none");">
             <div style="display:flex; align-items:center; gap:10px; margin-bottom:10px;">
-                <span class="badge warning"><span class="badge-dot"></span>Yeni sürüm mevcut</span>
+                <span class="badge warning"><span class="badge-dot"></span>Yeni sürüm mevcut<span id="kontrol-versiyon">@(string.IsNullOrWhiteSpace(k?.PendingVersion) ? "" : $": {k.PendingVersion}")</span></span>
                 <span class="text-muted" style="font-size:12.5px;">Güncelleyince gelecek değişiklikler:</span>
             </div>
             <ul id="kontrol-liste" style="list-style:none; margin:0; padding:0; display:flex; flex-direction:column; gap:6px;">
@@ -86,7 +88,7 @@
         <p id="kontrol-yok" class="text-muted" style="font-size:12px; margin:14px 0 0; padding-top:16px; border-top:1px solid var(--border); display:@(k?.HasUpdate == true ? "none" : "block");">
             @if (k?.CheckedAtUtc is not null)
             {
-                @:GitHub kontrol edildi (@k.CheckedAtUtc.Value.ToLocalTime().ToString("HH:mm")) -- güncel sürüm çalışıyor.
+                @:GitHub kontrol edildi (@k.CheckedAtUtc.Value.ToLocalTime().ToString("HH:mm")) -- güncel sürüm@(string.IsNullOrWhiteSpace(k.DeployedVersion) ? "" : $" ({k.DeployedVersion})") çalışıyor.
             }
             else
             {
@@ -121,6 +123,10 @@
                         </span>
                         <span style="font-size:13px;">
                             @(h.Operation switch { "Guncelleme" => "Güncelleme", "GeriAlma" => "Geri Alma", _ => h.Operation })
+                            @if (!string.IsNullOrWhiteSpace(h.Version))
+                            {
+                                @:(@h.Version)
+                            }
                             @if (!string.IsNullOrWhiteSpace(h.CommitMessage))
                             {
                                 @:— @h.CommitMessage
@@ -179,7 +185,9 @@
 
             var commitEl = document.getElementById('durum-commit');
             if (data.commitHash) {
-                commitEl.textContent = 'Sürüm: ' + data.commitHash.substring(0, 7) + ' — ' + (data.commitMessage || '');
+                var kisaHash = data.commitHash.substring(0, 7);
+                var surumEtiket = data.version ? (data.version + ' (' + kisaHash + ')') : kisaHash;
+                commitEl.textContent = 'Sürüm: ' + surumEtiket + ' — ' + (data.commitMessage || '');
                 commitEl.style.display = '';
             }
 
@@ -214,14 +222,16 @@
                 });
                 panel.style.display = 'block';
                 yok.style.display = 'none';
+                document.getElementById('kontrol-versiyon').textContent = data.pendingVersion ? (': ' + data.pendingVersion) : '';
                 anaForm.action = window.location.pathname + '?handler=Guncelle';
                 anaForm.dataset.mode = 'guncelle';
                 anaBtn.textContent = 'Versiyon Güncelle';
             } else {
                 panel.style.display = 'none';
                 yok.style.display = 'block';
+                var surumParantez = data.deployedVersion ? (' (' + data.deployedVersion + ')') : '';
                 yok.textContent = data.checkedAtUtc
-                    ? ('GitHub kontrol edildi (' + new Date(data.checkedAtUtc).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) + ') -- güncel sürüm çalışıyor.')
+                    ? ('GitHub kontrol edildi (' + new Date(data.checkedAtUtc).toLocaleTimeString('tr-TR', { hour: '2-digit', minute: '2-digit' }) + ') -- güncel sürüm' + surumParantez + ' çalışıyor.')
                     : 'GitHub sürüm kontrolü henüz yapılmadı.';
                 anaForm.action = window.location.pathname + '?handler=KontrolEt';
                 anaForm.dataset.mode = 'kontrol';
@@ -285,6 +295,7 @@
                 var aciklama = document.createElement('span');
                 aciklama.style.fontSize = '13px';
                 var op = pusulaOperasyonMetin[h.operation] || h.operation || '';
+                if (h.version) op += ' (' + h.version + ')';
                 var detay = h.commitMessage || h.message || '';
                 aciklama.textContent = detay ? (op + ' — ' + detay) : op;
                 li.appendChild(aciklama);

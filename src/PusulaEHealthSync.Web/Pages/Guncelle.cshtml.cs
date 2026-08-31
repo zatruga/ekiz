@@ -153,11 +153,14 @@ public class UpdateStatusView
     public string? RequestedBy { get; set; }
     public string? CommitHash { get; set; }
     public string? CommitMessage { get; set; }
+    public string? Version { get; set; }
 }
 
 public class RemoteCheckView
 {
     public string? DeployedCommitHash { get; set; }
+    public string? DeployedVersion { get; set; }
+    public string? PendingVersion { get; set; }
     public List<PendingCommitView> PendingCommits { get; set; } = [];
     public bool HasUpdate { get; set; }
     public DateTime? CheckedAtUtc { get; set; }
