@@ -19,7 +19,7 @@ public class DeleteService(EHealthClient eHealthClient, SyncLogStore syncLog, IL
             return missing;
         }
 
-        var result = await eHealthClient.DeleteAsync(source.ResourceType, source.AzResourceId, ct);
+        var result = await eHealthClient.DeleteAsync(SyncLogEntry.FhirResourceType(source.ResourceType), source.AzResourceId, ct);
         var entry = CloneAsNew(source, result.Success ? SyncStatus.Success : SyncStatus.Failed);
         entry.AzResourceId = source.AzResourceId;
         entry.Message = result.Success

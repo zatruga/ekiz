@@ -152,7 +152,7 @@ else
         </div>
 
         <div style="margin-left:auto; align-self:center; display:flex; gap:10px;">
-            @if (e.ResourceType is "Patient" or "Encounter" or "Practitioner" or "Composition" or "Condition" or "Procedure" or "Observation" or "DiagnosticReport")
+            @if (e.ResourceType is "Patient" or "Encounter" or "Practitioner" or "Composition" or "Condition" or "Procedure" or "Observation" or "DiagnosticReport" or "DiagnosticReport-Patoloji")
             {
                 <form method="post" asp-page-handler="Resend" asp-route-id="@e.Id" asp-route-fromProtokol="@Model.FromProtokol" onsubmit="pusulaLockSubmit(this)">
                     <button type="submit" class="btn btn-primary"

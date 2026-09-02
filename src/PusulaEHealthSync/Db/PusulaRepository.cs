@@ -631,6 +631,84 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
         return result;
     }
 
+    // Patoloji (DiagnosticReport) icin -- kaynak [EMR.Pathology].[Result] (ucuncu parti patoloji
+    // sistemi, LIS.Patoloji* semasi canli veride tamamen BOS -- kontrol edildi 2026-09-02).
+    // ReportState=4 "Onaylanmis" (ApprovedDate 1:1 dolu, canli veride dogrulandi -- RIS.TetkikIslem.
+    // State=6 karsiligi). Document alani HTML-entity kodlu HTML (RTF degil) -- mapper kendi
+    // HtmlText.ToPlainText cagrisini yapar.
+    //
+    // DUZELTME (2026-09-02, canli test -- bkz. PathologyReportRecord basindaki gerekce):
+    // [EMR.Pathology].[Order_Procedure].ProcedureId Hasta.ProtokolIslem.Id DEGIL -- YANLIS
+    // varsayimdi ("Beta-hCG", "ESWT" gibi alakasiz hizmetler "patoloji hizmeti" olarak
+    // gorunuyordu). Aradan iki basarisiz ara-cozum (once PatolojiTipiId, sonra protokol
+    // capinda "tek temsilci Islem" secimi) gectikten sonra KESIN koprus bulundu (canli veride
+    // dogrulandi, 2026-09-02): Order_Procedure.ProcessId = Hasta.ProtokolIslem.Id (ProcedureId
+    // ise aslinda Ortak.Hizmet.Id/HizmetId'ymis, ProtokolIslem'le ilgisi yok). ProcessId
+    // (dolayisiyla ReportNo) Pusula'nin kendi faturalama/isleme adimi TAMAMLANDIGINDA
+    // doluyor -- henuz islenmemis siparislerde ProcessId=0 ve ReportNo=NULL kaliyor (canli
+    // ornekle dogrulandi).
+    //
+    // BU DUZELTMEYLE ARTIK RADYOLOJI KADAR KESIN: her Result KENDI Order_Procedure satirlarindan
+    // (OrderId=Result.Id) ProcessId ile KENDI dogru ProtokolIslem'ine bagli -- protokol capinda
+    // "tek temsilci" tahmini yamasi tamamen kaldirildi. Bir Result'un birden fazla Order_Procedure
+    // satiri olabilir (orn. cok-antikorlu immunohistokimya panelinde her antikor ayri satir) --
+    // bu durumda Icbari kodu bulunabilen biri tercih edilir (coğu zaman hicbirinde olmayabilir,
+    // o zaman mapper Skipped doner -- ayni Radyoloji/Islem kurali).
+    public async Task<List<PathologyReportRecord>> GetPathologyReportsByProtokolIdAsync(int protokolId, CancellationToken ct = default)
+    {
+        const string sql = @"
+            SELECT r.Id, best.ProtokolIslemId, best.HizmetId, best.HizmetAdi,
+                   r.Document, r.RequestedAt, r.ApprovedDate, r.ApprovedById,
+                   best.IcbariKodu, best.IcbariAdi
+            FROM [EMR.Pathology].[Result] r
+            OUTER APPLY (
+                SELECT TOP 1 pi.Id AS ProtokolIslemId, pi.HizmetId, oh.Adi AS HizmetAdi,
+                       icb.Kodu AS IcbariKodu, icb.Adi AS IcbariAdi
+                FROM [EMR.Pathology].[Order_Procedure] op
+                INNER JOIN Hasta.ProtokolIslem pi ON pi.Id = op.ProcessId
+                INNER JOIN Ortak.Hizmet oh ON oh.Id = pi.HizmetId
+                OUTER APPLY (
+                    SELECT TOP 1 PKH.Kodu, PKH.Adi
+                    FROM Ortak.HizmetKurumHizmet OHKH
+                    INNER JOIN Pazarlama.KurumHizmet PKH ON PKH.Id = OHKH.KurumHizmetId
+                    WHERE OHKH.HizmetId = oh.Id
+                      AND PKH.KurumHizmetKategoriId = 13
+                      AND PKH.State <> 0
+                      AND OHKH.State <> 0
+                    ORDER BY PKH.IsPaket DESC
+                ) icb
+                WHERE op.OrderId = r.Id AND op.ProcessId <> 0 AND pi.State >= 2
+                ORDER BY CASE WHEN icb.Kodu IS NOT NULL THEN 0 ELSE 1 END, pi.Id
+            ) best
+            WHERE r.VisitId = @ProtokolId AND r.ReportState = 4
+            ORDER BY r.Id";
+
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
+        await conn.OpenAsync(ct);
+        await using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@ProtokolId", protokolId);
+
+        var result = new List<PathologyReportRecord>();
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            result.Add(new PathologyReportRecord
+            {
+                ResultId = reader.GetInt32(0),
+                ProtokolIslemId = reader.IsDBNull(1) ? null : reader.GetInt32(1),
+                HizmetId = reader.IsDBNull(2) ? null : reader.GetInt32(2),
+                HizmetAdi = reader.IsDBNull(3) ? null : reader.GetString(3),
+                Document = reader.IsDBNull(4) ? null : reader.GetString(4),
+                RequestedAt = reader.IsDBNull(5) ? null : reader.GetDateTime(5),
+                ApprovedDate = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
+                ApprovedById = reader.IsDBNull(7) ? null : reader.GetInt32(7),
+                IcbariKodu = reader.IsDBNull(8) ? null : reader.GetString(8),
+                IcbariAdi = reader.IsDBNull(9) ? (reader.IsDBNull(8) ? null : reader.GetString(8)) : reader.GetString(9),
+            });
+        }
+        return result;
+    }
+
     // Genel Bakış paneli -- "İcbari Sigorta Gönderim Kapsamı" bölümü icin. GetIslemlerByProtokolIdAsync
     // ile BIREBIR ayni eslesme/onay kurallari (icbari eslesmesi + pi.State>=2 + RIS/LIS State=6
     // + LIS.Test.HizmetId disarida birakma -- tam gerekce orada), ama tek protokol yerine bir

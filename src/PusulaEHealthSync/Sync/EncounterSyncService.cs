@@ -24,6 +24,7 @@ public class EncounterSyncService(
     ConditionSyncService conditionSyncService,
     ProcedureSyncService procedureSyncService,
     RadiologyReportSyncService radiologyReportSyncService,
+    PathologyReportSyncService pathologyReportSyncService,
     BolumMappingStore bolumMappingStore,
     SettingsStore settings,
     ILogger<EncounterSyncService> logger)
@@ -192,6 +193,7 @@ public class EncounterSyncService(
             var diagnosisEntry = await SyncDiagnosesAsync(protokol, hasta, azPatientId, azPractitionerId, azEncounterId, bolumMap, ct);
             await SyncProceduresAsync(protokol, azPatientId, azEncounterId, ct);
             await SyncRadiologyReportsAsync(protokol, azPatientId, azEncounterId, ct);
+            await SyncPathologyReportsAsync(protokol, azPatientId, azEncounterId, ct);
             if (diagnosisEntry is not null) return diagnosisEntry;
         }
 
@@ -265,6 +267,58 @@ public class EncounterSyncService(
             }
 
             await radiologyReportSyncService.SyncOneAsync(report, protokol, azPatientId, azEncounterId, azProcedureId, azPractitionerId, liveMode: true, ct);
+        }
+    }
+
+    // AZ DiagnosticReport (patoloji) -- SyncRadiologyReportsAsync ile BIREBIR AYNI kalip
+    // (ayni "once ilgili Procedure gonderilmis olmali" bagimliligi, ayni doktor-basina-bir-kez
+    // cache'i). Tek fark kaynak (EMR.Pathology.Result, bkz. PathologyReportRecord) ve doktor
+    // alani (ApprovedById -- rapor onaylayan patolog).
+    private async Task SyncPathologyReportsAsync(ProtokolListItem protokol, string azPatientId, string azEncounterId, CancellationToken ct)
+    {
+        if (!await settings.GetBoolAsync(SettingsStore.PathologyReportSendEnabledKey, true, ct)) return;
+
+        var reports = await repository.GetPathologyReportsByProtokolIdAsync(protokol.ProtokolId, ct);
+        if (reports.Count == 0) return;
+
+        var procedureIds = reports.Where(r => r.ProtokolIslemId is not null).Select(r => r.ProtokolIslemId!.Value).Distinct().ToList();
+        var procedureStatuses = procedureIds.Count == 0
+            ? new Dictionary<int, SyncLogEntry>()
+            : await syncLog.GetLatestByPusulaIdsAsync("Procedure", procedureIds, ct);
+
+        var doktorIds = reports.Where(r => r.ApprovedById is not null).Select(r => r.ApprovedById!.Value).Distinct().ToList();
+        var practitionerStatuses = doktorIds.Count == 0
+            ? new Dictionary<int, SyncLogEntry>()
+            : await syncLog.GetLatestByPusulaIdsAsync("Practitioner", doktorIds, ct);
+        var practitionerCache = new Dictionary<int, string?>();
+
+        foreach (var report in reports)
+        {
+            var azProcedureId = report.ProtokolIslemId is { } patolojiIslemId
+                && procedureStatuses.GetValueOrDefault(patolojiIslemId) is { Status: SyncStatus.Success, AzResourceId: not null } procStatus
+                ? procStatus.AzResourceId
+                : null;
+
+            string? azPractitionerId = null;
+            if (report.ApprovedById is { } doktorId)
+            {
+                if (!practitionerCache.TryGetValue(doktorId, out azPractitionerId))
+                {
+                    var lastAttempt = practitionerStatuses.GetValueOrDefault(doktorId);
+                    if (lastAttempt is { Status: SyncStatus.Success, AzResourceId: not null })
+                    {
+                        azPractitionerId = lastAttempt.AzResourceId;
+                    }
+                    else if (lastAttempt is null)
+                    {
+                        var practitionerResult = await practitionerSyncService.SyncOneAsync(doktorId, liveMode: true, ct);
+                        azPractitionerId = practitionerResult.Status == SyncStatus.Success ? practitionerResult.AzResourceId : null;
+                    }
+                    practitionerCache[doktorId] = azPractitionerId;
+                }
+            }
+
+            await pathologyReportSyncService.SyncOneAsync(report, protokol, azPatientId, azEncounterId, azProcedureId, azPractitionerId, liveMode: true, ct);
         }
     }
 

@@ -51,6 +51,7 @@ builder.Services.AddSingleton<EncounterSyncService>();
 builder.Services.AddSingleton<CompositionSyncService>();
 builder.Services.AddSingleton<LabResultSyncService>();
 builder.Services.AddSingleton<RadiologyReportSyncService>();
+builder.Services.AddSingleton<PathologyReportSyncService>();
 builder.Services.AddSingleton<DeleteService>();
 builder.Services.AddSingleton<IPasswordHasher<object>, PasswordHasher<object>>();
 

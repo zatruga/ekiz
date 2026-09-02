@@ -18,6 +18,7 @@ public class DetailModel(
     ProcedureSyncService procedureSyncService,
     LabResultSyncService labResultSyncService,
     RadiologyReportSyncService radiologyReportSyncService,
+    PathologyReportSyncService pathologyReportSyncService,
     DeleteService deleteService,
     EHealthClient eHealthClient) : PageModel
 {
@@ -78,7 +79,7 @@ public class DetailModel(
         if (Verify && Entry.AzResourceId is not null)
         {
             VerifyAttempted = true;
-            var result = await eHealthClient.GetAsync(Entry.ResourceType, Entry.AzResourceId, ct);
+            var result = await eHealthClient.GetAsync(SyncLogEntry.FhirResourceType(Entry.ResourceType), Entry.AzResourceId, ct);
             VerifySuccess = result.Success;
             VerifyStatusCode = result.StatusCode;
             PrettyLiveData = Pretty(result.Body);
@@ -178,6 +179,29 @@ public class DetailModel(
                         azPractitionerId = practitionerStatuses.GetValueOrDefault(doktorId) is { Status: SyncStatus.Success, AzResourceId: not null } prac ? prac.AzResourceId : null;
                     }
                     var result = await radiologyReportSyncService.SyncOneAsync(report, protokol, azPatientId, ctx.AzEncounterId, azProcedureId, azPractitionerId, liveMode: true);
+                    return RedirectToPage("/Detail", new { id = result.Id, fromProtokol = FromProtokol });
+                }
+            case "DiagnosticReport-Patoloji":
+                {
+                    var ctx = await ResolveEncounterContextAsync(cascadeEncounter: false);
+                    if (ctx is not ({ } protokol, { } azPatientId, _, _))
+                        return await NotSupportedPage(existing, ctx.Reason!);
+                    var reports = await pusulaRepository.GetPathologyReportsByProtokolIdAsync(protokol.ProtokolId);
+                    var report = reports.FirstOrDefault(r => r.ResultId == existing.PusulaId);
+                    if (report is null) return await NotSupportedPage(existing, "Kaynak Pusula kaydı artık bulunamıyor.");
+                    string? azProcedureId = null;
+                    if (report.ProtokolIslemId is { } patolojiIslemId)
+                    {
+                        var procedureStatuses = await syncLog.GetLatestByPusulaIdsAsync("Procedure", [patolojiIslemId]);
+                        azProcedureId = procedureStatuses.GetValueOrDefault(patolojiIslemId) is { Status: SyncStatus.Success, AzResourceId: not null } proc ? proc.AzResourceId : null;
+                    }
+                    string? azPractitionerId = null;
+                    if (report.ApprovedById is { } doktorId)
+                    {
+                        var practitionerStatuses = await syncLog.GetLatestByPusulaIdsAsync("Practitioner", [doktorId]);
+                        azPractitionerId = practitionerStatuses.GetValueOrDefault(doktorId) is { Status: SyncStatus.Success, AzResourceId: not null } prac ? prac.AzResourceId : null;
+                    }
+                    var result = await pathologyReportSyncService.SyncOneAsync(report, protokol, azPatientId, ctx.AzEncounterId, azProcedureId, azPractitionerId, liveMode: true);
                     return RedirectToPage("/Detail", new { id = result.Id, fromProtokol = FromProtokol });
                 }
             default:

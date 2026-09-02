@@ -79,6 +79,10 @@ public class SettingsStore
     // ACIK. Bkz. EncounterSyncService.SyncRadiologyReportsAsync.
     public const string RadiologyReportSendEnabledKey = "RadiologyReport.SendEnabled";
 
+    // Patoloji (DiagnosticReport) -- Radyoloji ile AYNI cascade noktasi ve AYNI acik/kapali
+    // mantigi, kendi ayri anahtariyla. Bkz. EncounterSyncService.SyncPathologyReportsAsync.
+    public const string PathologyReportSendEnabledKey = "PathologyReport.SendEnabled";
+
     // Lab (DiagnosticReport) HENUZ YAZILMADI -- veri kaynagi netlesmedi (bkz. konusma
     // 2026-08-20): legacy LIS.TestIslem/NumuneIslem tablolari bos (0 satir, "-old" suffix'li
     // arsiv), yeni [EMR.Laboratory].[Order] tablosu ise sadece siparis metadata'si tutuyor

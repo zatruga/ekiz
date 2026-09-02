@@ -56,6 +56,18 @@ public class SyncLogEntry
         "Procedure" => "İşlem",
         "Observation" => "Tetkik",
         "DiagnosticReport" => "Radyoloji Raporu",
+        "DiagnosticReport-Patoloji" => "Patoloji Raporu",
+        _ => resourceType,
+    };
+
+    // SyncLog.ResourceType HER ZAMAN gercek bir FHIR resourceType degildir -- "DiagnosticReport-Patoloji"
+    // sadece BIZIM ic takip etiketimiz (Radyoloji ile ayni FHIR kaynagini -- DiagnosticReport --
+    // paylastigi icin PusulaId cakismasini onlemek amaciyla ayristirildi, bkz. PathologyReportMapper.
+    // LocalUniqueId). e-Health API'sine GET/DELETE gibi gercek bir cagri yapilacaksa BURADAN
+    // gecirilmeli -- aksi halde gecersiz bir resource type ile istek atilir.
+    public static string FhirResourceType(string resourceType) => resourceType switch
+    {
+        "DiagnosticReport-Patoloji" => "DiagnosticReport",
         _ => resourceType,
     };
 
@@ -73,6 +85,7 @@ public class SyncLogEntry
         "Procedure" => "rt-procedure",
         "Observation" => "rt-observation",
         "DiagnosticReport" => "rt-observation",
+        "DiagnosticReport-Patoloji" => "rt-observation",
         _ => "rt-patient",
     };
 
