@@ -51,6 +51,13 @@ public static class PathologyReportMapper
         // İmmunohistokimya çalışma... B-XXXXX-2026 nolu vakaya aid..."), gercek raporlar
         // 2000-2800+ karakter (KLİNİK MƏLUMAT/MAKROSKOPİYA/PATOLOJİ DİAQNOZ bolumleriyle). 400
         // esigi bu iki grup arasindaki genis (~10x) bosluga rahatca sigiyor.
+        //
+        // KULLANICI DOGRULAMASI (2026-09-03): boyama/IHC Islem kodlari (orn. 106679, 106672,
+        // 106687, 106675, 128069, 128071, 15608 -- "Laboratuvar, Patoloji" grubu) GENELDE rapor
+        // yazilmiyor, AMA "cok nadir de olsa yazildigi durumlar olabiliyor". Bu yuzden bu
+        // HizmetId'leri sabit bir "hep atla" listesine koymak YANLIS olurdu -- o nadir gercek
+        // raporlari da bastirirdi. Metin uzunlugu filtresi bunu dogru cozuyor: ayni HizmetId
+        // idari not icin kisa/atlanir, gercekten rapor yazildiginda (nadir de olsa) uzun/gonderilir.
         const int minRealReportLength = 400;
         if (conclusion.Length < minRealReportLength)
             return new MappingResult.Skipped($"Rapor metni çok kısa ({conclusion.Length} karakter) -- muhtemelen asıl tanı/bulgu değil, idari bir sipariş/ön-bilgi notu (örn. \"X vakası için immunohistokimya çalışması\"). Asıl rapor yazıldığında (Pusula'da güncellendiğinde) otomatik olarak gönderilebilir hale gelecek.");
