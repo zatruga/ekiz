@@ -709,6 +709,67 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
         return result;
     }
 
+    // Bir patoloji raporunun KODLANMIS bulgulari ([EMR.Pathology].[EPulse]) -- v2'de
+    // Composition + Observation (az-pathology-finding) zinciri icin. Serbest metin raporu
+    // (DiagnosticReport) getiren GetPathologyReportsByProtokolIdAsync'ten AYRI tutuldu:
+    // neoplazi olmayan raporlarda burasi BOS doner ve cagiran taraf zinciri hic kurmaz
+    // (v1 davranisi korunur, composition extension'i 0..1 oldugu icin bu gecerli).
+    //
+    // TEKILLESTIRME: EPulse blok/preparat basina satir tutar ve raporun tek tanisini her
+    // blokta yineler -- canli veride olculdu (2026-09-08): 6.571 gonderilebilir raporun
+    // benzersiz (topografya, morfoloji) cifti sayisi da tam 6.571. Tekillestirmeden ayni
+    // Observation 12 kere gonderilirdi. Grup temsilcisi MIN(IslemReferansNumarasi) --
+    // yeni bloklar hep daha buyuk numara aldigi icin local-system-unique-id kararli kalir.
+    //
+    // "0000/x" (= "Neoplazma rastlanmamistir", canli veride EPulse satirlarinin %75'i)
+    // BURADA, SQL'de eleniyor -- mapper'da degil. Neden: bu bir VERI SORUNU DEGIL, normal
+    // bir sonuc; mapper'a birakilsaydi 19.305 rapor icin "Atlandi" satiri uretir, senkron
+    // gunlugunu gercek sorunlarin gorunmez oldugu bir gurultuye bogardi. Ayrica "0000/0"
+    // gecerli bir ICD-O-3 kodu degil (VS filtresi "^[8-9].*" onu kesin disarida birakiyor),
+    // yani az-pathology-finding (bir KANSER bulgusu profili) bu raporlar icin zaten
+    // dogru kaynak degil.
+    //
+    // BOZUK bicimli kodlar (canli veride 44 satir: "8130/21", "8130/23" -- ICD-O-3'un 6.
+    // hanesi olan derece/grade eki yapismis gorunuyor) BILEREK elenmiyor: onlar gercek bir
+    // veri sorunu, mapper'da Skipped olarak gorunur olsunlar diye geciyorlar.
+    public async Task<List<PathologyFindingRecord>> GetPathologyFindingsByResultIdAsync(int resultId, CancellationToken ct = default)
+    {
+        const string sql = @"
+            SELECT MIN(e.IslemReferansNumarasi) AS IslemReferansNumarasi,
+                   e.YerlesimYeriCode, MIN(e.YerlesimYeriValue) AS YerlesimYeriValue,
+                   e.MorfolojiKoduCode, MIN(e.MorfolojiKoduValue) AS MorfolojiKoduValue,
+                   MIN(e.IstemZamani) AS IstemZamani, MIN(e.RaporlamaZamani) AS RaporlamaZamani
+            FROM [EMR.Pathology].[EPulse] e
+            WHERE e.PatolojiIstekId = @ResultId
+              AND e.MorfolojiKoduCode IS NOT NULL AND LTRIM(RTRIM(e.MorfolojiKoduCode)) <> ''
+              AND e.MorfolojiKoduCode NOT LIKE '0000/%'
+            GROUP BY e.YerlesimYeriCode, e.MorfolojiKoduCode
+            ORDER BY MIN(e.IslemReferansNumarasi)";
+
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
+        await conn.OpenAsync(ct);
+        await using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@ResultId", resultId);
+
+        var result = new List<PathologyFindingRecord>();
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            result.Add(new PathologyFindingRecord
+            {
+                ResultId = resultId,
+                IslemReferansNumarasi = reader.GetInt32(0),
+                YerlesimYeriCode = reader.IsDBNull(1) ? null : reader.GetString(1),
+                YerlesimYeriValue = reader.IsDBNull(2) ? null : reader.GetString(2),
+                MorfolojiKoduCode = reader.IsDBNull(3) ? null : reader.GetString(3),
+                MorfolojiKoduValue = reader.IsDBNull(4) ? null : reader.GetString(4),
+                IstemZamani = reader.GetDateTime(5),
+                RaporlamaZamani = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
+            });
+        }
+        return result;
+    }
+
     // Genel Bakış paneli -- "İcbari Sigorta Gönderim Kapsamı" bölümü icin. GetIslemlerByProtokolIdAsync
     // ile BIREBIR ayni eslesme/onay kurallari (icbari eslesmesi + pi.State>=2 + RIS/LIS State=6
     // + LIS.Test.HizmetId disarida birakma -- tam gerekce orada), ama tek protokol yerine bir

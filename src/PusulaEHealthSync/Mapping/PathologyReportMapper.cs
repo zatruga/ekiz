@@ -16,6 +16,18 @@ namespace PusulaEHealthSync.Mapping;
 // related-procedure) kapsiyor, Composition/Finding/ICD-O-3 bilincli olarak ERTELENDI (composition
 // extension'i 0..1 oldugu icin bu gecerli bir v1).
 //
+// V2 (2026-09-08): v1'in "guvenilir kaynak yok" varsayimi YANLIS cikti -- kodlanmis veri
+// [EMR.Pathology].[Result]'ta degil [EMR.Pathology].[EPulse]'ta duruyormus. Dahasi MORFOLOJI
+// orada ZATEN ICD-O-3 bicimindeymis ("8523/3"), sadece TOPOGRAFYA bir SKRS ic kodu (cevirim
+// icin PathologyTopographyMap yazildi). Zincir artik kuruluyor: PathologyFindingMapper
+// (Observation) + PathologyCompositionMapper (Composition) + buradaki azCompositionId.
+//
+// Zincir SADECE neoplazili raporlar icin kurulur. Canli veride olculdu (2026-09-08): onayli
+// raporlarin %75'i "0000/0 = Neoplazma rastlanmamistir" tasiyor; "0000/0" gecerli bir ICD-O-3
+// kodu DEGIL (icd-o-3-morphology-vs "^[8-9].*" ile suzuyor) ve az-pathology-finding zaten bir
+// KANSER bulgusu profili. O raporlar aynen v1 davranisinda kalir -- bu bir eksiklik degil,
+// composition extension'i 0..1 oldugu icin profile UYGUN sonuctur.
+//
 // Zorunlu alanlar: status=final (sabit), category=PAT (sabit, HL7 v2-0074), code=LOINC
 // 11526-1 "Pathology study" (SABIT). Uc extension zorunlu (min 3): local-system-unique-id
 // (1..1), procedure-code (1..1, Lab/Islem/Radyoloji ile AYNI Icbari koprusu), related-procedure
@@ -29,7 +41,11 @@ public static class PathologyReportMapper
     private const string ProcedureCodeSystem = "http://fhir.az/CodeSystem/az-procedure-codes";
     private const string RelatedProcedureExtensionUrl = "http://fhir.az/StructureDefinition/related-procedure";
 
-    public static MappingResult Map(PathologyReportRecord report, string azPatientId, string? azEncounterId, string? azProcedureId, string? azPractitionerId)
+    // v2 (2026-09-08): zincirin ust halkasi. 0..1 -- neoplazi olmayan raporlarda hic
+    // yazilmaz ve rapor v1'deki gibi tek basina gecerli kalir. URL IG'den dogrulandi.
+    private const string CompositionExtensionUrl = "http://fhir.az/StructureDefinition/diagnostic-report-composition";
+
+    public static MappingResult Map(PathologyReportRecord report, string azPatientId, string? azEncounterId, string? azProcedureId, string? azPractitionerId, string? azCompositionId = null)
     {
         if (string.IsNullOrWhiteSpace(report.IcbariKodu))
             return new MappingResult.Skipped("İcbari Sigorta Fiyat Listesi eşleşmesi bulunamadı -- DiagnosticReport.extension:procedure-code zorunlu alanı doldurulamıyor, bu rapor gönderilemiyor");
@@ -114,6 +130,18 @@ public static class PathologyReportMapper
                 },
             },
         };
+
+        // Kodlanmis bulgu zinciri kurulabildiyse (bkz. PathologyCompositionMapper) ust
+        // halka burada baglanir. Composition ONCE gonderildigi icin id'si burada hazir --
+        // DiagnosticReport'u ikinci kez guncellemek gerekmiyor.
+        if (!string.IsNullOrWhiteSpace(azCompositionId))
+        {
+            ((JsonArray)diagnosticReport["extension"]!).Add(new JsonObject
+            {
+                ["url"] = CompositionExtensionUrl,
+                ["valueReference"] = new JsonObject { ["reference"] = $"Composition/{azCompositionId}" },
+            });
+        }
 
         if (!string.IsNullOrWhiteSpace(azEncounterId))
             diagnosticReport["encounter"] = new JsonObject { ["reference"] = $"Encounter/{azEncounterId}" };

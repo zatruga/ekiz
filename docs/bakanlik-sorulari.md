@@ -87,6 +87,63 @@ sonuç değeri görünüyor ama birim/referans sütunları hep boş.
 
 ---
 
+### Patoloji -- SKRS yerleşim yeri kodlarının ICD-O-3 karşılığı bizde mi kalmalı?
+
+**Soru:** `az-pathology-finding` profilinde `component:topography` 1..1 zorunlu
+ve required binding ile gerçek ICD-O-3 (XBT-O-3) topografya kodu (örn. `C50.9`)
+istiyor. Pusula bu bilgiyi Türkiye SKRS'sinin **iç kodu** olarak tutuyor
+(`EMR.Pathology.EPulse.YerlesimYeriCode`, örn. `1212`), ICD-O-3 olarak değil.
+Bakanlığın bu iki kod kümesi arasında resmî bir eşleştirme tablosu var mı,
+yoksa çeviri tamamen gönderen kurumun sorumluluğunda mı?
+
+**Neden çıktı:** v2 (Composition + Observation zinciri) yazılırken (2026-09-08).
+Pusula veritabanında çevirici iki kolon var ama ikisi de hiç doldurulmamış
+(`Skrs.YerlesimYeri.TopografikKodu`, `Ortak.HizmetPatolojiOzellik.YerlesimYeriSkrsKodu`
+-- ikisi de 0 satır). Bu yüzden eşleştirme canlı veriden (227 farklı terim)
+elle üretildi: `docs/patoloji-topografya-icdo3-eslestirme.md`. Resmî bir tablo
+varsa bizimkini onunla değiştirmek gerekir.
+
+**Durum:** Açık.
+
+---
+
+### Patoloji -- "neoplazma rastlanmamıştır" raporları nasıl bildirilmeli?
+
+**Soru:** Onaylı patoloji raporlarımızın **%75'i** (canlı veride 19.305 rapor)
+"neoplazma yok" sonucu taşıyor; Pusula bunu `MorfolojiKoduCode = "0000/0"` ile
+kodluyor. `0000/0` geçerli bir ICD-O-3 morfoloji kodu değil ve
+`icd-o-3-morphology-vs` değer kümesi `^[8-9].*` regex'i ile onu zaten dışarıda
+bırakıyor. Bu raporlar için beklenen davranış nedir: (a) `az-pathology-finding`
+hiç üretilmesin (bizim şu anki tercihimiz), (b) belirli bir "bulgu yok" kodu mu
+kullanılmalı, yoksa (c) başka bir profil mi?
+
+**Neden çıktı:** v2 yazılırken (2026-09-08). Şu an (a) uygulanıyor: bu raporlar
+yalnızca DiagnosticReport olarak gidiyor, `extension:composition` 0..1 olduğu
+için bu profile uygun. Ama bakanlık tarafında kanser kayıt istatistiği
+tutuluyorsa "negatif" sonuçları da bekliyor olabilirler.
+
+**Durum:** Açık.
+
+---
+
+### Patoloji -- $validate değer kümesi üyeliğini neden denetlemiyor?
+
+**Soru:** `component:morphology` ve `component:topography` required binding
+taşımasına rağmen sunucu, değer kümesinde **olmayan** kodları kabul ediyor.
+Canlı sandbox'ta denendi (2026-09-08): `C99.9` (var olmayan topografya) ve
+`9999/9` (uydurma morfoloji) ikisi de HTTP 200 aldı. Terminoloji sunucusunda
+`az-icd-o-3` CodeSystem'i yüklü değil mi, yoksa binding denetimi bilerek mi
+kapalı?
+
+**Neden çıktı:** v2 doğrulanırken (2026-09-08). Önemli, çünkü denetim yoksa
+yanlış bir organ/tanı kodu sessizce kabul edilir -- $validate'in "geçti"
+demesi eşleştirmenin doğru olduğunu GÖSTERMEZ. Bizim tarafımızda tek güvence
+elle gözden geçirilmiş eşleştirme tablosu kalıyor.
+
+**Durum:** Açık.
+
+---
+
 *(Yeni sorular buraya eklenecek.)*
 
 ## Kapanan sorular
