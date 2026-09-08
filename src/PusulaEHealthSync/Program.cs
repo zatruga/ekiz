@@ -51,6 +51,12 @@ builder.Services.AddSingleton<EncounterSyncService>();
 builder.Services.AddSingleton<CompositionSyncService>();
 builder.Services.AddSingleton<LabResultSyncService>();
 builder.Services.AddSingleton<RadiologyReportSyncService>();
+// EncounterSyncService bunu constructor'inda istiyor -- Patoloji modulu eklenirken (7f50755,
+// 2026-09-02) Web/Program.cs'e eklenmis ama BURAYA eklenmemisti. DI dogrulamasi acilista
+// calistigi icin Worker bu yuzden HIC baslamiyordu: sadece patoloji degil, Patient senkronu
+// dahil her sey "Unable to resolve service for type 'PathologyReportSyncService'" ile
+// duvara carpiyordu. Web tarafi etkilenmemisti, o yuzden fark edilmemis.
+builder.Services.AddSingleton<PathologyReportSyncService>();
 
 builder.Services.AddHostedService<Worker>();
 
