@@ -16,12 +16,15 @@ topografya listesindeki (C00-C80) karşılığı, alt-kategori yapısına göre 
 meme alt bölgeleri, C77.0-C77.9 lenf düğümü bölgeleri) tek tek belirlendi. "BBT" kısaltması
 tutarlı olarak ICD-O-3'ün ".9 NOS" ("Başka türlü belirtilmemiş") ekine karşılık geliyor.
 
-**DURUM: TASLAK -- CANLIYA ALINMADAN ÖNCE GÖZDEN GEÇİRİLMELİ.** Yanlış bir eşleme, yanlış
-organ/bölge kodu göndermek anlamına gelir -- bu bir tıbbi veri kalitesi sorunu olur. Aşağıda
-"Not" sütununda işaretlenmemiş satırlar yüksek güvenle eşleştirildi (kategori yapısı ile tam
-tutarlı); "⚠" işaretli satırlar ekstra dikkat ister.
+**DURUM: ONAYLANDI (2026-09-09).** Kullanıcı 227 eşleşmenin tamamını gözden geçirip
+onayladı ("bence eşleştirme güzel ve hepsini onaylıyorum"). Bu, tablonun canlı kullanım
+önündeki kapısıydı -- artık açık. Onaydan önce yapılan üç otomatik kontrol (kod varlığı,
+BBT↔ƏGO çapraz kontrolü, ⚠ satırların IG display'leriyle doğrulanması) aşağıda duruyor.
 
-**BU GÖZDEN GEÇİRME TEK GÜVENCE -- sunucu yanlışı yakalamaz.** Canlı sandbox'ta denendi
+Onayın kapsamı: bu 227 satır. **Tabloya SONRADAN eklenecek her yeni eşleşme aynı gözden
+geçirmeden geçmeli** -- aşağıdaki gerekçe onlar için hâlâ aynen geçerli.
+
+**GÖZDEN GEÇİRME TEK GÜVENCE -- sunucu yanlışı yakalamaz.** Canlı sandbox'ta denendi
 (2026-09-08): `component:topography` required binding taşımasına rağmen sunucu değer
 kümesinde olmayan bir kodu (`C99.9`) ve uydurma bir morfolojiyi (`9999/9`) HTTP 200 ile
 KABUL etti. Yani `$validate` yapıyı doğruluyor ama anlamı doğrulamıyor -- "geçti" demesi

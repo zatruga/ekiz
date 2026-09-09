@@ -17,14 +17,22 @@ namespace PusulaEHealthSync.Mapping;
 // olarak ICD-O-3'un ".9 NOS" ekine karsilik geliyor. Ayrintili gerekce ve tam tablo:
 // docs/patoloji-topografya-icdo3-eslestirme.md
 //
-// TASLAK UYARISI: bu eslestirme HENUZ CANLI DOGRULANMADI. Yanlis bir eslesme, yanlis
-// organ/bolge kodu gondermek demektir (tibbi veri kalitesi sorunu). Dokumanda "!" ile
-// isaretli 6 satir ekstra dikkat ister.
+// ONAY DURUMU: bu 227 eslesmenin TAMAMI kullanici tarafindan gozden gecirilip onaylandi
+// (2026-09-09). Oncesinde uc otomatik kontrol yapildi: (1) 227 ICD-O-3 kodunun tamami
+// az-icd-o-3 CodeSystem'inde mevcut (0 eksik), (2) Turkce "BBT" <-> Azerice "EGO" capraz
+// kontrolunde 5 uyusmazligin besi de sadece ceviri uslubu farki, gercek hata 0, (3) "!"
+// isaretli 6 satir IG'deki Azerice display'lerle tek tek dogrulandi ve hepsi dogru cikti.
+//
+// DIKKAT -- onay BU 227 SATIRI kapsiyor. Tabloya SONRADAN eklenecek her yeni eslesme ayni
+// gozden gecirmeden gecmeli: sunucu required binding'i DENETLEMIYOR (olculdu 2026-09-08:
+// "C99.9" gibi var olmayan bir kod da HTTP 200 aliyor), yani yanlis bir organ kodunu
+// yakalayacak otomatik bir ag YOK.
 //
 // KAPSAM (2026-09-08 olculdu): onayli + neoplazili raporlarda gecen 158 farkli topografya
-// kodunun TAMAMI bu tabloda var -- canli veride acik yok. Yine de bilinmeyen bir kod
-// gelirse TryGet false doner ve cagiran taraf Skip eder; ASLA tahmin edilmez (ayni temkinli
-// ilke: PathologyReportMapper'daki 400 karakter filtresi).
+// kodunun TAMAMI bu tabloda var -- canli veride acik yok. Bilinmeyen bir kod gelirse
+// TryGet false doner; cagiran taraf ARTIK Skip ETMEZ, once Pusula'nin kendi tablosunu,
+// sonra C80.9 "bilinmeyen birincil bolge" kodunu dener ve durumu senkron gunlugune yazar
+// (kullanici karari 2026-09-09, bkz. PathologyFindingMapper.ResolveTopography).
 public static class PathologyTopographyMap
 {
     // Anahtar: EPulse.YerlesimYeriCode (SKRS ic kodu). Deger: ICD-O-3 topografya kodu.
