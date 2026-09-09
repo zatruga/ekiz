@@ -181,13 +181,29 @@ public class DetailModel(
                     var result = await radiologyReportSyncService.SyncOneAsync(report, protokol, azPatientId, ctx.AzEncounterId, azProcedureId, azPractitionerId, liveMode: true);
                     return RedirectToPage("/Detail", new { id = result.Id, fromProtokol = FromProtokol });
                 }
+            // Zincirin UC halkasi da ayni yerden tetikleniyor: patoloji gonderimi zaten
+            // Observation -> Composition -> DiagnosticReport'u BIRLIKTE gonderiyor
+            // (PathologyReportSyncService), dolayisiyla hangi halkanin uzerinde "Tekrar
+            // Gonder"e basilirsa basilsin dogru davranis butun zinciri rapordan bastan
+            // calistirmaktir.
             case "DiagnosticReport-Patoloji":
+            case "Composition-Patoloji":
+            case "Observation-Patoloji":
                 {
                     var ctx = await ResolveEncounterContextAsync(cascadeEncounter: false);
                     if (ctx is not ({ } protokol, { } azPatientId, _, _))
                         return await NotSupportedPage(existing, ctx.Reason!);
+
+                    // Composition'in PusulaId'si rapor ile ayni (ResultId); Observation'inki
+                    // ise EPulse.IslemReferansNumarasi -- once rapora cikilmasi gerekiyor.
+                    var resultId = existing.ResourceType == "Observation-Patoloji"
+                        ? await pusulaRepository.GetPathologyResultIdByIslemReferansAsync(existing.PusulaId)
+                        : existing.PusulaId;
+                    if (resultId is null)
+                        return await NotSupportedPage(existing, "Bu bulgunun ait olduğu patoloji raporu Pusula'da bulunamadı.");
+
                     var reports = await pusulaRepository.GetPathologyReportsByProtokolIdAsync(protokol.ProtokolId);
-                    var report = reports.FirstOrDefault(r => r.ResultId == existing.PusulaId);
+                    var report = reports.FirstOrDefault(r => r.ResultId == resultId);
                     if (report is null) return await NotSupportedPage(existing, "Kaynak Pusula kaydı artık bulunamıyor.");
                     string? azProcedureId = null;
                     if (report.ProtokolIslemId is { } patolojiIslemId)

@@ -57,6 +57,8 @@ public class SyncLogEntry
         "Observation" => "Tetkik",
         "DiagnosticReport" => "Radyoloji Raporu",
         "DiagnosticReport-Patoloji" => "Patoloji Raporu",
+        "Composition-Patoloji" => "Patoloji Belgesi",
+        "Observation-Patoloji" => "Patoloji Bulgusu",
         _ => resourceType,
     };
 
@@ -68,6 +70,8 @@ public class SyncLogEntry
     public static string FhirResourceType(string resourceType) => resourceType switch
     {
         "DiagnosticReport-Patoloji" => "DiagnosticReport",
+        "Composition-Patoloji" => "Composition",
+        "Observation-Patoloji" => "Observation",
         _ => resourceType,
     };
 
@@ -86,6 +90,8 @@ public class SyncLogEntry
         "Observation" => "rt-observation",
         "DiagnosticReport" => "rt-observation",
         "DiagnosticReport-Patoloji" => "rt-observation",
+        "Composition-Patoloji" => "rt-composition",
+        "Observation-Patoloji" => "rt-observation",
         _ => "rt-patient",
     };
 

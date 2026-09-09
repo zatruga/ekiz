@@ -37,7 +37,7 @@ public class PathologyReportSyncService(
         // 1) Kodlanmis bulgular. Neoplazi olmayan raporlarda (canli veride %75) bu liste BOS
         //    doner -- sorgu "0000/x" satirlarini zaten eliyor (gerekce:
         //    GetPathologyFindingsByResultIdAsync). Bos liste bir hata degil, normal yol.
-        var azCompositionId = await SyncChainAsync(report, protokol, azPatientId, azEncounterId, azPractitionerId, liveMode, ct);
+        var (azCompositionId, chainWarning) = await SyncChainAsync(report, protokol, azPatientId, azEncounterId, azPractitionerId, liveMode, ct);
 
         // 2) DiagnosticReport -- zincir kurulabildiyse ust halkayi da tasiyarak.
         var mapping = PathologyReportMapper.Map(report, azPatientId, azEncounterId, azProcedureId, azPractitionerId, azCompositionId);
@@ -51,8 +51,11 @@ public class PathologyReportSyncService(
 
         var diagnosticReport = ((MappingResult.Success)mapping).Resource;
         var localId = PathologyReportMapper.LocalUniqueId(report.ResultId);
+        // Zincirde bir sey ters gittiyse bu, raporun KENDI gonderimini engellemez ama
+        // rapor kaydinin mesajina yazilir. Aksi halde Protokol sayfasinda rapor YESIL
+        // "Basarili" gorunurdu -- oysa bulgular gitmemis olurdu; sessiz ve yaniltici bir durum.
         var entry = await SendAsync("DiagnosticReport", diagnosticReport, localId, liveMode,
-            status => NewEntry(report, protokol, status), ct);
+            status => NewEntry(report, protokol, status), ct, chainWarning);
 
         if (entry.Status == SyncStatus.Failed)
             logger.LogWarning("Patoloji raporu gonderilemedi (ProtokolId={ProtokolId}, ResultId={Id}): {Message}", protokol.ProtokolId, report.ResultId, entry.Message);
@@ -62,14 +65,15 @@ public class PathologyReportSyncService(
 
     // Observation'lari ve Composition'i gonderir, Composition'in AZ id'sini dondurur
     // (kurulamadiysa null -- o zaman DiagnosticReport v1'deki gibi tek basina gider).
-    private async Task<string?> SyncChainAsync(
+    private async Task<(string? CompositionId, string? Warning)> SyncChainAsync(
         PathologyReportRecord report, ProtokolListItem protokol, string azPatientId, string? azEncounterId,
         string? azPractitionerId, bool liveMode, CancellationToken ct)
     {
         var findings = await repository.GetPathologyFindingsByResultIdAsync(report.ResultId, ct);
         if (findings.Count == 0)
-            return null;
+            return (null, null);   // neoplazi yok -- normal yol, uyari degil
 
+        var failedFindings = 0;
         var azFindingIds = new List<string>();
         foreach (var finding in findings)
         {
@@ -79,6 +83,7 @@ public class PathologyReportSyncService(
                 // Buraya sadece GERCEK veri sorunlari duser (bozuk ICD-O-3 bicimi ya da
                 // tabloda karsiligi olmayan yerlesim yeri kodu) -- "neoplazi yok" normal
                 // durumu SQL'de elendigi icin gunlugu doldurmaz.
+                failedFindings++;
                 var skipEntry = NewFindingEntry(finding, protokol, SyncStatus.Skipped);
                 skipEntry.Message = skip.Reason;
                 await syncLog.InsertAsync(skipEntry, ct);
@@ -97,6 +102,7 @@ public class PathologyReportSyncService(
 
             if (entry.Status != SyncStatus.Success)
             {
+                failedFindings++;
                 logger.LogWarning("Patoloji bulgusu gonderilemedi (ResultId={Id}, IslemRef={Ref}): {Message}", report.ResultId, finding.IslemReferansNumarasi, entry.Message);
                 continue;
             }
@@ -109,7 +115,7 @@ public class PathologyReportSyncService(
         }
 
         if (azFindingIds.Count == 0)
-            return null;
+            return (null, $"DİKKAT: bu raporun {findings.Count} kodlanmış bulgusunun hiçbiri gönderilemedi -- rapor yalnızca serbest metin olarak gitti, ICD-O-3 bulgu bilgisi e-Health'te YOK. Ayrıntı için Aktivite akışında \"Patoloji Bulgusu\" kayıtlarına bakın.");
 
         var compositionMapping = PathologyCompositionMapper.Map(report, azFindingIds, azPatientId, azEncounterId, azPractitionerId);
         if (compositionMapping is MappingResult.Skipped compositionSkip)
@@ -117,7 +123,7 @@ public class PathologyReportSyncService(
             var skipEntry = NewCompositionEntry(report, protokol, SyncStatus.Skipped);
             skipEntry.Message = compositionSkip.Reason;
             await syncLog.InsertAsync(skipEntry, ct);
-            return null;
+            return (null, $"DİKKAT: patoloji belgesi (Composition) oluşturulamadı -- {compositionSkip.Reason}");
         }
 
         var composition = ((MappingResult.Success)compositionMapping).Resource;
@@ -128,10 +134,13 @@ public class PathologyReportSyncService(
         if (compositionEntry.Status != SyncStatus.Success)
         {
             logger.LogWarning("Patoloji Composition'i gonderilemedi (ResultId={Id}): {Message}", report.ResultId, compositionEntry.Message);
-            return null;
+            return (null, "DİKKAT: bulgular gönderildi ama onları bir arada tutan patoloji belgesi (Composition) gönderilemedi -- rapor bulgulara bağlanamadı.");
         }
 
-        return liveMode ? compositionEntry.AzResourceId : compositionLocalId;
+        var partial = failedFindings > 0
+            ? $"DİKKAT: {findings.Count} bulgudan {failedFindings} tanesi gönderilemedi, kalanı gönderildi."
+            : null;
+        return (liveMode ? compositionEntry.AzResourceId : compositionLocalId, partial);
     }
 
     // Uc kaynak tipinin de ortak gonderim akisi: test modunda $validate, canli modda

@@ -774,6 +774,27 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
         return result;
     }
 
+    // Bir patoloji BULGUSUNDAN (EPulse.IslemReferansNumarasi) ait oldugu rapora
+    // (Result.Id) geri cikar. Gerekce: SyncLog'da Observation-Patoloji kayitlarinin PusulaId'si
+    // IslemReferansNumarasi'dir ve raporla baglantisi orada tutulmuyor. Kayit Detayi
+    // sayfasindaki "Tekrar Gonder" zincirin HANGI halkasindan tetiklenirse tetiklensin
+    // rapordan bastan calisir (zincir zaten hep birlikte gonderiliyor), o yuzden once
+    // rapora cikmak gerekiyor.
+    public async Task<int?> GetPathologyResultIdByIslemReferansAsync(int islemReferansNumarasi, CancellationToken ct = default)
+    {
+        const string sql = @"
+            SELECT TOP 1 PatolojiIstekId
+            FROM [EMR.Pathology].[EPulse]
+            WHERE IslemReferansNumarasi = @IslemRef";
+
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
+        await conn.OpenAsync(ct);
+        await using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@IslemRef", islemReferansNumarasi);
+        var value = await cmd.ExecuteScalarAsync(ct);
+        return value is null or DBNull ? null : Convert.ToInt32(value);
+    }
+
     // Genel Bakış paneli -- "İcbari Sigorta Gönderim Kapsamı" bölümü icin. GetIslemlerByProtokolIdAsync
     // ile BIREBIR ayni eslesme/onay kurallari (icbari eslesmesi + pi.State>=2 + RIS/LIS State=6
     // + LIS.Test.HizmetId disarida birakma -- tam gerekce orada), ama tek protokol yerine bir
