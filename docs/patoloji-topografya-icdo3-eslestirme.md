@@ -27,6 +27,31 @@ kümesinde olmayan bir kodu (`C99.9`) ve uydurma bir morfolojiyi (`9999/9`) HTTP
 KABUL etti. Yani `$validate` yapıyı doğruluyor ama anlamı doğrulamıyor -- "geçti" demesi
 bu tablonun doğru olduğuna dair hiçbir kanıt değil. Bkz. docs/bakanlik-sorulari.md.
 
+**EŞLEŞMEYEN KOD ARTIK ATLANMIYOR (kullanıcı kararı, 2026-09-09).** Önceden bu tabloda
+karşılığı olmayan bir yerleşim yeri kodu, bulgunun tamamını gönderilmez yapıyordu -- yani
+gerçek bir kanser bulgusu sırf organ kodunu çeviremediğimiz için hiç iletilmiyordu. Artık
+üç kademeli çözülüyor ve son kademe her zaman bir sonuç üretir:
+
+1. Bu tablo (`PathologyTopographyMap`, 227 kod).
+2. Pusula'nın kendi çevirici tablosu (`Skrs.YerlesimYeri.TopografikKodu`). Bugün 0 satır,
+   ama hastane doldurursa YENİ kodlar kod değişikliği olmadan çözülür. Oradan gelen değer
+   de biçim denetiminden geçer; çöp bir değer körlemesine iletilmez.
+3. `C80.9` "Unknown primary site" -- ICD-O-3'ün "birincil bölge bilinmiyor" demek için
+   ayırdığı resmî kod (AZ CodeSystem'de mevcut: "Qeyri-müəyyən birincili nahiyə").
+   Uydurma değil; bulguyu düşürmek yerine bilmediğimizi dürüstçe söylüyor.
+
+2. veya 3. kademeye düşüldüğünde senkron günlüğüne (`SyncLogEntry.Message`) hangi kodun
+eksik olduğu yazılır -- bu tabloya eklenmesi gereken kodlar oradan takip edilebilir.
+Bugünkü canlı veride 3. kademe hiç devreye girmiyor (kullanılan 158 kodun tamamı tabloda);
+bu bir ileriye dönük emniyet.
+
+**MORFOLOJİDEKİ DERECE EKİ (2026-09-09):** `8130/21` / `8130/23` gibi 6 haneli kodlarda
+ICD-O-3'ün 6. hanesi (derece/grade) koda yapışık geliyor (44 satır). Taban kod ayıklanıp
+(`8130/2`) gönderiliyor. Bu bir tahmin değil, verinin kendisi doğruluyor: Pusula terimleri
+`/21` için "düşük dereceli low grade", `/23` için "yüksek dereceli high grade" diyor.
+Derece bilgisi ayrı bir component gerektirdiğinden şimdilik sadece günlüğe not düşülüyor.
+Bu değişiklikle bulgu gönderilebilen rapor sayısı 6.571'den **6.616**'ya çıktı.
+
 **KOD BAĞLANTISI (2026-09-08):** bu tablo artık
 `src/PusulaEHealthSync/Mapping/PathologyTopographyMap.cs` içine 227 girdi olarak
 aktarıldı ve `PathologyFindingMapper` tarafından kullanılıyor. Tablo değişirse o dosya

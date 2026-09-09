@@ -738,8 +738,11 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
             SELECT MIN(e.IslemReferansNumarasi) AS IslemReferansNumarasi,
                    e.YerlesimYeriCode, MIN(e.YerlesimYeriValue) AS YerlesimYeriValue,
                    e.MorfolojiKoduCode, MIN(e.MorfolojiKoduValue) AS MorfolojiKoduValue,
-                   MIN(e.IstemZamani) AS IstemZamani, MIN(e.RaporlamaZamani) AS RaporlamaZamani
+                   MIN(e.IstemZamani) AS IstemZamani, MIN(e.RaporlamaZamani) AS RaporlamaZamani,
+                   MIN(yy.TopografikKodu) AS PusulaTopografikKodu
             FROM [EMR.Pathology].[EPulse] e
+            LEFT JOIN Skrs.YerlesimYeri yy
+                   ON yy.Kodu = e.YerlesimYeriCode AND yy.Aktif = 1
             WHERE e.PatolojiIstekId = @ResultId
               AND e.MorfolojiKoduCode IS NOT NULL AND LTRIM(RTRIM(e.MorfolojiKoduCode)) <> ''
               AND e.MorfolojiKoduCode NOT LIKE '0000/%'
@@ -765,6 +768,7 @@ public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore set
                 MorfolojiKoduValue = reader.IsDBNull(4) ? null : reader.GetString(4),
                 IstemZamani = reader.GetDateTime(5),
                 RaporlamaZamani = reader.IsDBNull(6) ? null : reader.GetDateTime(6),
+                PusulaTopografikKodu = reader.IsDBNull(7) ? null : reader.GetString(7),
             });
         }
         return result;

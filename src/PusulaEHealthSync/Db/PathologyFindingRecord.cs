@@ -38,6 +38,15 @@ public class PathologyFindingRecord
     public string? YerlesimYeriCode { get; set; }
     public string? YerlesimYeriValue { get; set; }
 
+    // Pusula'nin KENDI cevirici tablosundan (Skrs.YerlesimYeri.TopografikKodu, anahtar
+    // Skrs.YerlesimYeri.Kodu = YerlesimYeriCode). Canli veride bu tablo bugun BOS (0 satir,
+    // 2026-09-09 tekrar dogrulandi) -- yani pratikte hep null geliyor. Yine de sorguya
+    // eklendi: KULLANICI ISTEGI (2026-09-09) "yeni kodlar kullanilacak olursa Pusula
+    // tarafinda ilk olarak eslestirmeyi deneyelim". Hastane bu tabloyu doldurursa, elle
+    // bakim edilen tablomuzda olmayan YENI kodlar kod degisikligi gerektirmeden cozulur.
+    // Onceligi bizim tablomuzdan SONRA gelir (bkz. PathologyFindingMapper.ResolveTopography).
+    public string? PusulaTopografikKodu { get; set; }
+
     // Zaten ICD-O-3 (orn. "8523/3") -- dogrudan kullanilir.
     public string? MorfolojiKoduCode { get; set; }
     public string? MorfolojiKoduValue { get; set; }

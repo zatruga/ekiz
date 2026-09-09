@@ -85,10 +85,15 @@ public class PathologyReportSyncService(
                 continue;
             }
 
-            var observation = ((MappingResult.Success)mapping).Resource;
+            // Note dolu ise (yerlesim yeri tabloda yok -> Pusula tablosu ya da C80.9
+            // "bilinmeyen birincil bolge" kullanildi, veya morfolojiden derece eki
+            // ayiklandi) gonderim ENGELLENMEZ ama neden SyncLog'a yazilir -- boylece hangi
+            // kayitlarin eslestirme tablosuna eklenmesi gerektigi gunlukten gorulebilir.
+            var findingSuccess = (MappingResult.Success)mapping;
+            var observation = findingSuccess.Resource;
             var localId = PathologyFindingMapper.LocalUniqueId(finding.IslemReferansNumarasi);
             var entry = await SendAsync("Observation", observation, localId, liveMode,
-                status => NewFindingEntry(finding, protokol, status), ct);
+                status => NewFindingEntry(finding, protokol, status), ct, findingSuccess.Note);
 
             if (entry.Status != SyncStatus.Success)
             {
@@ -135,7 +140,7 @@ public class PathologyReportSyncService(
     // Composition icin de gerektiginden ortaklastirildi.
     private async Task<SyncLogEntry> SendAsync(
         string resourceType, JsonObject resource, string localId, bool liveMode,
-        Func<SyncStatus, SyncLogEntry> newEntry, CancellationToken ct)
+        Func<SyncStatus, SyncLogEntry> newEntry, CancellationToken ct, string? note = null)
     {
         var requestJson = resource.ToJsonString(JsonDefaults.Options);
 
@@ -144,7 +149,7 @@ public class PathologyReportSyncService(
             var validateResult = await eHealthClient.ValidateAsync(resourceType, resource, ct);
             var validateEntry = newEntry(validateResult.Success ? SyncStatus.Success : SyncStatus.Failed);
             validateEntry.Operation = SyncOperation.Validate;
-            validateEntry.Message = validateResult.Success ? null : EHealthErrorFormatter.Describe(validateResult.StatusCode ?? 0, validateResult.Body);
+            validateEntry.Message = CombineMessage(validateResult.Success ? null : EHealthErrorFormatter.Describe(validateResult.StatusCode ?? 0, validateResult.Body), note);
             validateEntry.RequestJson = requestJson;
             validateEntry.ResponseJson = validateResult.Body;
             await syncLog.InsertAsync(validateEntry, ct);
@@ -167,11 +172,20 @@ public class PathologyReportSyncService(
         var writeEntry = newEntry(writeResult.Success ? SyncStatus.Success : SyncStatus.Failed);
         writeEntry.Operation = operation;
         writeEntry.AzResourceId = returnedId ?? existingId;
-        writeEntry.Message = writeResult.Success ? null : EHealthErrorFormatter.Describe(writeResult.StatusCode ?? 0, writeResult.Body);
+        writeEntry.Message = CombineMessage(writeResult.Success ? null : EHealthErrorFormatter.Describe(writeResult.StatusCode ?? 0, writeResult.Body), note);
         writeEntry.RequestJson = requestJson;
         writeEntry.ResponseJson = writeResult.Body;
         await syncLog.InsertAsync(writeEntry, ct);
         return writeEntry;
+    }
+
+    // EncounterSyncService.CombineMessage ile ayni kalip: hata mesaji ve "dikkat cekmesi
+    // gereken ama gonderimi engellemeyen" not ayni alanda birlestirilir.
+    private static string? CombineMessage(string? primary, string? note)
+    {
+        if (primary is null) return note;
+        if (note is null) return primary;
+        return $"{primary} -- {note}";
     }
 
     // ONEMLI: ResourceType burada BILEREK "DiagnosticReport" DEGIL -- Radyoloji de ayni FHIR
