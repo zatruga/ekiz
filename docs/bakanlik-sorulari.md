@@ -144,6 +144,51 @@ elle gözden geçirilmiş eşleştirme tablosu kalıyor.
 
 ---
 
+### Patoloji -- ICD-O-3 morfoloji listesi güncellenecek mi? (18 kod eşleşmiyor)
+
+**Soru:** `az-icd-o-3` CodeSystem'inde (sürüm 0.1.1) bulunmayan ama
+hastanemizde fiilen kullanılan 18 morfoloji kodu var. Bunlar uydurma
+değil, WHO'nun daha yeni ICD-O-3 sürümlerinde (ör. ICD-O-3.2) tanımlı gerçek
+kodlar -- AZ listesi daha eski bir alt küme görünüyor. CodeSystem güncellenecek
+mi, yoksa bu tanılar için eski/daha genel bir karşılık mı kullanmalıyız?
+
+**Etki:** 104 EPulse satırı / **60 rapor**
+(gönderilebilir 6.571 raporun ~%0.9'i).
+
+| ICD-O-3 kodu | Pusula terimi | Satır | Rapor |
+|---|---|---:|---:|
+| `8380/2` | Atipik hiperplazi/endometrioid intraepitelyal neoplazi | 15 | 14 |
+| `8811/1` | Miksoinflamatuar fibroblastik sarkom | 12 | 1 |
+| `8460/2` | Seröz 'borderline' tümör-mikropapiller alt tip | 10 | 3 |
+| `9751/3` | Langerhans hücreli histiyositoz, NOS | 9 | 2 |
+| `8815/1` | Soliter fibröz tümör | 9 | 3 |
+| `8071/1` | Keratoakantom | 9 | 9 |
+| `8509/3` | İnvaziv solid papiller karsinom | 9 | 4 |
+| `8832/1` | Dermatofibrosarkoma protuberans | 6 | 3 |
+| `8507/3` | İnvaziv mikropapiller karsinom | 4 | 2 |
+| `8992/0` | Pulmoner hamartom | 4 | 4 |
+| `8651/0` | warthin tümörü | 4 | 4 |
+| `8930/3` | Yüksek dereceli endometrial stromal sarkom | 3 | 1 |
+| `9260/0` | Anevrizmal kemik kisti | 3 | 3 |
+| `8828/0` | Nodüler fasiitis; | 2 | 2 |
+| `9750/1` | Erdheim-Chester hastalığı | 2 | 2 |
+| `9718/1` | Lenfomatoid papülozis | 1 | 1 |
+| `8714/3` | PECOMA, Malign perivasküler epiteloid hücreli tümör | 1 | 1 |
+| `8384/1` | Adenokarsinom, endoservikal tip | 1 | 1 |
+
+**Neden çıktı:** v2 doğrulanırken (2026-09-09), AZ CodeSystem'inin tam JSON'u
+indirilip hastanede kullanılan 359 morfoloji kodunun tamamı karşılaştırıldı.
+Topografya tarafında böyle bir açık YOK (227 kodun hepsi listede mevcut).
+
+**Mevcut davranışımız (kullanıcı kararı, 2026-09-09):** bu kodlar **yine de
+gönderiliyor**. Gerekçe: kodlar geçerli ICD-O-3, sunucu kabul ediyor (required
+binding zaten denetlenmiyor) ve alternatif, 60 gerçek kanser bulgusunu hiç
+göndermemek olurdu. Bakanlık listeyi güncellerse sorun kendiliğinden kapanır.
+
+**Durum:** Açık.
+
+---
+
 *(Yeni sorular buraya eklenecek.)*
 
 ## Kapanan sorular

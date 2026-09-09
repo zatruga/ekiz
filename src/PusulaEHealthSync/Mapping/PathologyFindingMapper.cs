@@ -51,6 +51,24 @@ public static class PathologyFindingMapper
     // derece/grade eki yapismis gorunuyor. TAHMIN EDILIP kirpilmiyor ("8130/21" -> "8130/2"
     // makul gorunse de bu bir varsayim olurdu); required binding'li bir VS'e uydurma kod
     // gondermek yerine bu satirlar Skipped olup gorunur oluyor.
+    //
+    // DIKKAT -- burada SADECE BICIM denetleniyor, uyelik DEGIL. Olculdu (2026-09-09, AZ
+    // CodeSystem'inin tam JSON'u indirilip karsilastirildi): hastanede kullanilan 359
+    // morfoloji kodunun 18'i az-icd-o-3 (surum 0.1.1) listesinde YOK -- 104 satir / 60
+    // rapor. Bunlar uydurma degil, WHO'nun daha yeni surumlerinde (ICD-O-3.2) tanimli
+    // gercek kodlar (orn. 8509/3 invaziv solid papiller karsinom, 8380/2 EIN, 8507/3
+    // invaziv mikropapiller); AZ listesi daha eski bir alt kume.
+    //
+    // KULLANICI KARARI (2026-09-09): bu kodlar YINE DE GONDERILIYOR. Gerekce: kodlar
+    // gecerli ICD-O-3, sunucu kabul ediyor (required binding zaten denetlenmiyor -- bkz.
+    // sinif yorumundaki $validate notu) ve alternatif, 60 gercek kanser bulgusunu hic
+    // gondermemek olurdu. Bilincli olarak uyelik denetimi EKLENMEDI: AZ'nin 1137 morfoloji
+    // kodunu repoya gomup her yeni WHO kodunu elle bakim etmek, cozdugunden cok sorun
+    // uretirdi. Bakanlik listeyi guncellerse fark kendiliginden kapanir --
+    // docs/bakanlik-sorulari.md'de acik soru olarak, tam 18'lik listesiyle duruyor.
+    //
+    // TOPOGRAFYA tarafinda boyle bir acik YOK: PathologyTopographyMap'teki 227 ICD-O-3
+    // kodunun TAMAMI az-icd-o-3'te mevcut (ayni gun, ayni yontemle dogrulandi).
     private static readonly Regex IcdO3MorphologyPattern = new(@"^[89]\d{3}/\d$", RegexOptions.Compiled);
 
     public static MappingResult Map(PathologyFindingRecord finding, string azPatientId, string? azEncounterId, string? azPractitionerId)
