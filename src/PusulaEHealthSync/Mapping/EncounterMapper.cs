@@ -347,7 +347,7 @@ public static class EncounterMapper
 
     // Pusula smalldatetime -> AZ FHIR ISO datetime+saat dilimi. Sunucu Baki saatiyle
     // (+04:00, DST yok) calisiyor kabul edilir -- Pusula.hasta.protokol de yerel saat.
-    private static string ToAzInstant(DateTime dt) => dt.ToString("yyyy-MM-ddTHH:mm:ss") + "+04:00";
+    private static string ToAzInstant(DateTime dt) => AzTime.ToAzInstant(dt);
 
     // KARAR (2026-08-20): kapanmamis protokoller icin varsayilan davranis "kapanmasini
     // bekle, kapaninca gonder"; ama bircok Ayaktan (A) protokol hic formal kapanmiyor

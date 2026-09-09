@@ -66,7 +66,7 @@ else
                         var displayMsg = Model.HastaDurumKaydi.Message is null ? ""
                             : Model.HastaDurumKaydi.Status == SyncStatus.Failed ? SyncLogEntry.FriendlyError(Model.HastaDurumKaydi.Message)
                             : Model.HastaDurumKaydi.Message;
-                        <text>Son deneme: @Model.HastaDurumKaydi.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm") UTC @(string.IsNullOrEmpty(displayMsg) ? "" : $"-- {displayMsg}")</text>
+                        <text>Son deneme: @AzTime.ToLocal(Model.HastaDurumKaydi.CreatedAtUtc).ToString("yyyy-MM-dd HH:mm") @(string.IsNullOrEmpty(displayMsg) ? "" : $"-- {displayMsg}")</text>
                     }
                 </span>
             </div>

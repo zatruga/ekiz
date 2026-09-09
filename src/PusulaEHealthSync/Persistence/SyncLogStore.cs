@@ -192,17 +192,28 @@ public class SyncLogStore
     }
 
     // Genel Bakış paneli -- gönderim trendi grafiği icin gunluk basarili/hatali sayilari.
-    // CreatedAtUtc ISO 8601 metin oldugu icin ilk 10 karakteri (yyyy-MM-dd) gun anahtari
-    // olarak yeterli, ayrica tarih donusumu gerekmiyor (QueryAsync'teki ayni gozlem).
+    // DUZELTME (2026-09-09): gun anahtari eskiden dogrudan substr(CreatedAtUtc,1,10) ile
+    // aliniyordu -- yani UTC gunune gore. Baki +04:00 oldugu icin YEREL saatle 00:00-04:00
+    // arasi yapilan her gonderim BIR ONCEKI gune dusuyordu (gece nobetinde yapilan islem
+    // dunun cubugunda gorunuyordu). Artik saklanan UTC degeri once yerele kaydiriliyor
+    // (bkz. AzTime), gruplama ondan sonra yapiliyor.
+    //
+    // Parametreler artik YEREL gun araligi -- cagiran taraf DateTime/UTC karisimi ile
+    // ugrasmasin diye UTC'ye cevrim burada yapiliyor (eski imzada "fromUtc" deniyordu ama
+    // cagiranlar yerel gece yarisi gonderiyordu; ad ile icerik uyusmuyordu).
+    //
     // Aralikta hic kaydi olmayan gunler de 0/0 olarak listede yer alir (grafik bosluksuz
     // cizilsin diye) -- SQL'den sadece VEROLAN gunler doner, eksik gunler burada doldurulur.
-    public async Task<List<DailyTrendPoint>> GetDailyTrendAsync(DateTime fromUtc, DateTime toUtcExclusive, CancellationToken ct = default)
+    public async Task<List<DailyTrendPoint>> GetDailyTrendAsync(DateOnly fromLocal, DateOnly toLocalInclusive, CancellationToken ct = default)
     {
+        var fromUtc = AzTime.ToUtc(fromLocal.ToDateTime(TimeOnly.MinValue));
+        var toUtcExclusive = AzTime.ToUtc(toLocalInclusive.AddDays(1).ToDateTime(TimeOnly.MinValue));
+
         using var conn = new SqliteConnection(_connectionString);
         await conn.OpenAsync(ct);
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = @"
-            SELECT substr(CreatedAtUtc, 1, 10) AS Day, Status, COUNT(*)
+        cmd.CommandText = $@"
+            SELECT substr(datetime(CreatedAtUtc, {AzTime.SqliteShiftToLocal}), 1, 10) AS Day, Status, COUNT(*)
             FROM SyncLog
             WHERE CreatedAtUtc >= $from AND CreatedAtUtc < $to
             GROUP BY Day, Status";
@@ -228,7 +239,7 @@ public class SyncLogStore
         }
 
         var result = new List<DailyTrendPoint>();
-        for (var day = DateOnly.FromDateTime(fromUtc); day < DateOnly.FromDateTime(toUtcExclusive); day = day.AddDays(1))
+        for (var day = fromLocal; day <= toLocalInclusive; day = day.AddDays(1))
         {
             var v = byDay.GetValueOrDefault(day.ToString("yyyy-MM-dd"));
             result.Add(new DailyTrendPoint(day, v.Success, v.Failed));

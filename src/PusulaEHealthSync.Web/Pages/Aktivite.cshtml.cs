@@ -53,8 +53,11 @@ public class AktiviteModel(SyncLogStore syncLog) : PageModel
         EffectiveTo = To ?? today;
         PageNumber = P < 1 ? 1 : P;
 
-        var fromUtc = EffectiveFrom.ToDateTime(TimeOnly.MinValue);
-        var toUtcExclusive = EffectiveTo.ToDateTime(TimeOnly.MinValue).AddDays(1);
+        // Filtredeki tarihler YEREL gun (kullanici takvimden secer), SyncLog ise UTC saklar --
+        // cevrim sart. Eskiden yerel gece yarisi dogrudan UTC alaniyla karsilastiriliyordu,
+        // bu da gun sinirini fiilen 04:00'e kaydiriyordu (bkz. AzTime).
+        var fromUtc = AzTime.ToUtc(EffectiveFrom.ToDateTime(TimeOnly.MinValue));
+        var toUtcExclusive = AzTime.ToUtc(EffectiveTo.ToDateTime(TimeOnly.MinValue).AddDays(1));
 
         StatusCounts = await syncLog.GetStatusCountsAsync(ResourceType, fromUtc, toUtcExclusive);
 

@@ -103,7 +103,7 @@ else
         <table style="min-width:1650px;" class="sticky-last-col">
             <thead>
                 <tr>
-                    <th>Zaman (UTC)</th>
+                    <th>Zaman</th>
                     <th>Tür</th>
                     <th>Ad Soyad</th>
                     <th>FIN No</th>
@@ -123,7 +123,7 @@ else
                 @foreach (var e in Model.Entries)
                 {
                     <tr>
-                        <td class="mono text-muted">@e.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm:ss")</td>
+                        <td class="mono text-muted">@AzTime.ToLocal(e.CreatedAtUtc).ToString("yyyy-MM-dd HH:mm:ss")</td>
                         <td><span class="badge @SyncLogEntry.ResourceTypeCssClass(e.ResourceType)">@SyncLogEntry.ResourceTypeLabel(e.ResourceType)</span></td>
                         <td>@(string.IsNullOrWhiteSpace(e.PatientFullName) ? "-" : e.PatientFullName)</td>
                         <td class="mono">@(e.Fin ?? "-")</td>

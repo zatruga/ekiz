@@ -147,5 +147,5 @@ public static class LabResultObservationMapper
     }
 
     // EncounterMapper/ConditionMapper/ProcedureMapper ile ayni kural (Baki, +04:00, DST yok).
-    private static string ToAzInstant(DateTime dt) => dt.ToString("yyyy-MM-ddTHH:mm:ss") + "+04:00";
+    private static string ToAzInstant(DateTime dt) => AzTime.ToAzInstant(dt);
 }

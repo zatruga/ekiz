@@ -103,20 +103,30 @@ public class GenelBakisModel(PusulaRepository pusulaRepository, SyncLogStore syn
             "30" => (today.AddDays(-29), today),
             _ => (today.AddDays(-6), today),
         };
-        PeriodFromUtc = PeriodFromDate.ToDateTime(TimeOnly.MinValue);
-        PeriodToUtcExclusive = PeriodToDate.ToDateTime(TimeOnly.MinValue).AddDays(1);
+        // DIKKAT -- burada IKI ayri zaman tabani var (bkz. AzTime):
+        //   Pusula (SQL Server) YEREL saat, SyncLog (SQLite) UTC.
+        // DUZELTME (2026-09-09): eskiden ayni yerel gece-yarisi degeri HER IKISINE de
+        // veriliyordu (degisken adi "PeriodFromUtc" idi ama icerigi yereldi) -- bu yuzden
+        // SyncLog sayimlarinda gun siniri fiilen 04:00'e kayiyordu. Artik yerel degerler
+        // Pusula'ya, AzTime.ToUtc'den gecirilmis olanlar SyncLog'a gidiyor.
+        var periodFromLocal = PeriodFromDate.ToDateTime(TimeOnly.MinValue);
+        var periodToLocalExclusive = PeriodToDate.ToDateTime(TimeOnly.MinValue).AddDays(1);
+        PeriodFromUtc = AzTime.ToUtc(periodFromLocal);
+        PeriodToUtcExclusive = AzTime.ToUtc(periodToLocalExclusive);
 
         var todayFrom = today.ToDateTime(TimeOnly.MinValue);
         var todayToExclusive = today.AddDays(1).ToDateTime(TimeOnly.MinValue);
         var yesterdayFrom = today.AddDays(-1).ToDateTime(TimeOnly.MinValue);
 
+        // Pusula sorgulari YEREL saat bekler -- cevirmeden gecirilir.
         var todayProtocols = await pusulaRepository.GetProtokolListAsync(todayFrom, todayToExclusive, null, ct);
         var yesterdayProtocols = await pusulaRepository.GetProtokolListAsync(yesterdayFrom, todayFrom, null, ct);
         TodayProtocolCount = todayProtocols.Count;
         TodayProtocolHasBaseline = yesterdayProtocols.Count > 0;
         TodayProtocolChangePct = yesterdayProtocols.Count == 0 ? 0 : Math.Round((TodayProtocolCount - yesterdayProtocols.Count) * 100.0 / yesterdayProtocols.Count, 1);
 
-        var todayEncounterCounts = await syncLog.GetStatusCountsAsync("Encounter", todayFrom, todayToExclusive, ct);
+        // SyncLog UTC saklar -- yerel gun siniri cevrilerek verilir.
+        var todayEncounterCounts = await syncLog.GetStatusCountsAsync("Encounter", AzTime.ToUtc(todayFrom), AzTime.ToUtc(todayToExclusive), ct);
         TodaySentCount = todayEncounterCounts.GetValueOrDefault(nameof(SyncStatus.Success));
 
         var periodCounts = await syncLog.GetStatusCountsAsync(null, PeriodFromUtc, PeriodToUtcExclusive, ct);
@@ -135,9 +145,8 @@ public class GenelBakisModel(PusulaRepository pusulaRepository, SyncLogStore syn
         var prevRate = SuccessRateHasBaseline ? prevSuccess * 100.0 / (prevSuccess + prevFailed) : 0;
         SuccessRateDeltaPct = Math.Round(OverallSuccessRatePct - prevRate, 1);
 
-        var trendFrom = today.AddDays(-13).ToDateTime(TimeOnly.MinValue);
-        var trendToExclusive = today.AddDays(1).ToDateTime(TimeOnly.MinValue);
-        Trend = await syncLog.GetDailyTrendAsync(trendFrom, trendToExclusive, ct);
+        // Yerel gun araligi -- GetDailyTrendAsync UTC cevrimini kendi yapiyor.
+        Trend = await syncLog.GetDailyTrendAsync(today.AddDays(-13), today, ct);
 
         foreach (var rt in TrackedResourceTypes)
         {

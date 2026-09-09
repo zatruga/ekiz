@@ -26,7 +26,7 @@ else
     <div class="page-header">
         <div>
             <h1 class="page-title">@(string.IsNullOrWhiteSpace(e.PatientFullName) ? $"Pusula Id {e.PusulaId}" : e.PatientFullName)</h1>
-            <p class="page-subtitle">Pusula Id @e.PusulaId &middot; @e.CreatedAtUtc.ToString("yyyy-MM-dd HH:mm:ss") UTC</p>
+            <p class="page-subtitle">Pusula Id @e.PusulaId &middot; @AzTime.ToLocal(e.CreatedAtUtc).ToString("yyyy-MM-dd HH:mm:ss")</p>
         </div>
         <div class="resource-chip @rtClass">
             <div class="resource-avatar @rtClass">

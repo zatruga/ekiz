@@ -80,7 +80,7 @@
                     <td>
                         <span class="rchip @(user.Active ? "success" : "neutral")">@(user.Active ? "Aktif" : "Pasif")</span>
                     </td>
-                    <td class="mono text-muted">@user.CreatedAtUtc.ToLocalTime().ToString("dd.MM.yyyy HH:mm")</td>
+                    <td class="mono text-muted">@AzTime.ToLocal(user.CreatedAtUtc).ToString("dd.MM.yyyy HH:mm")</td>
                     <td>
                         <form method="post" asp-page-handler="ResetPassword" style="display:flex; gap:8px; align-items:center;">
                             <input type="hidden" name="id" value="@user.Id" />

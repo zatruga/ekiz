@@ -234,7 +234,7 @@ public static class PathologyFindingMapper
     }
 
     // PathologyReportMapper/RadiologyReportMapper ile ayni kural (Baki, +04:00, DST yok).
-    private static string ToAzInstant(DateTime dt) => dt.ToString("yyyy-MM-ddTHH:mm:ss") + "+04:00";
+    private static string ToAzInstant(DateTime dt) => AzTime.ToAzInstant(dt);
 
     // "patoloji-bulgu-" oneki: Observation'a Laboratuvar sonuclari da gidiyor
     // (LabResultObservationMapper) ve iki ID uzayi BAGIMSIZ/ORTUSEN -- onek olmadan

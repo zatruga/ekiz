@@ -163,7 +163,7 @@ public static class PathologyReportMapper
     }
 
     // EncounterMapper/ProcedureMapper/RadiologyReportMapper ile ayni kural (Baki, +04:00, DST yok).
-    private static string ToAzInstant(DateTime dt) => dt.ToString("yyyy-MM-ddTHH:mm:ss") + "+04:00";
+    private static string ToAzInstant(DateTime dt) => AzTime.ToAzInstant(dt);
 
     // ONEMLI: RIS.TetkikIslem.Id (Radyoloji) ile EMR.Pathology.Result.Id (Patoloji) BAGIMSIZ,
     // ORTUSEN iki ID uzayi -- ayni sayisal degeri paylasabilirler. Ikisi de e-Health'e AYNI
