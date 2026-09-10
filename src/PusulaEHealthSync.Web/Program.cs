@@ -53,6 +53,12 @@ builder.Services.AddSingleton<LabResultSyncService>();
 builder.Services.AddSingleton<RadiologyReportSyncService>();
 builder.Services.AddSingleton<PathologyReportSyncService>();
 builder.Services.AddSingleton<DeleteService>();
+builder.Services.AddSingleton<PendingWorkService>();
+builder.Services.AddSingleton<CancellationSyncService>();
+
+// Saatlik otomatik gonderim. VARSAYILAN KAPALI -- Ayarlar'daki "Otomatik gonderim"
+// acilmadan tek kayit bile gondermez (bkz. AutoSyncWorker).
+builder.Services.AddHostedService<AutoSyncWorker>();
 builder.Services.AddSingleton<IPasswordHasher<object>, PasswordHasher<object>>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

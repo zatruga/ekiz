@@ -1,0 +1,125 @@
+@page
+@model PusulaEHealthSync.Web.Pages.BekleyenIslerModel
+@{
+    ViewData["Title"] = "Bekleyen İşler";
+}
+
+<p class="breadcrumb"><a asp-page="/Index">Protokol Listesi</a> / Bekleyen İşler</p>
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Bekleyen İşler</h1>
+        <p class="page-subtitle">Pusula'da sonuçlanmış ama e-Health'e henüz gönderilmemiş kayıtlar -- bu sayfa hiçbir şey göndermez</p>
+    </div>
+    <form method="post" asp-page-handler="Yenile">
+        <input type="hidden" name="Gun" value="@Model.Gun" />
+        <button type="submit" class="btn btn-primary">Yeniden Hesapla</button>
+    </form>
+</div>
+
+@if (Model.Sonuc is null)
+{
+    <div class="empty-state">
+        <p>Henüz hesaplanmadı.</p>
+        <p class="text-muted">
+            Tam tarama canlı veride yaklaşık 15 saniye sürüyor, bu yüzden sayfa her açılışta hesaplamıyor.
+            Yukarıdaki <strong>Yeniden Hesapla</strong> ile başlatabilirsiniz; otomatik gönderim açıksa
+            her turda kendiliğinden tazelenir.
+        </p>
+    </div>
+}
+else
+{
+    <div class="filter-bar">
+        <span>
+            Son hesaplama:
+            <strong>@(Model.SonHesaplamaUtc is null ? "-" : AzTime.ToLocal(Model.SonHesaplamaUtc.Value).ToString("yyyy-MM-dd HH:mm"))</strong>
+            &middot; Son @Model.Gun günlük pencere
+        </span>
+        <span>
+            Otomatik gönderim:
+            @if (Model.OtomatikGonderimAcik)
+            {
+                <strong>açık</strong>
+            }
+            else
+            {
+                <strong class="text-muted">kapalı</strong>
+                <text>-- Ayarlar sayfasından açabilirsiniz</text>
+            }
+        </span>
+    </div>
+
+    <div class="stat-grid">
+        <div class="stat-card">
+            <div class="stat-label">Bekleyen protokol</div>
+            <div class="stat-value">@Model.Sonuc.ToplamProtokolSayisi</div>
+        </div>
+        @foreach (var kv in Model.Sonuc.OzetSayimlar.OrderByDescending(k => k.Value))
+        {
+            <div class="stat-card">
+                <div class="stat-label">@kv.Key</div>
+                <div class="stat-value">@kv.Value</div>
+            </div>
+        }
+    </div>
+
+    @if (Model.Sonuc.Protokoller.Count == 0)
+    {
+        <div class="empty-state"><p>Bekleyen iş yok -- her şey gönderilmiş görünüyor.</p></div>
+    }
+    else
+    {
+        <p class="text-muted" style="margin:16px 0 8px">
+            En eski bekleyen kayıt önce olmak üzere @Model.Sonuc.Protokoller.Count protokol listeleniyor
+            (toplam @Model.Sonuc.ToplamProtokolSayisi).
+        </p>
+        <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Protokol</th>
+                    <th>Hasta</th>
+                    <th>Tip</th>
+                    <th>Bekleyen kalemler</th>
+                    <th>Durum</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var p in Model.Sonuc.Protokoller)
+            {
+                <tr>
+                    <td class="mono">
+                        <a asp-page="/Protokol" asp-route-id="@p.Protokol.ProtokolId">@p.Protokol.ProtokolId</a>
+                        <div class="text-muted">@(p.Protokol.AcilisTarihi?.ToString("dd.MM.yyyy") ?? "-")</div>
+                    </td>
+                    <td>
+                        @p.Protokol.HastaAdi @p.Protokol.HastaSoyadi
+                        <div class="text-muted mono">@p.Protokol.Fin</div>
+                    </td>
+                    <td>
+                        @(p.Protokol.GelisTipiId switch { "Y" => "Yatan", "G" => "Günübirlik", _ => "Ayaktan" })
+                    </td>
+                    <td>
+                        @foreach (var grup in p.Items.GroupBy(i => i.Baslik).OrderByDescending(g => g.Count()))
+                        {
+                            <span class="badge neutral">@grup.Key @(grup.Count() > 1 ? $"({grup.Count()})" : "")</span>
+                        }
+                    </td>
+                    <td>
+                        @if (p.Eligible)
+                        {
+                            <span class="badge warning"><span class="badge-dot"></span>Gönderim bekliyor</span>
+                        }
+                        else
+                        {
+                            <span class="badge neutral"><span class="badge-dot"></span>Henüz uygun değil</span>
+                            <div class="text-muted">@p.NotEligibleReason</div>
+                        }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        </div>
+    }
+}

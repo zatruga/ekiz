@@ -138,28 +138,36 @@ public class SyncLogStore
 
         using var conn = new SqliteConnection(_connectionString);
         await conn.OpenAsync(ct);
-        using var cmd = conn.CreateCommand();
-        var placeholders = pusulaIds.Select((_, i) => $"$id{i}").ToList();
-        cmd.CommandText = $@"
-            SELECT {SelectColumns}
-            FROM SyncLog
-            WHERE ResourceType = $resourceType
-              AND PusulaId IN ({string.Join(",", placeholders)})
-              AND Id IN (
-                  SELECT MAX(Id) FROM SyncLog
-                  WHERE ResourceType = $resourceType AND PusulaId IN ({string.Join(",", placeholders)})
-                  GROUP BY PusulaId
-              )";
-        cmd.Parameters.AddWithValue("$resourceType", resourceType);
-        var idList = pusulaIds.ToList();
-        for (var i = 0; i < idList.Count; i++)
-            cmd.Parameters.AddWithValue($"$id{i}", idList[i]);
 
-        using var reader = await cmd.ExecuteReaderAsync(ct);
-        while (await reader.ReadAsync(ct))
+        // PARTILI OKUMA (2026-09-10): id listesi sorguda IKI kez kullanildigi icin parametre
+        // sayisi id sayisinin iki katina cikiyor; SQLite'in degisken siniri (varsayilan 999)
+        // asilinca "too many SQL variables" ile patliyordu. Eski cagiranlar hep kucuk listeler
+        // (tek protokolun kalemleri) verdigi icin hic ortaya cikmamisti -- PendingWorkService
+        // 54.000 laboratuvar id'si ile cagirinca gorundu. 400 x 2 = 800 parametre, guvenli.
+        foreach (var chunk in pusulaIds.Distinct().Chunk(400))
         {
-            var entry = ReadEntry(reader);
-            result[entry.PusulaId] = entry;
+            using var cmd = conn.CreateCommand();
+            var placeholders = chunk.Select((_, i) => $"$id{i}").ToList();
+            cmd.CommandText = $@"
+                SELECT {SelectColumns}
+                FROM SyncLog
+                WHERE ResourceType = $resourceType
+                  AND PusulaId IN ({string.Join(",", placeholders)})
+                  AND Id IN (
+                      SELECT MAX(Id) FROM SyncLog
+                      WHERE ResourceType = $resourceType AND PusulaId IN ({string.Join(",", placeholders)})
+                      GROUP BY PusulaId
+                  )";
+            cmd.Parameters.AddWithValue("$resourceType", resourceType);
+            for (var i = 0; i < chunk.Length; i++)
+                cmd.Parameters.AddWithValue($"$id{i}", chunk[i]);
+
+            using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                var entry = ReadEntry(reader);
+                result[entry.PusulaId] = entry;
+            }
         }
         return result;
     }

@@ -125,12 +125,19 @@ public class EncounterSyncService(
                     azPractitionerId = retryResult.Status == SyncStatus.Success ? retryResult.AzResourceId : null;
                 }
             }
-            else if (lastAttempt is null && liveMode)
+            // KULLANICI KARARI (2026-09-09): "doktor ozelinde her protokolde gondermeyi
+            // deneyelim". Onceden kosul "lastAttempt is null" idi -- yani BIR KEZ basarisiz
+            // olan doktor bir daha HIC denenmiyordu. Elle calisirken fark edilmiyordu ama
+            // saatlik dongude bu, o doktorun butun kayitlarini kalici olarak participant'siz
+            // gondermek demek olurdu. Artik basarisiz/atlanmis her durumda yeniden denenir;
+            // basarili olanlar zaten yukaridaki dalda (GET ile dogrulanarak) ele aliniyor,
+            // yani gereksiz tekrar gonderim olusmuyor.
+            else if (liveMode)
             {
                 var practitionerResult = await practitionerSyncService.SyncOneAsync(protokol.DoktorId.Value, liveMode: true, ct);
                 azPractitionerId = practitionerResult.Status == SyncStatus.Success ? practitionerResult.AzResourceId : null;
                 if (azPractitionerId is null)
-                    logger.LogInformation("hasta.protokol.Id={Id}: doktor (DoktorId={DoktorId}) ilk gonderim basarisiz ({Status}), participant bos birakilacak -- bundan sonra otomatik tekrar denenmeyecek", protokol.ProtokolId, protokol.DoktorId, practitionerResult.Status);
+                    logger.LogInformation("hasta.protokol.Id={Id}: doktor (DoktorId={DoktorId}) gonderimi basarisiz ({Status}), participant bos birakilacak -- sonraki turda tekrar denenecek", protokol.ProtokolId, protokol.DoktorId, practitionerResult.Status);
             }
         }
 
@@ -257,7 +264,8 @@ public class EncounterSyncService(
                     {
                         azPractitionerId = lastAttempt.AzResourceId;
                     }
-                    else if (lastAttempt is null)
+                    // Ayni karar (2026-09-09): basarisiz doktor her turda yeniden denenir.
+                    else
                     {
                         var practitionerResult = await practitionerSyncService.SyncOneAsync(doktorId, liveMode: true, ct);
                         azPractitionerId = practitionerResult.Status == SyncStatus.Success ? practitionerResult.AzResourceId : null;
@@ -309,7 +317,8 @@ public class EncounterSyncService(
                     {
                         azPractitionerId = lastAttempt.AzResourceId;
                     }
-                    else if (lastAttempt is null)
+                    // Ayni karar (2026-09-09): basarisiz doktor her turda yeniden denenir.
+                    else
                     {
                         var practitionerResult = await practitionerSyncService.SyncOneAsync(doktorId, liveMode: true, ct);
                         azPractitionerId = practitionerResult.Status == SyncStatus.Success ? practitionerResult.AzResourceId : null;

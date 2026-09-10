@@ -5,7 +5,7 @@ using PusulaEHealthSync.Persistence;
 
 namespace PusulaEHealthSync.Db;
 
-public class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore settings)
+public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsStore settings)
 {
     private readonly string _fallbackConnectionString = options.Value.ConnectionString;
 
