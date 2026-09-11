@@ -123,7 +123,7 @@
                     <p class="section-title">Otomatik Gönderim</p>
                     <p class="card-desc">
                         Hangi kaynak tipleri arka planda otomatik gönderilsin ve ne sıklıkla çalışsın.
-                        <span class="field-hint">(Worker zamanlayıcısı bu ayarları henüz kullanmıyor -- şimdiden hazırlanıyor.)</span>
+                        <span class="field-hint">Açıldığında arka plan döngüsü bu ayarlara göre çalışır: her turda gönderim bekleyenler hesaplanır, parti boyutu kadarı canlı gönderilir, Pusula'da iptal edilenler e-Health'ten silinir. Açmadan önce <a asp-page="/BekleyenIsler">Bekleyen İşler</a> sayfasından ne kadar kayıt biriktiğine bakın.</span>
                     </p>
                     <form method="post" asp-page-handler="Genel" style="display:flex; flex-direction:column; flex:1;">
                         <div class="toggle-row">

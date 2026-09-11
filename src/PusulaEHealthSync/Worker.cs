@@ -8,7 +8,9 @@ namespace PusulaEHealthSync;
 // - Varsayilan: sadece $validate cagirir (SEND_LIVE=true olmadan hicbir POST/PUT atmaz).
 // - Varsayilan: sadece SYNC_COUNT kadar (varsayilan 1) kayit isler, tum tabloyu degil.
 // - RESOURCE_TYPE=Encounter + TARGET_PROTOKOL_ID ile Encounter da manuel tetiklenebilir
-//   (surekli/otomatik Encounter dongusu henuz yok -- once kapanmamis protokol karari lazim).
+//   (surekli/otomatik gonderim ARTIK VAR ama bu projede degil: AutoSyncWorker, Web
+//   uygulamasinda calisiyor -- bkz. PusulaEHealthSync.Web/Program.cs. Bu Worker hala
+//   tek gecisli bir test araci.)
 // Bu sinirlar bilerek konuldu: gercek hasta verisiyle calisirken once kucuk, geri
 // donusu kolay adimlarla ilerlemek icin (bkz. konusma gecmisindeki MVP karari).
 // Asil map/gonder/logla mantigi *SyncService siniflarinda -- web dashboard'daki "gonder"
