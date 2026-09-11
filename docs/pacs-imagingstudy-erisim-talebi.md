@@ -139,7 +139,35 @@ portu kapalı. Kapalı, başka bir ağ segmentinde ya da güvenlik duvarıyla ay
 arşiv **Synapse** (`10.10.204.194:6600`) -- portu açık ama **AE Title'ını bilmediğimiz
 için** birliktelik kurulamıyor.
 
-> ### 🔑 Tek kalan engel: Synapse'in AE Title'ı
+### Synapse Mobility'de bir API var (2026-09-11)
+
+`http://10.10.204.195:8080` üzerinde yol taraması yapıldı:
+
+| Yol | Yanıt | Anlamı |
+|---|---|---|
+| `/viewer`, `/viewer/` | 302 → `/pureweb/server/login.jsp` | Görüntüleyici, giriş istiyor |
+| **`/viewer/api`** | **302 → login** | **Bu yol VAR, sadece kimlik doğrulama arkasında** |
+| `/api`, `/rest`, `/services`, `/pureweb` | 404 | Yok |
+
+`/viewer/api`'nin 404 değil **302** dönmesi önemli: yol mevcut, yalnızca oturum
+gerekiyor. Yani Synapse Mobility'nin bir API yüzeyi var.
+
+Kimlik doğrulama mekanizması Pusula'nın launch bağlantısından okunabiliyor:
+`username=authtoken&password=#Token#` -- yani token tabanlı. (Pusula ayarlarındaki
+`Pacs Viewer Link UserName` / `UserPassword` alanları boş bırakılmış, token yolu
+kullanılıyor.)
+
+**Bu API'yi kurcalamaya çalışmadık** -- token üretimini tersine mühendislikle
+çözmek yerine PACS ekibinden usulüne uygun kimlik bilgisi istemek doğrusu.
+
+> ### 🔑 İki somut talep
+>
+> 1. **Synapse'in AE Title'ı** -- `10.10.204.194:6600` portu açık, C-FIND denemesi
+>    hemen yapılabilir (görüntü indirme gerekmiyor, yalnızca sorgu).
+> 2. **Synapse Mobility API kimlik bilgisi** -- `/viewer/api` mevcut; servis hesabı
+>    ya da token üretme yöntemi. (1. madde çalışırsa buna gerek kalmayabilir.)
+
+> ### Eski not: tek kalan engel Synapse'in AE Title'ı
 >
 > Ağ açık, eşleştirme anahtarı (`BAK`+`TetkikIslem.Id`) iki kaynaktan teyitli, görüntü
 > indirme gerekmiyor. Synapse'in AE Title'ı öğrenilince C-FIND denemesi hemen yapılabilir.
