@@ -228,9 +228,32 @@ bizden bekleniyor mu?
 
 - **Immunization:** Pusula'da aşı kaydı tutuluyor mu, tutuluyorsa hangi tabloda --
   önce bunu netleştirmemiz gerekiyor.
-- **ImagingStudy:** Radyoloji v1'de bilinçli olarak kapsam dışı bırakılmıştı, çünkü
-  DICOM/PACS entegrasyonu gerektiriyor (bkz. RadiologyReportMapper). Rapor metnini
-  DiagnosticReport olarak gönderiyoruz ama görüntülerin kendisini göndermiyoruz.
+- **ImagingStudy:** ARAŞTIRILDI (2026-09-11) -- **Pusula verisiyle üretilemiyor.**
+  Profil iki kimliği de 1..1 ZORUNLU kılıyor: Accession Number (ACSN) ve Study
+  Instance UID (`urn:dicom:uid`). Canlı veride ölçüldü (RIS.TetkikIslem, State=6,
+  son 90 gün, 13.945 tetkik):
+
+  | Alan | Durum |
+  |---|---|
+  | `AccessionNo` | **0 / 13.945 -- kolon var, hiç doldurulmamış** |
+  | `PacsId` | **0 / 13.945 -- boş** |
+  | `GoruntuSayisi` | 11.039 / 13.945 (%79) -- dolu |
+  | Study Instance UID | **Veritabanında böyle bir kolon yok** |
+
+  Hastanenin PACS entegrasyonu CANLI ve yoğun (`Ortak.Hl7Mesaj`: FUJIPACSMP 768.148
+  mesaj, TELETIP 298.547, VNA 6.077 -- hepsinde bugün trafik var). Ama bu mesajlar
+  **sipariş ve sonuç** taşıyor (ORM^O01 / ORU^R01), görüntü meta verisi değil: son 7
+  günün mesajlarında DICOM UID deseni (`1.2.`) ya da Study UID taşıyan `ZDS` segmenti
+  **hiç geçmiyor**. `SaglikNet.TeletipSorgu` tablosunun `GelenJson`/`GidenJson`
+  alanları da 362.316 satırda **sıfır kez dolu** -- yalnızca durum kodu tutuluyor.
+
+  **Sonuç:** Study Instance UID'ler PACS'ta (Fuji) ve VNA'da duruyor, Pusula'ya hiç
+  yazılmıyor. ImagingStudy göndermek isteniyorsa Pusula'dan okumak yetmez; PACS'a
+  DOĞRUDAN bir entegrasyon (DICOMweb QIDO-RS sorgusu ya da C-FIND) gerekir. Bu,
+  mevcut "Pusula'yı oku, e-Health'e yaz" mimarisinin dışında yeni bir bağlantı demek.
+
+  **Bakanlığa sorulacak:** ImagingStudy bizden bekleniyor mu? Bekleniyorsa görüntülerin
+  kendisi mi yoksa yalnızca çalışma referansı mı isteniyor?
 
 **Durum:** Açık.
 
