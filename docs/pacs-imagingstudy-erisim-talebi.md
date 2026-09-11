@@ -82,6 +82,31 @@ standart yollarda açık değil**. `Ortak.Hl7Mesaj`'daki `FUJIPACSMP` etiketi de
 **Bu yüzden asıl talebimiz aşağıdaki gibi:** Synapse Mobility'nin görüntüleyici
 bağlantısı değil, **Synapse arşivine sorgu erişimi**.
 
+## Pusula PACS ayarlarından çıkan bağlantı noktaları (2026-09-11)
+
+Pusula'nın PACS parametre ekranından alınan değerler ve **bu makineden yapılan
+erişilebilirlik testleri**:
+
+| Ayar | Değer | Test sonucu |
+|---|---|---|
+| Pacs Entegrasyon Tipi | `FUJIPACSMP` | -- |
+| **Pacs Host IP / Port** | **`10.10.204.194` / `6600`** | ✅ **Port AÇIK** |
+| Fuji Pacs Rapor Host / Port | `10.10.204.194` / `6610` | ✅ Port açık |
+| Pacs Listener IP / Port | `10.10.201.72` / `8090` | ✅ Port açık |
+| Pacs Link (görüntüleyici) | `http://10.10.204.195:8080/launch?...` | ✅ Synapse Mobility |
+| **Radyolog PacsViewerLink** | **`http://bakfujisyn71/Synapse/WebQuery/index?path=/HBYSTETKIK/AccessionNumber=`** | ✅ Host ayakta (302 / 401) |
+| Pacs Viewer Link Açılırken AccNo Kullanılsın | `True` | -- |
+| Pacs DB Adı | `[PACS]` | PusulaHBYS'nin SQL sunucusunda böyle bir veritabanı YOK -- PACS makinesinde olmalı |
+
+**En önemli doğrulama:** `Radyolog PacsViewerLink` ayarı Synapse'i **AccessionNumber
+ile** sorguluyor (`.../WebQuery/index?path=/HBYSTETKIK/AccessionNumber=`). Bu, bizim
+ürettiğimiz `BAK` + `TetkikIslem.Id` numarasının **Synapse tarafında da anahtar
+olduğunu** doğruluyor -- eşleştirme varsayımımız sağlam.
+
+**Buradan çıkan sonuç:** `10.10.204.194:6600` büyük olasılıkla Synapse'in DICOM
+(DIMSE) uç noktası ve **bu ağdan erişilebilir durumda**. Yani C-FIND için ağ/güvenlik
+duvarı işi muhtemelen zaten hazır; eksik olan tek şey **AE Title tanımı**.
+
 ## PACS ekibinden istenenler
 
 ### 1. Tercih edilen: DICOMweb (QIDO-RS) okuma erişimi
@@ -108,13 +133,15 @@ Accept: application/dicom+json
 **Sadece okuma yeterli.** `WADO-RS` (görüntü indirme) veya `STOW-RS` (yazma)
 istemiyoruz -- görüntülerin kendisini taşımıyoruz, yalnızca referansını.
 
-### 2. DICOMweb yoksa: DIMSE C-FIND
+### 2. Muhtemelen en hızlı yol: DIMSE C-FIND
 
-Klasik DICOM yolu. Gereken:
+`10.10.204.194:6600` **zaten açık ve bu ağdan erişilebilir** (test edildi). Bu
+yüzden en küçük talep bu olabilir:
 
-- PACS **AE Title**, **host/IP**, **port**
-- Bizim AE Title'ımızın PACS'ta tanımlanması (örn. `PUSULA_EHEALTH`)
-- Güvenlik duvarı kuralı (belirtilen port)
+- **Bizim AE Title'ımızın Synapse'te tanımlanması** (örn. `PUSULA_EHEALTH`) --
+  muhtemelen tek gereken iş
+- Synapse'in **AE Title**'ı ve doğru sorgu portunun teyidi (6600 mü?)
+- Yalnızca **C-FIND** yetkisi yeterli; C-MOVE/C-GET gerekmiyor
 
 Sorgu: *Study Root Query/Retrieve Information Model – FIND*, anahtar
 `AccessionNumber`, istenen alanlar `StudyInstanceUID`, `ModalitiesInStudy`.
