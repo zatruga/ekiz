@@ -107,6 +107,43 @@ olduğunu** doğruluyor -- eşleştirme varsayımımız sağlam.
 (DIMSE) uç noktası ve **bu ağdan erişilebilir durumda**. Yani C-FIND için ağ/güvenlik
 duvarı işi muhtemelen zaten hazır; eksik olan tek şey **AE Title tanımı**.
 
+## Denenen DICOM uç noktaları ve sonuçları (2026-09-11)
+
+Aşağıdakiler **fiilen test edildi** (C-ECHO ve C-FIND; yalnızca doğrulama ve sorgu,
+hiçbir veri değiştirilmedi). Calling AE olarak `PUSULA_EHEALTH` kullanıldı.
+
+| Uç nokta | Ağ | C-ECHO | C-FIND |
+|---|---|---|---|
+| `10.10.204.191:104` AE=`bakmedscp` | ✅ 2 ms | ✅ **Success** | ❌ `a700 Out of Resources -> CFIND:SCP ExecuteDBCmd failed` |
+| `10.10.204.191:104` AE=`bakmedmwl` | ✅ 2 ms | ✅ **Success** | ❌ Aynı hata (Modality Worklist sorgusunda da) |
+| `10.10.204.200:104` AE=`HSTROKE` | ❌ ping yok, port kapalı | -- | -- |
+| `10.10.204.194:6600` (Synapse) | ✅ port açık | ❌ AE Title bilinmiyor | -- |
+
+**`10.10.204.191` hakkında:** Birliktelik (association) kuruluyor, **bizim AE Title'ımız
+sorunsuz kabul ediliyor** (beyaz liste gerekmedi) ve SOP sınıfları müzakere ediliyor
+(hem *Study Root Query/Retrieve - FIND* hem *Modality Worklist - FIND* kabul edildi).
+Ama **her sorgu** sunucu tarafında `ExecuteDBCmd failed` ile düşüyor -- sorgu anahtarı
+ne olursa olsun (AccessionNumber, PatientID, StudyDate, boş sorgu) ve sorgu tipi ne
+olursa olsun. Kendi asıl işi olan iş listesi sorgusu bile başarısız.
+
+İki olası açıklama, ikisi de PACS ekibine sorulmalı:
+1. Bu ağ geçidinin veritabanı bağlantısı bozuk (hastanenin haberi olmayan canlı bir
+   arıza olabilir -- iş listesi de çalışmıyor demektir),
+2. Ya da `PUSULA_EHEALTH` AE'si tanımlı olmadığı için ürün yetki hatasını veritabanı
+   hatası olarak raporluyor (bazı ürünler böyle yapar).
+
+**`10.10.204.200` (HSTROKE):** Bu makineden hiç erişilemiyor -- ping yanıtı yok, 104
+portu kapalı. Kapalı, başka bir ağ segmentinde ya da güvenlik duvarıyla ayrılmış olabilir.
+
+**Sonuç:** Test edilen iki uç nokta da Study Instance UID vermiyor. İhtiyacımız olan
+arşiv **Synapse** (`10.10.204.194:6600`) -- portu açık ama **AE Title'ını bilmediğimiz
+için** birliktelik kurulamıyor.
+
+> ### 🔑 Tek kalan engel: Synapse'in AE Title'ı
+>
+> Ağ açık, eşleştirme anahtarı (`BAK`+`TetkikIslem.Id`) iki kaynaktan teyitli, görüntü
+> indirme gerekmiyor. Synapse'in AE Title'ı öğrenilince C-FIND denemesi hemen yapılabilir.
+
 ## PACS ekibinden istenenler
 
 ### 1. Tercih edilen: DICOMweb (QIDO-RS) okuma erişimi
