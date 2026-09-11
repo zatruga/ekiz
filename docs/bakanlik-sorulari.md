@@ -189,6 +189,53 @@ göndermemek olurdu. Bakanlık listeyi güncellerse sorun kendiliğinden kapanı
 
 ---
 
+### Bundle profilleri -- tek tek kaynak göndermek yeterli mi, yoksa Bundle mı beklenmeli?
+
+**Soru:** IG'de 43 profil var ve bunların **31'i Bundle** (az-ambulatory-bundle,
+az-hospital-bundle, az-cancer-registry-bundle, az-referral-bundle ...). Biz bugün
+kaynakları **tek tek** gönderiyoruz (POST Patient, POST Encounter, POST Procedure ...)
+ve bu çalışıyor -- kayıtlar portalda görünüyor. Ama örneğin `az-ambulatory-bundle`
+`Bundle.type = transaction` ile sabitlenmiş ve içinde Composition (1..1), Patient
+(1..1), Encounter (1..1), Condition (1..*), Observation (1..*) zorunlu.
+
+Sorular:
+1. Tek tek kaynak göndermek **kalıcı olarak** geçerli bir yöntem mi, yoksa Bundle
+   gönderimine mi geçmemiz bekleniyor?
+2. Bundle'lar belirli kayıt sistemleri (kanser kaydı, sevk, hastalık izlemi) için mi
+   zorunlu, yoksa her muayene için mi?
+3. `az-ambulatory-bundle` içindeki `observation:disease-course` (1..1, "xəstəliyin
+   gedişi") karşılığını Pusula'da nereden üretmeliyiz? Şu an böyle bir Observation
+   üretmiyoruz.
+
+**Neden çıktı:** IG profil listesi gözden geçirilirken (2026-09-11). O güne kadar
+yalnızca Core + Laboratuvar/Diaqnostika kategorilerini (12 profil) uygulamıştık;
+listenin tamamı görülünce 31 Bundle profilinin varlığı fark edildi.
+
+**Özellikle ilgili olabilecekler:** `az-cancer-registry-bundle` (patoloji modülümüz
+zaten ICD-O-3 morfoloji + topografya üretiyor -- kanser kayıt verisinin ta kendisi),
+`az-hospital-bundle` / `az-ambulatory-bundle` (yatan/ayaktan protokollerimiz),
+`az-referral-bundle` ve `az-sick-leave-bundle` (Pusula'da karşılığı var).
+
+**Durum:** Açık.
+
+---
+
+### AZ Immunization ve AZ Imaging Study -- kapsam dışı bırakmamız sorun olur mu?
+
+**Soru:** Core profillerden **AZ Immunization** ve Laboratuvar/Diaqnostika
+profillerinden **AZ Imaging Study (ImagingStudy)** henüz uygulanmadı. Bunlar
+bizden bekleniyor mu?
+
+- **Immunization:** Pusula'da aşı kaydı tutuluyor mu, tutuluyorsa hangi tabloda --
+  önce bunu netleştirmemiz gerekiyor.
+- **ImagingStudy:** Radyoloji v1'de bilinçli olarak kapsam dışı bırakılmıştı, çünkü
+  DICOM/PACS entegrasyonu gerektiriyor (bkz. RadiologyReportMapper). Rapor metnini
+  DiagnosticReport olarak gönderiyoruz ama görüntülerin kendisini göndermiyoruz.
+
+**Durum:** Açık.
+
+---
+
 *(Yeni sorular buraya eklenecek.)*
 
 ## Kapanan sorular
