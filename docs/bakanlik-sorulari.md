@@ -252,8 +252,17 @@ bizden bekleniyor mu?
   DOĞRUDAN bir entegrasyon (DICOMweb QIDO-RS sorgusu ya da C-FIND) gerekir. Bu,
   mevcut "Pusula'yı oku, e-Health'e yaz" mimarisinin dışında yeni bir bağlantı demek.
 
-  **Bakanlığa sorulacak:** ImagingStudy bizden bekleniyor mu? Bekleniyorsa görüntülerin
-  kendisi mi yoksa yalnızca çalışma referansı mı isteniyor?
+  **"Görüntüler mi, referans mı?" sorusu IG'den CEVAPLANDI (2026-09-11):** profil
+  **yalnızca meta veri** taşıyor. `az-imaging-study`'de `endpoint` elemanı YOK,
+  `Binary`/`Attachment`/`Media` YOK, WADO-RS adresi YOK. Yani görüntülerin kendisini
+  göndermek için profilde bir mekanizma bulunmuyor -- kaynak bir **DICOM çalışma
+  kaydı** (kimlikler + modalite + sayılar), görüntü kabı değil.
+
+  Pratik sonucu: PACS'tan **asla görüntü çekmemiz gerekmiyor**. C-MOVE / C-GET /
+  WADO-RS yetkisi istemeye gerek yok, yalnızca **C-FIND** yeterli.
+
+  **Bakanlığa kalan tek soru:** ImagingStudy bizden bekleniyor mu? (Beklenmiyorsa
+  hiç uğraşmayalım; bekleniyorsa iş küçük.)
 
 **Durum:** Açık.
 

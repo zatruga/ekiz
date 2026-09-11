@@ -131,7 +131,13 @@ Accept: application/dicom+json
 ```
 
 **Sadece okuma yeterli.** `WADO-RS` (görüntü indirme) veya `STOW-RS` (yazma)
-istemiyoruz -- görüntülerin kendisini taşımıyoruz, yalnızca referansını.
+istemiyoruz -- görüntülerin kendisini taşımıyoruz.
+
+> **Bu, profilden doğrulanmış bir sınırdır, tercih değil:** `az-imaging-study`
+> yalnızca meta veri taşır. `endpoint` elemanı, `Binary`/`Attachment`/`Media` ya da
+> WADO adresi İÇERMEZ (IG'den okundu, 2026-09-11). Görüntülerin kendisini e-Health'e
+> göndermenin profilde bir yolu yok; kaynak bir DICOM çalışma KAYDI. Dolayısıyla
+> PACS'tan piksel veri çekmemiz hiçbir senaryoda gerekmiyor.
 
 ### 2. Muhtemelen en hızlı yol: DIMSE C-FIND
 
