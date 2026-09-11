@@ -52,6 +52,36 @@ gerek yok.
 
 ---
 
+## Mevcut durum: elimizde ne var, ne yok
+
+**Bilinen görüntüleyici entegrasyonu (Pusula'da tanımlı):**
+
+```
+http://10.10.204.195:8080/launch?action=search
+    &username=authtoken&password=#Token#&PatientID=#HastaTCKimlikNo#
+```
+
+Bu bir **görüntüleyici açma (viewer launch) bağlantısı** -- kullanıcı için PACS
+arayüzünü hasta filtreli açar (IHE "Invoke Image Display" kalıbı). **Veri sorgulama
+API'si değil:** insana yönelik bir ekran döndürür, makine tarafından okunabilir
+Study Instance UID vermez. Dolayısıyla `ImagingStudy` üretmek için tek başına
+yeterli değil.
+
+**Sunucu incelendi (2026-09-11):**
+
+| Kontrol | Sonuç |
+|---|---|
+| `10.10.204.195:8080` erişilebilir mi | ✅ Evet (HTTP 302 → `/pureweb/loginRedirect.jsp`) |
+| Ürün | **Fujifilm Synapse Mobility** (sayfa başlığı: "Synapse Mobility Login") |
+| `/dicom-web/studies`, `/qido-rs/studies`, `/wado`, `/dicomweb/studies` | ❌ Hepsi HTTP 404 |
+
+Yani sunucu ayakta ve görüntüleyiciyi sunuyor, ama **DICOMweb bu port üzerinde
+standart yollarda açık değil**. `Ortak.Hl7Mesaj`'daki `FUJIPACSMP` etiketi de bu
+ürünle örtüşüyor.
+
+**Bu yüzden asıl talebimiz aşağıdaki gibi:** Synapse Mobility'nin görüntüleyici
+bağlantısı değil, **Synapse arşivine sorgu erişimi**.
+
 ## PACS ekibinden istenenler
 
 ### 1. Tercih edilen: DICOMweb (QIDO-RS) okuma erişimi
@@ -89,7 +119,21 @@ Klasik DICOM yolu. Gereken:
 Sorgu: *Study Root Query/Retrieve Information Model – FIND*, anahtar
 `AccessionNumber`, istenen alanlar `StudyInstanceUID`, `ModalitiesInStudy`.
 
-### 3. Hangi sistem sorgulanmalı?
+### 3. Synapse'e özel sorular
+
+Ürün **Fujifilm Synapse Mobility** olarak tespit edildi. Sorulacaklar:
+
+- Synapse'te **DICOMweb (QIDO-RS)** hizmeti açık mı? Açıksa hangi host/port/yol
+  üzerinde? (8080'de standart yollarda bulunamadı -- ayrı bir servis, farklı port
+  ya da lisans opsiyonu olabilir.)
+- Açık değilse etkinleştirilmesi mümkün mü, yoksa **C-FIND** mi kullanmalıyız?
+- Synapse Mobility'nin kendi REST arayüzü accession numarasıyla çalışma bilgisi
+  (StudyInstanceUID) döndürebiliyor mu? Döndürüyorsa dokümantasyonu.
+- Elimizdeki `launch?action=search...` bağlantısındaki `authtoken` kullanıcısı ve
+  `#Token#` mekanizması sorgu erişimi için de kullanılabilir mi, yoksa ayrı bir
+  servis hesabı mı açılmalı?
+
+### 4. Hangi sistem sorgulanmalı?
 
 Hastanede üç entegrasyon canlı görünüyor (`Ortak.Hl7Mesaj`, hepsinde bugün trafik):
 
@@ -102,7 +146,7 @@ Hastanede üç entegrasyon canlı görünüyor (`Ortak.Hl7Mesaj`, hepsinde bugü
 **Sorulacak:** Study Instance UID sorgusu için hangisi doğru uç nokta -- Fuji PACS mı,
 VNA mı? Uzun vadeli arşiv VNA ise sorguyu oraya yöneltmek daha doğru olabilir.
 
-### 4. Doğrulama için bir örnek
+### 5. Doğrulama için bir örnek
 
 Erişim açıldığında test edebilmek için bilinen bir accession numarası yeterli.
 Örnek (11.09.2026 tarihli, gerçek kayıtlar):
