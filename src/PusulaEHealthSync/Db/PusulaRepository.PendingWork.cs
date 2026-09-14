@@ -133,7 +133,11 @@ public partial class PusulaRepository
                 SELECT
                     p.Id AS ProtokolId, p.HastaId, h.Adi AS HastaAdi, h.Soyadi AS HastaSoyadi, h.TCKimlikNo AS Fin,
                     p.DoktorId, pers.Adi AS DoktorAdi, pers.Soyadi AS DoktorSoyadi,
-                    p.BolumId, b.Adi AS BolumAdi, p.GelisTipiId, p.ProtokolTipiId, p.AcilisTarihi, p.KapanisTarihi, p.State
+                    p.BolumId, b.Adi AS BolumAdi, p.GelisTipiId, p.ProtokolTipiId, p.AcilisTarihi, p.KapanisTarihi, p.State,
+                    -- Yatan hastanin gercek taburcu ani. Bir protokolde birden fazla yatis
+                    -- olabilir (servis degisimi vb.), en SON taburcu alinir.
+                    (SELECT MAX(y.TaburcuTarihi) FROM Tedavi.Yatis y
+                      WHERE y.ProtokolId = p.Id AND y.State <> 0) AS TaburcuTarihi
                 FROM hasta.protokol p
                 LEFT JOIN hasta.hasta h ON h.Id = p.HastaId
                 LEFT JOIN IK.Personel pers ON pers.Id = p.DoktorId
@@ -147,6 +151,9 @@ public partial class PusulaRepository
             while (await reader.ReadAsync(ct))
             {
                 var item = MapProtokol(reader);
+                // MapProtokol ortak yardimci ve bu kolonu bilmiyor -- burada okunuyor.
+                var ord = reader.GetOrdinal("TaburcuTarihi");
+                item.TaburcuTarihi = reader.IsDBNull(ord) ? null : reader.GetDateTime(ord);
                 result[item.ProtokolId] = item;
             }
         }

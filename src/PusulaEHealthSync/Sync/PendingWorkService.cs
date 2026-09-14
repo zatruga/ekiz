@@ -163,21 +163,35 @@ public class PendingWorkService(
     // 2026-09-09).
     private static (bool Eligible, string? Reason) IsEligible(ProtokolListItem p, int openAfterDays)
     {
+        // YATAN (Y): olcut TABURCU (kullanici karari 2026-09-14). Yatis haftalar surebilir ve
+        // epizot bitmeden gondermek yanlis olur -- bu yuzden ayaktandaki gun esigi kisayolu
+        // BURADA UYGULANMAZ.
+        //
+        // Tedavi.Yatis.TaburcuTarihi ONCELIKLI, protokolun KapanisTarihi'si yedek: birincisi
+        // KLINIK taburcu ani, ikincisi IDARI kapanis (faturalama). Canli veride %89'unda ayni
+        // gun, ama 471 protokolde (%9) idari kapanis 1-7 gun sonra -- yedege dusseydik o
+        // kayitlar bir haftaya kadar gec giderdi. Yedek yine de duruyor cunku 180 gunluk
+        // olcumde 2 protokolde tersi de gorulduy: biri dolu digeri bos olabiliyor.
+        if (p.GelisTipiId == "Y")
+        {
+            var taburcu = p.TaburcuTarihi ?? p.KapanisTarihi;
+            if (taburcu is not null) return (true, null);
+            if (p.AcilisTarihi is null) return (false, "Açılış tarihi yok");
+
+            // Veri girisi hatasiyla hic kapanmayan/taburcu edilmeyen protokoller sonsuza dek
+            // beklemesin diye tavan.
+            var yatanAcik = (DateTime.Now - p.AcilisTarihi.Value).TotalDays;
+            return yatanAcik >= YatanMaxOpenDays
+                ? (true, null)
+                : (false, $"Hasta hâlâ yatıyor (taburcu bekleniyor, {(int)yatanAcik} gündür açık)");
+        }
+
+        // AYAKTAN / GUNUBIRLIK: olcut protokolun kapanisi. Kapanmayan protokol orani yuksek
+        // oldugundan (canli veride ayaktanin ~%20'si hic kapanmiyor) gun esigi kurali gecerli.
         if (p.KapanisTarihi is not null) return (true, null);
         if (p.AcilisTarihi is null) return (false, "Açılış tarihi yok");
 
         var acik = (DateTime.Now - p.AcilisTarihi.Value).TotalDays;
-
-        // YATAN (Y): taburcu beklenir. Yatis haftalar surebilir ve epizot bitmeden gondermek
-        // yanlis olur -- bu yuzden ayaktandaki 7 gun kisayolu BURADA UYGULANMAZ. Tek istisna,
-        // veri girisi hatasiyla hic kapanmayan protokoller icin 90 gunluk tavan.
-        if (p.GelisTipiId == "Y")
-            return acik >= YatanMaxOpenDays
-                ? (true, null)
-                : (false, $"Hasta hâlâ yatıyor (taburcu bekleniyor, {(int)acik} gündür açık)");
-
-        // AYAKTAN / GUNUBIRLIK: kapanmayan protokol orani yuksek oldugundan (canli veride
-        // ayaktanin ~%20'si hic kapanmiyor) mevcut gun esigi kurali gecerli.
         return acik >= openAfterDays
             ? (true, null)
             : (false, $"Protokol açık ({(int)acik} gündür) -- kapanması ya da {openAfterDays} gün beklenmesi gerekiyor");

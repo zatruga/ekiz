@@ -25,6 +25,21 @@ public class ProtokolListItem
     public DateTime? AcilisTarihi { get; set; }
     public DateTime? KapanisTarihi { get; set; }
 
+    // Tedavi.Yatis.TaburcuTarihi -- YATAN hastanin gercek taburcu ani.
+    //
+    // NEDEN AYRI (2026-09-14, kullanici karari "yatan hastalar icin taburcu tarihini baz
+    // al"): protokolun KapanisTarihi'si IDARI kapanis (faturalama tamamlanmasi), taburcu
+    // ise KLINIK olay. Canli veride olculdu (5.293 yatan protokol, 180 gun): ikisi %89
+    // ayni gun, ama 471'inde (%9) protokol taburcudan 1-7 gun SONRA kapaniyor. Uygunluk
+    // kararinda fark kucuk (sadece 2 protokolde taburcu var ama protokol kapanmamis),
+    // zamanlamada ise gercek: KapanisTarihi kullanilirsa o 471 kayit bir haftaya kadar
+    // gec gonderiliyordu.
+    //
+    // SADECE GetProtokollerByIdsAsync dolduruyor (Bekleyen Isler / otomatik gonderim
+    // yolu). Diger protokol sorgulari bu alani okumaz, null kalir -- IsEligible zaten
+    // KapanisTarihi'ne dusuyor.
+    public DateTime? TaburcuTarihi { get; set; }
+
     // hasta.protokol.State -- 0: iptal/silinmis, 1: acik, 2: kapali (canli veriden
     // dogrulandi, 2026-08-20). State=0 protokoller Pusula'nin kendi raporlarinda da
     // sayilmiyor -- gonderim listemizde de gosterilmemeli/gonderilmemeli.
