@@ -5,6 +5,14 @@ kimliği de **zorunlu** kılıyor ve bunlardan biri Pusula'da yok.
 
 **Tarih:** 2026-09-11 · **Durum:** PACS ekibinden erişim bekleniyor
 
+> **KAPSAM KARARI (kullanıcı, 2026-09-14):** *"Radyoloji sadece study/imaj bilgisi,
+> görüntü yok."* Yani e-Health'e yalnızca `ImagingStudy` **meta verisi** gidecek --
+> DICOM piksel verisi hiçbir şekilde taşınmayacak. Bu karar profilin kendisiyle de
+> örtüşüyor (`az-imaging-study`'de `endpoint`/`Binary`/`Attachment` yok).
+>
+> **Uygulama sonucu:** PACS'tan istenecek yetki **yalnızca sorgu** (C-FIND / QIDO-RS).
+> C-MOVE, C-GET, WADO-RS **hiçbir zaman** istenmeyecek.
+
 ---
 
 ## Neden PACS'a ihtiyaç var
