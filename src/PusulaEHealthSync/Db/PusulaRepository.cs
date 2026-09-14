@@ -361,6 +361,34 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
     // eslesmesi bulunamazsa (icb.Kodu NULL), panelin (ust testin) Icbari koduna DUSULUYOR
     // (COALESCE) -- boylece "sadece panel geneli faturalanan" alt parametreler de artik
     // procedure-code doldurulabildigi icin Skipped olmuyor.
+    // PLAN KARARSIZLIGI -- OPTION (OPTIMIZE FOR UNKNOWN) NEDEN VAR (olculdu 2026-09-14,
+    // sunucuda bu sorgu 60 sn'yi asip Protokol Detay sayfasini komple 500'e dusurdukten
+    // sonra):
+    //
+    // Bu sorgunun plani parametre degerine gore yazi-turaydi -- ayni protokolde 519 ms
+    // ile 153.112 ms arasi olculdu. Sebep alisildik parameter sniffing'in TERSI: SQL
+    // Server sorguyu sifirdan derledigi zaman bazi VisitId degerleri icin felaket bir
+    // plan seciyor; hizli calistigi durumlar BASKA bir deger icin derlenmis planin
+    // yeniden kullanildigi durumlar. Yani uygulama her yeniden baslatildiginda (plan
+    // onbellegi bosken ilk acilan protokol neyse) kotu plana denk gelme riski vardi ve
+    // kotu plan bir kez onbellege girdiginde diger protokoller de yavasliyordu.
+    //
+    // OPTIMIZE FOR UNKNOWN parametre degerine BAKMADAN, yogunluk ortalamasiyla TEK bir
+    // plan uretir -- yazi-turayi ortadan kaldirir. 9 protokolde olculdu: hicbirinde
+    // zaman asimi yok, hepsi 2,6 sn altinda (hint'siz haliyle ayni seviyede). Hint
+    // YALNIZCA plan secimini etkiler, sonuclari degistirmez.
+    //
+    // DENENDI VE ELENDI:
+    //   OPTION (RECOMPILE) -- her protokolde 2-3 kat yavas, 50779242 ve 50841776'da
+    //   3/3 zaman asimi. Taze derleme zaten sorunun ta kendisi.
+    //
+    //   Sorguyu CTE'lerle yeniden yazmak (LOINC basina tek kez cozumleme) -- sonuclar
+    //   birebir ayni (9 protokolde 0 fark) ama 20-400 KAT yavas (555 ms -> 238 sn).
+    //   SQL Server CTE'leri materyalize etmez, her referansta yeniden acar; "bir kez
+    //   hesapla" niyeti hic gerceklesmiyor.
+    //
+    // Bu sorgu yine de zaman asimina ugrayabilir; o durumda sayfa artik komple olmuyor
+    // (bkz. ProtokolModel.BolumOkuAsync).
     public async Task<List<LabResultRecord>> GetLabResultsByProtokolIdAsync(int protokolId, CancellationToken ct = default)
     {
         const string sql = @"
@@ -405,7 +433,8 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
                   AND OHKH2.State <> 0
                 ORDER BY PKH2.IsPaket DESC
             ) panelIcb
-            WHERE lab.VisitId = @ProtokolId AND lab.Status = 6";
+            WHERE lab.VisitId = @ProtokolId AND lab.Status = 6
+            OPTION (OPTIMIZE FOR UNKNOWN)";
 
         await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
