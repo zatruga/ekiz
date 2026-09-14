@@ -26,6 +26,7 @@ public class ProtokolModel(
     RadiologyReportSyncService radiologyReportSyncService,
     PathologyReportSyncService pathologyReportSyncService,
     DeleteService deleteService,
+    CancellationSyncService cancellationSyncService,
     EHealthClient eHealthClient) : PageModel
 {
     public ProtokolListItem? Protokol { get; set; }
@@ -253,6 +254,27 @@ public class ProtokolModel(
             await SendAllRadiologyAsync(Protokol, ct);
             await SendAllPathologyAsync(Protokol, ct);
         }
+        return RedirectToPage("/Protokol", new { id });
+    }
+
+    // Tumunu Sil -- ust bardaki "Tümünü Gönder"in karsiligi (KULLANICI ISTEGI 2026-09-14).
+    // Bolum bolum silmek yerine protokolun tum gonderimlerini tek hamlede geri alir.
+    //
+    // Silme SIRASI ve "Patient silinmez" karari burada TEKRARLANMIYOR: iptal senkronunun
+    // kullandigi CancellationSyncService.DeleteProtocolChainAsync cagriliyor. Sira distan
+    // ice olmak zorunda (raporlar -> epikriz/islem/tani -> Muayine) cunku FHIR hala
+    // referans verilen bir kaynagi silmeyi HTTP 409 ile reddeder.
+    //
+    // HASTA (Patient) BILEREK SILINMEZ: ayni hasta baska protokollerde de kullaniliyor,
+    // bir protokolun sayfasindan silmek digerlerini kirardi. Hasta satirinin kendi "Sil"
+    // dugmesi bunun icin duruyor.
+    public async Task<IActionResult> OnPostTumunuSilAsync(int id, CancellationToken ct)
+    {
+        Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
+        if (Protokol is null) return NotFound();
+
+        await cancellationSyncService.DeleteProtocolChainAsync(
+            Protokol.ProtokolId, $"Protokol Detay \"Tümünü Sil\" ({Protokol.ProtokolId})", ct);
         return RedirectToPage("/Protokol", new { id });
     }
 

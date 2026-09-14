@@ -75,11 +75,20 @@ else
         </div>
         @if (!isRecete)
         {
-            <div style="margin-left:auto; align-self:center;">
+            @* "Tümünü Sil", "Tümünü Gönder"in tam karsiligi -- protokolun butun gonderimlerini
+               distan ice dogru geri alir. Hasta (Patient) bilerek kapsam disi: ayni hasta baska
+               protokollerde de kullaniliyor, buradan silmek onlari kirardi. *@
+            <div style="margin-left:auto; align-self:center; display:flex; gap:8px;">
                 <form method="post" asp-page-handler="TumunuGonder" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                     <button type="submit" class="btn btn-bulk btn-sm"
                             onclick="return confirm('Bu protokol için Hasta, Müayinə, Tanı, İşlem, Epikriz, Laboratuvar, Radyoloji ve Patoloji e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
                         Tümünü Gönder
+                    </button>
+                </form>
+                <form method="post" asp-page-handler="TumunuSil" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                    <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
+                            onclick="return confirm('Bu protokolün e-Health\'e gönderilmiş TÜM kayıtları silinecek: Patoloji, Radyoloji, Laboratuvar, Epikriz, İşlem, Tanı ve Müayinə.\n\nHasta (Patient) SİLİNMEZ -- aynı hasta başka protokollerde de kullanılıyor.\n\nEmin misiniz?')">
+                        Tümünü Sil
                     </button>
                 </form>
             </div>

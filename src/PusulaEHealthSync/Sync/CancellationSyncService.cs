@@ -38,7 +38,7 @@ public class CancellationSyncService(
         var iptalProtokoller = await repository.GetCancelledProtokollerAsync(fromLocal, ct);
         foreach (var p in iptalProtokoller)
         {
-            var (ok, err) = await DeleteProtocolChainAsync(p.ProtokolId, ct);
+            var (ok, err) = await DeleteProtocolChainAsync(p.ProtokolId, ct: ct);
             silinen += ok; hata += err;
         }
         var iptalProtokolIdSet = iptalProtokoller.Select(p => p.ProtokolId).ToHashSet();
@@ -59,7 +59,12 @@ public class CancellationSyncService(
     // Bir protokolun e-Health'teki HER kaydini distan iceriye siler. Cocuk kayitlarin
     // PusulaId'leri SyncLog'da protokole bagli tutulmadigi icin (her tip kendi id uzayini
     // kullanir) once Pusula'dan yeniden okunur.
-    private async Task<(int Ok, int Err)> DeleteProtocolChainAsync(int protokolId, CancellationToken ct)
+    // PUBLIC (2026-09-14): Protokol Detay'daki "Tümünü Sil" dugmesi de AYNI metodu
+    // cagiriyor. Silme sirasi (distan ice) ve "Patient bilerek silinmez" karari tek
+    // bir yerde kalsin diye sayfada kopyalanmadi -- iki kopya kacinilmaz olarak
+    // birbirinden ayrisir ve o an FHIR 409 (hala referans veriliyor) olarak patlar.
+    public async Task<(int Ok, int Err)> DeleteProtocolChainAsync(
+        int protokolId, string? baglam = null, CancellationToken ct = default)
     {
         var hedefler = new List<(string ResourceType, int PusulaId)>();
 
@@ -82,7 +87,7 @@ public class CancellationSyncService(
         //    referans veriyor. (Patient BILEREK silinmez: baska protokollerde de kullaniliyor.)
         hedefler.Add(("Encounter", protokolId));
 
-        return await DeleteTargetsAsync(hedefler, $"iptal protokol {protokolId}", ct);
+        return await DeleteTargetsAsync(hedefler, baglam ?? $"iptal protokol {protokolId}", ct);
     }
 
     // Tek bir islem iptal edildiginde: o isleme BAGLI raporlar once silinmeli, cunku
