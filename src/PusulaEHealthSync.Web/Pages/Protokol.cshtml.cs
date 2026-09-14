@@ -1,4 +1,5 @@
 using Microsoft.AspNetCore.Mvc;
+using Microsoft.Data.SqlClient;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using PusulaEHealthSync.Db;
 using PusulaEHealthSync.EHealth;
@@ -27,6 +28,7 @@ public class ProtokolModel(
     PathologyReportSyncService pathologyReportSyncService,
     DeleteService deleteService,
     CancellationSyncService cancellationSyncService,
+    ILogger<ProtokolModel> logger,
     EHealthClient eHealthClient) : PageModel
 {
     public ProtokolListItem? Protokol { get; set; }
@@ -172,6 +174,33 @@ public class ProtokolModel(
     public bool EpikrizSendEnabled { get; set; }
     public bool EpikrizOnlySigned { get; set; }
 
+    // Bir bolumun Pusula sorgusu zaman asimina ugrarsa SAYFANIN TAMAMI 500 ile olurdu
+    // (sunucuda 2026-09-14'te yasandi: GetLabResultsByProtokolIdAsync -> "Execution
+    // Timeout Expired", Error -2). Protokol Detay'in tek islevi gonderim yapmak;
+    // laboratuvar okunamadi diye Hasta/Muayine/Tani/Islem/Radyoloji/Patoloji gonderiminin
+    // de kilitlenmesi kabul edilemez. Artik SADECE o bolum bos kaliyor ve sayfanin
+    // basinda neyin okunamadigi aciqca yaziyor.
+    //
+    // YALNIZCA zaman asimi (-2) ve deadlock (1205) yakalaniyor -- gercek bir hata
+    // (yanlis kolon adi, yetki, bozuk SQL) eskisi gibi patlasin, sessizce bos bir bolum
+    // olarak gizlenmesin.
+    public List<string> BolumHatalari { get; } = [];
+
+    private async Task<T> BolumOkuAsync<T>(string bolum, Func<Task<T>> oku, T bosDeger)
+    {
+        try
+        {
+            return await oku();
+        }
+        catch (SqlException ex) when (ex.Number is -2 or 1205)
+        {
+            var neden = ex.Number == -2 ? "sorgu zaman aşımına uğradı" : "veritabanı kilitlenmesi (deadlock)";
+            BolumHatalari.Add($"{bolum} okunamadı -- {neden}. Bu bölüm boş görünüyor, Pusula'da veri olabilir; gönderim yapmadan önce sayfayı yenileyin.");
+            logger.LogWarning(ex, "Protokol Detay: {Bolum} okunamadi (SQL {Number})", bolum, ex.Number);
+            return bosDeger;
+        }
+    }
+
     public async Task<IActionResult> OnGetAsync(int id, CancellationToken ct)
     {
         Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
@@ -190,28 +219,28 @@ public class ProtokolModel(
         // otomatik gönderiliyordu ama Protokol Detay'da hiç görünmüyorlardı, sadece
         // Aktivite Akışı'ndan bulunabiliyorlardı. Ayrı bir "Gönder" butonu yok (cascade
         // zaten Müayinə "Gönder"ine bağlı), sadece son durum gösteriliyor.
-        var tanilar = await pusulaRepository.GetTanilarByProtokolIdAsync(Protokol.ProtokolId, ct);
+        var tanilar = await BolumOkuAsync("Tanı", () => pusulaRepository.GetTanilarByProtokolIdAsync(Protokol.ProtokolId, ct), []);
         var taniStatuses = await syncLog.GetLatestByPusulaIdsAsync("Condition", tanilar.Select(t => t.Id).ToList(), ct);
         Tanilar = tanilar.Select(t => (t, taniStatuses.GetValueOrDefault(t.Id))).ToList();
 
-        var islemler = await pusulaRepository.GetIslemlerByProtokolIdAsync(Protokol.ProtokolId, ct);
+        var islemler = await BolumOkuAsync("İşlem", () => pusulaRepository.GetIslemlerByProtokolIdAsync(Protokol.ProtokolId, ct), []);
         var islemStatuses = await syncLog.GetLatestByPusulaIdsAsync("Procedure", islemler.Select(i => i.Id).ToList(), ct);
         Islemler = islemler.Select(i => (i, islemStatuses.GetValueOrDefault(i.Id))).ToList();
 
-        var labs = await pusulaRepository.GetLabResultsByProtokolIdAsync(Protokol.ProtokolId, ct);
+        var labs = await BolumOkuAsync("Laboratuvar", () => pusulaRepository.GetLabResultsByProtokolIdAsync(Protokol.ProtokolId, ct), []);
         var labStatuses = await syncLog.GetLatestByPusulaIdsAsync("Observation", labs.Select(l => l.LabaratuarSonucId).ToList(), ct);
         Labs = labs.Select(l => (l, labStatuses.GetValueOrDefault(l.LabaratuarSonucId))).ToList();
         LabGroups = BuildLabGroups(Labs);
 
-        var radiologyReports = await pusulaRepository.GetRadiologyReportsByProtokolIdAsync(Protokol.ProtokolId, ct);
+        var radiologyReports = await BolumOkuAsync("Radyoloji", () => pusulaRepository.GetRadiologyReportsByProtokolIdAsync(Protokol.ProtokolId, ct), []);
         var radiologyStatuses = await syncLog.GetLatestByPusulaIdsAsync("DiagnosticReport", radiologyReports.Select(r => r.TetkikIslemId).ToList(), ct);
         RadiologyReports = radiologyReports.Select(r => (r, radiologyStatuses.GetValueOrDefault(r.TetkikIslemId))).ToList();
 
-        var pathologyReports = await pusulaRepository.GetPathologyReportsByProtokolIdAsync(Protokol.ProtokolId, ct);
+        var pathologyReports = await BolumOkuAsync("Patoloji", () => pusulaRepository.GetPathologyReportsByProtokolIdAsync(Protokol.ProtokolId, ct), []);
         var pathologyStatuses = await syncLog.GetLatestByPusulaIdsAsync("DiagnosticReport-Patoloji", pathologyReports.Select(r => r.ResultId).ToList(), ct);
         PathologyReports = pathologyReports.Select(r => (r, pathologyStatuses.GetValueOrDefault(r.ResultId))).ToList();
 
-        GenelMuayene = await pusulaRepository.GetGenelMuayeneByProtokolIdAsync(Protokol.ProtokolId, ct);
+        GenelMuayene = await BolumOkuAsync("Epikriz/Genel Muayene", () => pusulaRepository.GetGenelMuayeneByProtokolIdAsync(Protokol.ProtokolId, ct), null);
         EpikrizSendEnabled = await settings.GetBoolAsync(SettingsStore.EpikrizSendEnabledKey, true, ct);
         EpikrizOnlySigned = await settings.GetBoolAsync(SettingsStore.EpikrizOnlySignedKey, true, ct);
 

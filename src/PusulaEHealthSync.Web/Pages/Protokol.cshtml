@@ -16,7 +16,23 @@ else
     var h = Model.Hasta;
     var isRecete = p.ProtokolTipiId == EncounterMapper.ReceteProtokolTipiId;
     <p class="breadcrumb"><a asp-page="/Index">Protokol Listesi</a> / Protokol Detay</p>
-    <div class="page-header">
+    @* Bir bolumun Pusula sorgusu zaman asimina ugrarsa sayfa artik 500 vermiyor; o bolum
+   bos kaliyor ve sebebi burada yaziyor. Uyari GONDERIM butonlarindan ONCE, sayfanin en
+   basinda duruyor -- eksik veriyle gonderim yapilmasin diye. *@
+@if (Model.BolumHatalari.Count > 0)
+{
+    <div class="alert alert-warning" style="margin-bottom:16px;">
+        <strong>Bu sayfa eksik yüklendi.</strong>
+        <ul style="margin:6px 0 0 18px; padding:0;">
+            @foreach (var hata in Model.BolumHatalari)
+            {
+                <li>@hata</li>
+            }
+        </ul>
+    </div>
+}
+
+<div class="page-header">
         <div>
             <h1 class="page-title">@p.HastaAdiSoyadi</h1>
         </div>
