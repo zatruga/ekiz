@@ -41,8 +41,19 @@ var, `pi.State` alanı gevşetilince (bkz. `GetIslemlerByProtokolIdAsync`) bu
 kalemler İşlem (Procedure) gönderim listesine de girebiliyordu. Bakanlıktan
 kesin cevap gelene kadar GÜVENLİ TARAF seçildi: `PusulaRepository.cs`'de bu
 tür kalemler (`pi.HizmetId`, `LIS.Test.HizmetId` ile eşleşiyorsa) İşlem
-listesinden hariç tutuluyor -- yani şimdilik SADECE Observation olarak
-gönderiliyorlar, Procedure olarak tekrar gönderilmiyorlar.
+listesinden hariç tutuluyordu -- yani SADECE Observation olarak gönderiliyorlardı.
+
+**KARAR (2026-09-14): HER İKİSİ de gönderilecek.** Laboratuvar kalemlerini İşlem
+listesinden eleyen filtre üç sorgudan da kaldırıldı (`GetIslemlerByProtokolIdAsync`
+ve Genel Bakış kapsam sorguları -- kapsam paneli gönderilenle aynı kümeyi
+göstermeli).
+
+**HACİM ETKİSİ ÖLÇÜLDÜ (son 30 gün):** gönderilecek Procedure sayısı
+**29.463 → 61.720** oluyor; 32.257 laboratuvar kalemi ekleniyor, yani **iki
+kattan fazla**. Otomatik gönderim açılmadan önce bu beklenmeli.
+
+**Durum:** Karara bağlandı (uygulandı). Bakanlıktan aksi bir yanıt gelirse filtre
+geri konulabilir -- tek satırlık değişiklik.
 
 ---
 
@@ -80,8 +91,6 @@ geçerli UCUM değil -- bunu da netleştirmelerini rica ediyoruz.)
 **Neden çıktı:** Protokol 50819013 üzerinde kullanıcı fark etti (2026-08-31)
 -- 6 laboratuvar sonucu da başarıyla gönderildi (Status=Success), portalda
 sonuç değeri görünüyor ama birim/referans sütunları hep boş.
-
-**Durum:** Açık.
 
 **Durum:** Açık.
 

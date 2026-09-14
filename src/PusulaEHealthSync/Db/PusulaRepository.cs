@@ -549,9 +549,16 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
                   SELECT 1 FROM LIS.TestIslem lti
                   WHERE lti.ProtokolIslemId = pi.Id AND lti.State <> 0 AND lti.State <> 6
               )
-              AND NOT EXISTS (
-                  SELECT 1 FROM LIS.Test lt WHERE lt.HizmetId = pi.HizmetId
-              )
+            -- LABORATUVAR KALEMLERI ARTIK DISLANMIYOR (kullanici karari 2026-09-14).
+            -- Eskiden burada bir NOT EXISTS ile LIS.Test.HizmetId eslesen kalemler
+            -- eleniyordu: bir laboratuvar testi hem Observation hem Procedure olarak
+            -- gidince mukerrer sayilir mi bilinmedigi icin GUVENLI TARAF secilmis,
+            -- sadece Observation gonderiliyordu (bkz. docs/bakanlik-sorulari.md #2).
+            -- Karar netlesti: HER IKISI de gonderilecek.
+            --
+            -- HACIM ETKISI OLCULDU (son 30 gun): gonderilen Procedure sayisi 29.463'ten
+            -- 61.720'ye cikiyor -- 32.257 laboratuvar kalemi ekleniyor, yani iki kattan
+            -- fazla. Otomatik gonderim acilmadan once bu beklenmeli.
             ORDER BY pi.Id";
 
         await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
@@ -831,9 +838,9 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
                   SELECT 1 FROM LIS.TestIslem lti
                   WHERE lti.ProtokolIslemId = pi.Id AND lti.State <> 0 AND lti.State <> 6
               )
-              AND NOT EXISTS (
-                  SELECT 1 FROM LIS.Test lt WHERE lt.HizmetId = pi.HizmetId
-              )
+            -- Laboratuvar kalemleri artik DISLANMIYOR -- GetIslemlerByProtokolIdAsync ile
+            -- ayni karar (2026-09-14). Kapsam paneli gonderilenle birebir ayni kumeyi
+            -- gostermeli, aksi halde gonderildi sayilari tutmaz.
             ORDER BY p.AcilisTarihi DESC";
 
         await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
@@ -910,9 +917,8 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
                       SELECT 1 FROM LIS.TestIslem lti
                       WHERE lti.ProtokolIslemId = pi.Id AND lti.State <> 0 AND lti.State <> 6
                   )
-                  AND NOT EXISTS (
-                      SELECT 1 FROM LIS.Test lt WHERE lt.HizmetId = pi.HizmetId
-                  )";
+                  -- Laboratuvar kalemleri artik DISLANMIYOR (2026-09-14) -- yukaridaki
+                  -- ayni gerekce.";
 
             await using var cmd = new SqlCommand(sql, conn);
             for (var i = 0; i < batch.Length; i++)
