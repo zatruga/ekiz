@@ -16,18 +16,25 @@ Sunum için biçimlendirilmiş hâli: `Masaüstü/ehealth-dogrulama-seti.html`
 
 Bütün sayılar canlı veritabanından doğrudan sayıldı.
 
-| Protokol | Tip | Tanı | İşlem | Lab | Lab ref. | Radyoloji | Pat. neoplazili | Pat. neoplazisiz | Epikriz |
-|---|---|---:|---:|---:|---:|---:|---:|---:|:--:|
-| **50772329** | Yatan | 6 | 571 | 222 | **192** | **11** | 0 | 0 | — |
-| **50779242** | Yatan | 0 | 325 | 144 | 131 | 5 | 2 | 0 | — |
-| **50830462** | Yatan | 2 | 214 | 75 | 59 | 4 | **2** | 0 | — |
-| **50831224** | Ayaktan | **12** | 6 | 26 | 11 | 1 | 0 | 0 | ✓ |
-| **50833609** | Yatan | 0 | 221 | 44 | 38 | 0 | **3** | 0 | — |
-| **50841776** | Ayaktan | 8 | 17 | 56 | 39 | 3 | 0 | 0 | ✓ |
-| **50845123** | Ayaktan | 8 | 11 | 51 | 34 | 3 | 0 | 0 | ✓ |
-| **50847194** | Yatan | 1 | 170 | 127 | 110 | 1 | 0 | 0 | — |
-| **50859592** | Günübirlik | 1 | 64 | 37 | 30 | 0 | 1 | 0 | **✓** |
-| **50862376** | Günübirlik | 0 | 11 | 0 | 0 | 0 | 0 | **1** | — |
+| Protokol | Tip | Tanı | İşlem<br>(Pusula → gönderilecek) | Lab<br>(Pusula → gönderilecek) | Radyoloji | Pat.<br>neoplazili | Pat.<br>neoplazisiz | Epikriz |
+|---|---|---:|---:|---:|---:|---:|---:|:--:|
+| **50772329** | Yatan | 6 | 571 → **75** | 222 → **38** | **11** | 0 | 0 | — |
+| **50779242** | Yatan | 0 | 325 → **52** | 144 → **13** | 5 | 2 | 0 | — |
+| **50830462** | Yatan | 2 | 214 → **34** | 75 → **20** | 4 | **2** | 0 | — |
+| **50831224** | Ayaktan | **12** | 6 → **6** | 26 → **4** | 1 | 0 | 0 | ✓ |
+| **50833609** | Yatan | 0 | 221 → **21** | 44 → **8** | 0 | **3** | 0 | — |
+| **50841776** | Ayaktan | 8 | 17 → **16** | 56 → **8** | 3 | 0 | 0 | ✓ |
+| **50845123** | Ayaktan | 8 | 11 → **10** | 51 → **3** | 3 | 0 | 0 | ✓ |
+| **50847194** | Yatan | 1 | 170 → **27** | 127 → **23** | 1 | 0 | 0 | — |
+| **50859592** | Günübirlik | 1 | 64 → **14** | 37 → **6** | 0 | 1 | 0 | **✓** |
+| **50862376** | Günübirlik | 0 | 11 → **1** | 0 → **0** | 0 | 0 | **1** | — |
+
+> **İki sayı neden farklı?** Soldaki Pusula'daki ham kayıt sayısı, sağdaki e-Health'e
+> **fiilen gönderilecek** olan. Aradaki fark, İcbari Sigorta Fiyat Listesi'nde karşılığı
+> bulunamayan kalemlerden geliyor: `az-procedure` ve `az-lab-result-observation`
+> profillerinde `extension:procedure-code` **zorunlu** olduğu için, İcbari kodu
+> eşleşmeyen bir kalem gönderilemiyor ve senkron günlüğünde "Atlandı" olarak
+> işaretleniyor. Bu, açık sorularımızdan biriyle doğrudan ilgili.
 
 ### Protokol künyeleri
 
