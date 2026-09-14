@@ -168,6 +168,28 @@ kullanılıyor.)
 **Bu API'yi kurcalamaya çalışmadık** -- token üretimini tersine mühendislikle
 çözmek yerine PACS ekibinden usulüne uygun kimlik bilgisi istemek doğrusu.
 
+### Ek testler (2026-09-14) -- çalışan DICOM sorgu ucu YOK
+
+**`10.10.204.194:6600` ve `:6610` DICOM DEĞİL.** 8 farklı called AE ile denendi
+(SYNAPSE, FUJI, PACS, SYNAPSEPACS, FUJIPACS, BAKFUJISYN71, ARCHIVE, ANY-SCP) --
+**hepsi sessiz**: ne birliktelik kabulü, ne DICOM reddi. DICOM konuşan bir port
+yanlış AE'ye *red* döndürür; sessizlik protokolün DICOM olmadığını gösterir. Bunlar
+Pusula'nın `ORM` mesajı gönderdiği **HL7 dinleyicileri**. Ayrıca `.194` ve `.195`
+üzerinde yaygın DICOM portları (104, 2761, 2762, 4242, 11112, 8042) **kapalı**.
+
+**`10.10.204.191`'deki hata yetkiyle ilgili değil.** `ExecuteDBCmd failed` hatasının
+tanınmayan çağıran AE'den kaynaklanabileceği düşünülmüştü; 7 farklı çağıran AE ile
+denendi (HBYSTETKIK, bakmedscp, PUSULA, HBYS, BAK, FUJIPACSMP, PUSULA_EHEALTH) --
+**hepsi aynı hatayı** verdi. Yani SCP'nin sorgu veritabanı gerçekten çalışmıyor;
+kendi asıl işi olan Modality Worklist sorgusu da dahil.
+
+> ⚠️ **Bu, hastanenin haberi olmayan canlı bir arıza olabilir:** `bakmedmwl` iş listesi
+> sağlayıcısı hiçbir sorguya cevap veremiyor. Modaliteler iş listesini bu uçtan
+> alıyorsa onlar da etkileniyordur. PACS ekibine ayrıca bildirilmeli.
+
+**Özet:** Ağda erişebildiğimiz **çalışan bir DICOM sorgu ucu yok**. Elimizdeki üç
+uçtan biri bozuk, biri HL7, biri erişilemez.
+
 > ### 🔑 İki somut talep
 >
 > 1. **Synapse'in AE Title'ı** -- `10.10.204.194:6600` portu açık, C-FIND denemesi
