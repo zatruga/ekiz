@@ -45,6 +45,27 @@ public class BolumMappingStore
         return result;
     }
 
+    // Disa/ice aktarim icin tam satir. GetAllAsync sadece id->kod dondurur; sunucuya
+    // tasirken bolum ADI da lazim -- ad eslestirmede KULLANILMAZ (eslestirme her zaman
+    // PusulaBolumId uzerinden), sadece dosyayi insan gozuyle dogrulanabilir kilar.
+    public async Task<List<(int Id, string? Adi, string? AzKod)>> GetAllRowsAsync(CancellationToken ct = default)
+    {
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT PusulaBolumId, PusulaBolumAdi, AzKod FROM BolumMapping ORDER BY PusulaBolumId";
+        var rows = new List<(int, string?, string?)>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            rows.Add((
+                reader.GetInt32(0),
+                reader.IsDBNull(1) ? null : reader.GetString(1),
+                reader.IsDBNull(2) ? null : reader.GetString(2)));
+        }
+        return rows;
+    }
+
     public async Task SetAsync(int pusulaBolumId, string? pusulaBolumAdi, string? azKod, CancellationToken ct = default)
     {
         using var conn = new SqliteConnection(_connectionString);

@@ -37,6 +37,30 @@
     </p>
 </div>
 
+@if (Model.ImportMessage is not null)
+{
+    <div class="alert @(Model.ImportFailed ? "alert-danger" : "alert-success")">@Model.ImportMessage</div>
+}
+
+@* Eslestirmeler synclog.db'de durur ve her kurulumda bos baslar. Bu iki dugme,
+   lokalde yapilan eslestirmeleri sunucuya tasimak icindir -- synclog.db'yi komple
+   kopyalamak gonderim gecmisini (SyncLog) silecegi icin aktarim tablo bazlidir. *@
+<div class="card card-pad" style="margin-bottom:20px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
+    <a asp-page="/BolumEslestirme" asp-page-handler="DisaAktar" class="btn btn-secondary btn-sm">Dışa Aktar (JSON)</a>
+
+    <form method="post" asp-page-handler="IceAktar" enctype="multipart/form-data"
+          style="display:flex; align-items:center; gap:8px; margin:0;">
+        <input type="file" name="dosya" accept=".json,application/json" required />
+        <button type="submit" class="btn btn-secondary btn-sm">İçe Aktar</button>
+    </form>
+
+    <p class="text-muted" style="font-size:13px; margin:0; max-width:560px;">
+        Eşleştirmeler bu makinenin <span class="mono">synclog.db</span> dosyasında tutulur;
+        yeni bir kurulumda boş başlar. İçe aktarım yalnızca <strong>ekler ve günceller</strong> --
+        dosyada olmayan bir bölümün mevcut eşleştirmesi silinmez.
+    </p>
+</div>
+
 <form method="post">
     <input type="hidden" name="Durum" value="@Model.Durum" />
     <div class="bulk-toolbar">
