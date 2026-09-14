@@ -261,8 +261,12 @@ bizden bekleniyor mu?
   Pratik sonucu: PACS'tan **asla görüntü çekmemiz gerekmiyor**. C-MOVE / C-GET /
   WADO-RS yetkisi istemeye gerek yok, yalnızca **C-FIND** yeterli.
 
-  **Bakanlığa kalan tek soru:** ImagingStudy bizden bekleniyor mu? (Beklenmiyorsa
-  hiç uğraşmayalım; bekleniyorsa iş küçük.)
+  **CEVAPLANDI (kullanıcı, 2026-09-14): bakanlık ImagingStudy İSTİYOR.** Dolayısıyla
+  bu iş kapsamda. Kaynak üretimi yazıldı ve canlı `$validate`'ten geçti
+  (`ImagingStudyMapper`, HTTP 200); tek eksik Study Instance UID -- PACS'ta duruyor
+  ve erişilebilen hiçbir DICOM sorgu ucu çalışmıyor
+  (bkz. docs/pacs-imagingstudy-erisim-talebi.md). PACS erişimi bu yüzden artık
+  "isteğe bağlı iyileştirme" değil, **kritik yolda**.
 
 **Durum:** Açık.
 
