@@ -283,6 +283,66 @@ bizden bekleniyor mu?
 
 *(Yeni sorular buraya eklenecek.)*
 
+---
+
+### ICD-10 ValueSet'inde eksik kodlar -- Pusula'da kullanılan 284 tanı kodu reddediliyor
+
+**Bulgu (2026-09-15, canlı gönderimde yakalandı):** Sunucuda bir protokolün iki
+tanısı `HTTP 400` ile reddedildi:
+
+```
+Condition.code[0]: Code 'D38.1' from system 'http://fhir.az/CodeSystem/az-icd-10'
+does not exist in the value set 'XBT-10 Diaqnoz Kodları Value Set' (http://fhir.az/ValueSet/icd-10-vs)
+```
+
+`icd-10-vs` tüm `az-icd-10` CodeSystem'ini kapsıyor (`compose.include` tek
+satır, filtre yok), yani sorun ValueSet'te değil **CodeSystem'in kendisinde**:
+33.083 kodluk listede `D38`, `D38.3`, `D38.4`, `D38.5`, `D38.6` var ama
+**`D38.0`, `D38.1`, `D38.2` yok.**
+
+**Ölçüm (Pusula, son 365 gün, `Tedavi.ProtokolICD`):**
+
+| | Adet |
+|---|---:|
+| Kullanılan farklı ICD-10 kodu | 3.825 |
+| AZ listesinde olmayan | **284 (%7,4)** |
+| Toplam tanı kaydı | 184.761 |
+| Reddedilecek tanı kaydı | **5.224 (%2,8)** |
+
+284 eksik kod üç gruba ayrılıyor:
+
+| Grup | Kod | Kullanım | Açıklama |
+|---|---:|---:|---|
+| **A** ICD-O-3 morfoloji kodu | 29 | 292 | `M8800/3`, `M8170/3` gibi. ICD-10 alanına yanlış girilmiş -- **bizim tarafımızda veri girişi sorunu**, bakanlıktan bir şey beklenmiyor |
+| **B** Üst kodu listede var | 176 | 1.000 | `D38.1` -> `D38`, `I25.0` -> `I25`, `K35.9` -> `K35` |
+| **C** Üst kodu da yok | 79 | 3.932 | `H36.0` (2.105 kullanım), `G46` (875), `G55.1` (231) |
+
+**C grubu hakkında:** 79 kodun 50'si (3.483 kullanım) ulduz/xaç (†/\*)
+manifestasyon kodu -- "Digər rubrikalarda təsnif olunmuş xəstəliklərdə..."
+kalıbını taşıyorlar. Ancak bunların sistematik olarak dışlandığı **söylenemez**:
+AZ CodeSystem'de aynı kalıbı taşıyan 573 kod zaten **var**. Yani kapsama
+düzensiz, bilinçli bir kural değil gibi görünüyor.
+
+**Sorular:**
+
+1. Bu kodlar (özellikle `H36.0` diabetik retinopatiya -- tek başına 2.105
+   kullanım) `az-icd-10`'a eklenecek mi? Ekleneceksek takvimi nedir?
+2. Eklenmeyecekse **B grubu için üst koda düşmemizi onaylıyor musunuz**
+   (`D38.1` -> `D38`)? Bu tanı özgüllüğünü kaybettirir, o yüzden kendi
+   başımıza yapmıyoruz -- patoloji topografya eşleştirmesinde ve bölüm
+   eşleştirmesinde olduğu gibi burada da "tahmin etme" ilkesine bağlıyız.
+3. Ulduz/xaç kodlarının bir kısmının listede olup bir kısmının olmaması
+   bilinçli mi? Bilinçliyse kural nedir?
+
+**Bu arada ne oluyor:** Bu tanılar `HTTP 400` ile hatalı olarak günlüğe
+düşüyor, protokolün geri kalanı (Müayinə, İşlem, Lab, rapor) normal gidiyor.
+Sessiz bir veri kaybı yok -- Protokol Detay'da kırmızı "Hatalı" olarak görünüyor.
+
+**Durum:** Açık.
+
+**Tam liste:** 284 kodun tamamı kullanım sayılarıyla birlikte ölçüldü; talep
+edilirse paylaşılabilir.
+
 ## Kapanan sorular
 
 ### Laboratuvar Observation -- procedure-code extension'ı tüm testler için zorunlu mu?
