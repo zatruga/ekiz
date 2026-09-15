@@ -18,23 +18,34 @@ Bütün sayılar canlı veritabanından doğrudan sayıldı.
 
 | Protokol | Tip | Tanı | İşlem<br>(Pusula → gönderilecek) | Lab<br>(Pusula → gönderilecek) | Radyoloji | Pat.<br>neoplazili | Pat.<br>neoplazisiz | Epikriz |
 |---|---|---:|---:|---:|---:|---:|---:|:--:|
-| **50772329** | Yatan | 6 | 571 → **75** | 222 → **38** | **11** | 0 | 0 | — |
-| **50779242** | Yatan | 0 | 325 → **52** | 144 → **13** | 5 | 2 | 0 | — |
-| **50830462** | Yatan | 2 | 214 → **34** | 75 → **20** | 4 | **2** | 0 | — |
-| **50831224** | Ayaktan | **12** | 6 → **6** | 26 → **4** | 1 | 0 | 0 | ✓ |
-| **50833609** | Yatan | 0 | 221 → **21** | 44 → **8** | 0 | **3** | 0 | — |
-| **50841776** | Ayaktan | 8 | 17 → **16** | 56 → **8** | 3 | 0 | 0 | ✓ |
-| **50845123** | Ayaktan | 8 | 11 → **10** | 51 → **3** | 3 | 0 | 0 | ✓ |
-| **50847194** | Yatan | 1 | 170 → **27** | 127 → **23** | 1 | 0 | 0 | — |
-| **50859592** | Günübirlik | 1 | 64 → **14** | 37 → **6** | 0 | 1 | 0 | **✓** |
+| **50772329** | Yatan | 6 | 571 → **75** | 222 → **198** | **11** | 0 | 0 | — |
+| **50779242** | Yatan | 0 | 325 → **52** | 144 → **134** | 5 | 2 | 0 | — |
+| **50830462** | Yatan | 2 | 214 → **34** | 75 → **69** | 4 | **2** | 0 | — |
+| **50831224** | Ayaktan | **12** | 6 → **6** | 26 → **15** | 1 | 0 | 0 | ✓ |
+| **50833609** | Yatan | 0 | 221 → **21** | 44 → **42** | 0 | **3** | 0 | — |
+| **50841776** | Ayaktan | 8 | 17 → **16** | 56 → **43** | 3 | 0 | 0 | ✓ |
+| **50845123** | Ayaktan | 8 | 11 → **10** | 51 → **38** | 3 | 0 | 0 | ✓ |
+| **50847194** | Yatan | 1 | 170 → **27** | 127 → **117** | 1 | 0 | 0 | — |
+| **50859592** | Günübirlik | 1 | 64 → **14** | 37 → **33** | 0 | 1 | 0 | **✓** |
 | **50862376** | Günübirlik | 0 | 11 → **1** | 0 → **0** | 0 | 0 | **1** | — |
 
 > **İki sayı neden farklı?** Soldaki Pusula'daki ham kayıt sayısı, sağdaki e-Health'e
-> **fiilen gönderilecek** olan. Aradaki fark, İcbari Sigorta Fiyat Listesi'nde karşılığı
-> bulunamayan kalemlerden geliyor: `az-procedure` ve `az-lab-result-observation`
-> profillerinde `extension:procedure-code` **zorunlu** olduğu için, İcbari kodu
-> eşleşmeyen bir kalem gönderilemiyor ve senkron günlüğünde "Atlandı" olarak
-> işaretleniyor. Bu, açık sorularımızdan biriyle doğrudan ilgili.
+> **fiilen gönderilecek** olan. İki ayrı sebep var:
+>
+> 1. **İcbari Sigorta Fiyat Listesi eşleşmesi yok.** `az-procedure` ve
+>    `az-lab-result-observation` profillerinde `extension:procedure-code`
+>    **zorunlu**; karşılığı bulunamayan kalem gönderilemiyor ve senkron
+>    günlüğünde "Atlandı" olarak işaretleniyor. İşlem tarafındaki büyük farkın
+>    (1.610 → 256) tamamı budur.
+> 2. **Satırın kendi sonuç değeri yok.** Panel başlığı satırları (ör. "İdrar
+>    Tetkiki") bir ölçüm taşımaz, alt parametreleri taşır. AZ profilindeki
+>    `az-lab-value-or-component` kuralı gereği değersiz bir Observation
+>    gönderilemez; bu satırlar atlanır, **veri kaybı değildir** -- ölçümler alt
+>    parametre satırları olarak gider.
+>
+> Laboratuvarda alt parametreler panelin İcbari koduna düşebildiği için
+> (COALESCE) kayıp azdır: **782 → 689 (%88)**. İşlemde ise oran düşüktür:
+> **1.610 → 256 (%16)**.
 
 ### Protokol künyeleri
 
