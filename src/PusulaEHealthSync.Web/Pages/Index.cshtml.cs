@@ -16,7 +16,7 @@ public class IndexModel(
     PusulaRepository pusulaRepository,
     SyncLogStore syncLog,
     SettingsStore settings,
-    EncounterSyncService encounterSyncService,
+    ProtocolFullSyncService protocolFullSync,
     DeleteService deleteService) : PageModel
 {
     private const int PageSize = 30;
@@ -181,8 +181,13 @@ public class IndexModel(
                 continue;
             }
 
-            var result = await encounterSyncService.SyncOneAsync(protokolId, liveMode: true, ct);
-            switch (result.Status)
+            // DUZELTME (2026-09-15, kullanici bildirdi): eskiden burada SADECE
+            // encounterSyncService.SyncOneAsync cagriliyordu -- Epikriz, Laboratuvar ve
+            // Patoloji HIC gonderilmiyordu. Sunucuda bu yuzden 3 protokolde 222 onayli
+            // laboratuvar sonucu hic denenmeden kaldi. Artik Protokol Detay'daki
+            // "Tümünü Gönder" ile AYNI servisi cagiriyor (bkz. ProtocolFullSyncService).
+            var result = await protocolFullSync.SyncAllAsync(protokolId, ct);
+            switch (result.EncounterStatus)
             {
                 case SyncStatus.Success: ok++; break;
                 case SyncStatus.Skipped: skipped++; break;

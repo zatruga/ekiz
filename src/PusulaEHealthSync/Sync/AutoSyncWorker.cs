@@ -69,7 +69,7 @@ public class AutoSyncWorker(
     private async Task RunOnceAsync(IServiceProvider sp, SettingsStore settings, CancellationToken ct)
     {
         var pendingWork = sp.GetRequiredService<PendingWorkService>();
-        var encounterSync = sp.GetRequiredService<EncounterSyncService>();
+        var protocolFullSync = sp.GetRequiredService<ProtocolFullSyncService>();
         var cancellationSync = sp.GetRequiredService<CancellationSyncService>();
 
         var batchSize = await settings.GetIntAsync(
@@ -91,8 +91,12 @@ public class AutoSyncWorker(
             if (ct.IsCancellationRequested) break;
             try
             {
-                var sonuc = await encounterSync.SyncOneAsync(p.Protokol.ProtokolId, liveMode: true, ct);
-                if (sonuc.Status == SyncStatus.Success) basarili++; else basarisiz++;
+                // Otomatik dongu de TAM zinciri gondermeli -- eskiden yalnizca Encounter
+                // cascade'i cagriliyordu, yani dongu acilsaydi hicbir protokolun epikrizi,
+                // laboratuvari ve patolojisi gitmeyecekti (2026-09-15'te toplu gonderimde
+                // ayni eksik canli olarak yakalandi).
+                var tam = await protocolFullSync.SyncAllAsync(p.Protokol, ct);
+                if (tam.EncounterStatus == SyncStatus.Success) basarili++; else basarisiz++;
             }
             catch (Exception ex)
             {

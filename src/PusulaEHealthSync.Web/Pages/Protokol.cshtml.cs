@@ -28,6 +28,7 @@ public class ProtokolModel(
     PathologyReportSyncService pathologyReportSyncService,
     DeleteService deleteService,
     CancellationSyncService cancellationSyncService,
+    ProtocolFullSyncService protocolFullSync,
     ILogger<ProtokolModel> logger,
     EHealthClient eHealthClient) : PageModel
 {
@@ -275,14 +276,11 @@ public class ProtokolModel(
         Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
         if (Protokol is null) return NotFound();
 
-        if (Protokol.ProtokolTipiId != EncounterMapper.ReceteProtokolTipiId)
-        {
-            await encounterSyncService.SyncOneAsync(Protokol.ProtokolId, liveMode: true, ct);
-            await compositionSyncService.SyncOneAsync(Protokol.ProtokolId, liveMode: true, ct);
-            await SendAllLabsAsync(Protokol, ct);
-            await SendAllRadiologyAsync(Protokol, ct);
-            await SendAllPathologyAsync(Protokol, ct);
-        }
+        // Zincirin tamami ProtocolFullSyncService'te -- Protokol Listesi'ndeki toplu
+        // gonderim ve AutoSyncWorker de AYNI metodu cagiriyor, boylece uc yol arasinda
+        // fark olusamiyor (2026-09-15'te tam bu fark yuzunden epikriz/lab/patoloji
+        // toplu gonderimde hic gitmiyordu). Recete kontrolu de servisin icinde.
+        await protocolFullSync.SyncAllAsync(Protokol, ct);
         return RedirectToPage("/Protokol", new { id });
     }
 
