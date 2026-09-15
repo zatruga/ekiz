@@ -189,7 +189,7 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
             Id = reader.GetInt32(0),
             Adi = reader.IsDBNull(1) ? null : reader.GetString(1),
             Soyadi = reader.IsDBNull(2) ? null : reader.GetString(2),
-            TCKimlikNo = reader.IsDBNull(3) ? null : reader.GetString(3),
+            TCKimlikNo = AzFin.Normalize(reader.IsDBNull(3) ? null : reader.GetString(3)),
             CikisTarihi = reader.IsDBNull(4) ? null : reader.GetDateTime(4),
             PersonelTipiId = Convert.ToByte(reader.GetValue(5)),
         };
@@ -987,7 +987,7 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
                 DoktorId = reader.GetInt32(0),
                 Adi = reader.IsDBNull(1) ? null : reader.GetString(1),
                 Soyadi = reader.IsDBNull(2) ? null : reader.GetString(2),
-                TCKimlikNo = reader.IsDBNull(3) ? null : reader.GetString(3),
+                TCKimlikNo = AzFin.Normalize(reader.IsDBNull(3) ? null : reader.GetString(3)),
                 Adet = reader.GetInt32(4),
             });
         }
@@ -1066,7 +1066,7 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
         HastaId = reader.GetInt32(reader.GetOrdinal("HastaId")),
         HastaAdi = GetString(reader, "HastaAdi"),
         HastaSoyadi = GetString(reader, "HastaSoyadi"),
-        Fin = GetString(reader, "Fin"),
+        Fin = AzFin.Normalize(GetString(reader, "Fin")),
         DoktorId = GetInt(reader, "DoktorId"),
         DoktorAdi = GetString(reader, "DoktorAdi"),
         DoktorSoyadi = GetString(reader, "DoktorSoyadi"),
@@ -1094,10 +1094,10 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
         GSM = GetString(reader, "GSM"),
         SabitTel = GetString(reader, "SabitTel"),
         Email = GetString(reader, "Email"),
-        TCKimlikNo = GetString(reader, "TCKimlikNo"),
+        TCKimlikNo = AzFin.Normalize(GetString(reader, "TCKimlikNo")),
         CreatedDate = GetDateTime(reader, "CreatedDate"),
         IsBizdeDogan = GetBool(reader, "IsBizdeDogan") ?? false,
-        AnneTCKimlikNo = GetString(reader, "AnneTCKimlikNo"),
+        AnneTCKimlikNo = AzFin.Normalize(GetString(reader, "AnneTCKimlikNo")),
     };
 
     private static string? GetString(SqlDataReader r, string col)
