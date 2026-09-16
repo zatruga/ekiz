@@ -48,4 +48,9 @@
     </ItemGroup>
     <Copy SourceFiles="@(_OwnAppSettings)" DestinationFolder="$(PublishDir)" SkipUnchangedFiles="true" />
   </Target>
+  <ItemGroup>
+    <!-- AZ ICD-10 kod -> standart Azerbaycanca aciklama (bkz. AzIcd10.cs) -->
+    <EmbeddedResource Include="Resources/az-icd-10.tsv" LogicalName="PusulaEHealthSync.Resources.az-icd-10.tsv" />
+  </ItemGroup>
+
 </Project>

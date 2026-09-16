@@ -18,6 +18,8 @@ public static class ConditionMapper
     private const string IcdSystem = "http://fhir.az/CodeSystem/az-icd-10";
     private const string VerificationStatusSystem = "http://terminology.hl7.org/CodeSystem/condition-ver-status";
     private const string CategorySystem = "http://terminology.hl7.org/CodeSystem/condition-category";
+    private const string DiagnosisTypeExtensionUrl = "http://fhir.az/StructureDefinition/diagnosis-type";
+    private const string DiagnosisTypeSystem = "http://fhir.az/CodeSystem/diagnosis-type";
 
     public static MappingResult Map(IcdTaniRecord tani, ProtokolListItem p, string azPatientId, string azEncounterId)
     {
@@ -43,12 +45,26 @@ public static class ConditionMapper
                     },
                 },
             },
+            // BAKANLIK ISTEGI (2026-09-16): aciklama, yerel terminoloji servisindeki
+            // STANDART Azerbaycanca metin olmali. Pusula'nin kendi ICD tablosu karisik
+            // (bir kismi Turkce), o yuzden once AZ CodeSystem'inden okunuyor; kod AZ
+            // listesinde yoksa Pusula metnine dusuluyor -- ama o kod zaten sunucu
+            // tarafindan reddedilir (bkz. ICD-10 ValueSet boslugu maddesi).
+            //
+            // text: Pusula'da gorunen ad. Kullanici hangi kaydin gonderildigini
+            // eslestirebilsin diye korunuyor; display ile farkliysa bilgi kaybi olmaz.
             ["code"] = new JsonObject
             {
                 ["coding"] = new JsonArray
                 {
-                    new JsonObject { ["system"] = IcdSystem, ["code"] = tani.Kodu, ["display"] = tani.Adi ?? tani.Kodu },
+                    new JsonObject
+                    {
+                        ["system"] = IcdSystem,
+                        ["code"] = tani.Kodu,
+                        ["display"] = AzIcd10.Display(tani.Kodu) ?? tani.Adi ?? tani.Kodu,
+                    },
                 },
+                ["text"] = tani.Adi ?? tani.Kodu,
             },
             ["subject"] = new JsonObject { ["reference"] = $"Patient/{azPatientId}" },
             ["encounter"] = new JsonObject { ["reference"] = $"Encounter/{azEncounterId}" },
@@ -59,6 +75,31 @@ public static class ConditionMapper
                 {
                     ["url"] = "http://fhir.az/StructureDefinition/local-system-unique-id",
                     ["valueString"] = $"{p.ProtokolId}-{tani.ICDId}",
+                },
+                // BAKANLIK ISTEGI (2026-09-16): "Tanı türü önemli bir bilgi; kaynak
+                // sistemde tutuluyorsa gönderilmesini rica ederim."
+                //
+                // Pusula'da karsiligi Tedavi.ProtokolICD.IsBirincilTani (611.518 taninin
+                // 526.578'inde isaretli, olculdu). Kod listesi (az-icd CodeSystem
+                // diagnosis-type): 1 = Əsas diaqnoz, 2 = əlavə diaqnoz,
+                // 3 = Yanaşı xəstəliklər.
+                //
+                // KOD 3 BILEREK GONDERILMIYOR: Pusula'da komorbiditeyi isaretleyen ayri
+                // bir alan yok. IsAnaTani var ama anlami dogrulanmadi (100.168 evet,
+                // 84.168 NULL) -- dogrulamadan "yanasi xestelik" demek taniyi YANLIS
+                // etiketlemek olurdu.
+                new JsonObject
+                {
+                    ["url"] = DiagnosisTypeExtensionUrl,
+                    ["valueCodeableConcept"] = new JsonObject
+                    {
+                        ["coding"] = new JsonArray
+                        {
+                            tani.IsBirincilTani
+                                ? new JsonObject { ["system"] = DiagnosisTypeSystem, ["code"] = "1", ["display"] = "Əsas diaqnoz" }
+                                : new JsonObject { ["system"] = DiagnosisTypeSystem, ["code"] = "2", ["display"] = "əlavə diaqnoz" },
+                        },
+                    },
                 },
             },
         };
