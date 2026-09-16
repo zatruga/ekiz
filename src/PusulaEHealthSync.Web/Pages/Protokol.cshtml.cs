@@ -85,7 +85,7 @@ public class ProtokolModel(
 
     public (string CssClass, string Label, int Success, int Total) TanilarOzet() => Ozet(Tanilar.Select(t => t.Durum));
     public (string CssClass, string Label, int Success, int Total) IslemlerOzet() => Ozet(Islemler.Select(i => i.Durum));
-    public (string CssClass, string Label, int Success, int Total) LabsOzet() => Ozet(Labs.Select(l => l.Durum));
+    public (string CssClass, string Label, int Success, int Total) LabsOzet() => Ozet(LabGroups.Select(g => g.Durum));
     public (string CssClass, string Label, int Success, int Total) MuayineIcerikOzet() => Ozet(Tanilar.Select(t => t.Durum).Concat(Islemler.Select(i => i.Durum)));
 
     // KULLANICI ISTEGI (2026-08-29): "alt paremetreli testleri ayrı ayrı göstermesin ana
@@ -94,26 +94,28 @@ public class ProtokolModel(
     // okunmuyordu. PanelAdi (bkz. LabResultRecord) doluysa o satir bir alt parametredir --
     // panelin KENDI satiri (ornek: "Hemogram") panelAdi=null ama TetkikAdi'si baska
     // satirlarin PanelAdi'siyla ESLESIR, bu yuzden grup adi olarak kullanilabilir.
-    public record LabGroup(string GroupName, bool HasOwnRow, List<(LabResultRecord Lab, SyncLogEntry? Durum)> Items)
+    // BAKANLIK ISTEGI (2026-09-16) SONRASI: bir panel artik TEK Observation olarak
+    // gidiyor (alt parametreler component[] icinde), dolayisiyla durum da TEK -- eskiden
+    // her alt parametrenin kendi SyncLog kaydi vardi ve rozet onlarin ozetiydi.
+    // Gruplama LabGroupBuilder'da (cekirdek), gonderimle AYNI kod.
+    public record LabGrupGorunum(LabGroupBuilder.LabGrup Grup, SyncLogEntry? Durum)
     {
-        // KULLANICI ISTEGI (2026-08-29): "grup olan testlerin satırına diğerleri gibi
-        // gönderim [durumunu] yazmanı istiyorum ... gönder butonu tıklandığında tüm alt
-        // parametreleri hepsini göndersin" -- grup basligi da tekil satirlar gibi bir durum
-        // rozeti ve Gönder/Sil aksiyonlari gostersin diye. Tek bir rozet gerektigi icin
-        // (grupta karisik durumlar olabilir) en "dikkat cekici" olana gore ozetleniyor --
-        // herhangi biri Hatali ise Hatali, hepsi basariliysa Gönderildi, aksi halde Kısmen.
-        public (string CssClass, string Label) AggregateBadge()
-        {
-            if (Items.Any(x => x.Durum?.Status == SyncStatus.Failed)) return ("danger", "Hatalı");
-            if (Items.All(x => BasariylaGonderildi(x.Durum))) return ("success", "Gönderildi");
-            if (Items.Any(x => BasariylaGonderildi(x.Durum))) return ("warning", "Kısmen gönderildi");
-            return ("neutral", "Gönderilmedi");
-        }
+        public string GroupName => Grup.Ad;
+        public IReadOnlyList<LabResultRecord> Satirlar => Grup.TumSatirlar;
+        public bool Panelli => Grup.Panelli;
 
-        public bool Gonderilebilir => Items.Any(x => !BasariylaGonderildi(x.Durum));
-        public bool Silinebilir => Items.Any(x => SyncLogEntry.CanDelete(x.Durum));
+        public (string CssClass, string Label) AggregateBadge() => Durum?.Status switch
+        {
+            SyncStatus.Failed => ("danger", "Hatalı"),
+            SyncStatus.Skipped => ("warning", "Atlandı"),
+            _ when BasariylaGonderildi(Durum) => ("success", "Gönderildi"),
+            _ => ("neutral", "Gönderilmedi"),
+        };
+
+        public bool Gonderilebilir => !BasariylaGonderildi(Durum);
+        public bool Silinebilir => SyncLogEntry.CanDelete(Durum);
     }
-    public List<LabGroup> LabGroups { get; set; } = [];
+    public List<LabGrupGorunum> LabGroups { get; set; } = [];
 
     // Radyoloji (DiagnosticReport) -- Lab ile AYNI kalip. GetRadiologyReportsByProtokolIdAsync
     // sadece RIS.TetkikIslem.State=6 (onaylanmis/kesinlesmis) raporlari donduruyor, Icbari
@@ -229,9 +231,11 @@ public class ProtokolModel(
         Islemler = islemler.Select(i => (i, islemStatuses.GetValueOrDefault(i.Id))).ToList();
 
         var labs = await BolumOkuAsync("Laboratuvar", () => pusulaRepository.GetLabResultsByProtokolIdAsync(Protokol.ProtokolId, ct), []);
-        var labStatuses = await syncLog.GetLatestByPusulaIdsAsync("Observation", labs.Select(l => l.LabaratuarSonucId).ToList(), ct);
-        Labs = labs.Select(l => (l, labStatuses.GetValueOrDefault(l.LabaratuarSonucId))).ToList();
-        LabGroups = BuildLabGroups(Labs);
+        var labGruplari = LabGroupBuilder.Build(labs);
+        var labStatuses = await syncLog.GetLatestByPusulaIdsAsync(
+            "Observation", labGruplari.Select(g => g.AnahtarId).ToList(), ct);
+        LabGroups = labGruplari.Select(g => new LabGrupGorunum(g, labStatuses.GetValueOrDefault(g.AnahtarId))).ToList();
+        Labs = labs.Select(l => (l, (SyncLogEntry?)null)).ToList();
 
         var radiologyReports = await BolumOkuAsync("Radyoloji", () => pusulaRepository.GetRadiologyReportsByProtokolIdAsync(Protokol.ProtokolId, ct), []);
         var radiologyStatuses = await syncLog.GetLatestByPusulaIdsAsync("DiagnosticReport", radiologyReports.Select(r => r.TetkikIslemId).ToList(), ct);
@@ -525,7 +529,8 @@ public class ProtokolModel(
         if (Protokol is null) return NotFound();
 
         var labs = await pusulaRepository.GetLabResultsByProtokolIdAsync(Protokol.ProtokolId, ct);
-        var labStatuses = await syncLog.GetLatestByPusulaIdsAsync("Observation", labs.Select(l => l.LabaratuarSonucId).ToList(), ct);
+        var gruplar = LabGroupBuilder.Build(labs);
+        var labStatuses = await syncLog.GetLatestByPusulaIdsAsync("Observation", gruplar.Select(g => g.AnahtarId).ToList(), ct);
         foreach (var durum in labStatuses.Values.Where(SyncLogEntry.CanDelete))
             await deleteService.DeleteAsync(durum, ct);
         return RedirectToPage("/Protokol", new { id });
@@ -539,10 +544,13 @@ public class ProtokolModel(
         var (azPatientId, azEncounterId) = await GetIdleriLabIcinAsync(Protokol, ct);
         if (azPatientId is not null)
         {
+            // Tek bir alt parametre ARTIK tek basina gonderilemiyor -- panelin component'i
+            // oldugu icin kendi kaynagi yok. Bu yuzden satirin ait oldugu GRUP gonderiliyor.
             var labs = await pusulaRepository.GetLabResultsByProtokolIdAsync(Protokol.ProtokolId, ct);
-            var lab = labs.FirstOrDefault(l => l.LabaratuarSonucId == labId);
-            if (lab is not null)
-                await labResultSyncService.SyncOneAsync(lab, Protokol, azPatientId, azEncounterId, liveMode: true, ct);
+            var grup = LabGroupBuilder.Build(labs)
+                .FirstOrDefault(g => g.TumSatirlar.Any(l => l.LabaratuarSonucId == labId));
+            if (grup is not null)
+                await labResultSyncService.SyncGroupAsync(grup, Protokol, azPatientId, azEncounterId, liveMode: true, ct);
         }
         return RedirectToPage("/Protokol", new { id });
     }
@@ -562,11 +570,12 @@ public class ProtokolModel(
         if (azPatientId is null) return;
 
         var labs = await pusulaRepository.GetLabResultsByProtokolIdAsync(protokol.ProtokolId, ct);
-        var labStatuses = await syncLog.GetLatestByPusulaIdsAsync("Observation", labs.Select(l => l.LabaratuarSonucId).ToList(), ct);
-        foreach (var lab in labs)
+        var gruplar = LabGroupBuilder.Build(labs);
+        var labStatuses = await syncLog.GetLatestByPusulaIdsAsync("Observation", gruplar.Select(g => g.AnahtarId).ToList(), ct);
+        foreach (var grup in gruplar)
         {
-            if (BasariylaGonderildi(labStatuses.GetValueOrDefault(lab.LabaratuarSonucId))) continue;
-            await labResultSyncService.SyncOneAsync(lab, protokol, azPatientId, azEncounterId, liveMode: true, ct);
+            if (BasariylaGonderildi(labStatuses.GetValueOrDefault(grup.AnahtarId))) continue;
+            await labResultSyncService.SyncGroupAsync(grup, protokol, azPatientId, azEncounterId, liveMode: true, ct);
         }
     }
 
@@ -583,17 +592,9 @@ public class ProtokolModel(
         if (azPatientId is not null)
         {
             var labs = await pusulaRepository.GetLabResultsByProtokolIdAsync(Protokol.ProtokolId, ct);
-            var labStatuses = await syncLog.GetLatestByPusulaIdsAsync("Observation", labs.Select(l => l.LabaratuarSonucId).ToList(), ct);
-            var withStatus = labs.Select(l => (l, labStatuses.GetValueOrDefault(l.LabaratuarSonucId))).ToList();
-            var group = BuildLabGroups(withStatus).FirstOrDefault(g => g.GroupName == grupAdi);
-            if (group is not null)
-            {
-                foreach (var (lab, durum) in group.Items)
-                {
-                    if (BasariylaGonderildi(durum)) continue;
-                    await labResultSyncService.SyncOneAsync(lab, Protokol, azPatientId, azEncounterId, liveMode: true, ct);
-                }
-            }
+            var grup = LabGroupBuilder.Build(labs).FirstOrDefault(g => g.Ad == grupAdi);
+            if (grup is not null)
+                await labResultSyncService.SyncGroupAsync(grup, Protokol, azPatientId, azEncounterId, liveMode: true, ct);
         }
         return RedirectToPage("/Protokol", new { id });
     }
@@ -604,12 +605,12 @@ public class ProtokolModel(
         if (Protokol is null) return NotFound();
 
         var labs = await pusulaRepository.GetLabResultsByProtokolIdAsync(Protokol.ProtokolId, ct);
-        var labStatuses = await syncLog.GetLatestByPusulaIdsAsync("Observation", labs.Select(l => l.LabaratuarSonucId).ToList(), ct);
-        var withStatus = labs.Select(l => (l, labStatuses.GetValueOrDefault(l.LabaratuarSonucId))).ToList();
-        var group = BuildLabGroups(withStatus).FirstOrDefault(g => g.GroupName == grupAdi);
-        if (group is not null)
+        var grup = LabGroupBuilder.Build(labs).FirstOrDefault(g => g.Ad == grupAdi);
+        if (grup is not null)
         {
-            foreach (var (_, durum) in group.Items.Where(x => SyncLogEntry.CanDelete(x.Durum)))
+            var durumlar = await syncLog.GetLatestByPusulaIdsAsync("Observation", [grup.AnahtarId], ct);
+            var durum = durumlar.GetValueOrDefault(grup.AnahtarId);
+            if (SyncLogEntry.CanDelete(durum))
                 await deleteService.DeleteAsync(durum!, ct);
         }
         return RedirectToPage("/Protokol", new { id });
@@ -850,81 +851,4 @@ public class ProtokolModel(
         return RedirectToPage("/Protokol", new { id });
     }
 
-    private static List<LabGroup> BuildLabGroups(List<(LabResultRecord Lab, SyncLogEntry? Durum)> labs)
-    {
-        // Bir satirin PanelAdi'si varsa dogrudan panel adidir (alt parametre). PanelAdi'si
-        // olmayan bir satir, eger TetkikAdi'si BASKA satirlarin PanelAdi'siyla eslesirse
-        // panelin KENDI satiridir (orn. "Hemogram").
-        var panelNames = labs
-            .Where(x => !string.IsNullOrWhiteSpace(x.Lab.PanelAdi))
-            .Select(x => x.Lab.PanelAdi!)
-            .ToHashSet();
-
-        string? PanelName(LabResultRecord lab)
-        {
-            if (!string.IsNullOrWhiteSpace(lab.PanelAdi)) return lab.PanelAdi;
-            if (!string.IsNullOrWhiteSpace(lab.TetkikAdi) && panelNames.Contains(lab.TetkikAdi)) return lab.TetkikAdi;
-            return null;
-        }
-
-        // KULLANICI SORUSU (2026-08-29, protokol 50853078 -- yatan hasta, ayni panel
-        // (orn. "İdrar Tetkiki") yatis boyunca birden cok kez istenmis): sadece panel adina
-        // gore gruplarsak TUM yatisin ayni adli tekrarlari (farkli gunlerde, farkli sonuclar)
-        // TEK grupta toplanip mukerrer gibi gorunuyordu. Gonderim tarafinda birlestirme YOK
-        // (her satir kendi LabaratuarSonucId'siyle ayri Observation, effectiveDateTime de
-        // satirin kendi onay/sonuc tarihinden doluyor) -- sorun sadece bu listedeki gorunumdu.
-        // Duzeltme: grup anahtarina panelin o SATIRA ait onay tarihini (gun bazinda) de
-        // katiyoruz, boylece ayni panelin farkli gunlerdeki tekrarlari AYRI gruplar olarak
-        // listelenir. Tarih etiketi sadece ayni panel adi BIRDEN FAZLA gunde tekrarlanmissa
-        // basliga eklenir (tek seferlik testlerde gereksiz kalabalik olmasin).
-        string DateBucket(LabResultRecord lab) =>
-            (lab.TetkikSonucOnayTarihi ?? lab.TetkikSonucTarihi)?.ToString("yyyy-MM-dd") ?? "-";
-
-        string GroupKey(int index)
-        {
-            var lab = labs[index].Lab;
-            var panel = PanelName(lab);
-            if (panel is null) return $"__solo_{lab.LabaratuarSonucId}";
-            return $"{panel}||{DateBucket(lab)}";
-        }
-
-        var rawGroups = Enumerable.Range(0, labs.Count)
-            .GroupBy(GroupKey)
-            .Select(g =>
-            {
-                var items = g.Select(i => labs[i]).ToList();
-                var isSolo = g.Key.StartsWith("__solo_");
-                var panelName = isSolo ? (items[0].Lab.TetkikAdi ?? "-") : PanelName(items[0].Lab)!;
-
-                // Panelin KENDI satiri (orn. "Hemogram") genelde bir sonuc degeri TASIMAZ --
-                // zaten LabResultObservationMapper'da bu yuzden Skipped kaliyor. Grup
-                // basligiyla AYNI ismi tekrar ayrı bir satir olarak gostermek kafa
-                // karistiriyordu (KULLANICI ISTEGI, 2026-08-29: "2. yazan hemogram ... ana
-                // testin tekrarı ise hiç yazdırmayalım") -- deger tasimiyorsa listeden
-                // cikariliyor, grup zaten basligindaki adla temsil ediliyor.
-                var visible = items
-                    .Where(x => x.Lab.TetkikAdi != panelName || !string.IsNullOrWhiteSpace(x.Lab.TetkikSonucu))
-                    .ToList();
-                if (visible.Count == 0) visible = items; // hepsi filtrelenirse (beklenmez) hicbiri kaybolmasin
-
-                var ordered = visible.OrderByDescending(x => x.Lab.TetkikAdi == panelName).ThenBy(x => x.Lab.TetkikAdi).ToList();
-                var hasOwnRow = ordered.Any(x => x.Lab.TetkikAdi == panelName);
-                var dateBucket = DateBucket(items[0].Lab);
-                return (PanelName: panelName, DateBucket: dateBucket, HasOwnRow: hasOwnRow, Items: ordered);
-            })
-            .ToList();
-
-        var panelOccurrenceCount = rawGroups.CountBy(g => g.PanelName).ToDictionary(x => x.Key, x => x.Value);
-
-        return rawGroups
-            .Select(g =>
-            {
-                var showDate = panelOccurrenceCount[g.PanelName] > 1 && g.DateBucket != "-";
-                var groupName = showDate
-                    ? $"{g.PanelName} ({DateTime.Parse(g.DateBucket).ToString("dd.MM.yyyy")})"
-                    : g.PanelName;
-                return new LabGroup(groupName, g.HasOwnRow, g.Items);
-            })
-            .ToList();
-    }
 }

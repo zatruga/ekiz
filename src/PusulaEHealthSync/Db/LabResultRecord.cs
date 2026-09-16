@@ -50,5 +50,18 @@ public class LabResultRecord
     // (bagimsiz bir test, ya da panelin kendisi -- orn. "Hemogram" satirinin kendisi) null.
     public string? PanelAdi { get; set; }
 
+    // BAKANLIK ISTEGI (2026-09-16): alt parametreli tetkikler artik TEK Observation +
+    // component[] olarak gonderiliyor. Observation SEVIYESINDEKI kod panelin KENDI kodu
+    // olmali -- ama panelin kendi sonuc satiri her zaman gelmiyor (orn. "İdrar
+    // Mikroskopisi": alt parametreler var, panel satiri YOK). O yuzden panelin LOINC ve
+    // Icbari kodu, alt parametre satirinda da tasiniyor: LIS.TestParametre -> ust
+    // LIS.Test.LoincKodu / HizmetId zincirinden.
+    //
+    // IcbariKodu ile farki: IcbariKodu COALESCE'lidir (once satirin kendisi, yoksa panel).
+    // PanelIcbariKodu ise HER ZAMAN panelin kodudur -- Observation seviyesinde bu kullanilir.
+    public string? PanelLoincKodu { get; set; }
+    public string? PanelIcbariKodu { get; set; }
+    public string? PanelIcbariAdi { get; set; }
+
     public bool IsApproved => Status == 6;
 }

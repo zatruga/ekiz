@@ -101,15 +101,19 @@ public class ProtocolFullSyncService(
     private async Task<int> SendAllLabsAsync(
         ProtokolListItem protokol, string azPatientId, string? azEncounterId, CancellationToken ct)
     {
+        // BAKANLIK ISTEGI (2026-09-16): gonderim birimi satir degil GRUP -- alt
+        // parametreli panel tek Observation + component[]. Gruplama LabGroupBuilder'da,
+        // ekrandaki gruplamayla AYNI kodda (bkz. o dosyadaki not).
         var labs = await pusulaRepository.GetLabResultsByProtokolIdAsync(protokol.ProtokolId, ct);
+        var gruplar = LabGroupBuilder.Build(labs);
         var durumlar = await syncLog.GetLatestByPusulaIdsAsync(
-            "Observation", labs.Select(l => l.LabaratuarSonucId).ToList(), ct);
+            "Observation", gruplar.Select(g => g.AnahtarId).ToList(), ct);
 
         int n = 0;
-        foreach (var lab in labs)
+        foreach (var grup in gruplar)
         {
-            if (BasariylaGonderildi(durumlar.GetValueOrDefault(lab.LabaratuarSonucId))) continue;
-            var r = await labResultSyncService.SyncOneAsync(lab, protokol, azPatientId, azEncounterId, liveMode: true, ct);
+            if (BasariylaGonderildi(durumlar.GetValueOrDefault(grup.AnahtarId))) continue;
+            var r = await labResultSyncService.SyncGroupAsync(grup, protokol, azPatientId, azEncounterId, liveMode: true, ct);
             if (r.Status == SyncStatus.Success) n++;
         }
         return n;

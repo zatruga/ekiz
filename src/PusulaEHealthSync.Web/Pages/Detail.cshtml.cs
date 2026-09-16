@@ -1,6 +1,7 @@
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using PusulaEHealthSync.Db;
+using PusulaEHealthSync.Mapping;
 using PusulaEHealthSync.EHealth;
 using PusulaEHealthSync.Persistence;
 using PusulaEHealthSync.Sync;
@@ -156,10 +157,14 @@ public class DetailModel(
                     var ctx = await ResolveEncounterContextAsync(cascadeEncounter: false);
                     if (ctx is not ({ } protokol, { } azPatientId, _, _))
                         return await NotSupportedPage(existing, ctx.Reason!);
+                    // SyncLog.PusulaId artik GRUBUN anahtar satirinin Id'si (bkz.
+                    // LabGroupBuilder) -- tek satir degil, o grubun tamami yeniden gonderilir.
                     var labs = await pusulaRepository.GetLabResultsByProtokolIdAsync(protokol.ProtokolId);
-                    var lab = labs.FirstOrDefault(l => l.LabaratuarSonucId == existing.PusulaId);
-                    if (lab is null) return await NotSupportedPage(existing, "Kaynak Pusula kaydı artık bulunamıyor.");
-                    var result = await labResultSyncService.SyncOneAsync(lab, protokol, azPatientId, ctx.AzEncounterId, liveMode: true);
+                    var grup = LabGroupBuilder.Build(labs)
+                        .FirstOrDefault(g => g.AnahtarId == existing.PusulaId
+                                          || g.TumSatirlar.Any(l => l.LabaratuarSonucId == existing.PusulaId));
+                    if (grup is null) return await NotSupportedPage(existing, "Kaynak Pusula kaydı artık bulunamıyor.");
+                    var result = await labResultSyncService.SyncGroupAsync(grup, protokol, azPatientId, ctx.AzEncounterId, liveMode: true);
                     return RedirectToPage("/Detail", new { id = result.Id, fromProtokol = FromProtokol });
                 }
             case "DiagnosticReport":

@@ -11,10 +11,16 @@ namespace PusulaEHealthSync.Sync;
 // sonucu gonderilebilir, sadece Hasta'nin (Patient) e-Health'te var olmasi yeterli.
 public class LabResultSyncService(EHealthClient eHealthClient, SyncLogStore syncLog, ILogger<LabResultSyncService> logger)
 {
-    public async Task<SyncLogEntry> SyncOneAsync(
-        LabResultRecord lab, ProtokolListItem protokol, string azPatientId, string? azEncounterId, bool liveMode, CancellationToken ct = default)
+    // BAKANLIK ISTEGI (2026-09-16): gonderim birimi artik TEK SATIR degil, GRUP --
+    // alt parametreli bir panel tek Observation olarak, alt parametreleri component[]
+    // icinde gider. Grubu LabGroupBuilder kuruyor; kimlik (SyncLog.PusulaId ve
+    // local-system-unique-id) grubun anahtar satirindan geliyor, boylece tekrar
+    // gonderimde yeni kaynak acilmaz, mevcut kaynak guncellenir.
+    public async Task<SyncLogEntry> SyncGroupAsync(
+        LabGroupBuilder.LabGrup grup, ProtokolListItem protokol, string azPatientId, string? azEncounterId, bool liveMode, CancellationToken ct = default)
     {
-        var mapping = LabResultObservationMapper.Map(lab, azPatientId, azEncounterId);
+        var lab = grup.AnahtarSatir;
+        var mapping = LabResultObservationMapper.MapGroup(grup, azPatientId, azEncounterId);
         if (mapping is MappingResult.Skipped skip)
         {
             var skipEntry = NewEntry(lab, protokol, SyncStatus.Skipped);
@@ -26,7 +32,7 @@ public class LabResultSyncService(EHealthClient eHealthClient, SyncLogStore sync
         var success = (MappingResult.Success)mapping;
         var observation = success.Resource;
         var requestJson = observation.ToJsonString(JsonDefaults.Options);
-        var localId = lab.LabaratuarSonucId.ToString();
+        var localId = grup.AnahtarId.ToString();
 
         if (!liveMode)
         {
@@ -62,7 +68,7 @@ public class LabResultSyncService(EHealthClient eHealthClient, SyncLogStore sync
         await syncLog.InsertAsync(writeEntry, ct);
 
         if (!writeResult.Success)
-            logger.LogWarning("Lab sonucu gonderilemedi (ProtokolId={ProtokolId}, LabaratuarSonucId={Id}): {Message}", protokol.ProtokolId, lab.LabaratuarSonucId, writeEntry.Message);
+            logger.LogWarning("Lab sonucu gonderilemedi (ProtokolId={ProtokolId}, Grup=\"{Grup}\", AnahtarId={Id}): {Message}", protokol.ProtokolId, grup.Ad, grup.AnahtarId, writeEntry.Message);
 
         return writeEntry;
     }

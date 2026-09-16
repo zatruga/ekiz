@@ -397,7 +397,8 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
                    lab.TetkikSonucTarihi, lab.TetkikSonucOnayTarihi,
                    COALESCE(icb.Kodu, panelIcb.Kodu) AS IcbariKodu,
                    COALESCE(icb.Adi, panelIcb.Adi) AS IcbariAdi,
-                   panel.PanelAdi
+                   panel.PanelAdi, panel.PanelLoinc,
+                   panelIcb.Kodu AS PanelIcbariKodu, panelIcb.Adi AS PanelIcbariAdi
             FROM LIS.uv_LaboratuarSonucKayitBilgileriByProtokolId lab
             OUTER APPLY (
                 SELECT TOP 1 t.Id AS TestId, t.HizmetId
@@ -417,7 +418,8 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
                 ORDER BY PKH.IsPaket DESC
             ) icb
             OUTER APPLY (
-                SELECT TOP 1 parentTest.Adi AS PanelAdi, parentTest.HizmetId AS PanelHizmetId
+                SELECT TOP 1 parentTest.Adi AS PanelAdi, parentTest.HizmetId AS PanelHizmetId,
+                       parentTest.LoincKodu AS PanelLoinc
                 FROM LIS.TestParametre tp
                 INNER JOIN LIS.Test parentTest ON parentTest.Id = tp.TestId
                 WHERE tp.AltTestId = t.TestId AND tp.State <> 0
@@ -461,6 +463,9 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
                 IcbariKodu = reader.IsDBNull(11) ? null : reader.GetString(11),
                 IcbariAdi = reader.IsDBNull(12) ? null : reader.GetString(12),
                 PanelAdi = reader.IsDBNull(13) ? null : reader.GetString(13),
+                PanelLoincKodu = reader.IsDBNull(14) ? null : reader.GetString(14),
+                PanelIcbariKodu = reader.IsDBNull(15) ? null : reader.GetString(15),
+                PanelIcbariAdi = reader.IsDBNull(16) ? null : reader.GetString(16),
             });
         }
         return result;

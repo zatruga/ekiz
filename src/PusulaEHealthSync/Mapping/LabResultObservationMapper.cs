@@ -20,12 +20,12 @@ namespace PusulaEHealthSync.Mapping;
 // Icbari kodu artik GetLabResultsByProtokolIdAsync'teki LIS.Test koprusuyle geliyor (bkz. o
 // metottaki gerekce) -- bulunamazsa (LOINC eslesmesi yok ya da o hizmet Icbari Sigorta Fiyat
 // Listesi'nde degil) bu test sonucu SKIPPED olur, cunku zorunlu alan doldurulamaz.
-public static class LabResultObservationMapper
+public static partial class LabResultObservationMapper
 {
-    private const string LoincSystem = "http://loinc.org";
-    private const string CategorySystem = "http://terminology.hl7.org/CodeSystem/observation-category";
-    private const string ProcedureCodeExtensionUrl = "http://fhir.az/StructureDefinition/procedure-code";
-    private const string ProcedureCodeSystem = "http://fhir.az/CodeSystem/az-procedure-codes";
+    internal const string LoincSystem = "http://loinc.org";
+    internal const string CategorySystem = "http://terminology.hl7.org/CodeSystem/observation-category";
+    internal const string ProcedureCodeExtensionUrl = "http://fhir.az/StructureDefinition/procedure-code";
+    internal const string ProcedureCodeSystem = "http://fhir.az/CodeSystem/az-procedure-codes";
 
     public static MappingResult Map(LabResultRecord lab, string azPatientId, string? azEncounterId)
     {
