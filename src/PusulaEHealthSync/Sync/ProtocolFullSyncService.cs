@@ -36,11 +36,12 @@ public class ProtocolFullSyncService(
     CompositionSyncService compositionSyncService,
     LabResultSyncService labResultSyncService,
     RadiologyReportSyncService radiologyReportSyncService,
-    PathologyReportSyncService pathologyReportSyncService)
+    PathologyReportSyncService pathologyReportSyncService,
+    VitalSignsSyncService vitalSignsSyncService)
 {
-    public record Sonuc(SyncStatus EncounterStatus, int Epikriz, int Lab, int Radyoloji, int Patoloji)
+    public record Sonuc(SyncStatus EncounterStatus, int Epikriz, int Lab, int Radyoloji, int Patoloji, int Vital)
     {
-        public static Sonuc Bos(SyncStatus s) => new(s, 0, 0, 0, 0);
+        public static Sonuc Bos(SyncStatus s) => new(s, 0, 0, 0, 0, 0);
     }
 
     public async Task<Sonuc> SyncAllAsync(int protokolId, CancellationToken ct = default)
@@ -68,13 +69,14 @@ public class ProtocolFullSyncService(
         //    duyuyor, o yuzden Muayine gonderildikten SONRA.
         var (azPatientId, azEncounterId) = await BaglantiIdleriAsync(protokol, ct);
         if (azPatientId is null)
-            return new Sonuc(encounter.Status, epikrizSayi, 0, 0, 0);
+            return new Sonuc(encounter.Status, epikrizSayi, 0, 0, 0, 0);
 
         var lab = await SendAllLabsAsync(protokol, azPatientId, azEncounterId, ct);
         var rad = await SendAllRadiologyAsync(protokol, azPatientId, azEncounterId, ct);
         var pat = await SendAllPathologyAsync(protokol, azPatientId, azEncounterId, ct);
+        var vital = await SendAllVitalsAsync(protokol, azPatientId, azEncounterId, ct);
 
-        return new Sonuc(encounter.Status, epikrizSayi, lab, rad, pat);
+        return new Sonuc(encounter.Status, epikrizSayi, lab, rad, pat, vital);
     }
 
     private async Task<(string? AzPatientId, string? AzEncounterId)> BaglantiIdleriAsync(
@@ -97,6 +99,17 @@ public class ProtocolFullSyncService(
 
     private static bool BasariylaGonderildi(SyncLogEntry? durum) =>
         durum is { Status: SyncStatus.Success } && durum.Operation != SyncOperation.Delete;
+
+    // BAKANLIK ISTEGI (2026-09-16, madde 4): ates gibi klinik olcumler az-observation
+    // ile gonderilmeli. Kaynak Bulgulari metni; bir muayeneden birden fazla Observation
+    // cikiyor (bkz. VitalSignsSyncService).
+    private async Task<int> SendAllVitalsAsync(
+        ProtokolListItem protokol, string azPatientId, string? azEncounterId, CancellationToken ct)
+    {
+        var sonuclar = await vitalSignsSyncService.SyncAllAsync(
+            protokol, azPatientId, azEncounterId, liveMode: true, ct);
+        return sonuclar.Count(r => r.Status == SyncStatus.Success);
+    }
 
     private async Task<int> SendAllLabsAsync(
         ProtokolListItem protokol, string azPatientId, string? azEncounterId, CancellationToken ct)

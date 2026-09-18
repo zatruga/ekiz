@@ -97,7 +97,7 @@ else
             <div style="margin-left:auto; align-self:center; display:flex; gap:8px;">
                 <form method="post" asp-page-handler="TumunuGonder" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                     <button type="submit" class="btn btn-bulk btn-sm"
-                            onclick="return confirm('Bu protokol için Hasta, Müayinə, Tanı, İşlem, Epikriz, Laboratuvar, Radyoloji ve Patoloji e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                            onclick="return confirm('Bu protokol için Hasta, Müayinə, Tanı, İşlem, Epikriz, Vital Bulgular, Laboratuvar, Radyoloji ve Patoloji e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
                         Tümünü Gönder
                     </button>
                 </form>
@@ -461,6 +461,60 @@ else
                         <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
                                 onclick="return confirm('Epikriz kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
                             Sil
+                        </button>
+                    </form>
+                }
+            </div>
+        </div>
+        <div class="checklist-item">
+            <div class="rt-info">
+                <span class="rt-name">Vital Bulgular (az-observation)</span>
+                <span class="rt-desc">
+                    @if (isRecete)
+                    {
+                        <text>Protokol tipi Reçete -- bu tür protokoller e-Health'e gönderilmez.</text>
+                    }
+                    else if (Model.GenelMuayene is null)
+                    {
+                        <text>Bu protokol için muayene kaydı bulunamadı.</text>
+                    }
+                    else if (Model.Vitaller.Count == 0)
+                    {
+                        <text>Epikrizin Bulgular alanında ölçüm bulunamadı -- gönderilecek vital bulgu yok.</text>
+                    }
+                    else
+                    {
+                        <text>@string.Join(" · ", Model.Vitaller.Select(v => VitalSignsMapper.Ozet(v.Tur, v.Deger)))</text>
+                    }
+                    @if (Model.VitalDurumKaydi is null)
+                    {
+                        <text> Bu protokol için henüz bir gönderim denemesi yapılmadı.</text>
+                    }
+                    else
+                    {
+                        var vitalMsg = Model.VitalDurumKaydi.Message is null ? ""
+                            : Model.VitalDurumKaydi.Status == SyncStatus.Failed ? SyncLogEntry.FriendlyError(Model.VitalDurumKaydi.Message)
+                            : Model.VitalDurumKaydi.Message;
+                        <text> Son deneme: @AzTime.ToLocal(Model.VitalDurumKaydi.CreatedAtUtc).ToString("yyyy-MM-dd HH:mm") @(string.IsNullOrEmpty(vitalMsg) ? "" : $"-- {vitalMsg}")</text>
+                    }
+                </span>
+            </div>
+            <div class="rt-right">
+                @{
+                    var vitalStatus = Model.VitalDurumKaydi?.Status;
+                    var (vitalBadgeClass, vitalBadgeLabel) = SyncLogEntry.StatusBadge(Model.VitalDurumKaydi);
+                }
+                <span class="badge @vitalBadgeClass"><span class="badge-dot"></span>@vitalBadgeLabel</span>
+                @if (Model.VitalDurumKaydi is not null)
+                {
+                    <a asp-page="/Detail" asp-route-id="@Model.VitalDurumKaydi.Id" asp-route-fromProtokol="@p.ProtokolId" class="btn btn-outline btn-sm">Detay</a>
+                }
+                @if (!isRecete && Model.Vitaller.Count > 0)
+                {
+                    <form method="post" asp-page-handler="GonderVital" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                        <button type="submit" class="btn btn-primary btn-sm"
+                                onclick="return confirm('Vital bulgular e-Health\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
+                            @(vitalStatus is null ? "Gönder" : "Tekrar Gönder")
                         </button>
                     </form>
                 }

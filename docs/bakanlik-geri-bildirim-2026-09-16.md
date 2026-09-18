@@ -13,7 +13,7 @@ belirtildi.
 | 3b | `diagnosis-type` | ✅ **Yapıldı** — protokollerin %85'inde | Kalan %15 kaynak veri eksiği (kullanıcı onayı: bu haliyle gönderilecek) |
 | 3c | `first-diagnosis` | **Karar gerekiyor** | Pusula'da böyle bir alan yok |
 | 3d | `verificationStatus` (ön/kesin tanı) | ✅ **Yapıldı** | — |
-| 4 | `az-observation` (vital/not) | **Yapılamıyor — gerekçeli** | Vital tablosu boş; notlar zaten epikrizde |
+| 4 | `az-observation` (vital/not) | ✅ **Yapıldı** (vital) | Doktor notları zaten epikrizde — mükerrer olmasın diye gönderilmiyor |
 | 5 | Laboratuvar `component` yapısı | ✅ **Yapıldı** (`e9f1908`) | — |
 | 6 | ImagingStudy | **Engelli** | PACS'tan Study Instance UID alınamıyor |
 | 7 | LOINC `display` | **Kaynak gerekiyor** | IG standart LOINC adlarını yayınlamıyor |
@@ -231,40 +231,77 @@ olarak bildirilmişti.
 
 Bakanlık ateş gibi klinik ölçümlerin ve doktor notlarının `az-observation`
 profiliyle gönderilmesini istiyor. Profil basit: `extension:local-system-unique-id`
-(1..1) ve `category` (1..1) zorunlu.
+(1..1), `status`, `category` (1..1), `code`, `subject`, `effective[x]` zorunlu.
 
-**Sorun kaynakta:** Pusula'da vital bulgular için ayrılmış tablo
-`Tedavi.YasamBulgusu` ve içinde doğru kolonlar var (`VucutSicakligi`,
-`KanBasinciSYS/DIA`, `SPO2`, `SolunumSayisi`, `Nabiz`...).
+### İlk tespitim yanlıştı
 
-**Ama tablo tamamen boş: 0 kayıt.** Hiç kullanılmamış -- en eski/en yeni tarih
-bile NULL. Yani bu hastanede vital bulgular buraya girilmiyor.
+"Vital bulgular Pusula'da tutulmuyor" demiştim. **Kullanıcı düzeltti (2026-09-18):**
+"bu alanda doktorlar epikrizde bulgular alanına giriyor."
 
-Elimizde yapılandırılmış olmayan serbest metin var:
+Doğru çıktı. Vital için **ayrılmış üç ayrı yapısal yer** var ve üçü de boş:
 
-| `Tedavi.GenelMuayene` alanı | Dolu kayıt |
-|---|---:|
-| `Bulgulari` | 381.343 |
-| `Sikayeti` | 423.902 |
-| `Hikayesi` | 305.293 |
+| Yer | Durum |
+|---|---|
+| `Tedavi.YasamBulgusu` | 0 kayıt |
+| `Tedavi.GenelMuayene` kolonları (`Ates`, `KardiyakNabiz`, `TansiyonArter`, `SPO2`, `SolunumSayisi`, `Boy`, `Kilo`) | 254.877 kaydın **hiçbirinde** dolu değil |
+| `Aktarim.GenelMuayene` | aktarım tablosu |
 
-Bunlar `az-observation` olarak **not** (valueString) şeklinde gönderilebilir, ama
-"ateş = 38.2 °C" gibi **kodlu ölçüm** üretilemez -- veri o biçimde tutulmuyor.
+Veri, ekrandaki formun **metne serileştirilmiş** hâlinde
+`Tedavi.GenelMuayene.Bulgulari` içinde duruyor:
 
-**İkinci bulgu (2026-09-18):** Doktor notları için de yapacak bir şey yok --
+```
+Boy:  170 cm   Kilo:  91 kg   Vücut Kitle İndeksi:  31.49   VYA:  2.02
+Nabız (Dk):  77   KB-S (mmHg):  136   KB-D (mmHg):  85   SpO2:  98
+Fizik Muayene Bulguları:  <serbest metin>
+```
+
+Şemaya bakıp "bu hastane vital girmiyor" demek, formun kendisine bakmamakmış.
+
+### Kapsam (son 365 gün)
+
+124.117 muayene kaydı / 111.550 protokol:
+
+| Ölçüm | Kayıt | LOINC | Etiketler (TR / AZ / EN) |
+|---|---:|---|---|
+| Boy | 46.013 | 8302-2 | Boy / Boy / Size |
+| Kilo | 43.112 | 29463-7 | Kilo / Çəki / Kg |
+| Vücut Kitle İndeksi | 29.855 | 39156-5 | Vücut Kitle İndeksi / Bədən Kütlə İndeksi / Body Mass Index |
+| Vücut Yüzey Alanı | 29.855 | 8277-6 | VYA / BSS |
+| SpO2 | 16.891 | 2708-6 | SpO2 |
+| Kan basıncı (sistolik) | 16.499 | 8480-6 | KB-S (mmHg) |
+| Kan basıncı (diastolik) | 16.427 | 8462-4 | KB-D (mmHg) |
+| Nabız | 16.268 | 8867-4 | Nabız (Dk) / Nəbz (Dəq) |
+| Ateş | 6.713 | 8310-5 | Ateş / Hərarət / Pyrexia |
+
+**Etiketler üç dilde.** Aynı hastanede hekimler TR/AZ/EN arayüz kullanıyor;
+üçünü birden tanımak zorunlu -- `Çəki` bilmeyen bir ayrıştırıcı 928 kilo
+ölçümünü sessizce atlar.
+
+### Uygulama
+
+- `VitalBulguParser` -- etiket + `:` + sayı kalıbı; yalnızca tam etiket eşleşmesi
+  kabul ediliyor, üstüne **makul aralık** denetimi var. Serbest metindeki yanlış
+  eşleşmeler ve açık veri giriş hataları böyle eleniyor.
+- `VitalSignsMapper` -- `az-observation`, `category = vital-signs`, standart LOINC
+  `display`, lokal ad `code.text`'te (bakanlık madde 7 ile uyumlu).
+- **Kan basıncı tek kaynak:** FHIR'in yerleşik kalıbı sistolik+diastolik'i ayrı
+  iki Observation olarak değil, `85354-9` panel kodu altında iki `component`
+  olarak gönderir -- laboratuvarda istenen yapının (madde 5) aynısı.
+- `VitalSignsSyncService` -- `ProtocolFullSyncService` zincirine eklendi, yani
+  "Tümünü Gönder", "Seçilenleri Gönder" ve otomatik döngü üçü de gönderiyor.
+  Protokol Detay ekranında ayrı bir "Vital Bulgular" satırı var.
+
+**Ayrıştırıcı canlı veriye karşı doğrulandı:** 10.775 örnek kayıttan 35.667 ölçüm
+çıktı. Elenen 84 ateş değerinin 82'si `0`, 2'si `366` -- yani aralık denetimi
+yalnızca hatalı girişleri kesiyor.
+
+### Doktor notları -- bilerek gönderilmiyor
+
 `Sikayeti`, `Bulgulari` ve `Hikayesi` **zaten gönderiliyor**: epikriz
 Composition'ının (`az-discharge-summary`) ayrı section'ları olarak
-(`CompositionMapper`, LOINC 10154-3 Şikayət / 8648-8 Tedavi-seyir vb.). Aynı
-metni bir de `az-observation` olarak göndermek, bakanlığın kayıtlarında
+(LOINC 10154-3 Şikayət, 11348-0 Anamnez, 29545-1 Müayinə bulguları vb.). Aynı
+metni bir de `az-observation` olarak göndermek bakanlığın kayıtlarında
 **mükerrer** içerik oluştururdu.
-
-**Sonuç:** Bu madde şu an yapılamıyor ve yapılmamalı:
-- **Klinik ölçümler (ateş, tansiyon, SPO2):** Pusula'da yapılandırılmış olarak
-  hiç tutulmuyor -- ayrılmış tablo var ama 0 kayıt. Hastane bilişim biriminden
-  bu verinin gerçekte nereye girildiği öğrenilmeli.
-- **Doktor notları:** zaten epikriz içinde gidiyor, tekrarı mükerrer olur.
-
-Bakanlığa bu iki gerekçe iletilmeli.
 
 ---
 
@@ -348,7 +385,6 @@ bekliyor:
 | `first-diagnosis` beklentisi (#3c) | Bakanlık |
 | Güncellenmiş bölüm listesi (#2) | Bakanlık |
 | Standart LOINC açıklama kaynağı (#7) | Bakanlık ya da LOINC sürümü |
-| Vital bulguların gerçek kaynağı (#4) | Hastane bilişim birimi |
 | PACS DICOM sorgu ucu (#6) | PACS ekibi |
 
 Gönderilen örneklerin yeni yapıyla tazelenmesi için sunucu güncellenmeli;

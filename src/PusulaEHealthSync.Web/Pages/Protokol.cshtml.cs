@@ -22,6 +22,7 @@ public class ProtokolModel(
     EncounterSyncService encounterSyncService,
     CompositionSyncService compositionSyncService,
     ConditionSyncService conditionSyncService,
+    VitalSignsSyncService vitalSignsSyncService,
     ProcedureSyncService procedureSyncService,
     LabResultSyncService labResultSyncService,
     RadiologyReportSyncService radiologyReportSyncService,
@@ -38,6 +39,11 @@ public class ProtokolModel(
     public SyncLogEntry? HastaDurumKaydi { get; set; }
     public SyncLogEntry? MuayineDurumKaydi { get; set; }
     public SyncLogEntry? EpikrizDurumKaydi { get; set; }
+
+    // BAKANLIK ISTEGI (2026-09-16, madde 4): vital bulgular az-observation ile
+    // gonderiliyor. Kaynak epikrizin Bulgulari metni -- ayristirma VitalBulguParser'da.
+    public IReadOnlyList<VitalOlcum> Vitaller { get; set; } = [];
+    public SyncLogEntry? VitalDurumKaydi { get; set; }
     public List<(IcdTaniRecord Tani, SyncLogEntry? Durum)> Tanilar { get; set; } = [];
     public List<(IslemRecord Islem, SyncLogEntry? Durum)> Islemler { get; set; } = [];
 
@@ -246,6 +252,14 @@ public class ProtokolModel(
         PathologyReports = pathologyReports.Select(r => (r, pathologyStatuses.GetValueOrDefault(r.ResultId))).ToList();
 
         GenelMuayene = await BolumOkuAsync("Epikriz/Genel Muayene", () => pusulaRepository.GetGenelMuayeneByProtokolIdAsync(Protokol.ProtokolId, ct), null);
+        if (GenelMuayene is not null)
+        {
+            Vitaller = VitalBulguParser.Ayristir(GenelMuayene.Bulgulari);
+            var vitalStatuses = await syncLog.GetLatestByPusulaIdsAsync(
+                VitalSignsSyncService.ResourceTypeAdi, [GenelMuayene.Id], ct);
+            VitalDurumKaydi = vitalStatuses.GetValueOrDefault(GenelMuayene.Id);
+        }
+
         EpikrizSendEnabled = await settings.GetBoolAsync(SettingsStore.EpikrizSendEnabledKey, true, ct);
         EpikrizOnlySigned = await settings.GetBoolAsync(SettingsStore.EpikrizOnlySignedKey, true, ct);
 
@@ -358,6 +372,17 @@ public class ProtokolModel(
         if (Protokol is null) return NotFound();
 
         await compositionSyncService.SyncOneAsync(Protokol.ProtokolId, liveMode: true, ct);
+        return RedirectToPage("/Protokol", new { id });
+    }
+
+    public async Task<IActionResult> OnPostGonderVitalAsync(int id, CancellationToken ct)
+    {
+        Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
+        if (Protokol is null) return NotFound();
+
+        var (azPatientId, azEncounterId) = await GetGercekIdleriAsync(Protokol, ct);
+        if (azPatientId is not null)
+            await vitalSignsSyncService.SyncAllAsync(Protokol, azPatientId, azEncounterId, liveMode: true, ct);
         return RedirectToPage("/Protokol", new { id });
     }
 
