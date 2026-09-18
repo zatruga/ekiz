@@ -10,7 +10,7 @@ belirtildi.
 | 1 | Telefon formatı (`+994`) | ✅ **Yapıldı** (`ad093ef`) | — |
 | 2 | Bölüm eşleştirmeleri (`Digər`) | **Bakanlık bekleniyor** | Terminoloji listesi güncellenecek |
 | 3a | Tanı açıklaması Azerbaycanca | ✅ **Yapıldı** (`ba23eec`) | — |
-| 3b | `diagnosis-type` | ⚠️ **Kısmi** — protokollerin %85'inde | Kaynakta esas/ek ayrımı yok |
+| 3b | `diagnosis-type` | ✅ **Yapıldı** — protokollerin %85'inde | Kalan %15 kaynak veri eksiği (kullanıcı onayı: bu haliyle gönderilecek) |
 | 3c | `first-diagnosis` | **Karar gerekiyor** | Pusula'da böyle bir alan yok |
 | 3d | `verificationStatus` (ön/kesin tanı) | ✅ **Yapıldı** | — |
 | 4 | `az-observation` (vital/not) | **Yapılamıyor — gerekçeli** | Vital tablosu boş; notlar zaten epikrizde |
@@ -148,8 +148,24 @@ gerçekten iki tanının da kesinleştiği klinik bir durum var. Tüm protokolle
 ilgili bir ifadedir, sırayla değil — bir ön tanı pekâlâ protokolün tek ve asıl
 şüphesi olabilir; ona "ek tanı" demek uydurma bir sıra iddiası olurdu.
 
-**Kapsam:** 137.998 protokolün **117.228'inde (%85)** en az bir tanı
-`diagnosis-type` taşıyor.
+**Kapsam (son 365 gün, 138.006 protokol):**
+
+| Grup | Protokol | Pay | `diagnosis-type` |
+|---|---:|---:|---|
+| Tek tanılı | 108.503 | %78,6 | kod 1 |
+| Çok tanılı, kesin tanı var | 8.735 | %6,3 | kod 1 |
+| Çok tanılı, kesin tanı yok | 20.768 | %15,1 | boş |
+
+**Boş kalan %15 bir eşleştirme eksiği değil, kaynak veri eksiği.** O 20.768
+protokoldeki 56.834 tanının **56.363'ü (%99,2) ön tanı** -- yani hekim birden
+fazla tanı girmiş ama hiçbirini kesin tanıya çevirmemiş. Hangisinin esas olduğu
+Pusula'da **kayıtlı değil**; birini seçmek veriyi okumak değil uydurmak olurdu.
+
+Kapatmanın iki yolu var, ikisi de bizde değil:
+1. **Hastane:** protokol kapatılırken bir tanının kesin tanıya çevrilmesi.
+2. **Bakanlık:** "kesin tanı yoksa ilk ön tanı esas sayılsın" gibi bir kural onaylaması.
+
+**Kullanıcı kararı (2026-09-18):** bu haliyle gönderilecek, madde tamamlandı sayılıyor.
 
 ### 3c. `first-diagnosis`
 
