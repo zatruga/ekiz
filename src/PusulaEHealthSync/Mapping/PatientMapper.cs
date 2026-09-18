@@ -188,11 +188,16 @@ public static class PatientMapper
         if (h.AktifHastaId is not null)
             patient["active"] = h.AktifHastaId.Value;
 
+        // BAKANLIK ISTEGI (2026-09-16): telefonlar tek bicimde, +994 ile gitmeli.
+        // AzPhone.Normalize dogrulayamadigi numarayi null dondurur ve o numara HIC
+        // gonderilmez -- telecom 0..* oldugu icin profili bozmaz (bkz. AzPhone).
         var telecom = new JsonArray();
-        if (!string.IsNullOrWhiteSpace(h.GSM))
-            telecom.Add(new JsonObject { ["system"] = "phone", ["use"] = "mobile", ["value"] = h.GSM });
-        if (!string.IsNullOrWhiteSpace(h.SabitTel))
-            telecom.Add(new JsonObject { ["system"] = "phone", ["use"] = "home", ["value"] = h.SabitTel });
+        var gsm = AzPhone.Normalize(h.GSM);
+        if (gsm is not null)
+            telecom.Add(new JsonObject { ["system"] = "phone", ["use"] = "mobile", ["value"] = gsm });
+        var sabit = AzPhone.Normalize(h.SabitTel);
+        if (sabit is not null && sabit != gsm)
+            telecom.Add(new JsonObject { ["system"] = "phone", ["use"] = "home", ["value"] = sabit });
         if (!string.IsNullOrWhiteSpace(h.Email))
             telecom.Add(new JsonObject { ["system"] = "email", ["value"] = h.Email });
         if (telecom.Count > 0)
