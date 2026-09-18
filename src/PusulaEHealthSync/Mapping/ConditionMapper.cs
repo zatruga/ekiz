@@ -91,24 +91,33 @@ public static class ConditionMapper
         // 1 = Əsas diaqnoz, 2 = əlavə diaqnoz, 3 = Yanaşı xəstəliklər -- bu bir SIRA
         // eksenidir (hangisi ana tani), kesinlik ekseni DEGIL (o verificationStatus).
         //
-        // PUSULA'DA BU EKSENIN KAYNAGI YOK. Olculdu (son 365 gun, 186.038 kayit):
+        // PUSULA'DA BU EKSENIN DOGRUDAN KAYNAGI YOK. Olculdu (son 365 gun, 186.038 kayit):
         //   IsBirincilTani : protokol basina TEK DEGIL -- 2 tanili 17.351 protokolde
         //                    IKISINDE de 1, 4 tanili 2.367 protokolde DORDUNDE de 1.
         //                    Bununla "esas tani" demek 4 tane esas tani gondermek olurdu.
         //   IsEkTani       : %100 NULL
         //   SiraNo         : %100 NULL
-        //   IsAnaTani      : MedulaTaniTipiId=2 ile birebir ortusuyor -- bagimsiz bilgi
-        //                    degil, o da kesinlik ekseni.
+        //   IsAnaTani      : MedulaTaniTipiId=2 ile birebir ortusuyor -- bagimsiz bilgi degil.
         //
-        // KULLANICI KARARI (2026-09-18): protokolde TEK tani varsa o tani mantiksal
-        // zorunlulukla esas tanidir -- orada kod 1 gonderilir. Birden fazla taninin
-        // oldugu protokolde hangisinin esas oldugu bilinmiyor, alan HIC gonderilmez
-        // (0..1, bos birakmak profili bozmaz). Son 365 gunde 137.998 protokolun
-        // 108.494'u (%78) tek tanili -- yani talebin buyuk kismi karsilaniyor.
+        // KULLANICI KARARI (2026-09-18), iki kollu:
+        //   a) Protokolde TEK tani varsa o tani mantiksal zorunlulukla esas tanidir.
+        //   b) Cok tanili protokolde KESIN TANI (MedulaTaniTipiId=2) esas tani sayilir.
+        //
+        // (b) her zaman tek bir esas tani uretmiyor: cok tanili 29.503 protokolun
+        // 5.366'sinda (%18) tam bir kesin tani var, 3.368'inde (%11) birden fazla,
+        // 20.769'unda (%70) hic yok. Birden fazla kesin tani KLINIK OLARAK gercek bir
+        // durum (hastada gercekten iki kesinlesmis tani var) -- IsBirincilTani'daki gibi
+        // "bayrak bilgi tasimiyor" durumu degil; kullaniciya olculerek sunuldu, kabul edildi.
+        //
+        // ON TANI SATIRLARINA KOD 2 (elave diaqnoz) YAZILMIYOR: "on tani" kesinlikle
+        // ilgili bir ifade, sirayla degil. Bir on tani pekala protokolun tek ve asil
+        // suphesi olabilir; ona "ek tani" demek uydurma bir sira iddiasi olurdu. Alan
+        // 0..1 oldugu icin bos birakmak profili bozmaz.
         //
         // NOT: sayim GONDERILEBILIR tanilari kapsar; ICD kodu bos olan satirlar
         // GetTanilarByProtokolIdAsync'te zaten eleniyor (nadir).
-        if (protokoldekiTaniSayisi == 1)
+        var esasTani = protokoldekiTaniSayisi == 1 || tani.TaniTipiKodu == "2";
+        if (esasTani)
         {
             condition["extension"]!.AsArray().Add(new JsonObject
             {

@@ -10,7 +10,7 @@ belirtildi.
 | 1 | Telefon formatı (`+994`) | ✅ **Yapıldı** (`ad093ef`) | — |
 | 2 | Bölüm eşleştirmeleri (`Digər`) | **Bakanlık bekleniyor** | Terminoloji listesi güncellenecek |
 | 3a | Tanı açıklaması Azerbaycanca | ✅ **Yapıldı** (`ba23eec`) | — |
-| 3b | `diagnosis-type` | ⚠️ **Kısmi** — tek tanılı protokollerde | Çok tanılıda kaynak yok |
+| 3b | `diagnosis-type` | ⚠️ **Kısmi** — protokollerin %85'inde | Kaynakta esas/ek ayrımı yok |
 | 3c | `first-diagnosis` | **Karar gerekiyor** | Pusula'da böyle bir alan yok |
 | 3d | `verificationStatus` (ön/kesin tanı) | ✅ **Yapıldı** | — |
 | 4 | `az-observation` (vital/not) | **Yapılamıyor — gerekçeli** | Vital tablosu boş; notlar zaten epikrizde |
@@ -126,12 +126,30 @@ gereği imkânsız.
 | `SiraNo` | %100 NULL |
 | `IsAnaTani` | `MedulaTaniTipiId = 2` ile birebir örtüşüyor — bağımsız bilgi değil |
 
-**Kullanıcı kararı:** protokolde **tek** tanı varsa o tanı mantıksal
-zorunlulukla esas tanıdır → kod **1** gönderilir. Birden fazla tanı varsa alan
-hiç gönderilmez (`0..1`, boş bırakmak profili bozmaz).
+**Kullanıcı kararı (iki kollu):**
 
-Son 365 günde 137.998 protokolün **108.494'ü (%78)** tek tanılı — talebin büyük
-kısmı karşılanıyor, hiçbir tanı yanlış etiketlenmiyor.
+1. Protokolde **tek** tanı varsa o tanı mantıksal zorunlulukla esas tanıdır → kod **1**.
+2. Çok tanılı protokolde **kesin tanı** (`MedulaTaniTipiId = 2`) esas tanı sayılır → kod **1**.
+
+Çok tanılı 29.503 protokolde 2. kuralın ürettiği sonuç:
+
+| Kesin tanı sayısı | Protokol | Pay |
+|---|---:|---:|
+| Hiç yok (alan boş kalır) | 20.769 | %70 |
+| Tam 1 (temiz sonuç) | 5.366 | %18 |
+| Birden fazla | 3.368 | %11 |
+
+Son satır birden fazla "Əsas diaqnoz" üretiyor. Bu, `IsBirincilTani` hatasından
+farklı: orada bayrak neredeyse her tanıda 1'di (bilgi taşımıyordu), burada
+gerçekten iki tanının da kesinleştiği klinik bir durum var. Tüm protokollerin
+%2,4'ü; ölçülerek sunuldu ve kabul edildi.
+
+**Ön tanı satırlarına kod 2 (əlavə diaqnoz) yazılmıyor.** "Ön tanı" kesinlikle
+ilgili bir ifadedir, sırayla değil — bir ön tanı pekâlâ protokolün tek ve asıl
+şüphesi olabilir; ona "ek tanı" demek uydurma bir sıra iddiası olurdu.
+
+**Kapsam:** 137.998 protokolün **117.228'inde (%85)** en az bir tanı
+`diagnosis-type` taşıyor.
 
 ### 3c. `first-diagnosis`
 
