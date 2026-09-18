@@ -7,13 +7,13 @@ belirtildi.
 
 | # | Konu | Durum | Engel |
 |---|---|---|---|
-| 1 | Telefon formatı (`+994`) | **Hemen yapılabilir** | — |
+| 1 | Telefon formatı (`+994`) | ✅ **Yapıldı** (`ad093ef`) | — |
 | 2 | Bölüm eşleştirmeleri (`Digər`) | **Bakanlık bekleniyor** | Terminoloji listesi güncellenecek |
-| 3a | Tanı açıklaması Azerbaycanca | **Hemen yapılabilir** | — |
-| 3b | `diagnosis-type` | **Hemen yapılabilir** | — |
+| 3a | Tanı açıklaması Azerbaycanca | ✅ **Yapıldı** (`ba23eec`) | — |
+| 3b | `diagnosis-type` | ✅ **Yapıldı** (`ba23eec`) | — |
 | 3c | `first-diagnosis` | **Karar gerekiyor** | Pusula'da böyle bir alan yok |
-| 4 | `az-observation` (vital/not) | **Kaynak belirsiz** | Vital tablosu tamamen boş |
-| 5 | Laboratuvar `component` yapısı | **Hemen yapılabilir — öncelikli** | — |
+| 4 | `az-observation` (vital/not) | **Yapılamıyor — gerekçeli** | Vital tablosu boş; notlar zaten epikrizde |
+| 5 | Laboratuvar `component` yapısı | ✅ **Yapıldı** (`e9f1908`) | — |
 | 6 | ImagingStudy | **Engelli** | PACS'tan Study Instance UID alınamıyor |
 | 7 | LOINC `display` | **Kaynak gerekiyor** | IG standart LOINC adlarını yayınlamıyor |
 
@@ -154,9 +154,20 @@ Elimizde yapılandırılmış olmayan serbest metin var:
 Bunlar `az-observation` olarak **not** (valueString) şeklinde gönderilebilir, ama
 "ateş = 38.2 °C" gibi **kodlu ölçüm** üretilemez -- veri o biçimde tutulmuyor.
 
-**Yapılacak:** Vital bulguların gerçekte nereye girildiği hastane bilişim
-birimine sorulmalı (EMR form tabloları olabilir). Bulunana kadar bu madde
-serbest metin notlarıyla sınırlı kalır.
+**İkinci bulgu (2026-09-18):** Doktor notları için de yapacak bir şey yok --
+`Sikayeti`, `Bulgulari` ve `Hikayesi` **zaten gönderiliyor**: epikriz
+Composition'ının (`az-discharge-summary`) ayrı section'ları olarak
+(`CompositionMapper`, LOINC 10154-3 Şikayət / 8648-8 Tedavi-seyir vb.). Aynı
+metni bir de `az-observation` olarak göndermek, bakanlığın kayıtlarında
+**mükerrer** içerik oluştururdu.
+
+**Sonuç:** Bu madde şu an yapılamıyor ve yapılmamalı:
+- **Klinik ölçümler (ateş, tansiyon, SPO2):** Pusula'da yapılandırılmış olarak
+  hiç tutulmuyor -- ayrılmış tablo var ama 0 kayıt. Hastane bilişim biriminden
+  bu verinin gerçekte nereye girildiği öğrenilmeli.
+- **Doktor notları:** zaten epikriz içinde gidiyor, tekrarı mükerrer olur.
+
+Bakanlığa bu iki gerekçe iletilmeli.
 
 ---
 
@@ -230,13 +241,19 @@ bu **yanlış** -- LOINC olmayan bir kodu LOINC sistemiyle etiketliyoruz.
 
 ---
 
-## Önerilen sıra
+## Durum (2026-09-18)
 
-1. **#5 laboratuvar component yapısı** -- bakanlığın önceliği, engeli yok, yan
-   faydası var (atlanan panel satırları kurtulur)
-2. **#3a + #3b** -- tanı açıklaması ve `diagnosis-type`, ikisi de küçük ve hazır
-3. **#1 telefon** -- küçük, ölçülmüş
-4. **#7 kısmi** -- `code.text` + LOINC olmayan kodların doğru sisteme taşınması
-5. Bakanlığa sorulacaklar: `first-diagnosis` beklentisi, 999'daki 12 bölüm,
-   LOINC display kaynağı
-6. Engelliler: #2 (liste güncellemesi), #4 (vital kaynağı), #6 (PACS)
+**Kodda yapılabilecek her şey bitti.** Kalan maddelerin tamamı dışarıdan bilgi
+bekliyor:
+
+| Beklenen | Kimden |
+|---|---|
+| `first-diagnosis` beklentisi (#3c) | Bakanlık |
+| Güncellenmiş bölüm listesi (#2) | Bakanlık |
+| Standart LOINC açıklama kaynağı (#7) | Bakanlık ya da LOINC sürümü |
+| Vital bulguların gerçek kaynağı (#4) | Hastane bilişim birimi |
+| PACS DICOM sorgu ucu (#6) | PACS ekibi |
+
+Gönderilen örneklerin yeni yapıyla tazelenmesi için sunucu güncellenmeli;
+laboratuvar tarafında eski tekil Observation'lar silinip yeniden gönderilmeli
+(sandbox olduğu için risk yok, doğrulandı).
