@@ -349,7 +349,7 @@ public class EncounterSyncService(
         var conditionIds = new List<string>();
         foreach (var tani in tanilar)
         {
-            var conditionResult = await conditionSyncService.SyncOneAsync(tani, protokol, azPatientId, azEncounterId, liveMode: true, ct);
+            var conditionResult = await conditionSyncService.SyncOneAsync(tani, protokol, azPatientId, azEncounterId, tanilar.Count, liveMode: true, ct);
             if (conditionResult.AzResourceId is not null)
                 conditionIds.Add(conditionResult.AzResourceId);
         }

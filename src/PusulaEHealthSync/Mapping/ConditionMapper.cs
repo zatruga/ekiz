@@ -21,20 +21,27 @@ public static class ConditionMapper
     private const string DiagnosisTypeExtensionUrl = "http://fhir.az/StructureDefinition/diagnosis-type";
     private const string DiagnosisTypeSystem = "http://fhir.az/CodeSystem/diagnosis-type";
 
-    public static MappingResult Map(IcdTaniRecord tani, ProtokolListItem p, string azPatientId, string azEncounterId)
+    public static MappingResult Map(
+        IcdTaniRecord tani, ProtokolListItem p, string azPatientId, string azEncounterId, int protokoldekiTaniSayisi)
     {
+        // KULLANICI DUZELTMESI (2026-09-18): "pusulada tanilar birinci ikinci degilde
+        // on tani kesin tani seklindedir". Dogrulandi -- kaynak Pusula'nin KENDI
+        // stored procedure'u Tedavi.usp_GetEpikrizTani:
+        //     CASE MedulaTaniTipiId WHEN 1 THEN 'On Tani' WHEN 2 THEN 'Kesin Tani'
+        //                           WHEN 3 THEN 'Ayirici Tani' END
+        // Bu bir KESINLIK ekseni; HL7'nin condition-ver-status ValueSet'i ile birebir
+        // ortusuyor (az-condition'da verificationStatus 0..1, required binding).
+        //
+        // ONCEDEN HER TANIDA SABIT "confirmed" GIDIYORDU -- son 365 gunde 137.998
+        // protokolun 98.188'inde (%71) en az bir ON TANI vardi; hepsi bakanliga
+        // "kesinlesmis" olarak bildirilmisti. Bu duzeltmenin asil sebebi bu.
+        var dogrulamaDurumu = VerificationStatus(tani.TaniTipiKodu);
+
         var condition = new JsonObject
         {
             ["resourceType"] = "Condition",
             ["id"] = $"condition-{p.ProtokolId}-{tani.ICDId}",
             ["meta"] = new JsonObject { ["profile"] = new JsonArray { "http://fhir.az/StructureDefinition/az-condition" } },
-            ["verificationStatus"] = new JsonObject
-            {
-                ["coding"] = new JsonArray
-                {
-                    new JsonObject { ["system"] = VerificationStatusSystem, ["code"] = "confirmed", ["display"] = "Confirmed" },
-                },
-            },
             ["category"] = new JsonArray
             {
                 new JsonObject
@@ -76,36 +83,72 @@ public static class ConditionMapper
                     ["url"] = "http://fhir.az/StructureDefinition/local-system-unique-id",
                     ["valueString"] = $"{p.ProtokolId}-{tani.ICDId}",
                 },
-                // BAKANLIK ISTEGI (2026-09-16): "Tanı türü önemli bir bilgi; kaynak
-                // sistemde tutuluyorsa gönderilmesini rica ederim."
-                //
-                // Pusula'da karsiligi Tedavi.ProtokolICD.IsBirincilTani (611.518 taninin
-                // 526.578'inde isaretli, olculdu). Kod listesi (az-icd CodeSystem
-                // diagnosis-type): 1 = Əsas diaqnoz, 2 = əlavə diaqnoz,
-                // 3 = Yanaşı xəstəliklər.
-                //
-                // KOD 3 BILEREK GONDERILMIYOR: Pusula'da komorbiditeyi isaretleyen ayri
-                // bir alan yok. IsAnaTani var ama anlami dogrulanmadi (100.168 evet,
-                // 84.168 NULL) -- dogrulamadan "yanasi xestelik" demek taniyi YANLIS
-                // etiketlemek olurdu.
-                new JsonObject
-                {
-                    ["url"] = DiagnosisTypeExtensionUrl,
-                    ["valueCodeableConcept"] = new JsonObject
-                    {
-                        ["coding"] = new JsonArray
-                        {
-                            tani.IsBirincilTani
-                                ? new JsonObject { ["system"] = DiagnosisTypeSystem, ["code"] = "1", ["display"] = "Əsas diaqnoz" }
-                                : new JsonObject { ["system"] = DiagnosisTypeSystem, ["code"] = "2", ["display"] = "əlavə diaqnoz" },
-                        },
-                    },
-                },
             },
         };
 
+        // BAKANLIK ISTEGI (2026-09-16): "Tanı türü önemli bir bilgi; kaynak sistemde
+        // tutuluyorsa gönderilmesini rica ederim." Kod listesi (diagnosis-type):
+        // 1 = Əsas diaqnoz, 2 = əlavə diaqnoz, 3 = Yanaşı xəstəliklər -- bu bir SIRA
+        // eksenidir (hangisi ana tani), kesinlik ekseni DEGIL (o verificationStatus).
+        //
+        // PUSULA'DA BU EKSENIN KAYNAGI YOK. Olculdu (son 365 gun, 186.038 kayit):
+        //   IsBirincilTani : protokol basina TEK DEGIL -- 2 tanili 17.351 protokolde
+        //                    IKISINDE de 1, 4 tanili 2.367 protokolde DORDUNDE de 1.
+        //                    Bununla "esas tani" demek 4 tane esas tani gondermek olurdu.
+        //   IsEkTani       : %100 NULL
+        //   SiraNo         : %100 NULL
+        //   IsAnaTani      : MedulaTaniTipiId=2 ile birebir ortusuyor -- bagimsiz bilgi
+        //                    degil, o da kesinlik ekseni.
+        //
+        // KULLANICI KARARI (2026-09-18): protokolde TEK tani varsa o tani mantiksal
+        // zorunlulukla esas tanidir -- orada kod 1 gonderilir. Birden fazla taninin
+        // oldugu protokolde hangisinin esas oldugu bilinmiyor, alan HIC gonderilmez
+        // (0..1, bos birakmak profili bozmaz). Son 365 gunde 137.998 protokolun
+        // 108.494'u (%78) tek tanili -- yani talebin buyuk kismi karsilaniyor.
+        //
+        // NOT: sayim GONDERILEBILIR tanilari kapsar; ICD kodu bos olan satirlar
+        // GetTanilarByProtokolIdAsync'te zaten eleniyor (nadir).
+        if (protokoldekiTaniSayisi == 1)
+        {
+            condition["extension"]!.AsArray().Add(new JsonObject
+            {
+                ["url"] = DiagnosisTypeExtensionUrl,
+                ["valueCodeableConcept"] = new JsonObject
+                {
+                    ["coding"] = new JsonArray
+                    {
+                        new JsonObject { ["system"] = DiagnosisTypeSystem, ["code"] = "1", ["display"] = "Əsas diaqnoz" },
+                    },
+                },
+            });
+        }
+
+        // Kaynakta tani tipi yoksa (son 365 gunde 1.327 kayit) alan HIC gonderilmiyor.
+        // verificationStatus 0..1 oldugu icin bos birakmak profili bozmaz; uydurma bir
+        // kesinlik iddia etmektense hic iddia etmemek dogru.
+        if (dogrulamaDurumu is not null)
+            condition["verificationStatus"] = dogrulamaDurumu;
+
         return new MappingResult.Success(condition);
     }
+
+    // MedulaTaniTipiId -> HL7 condition-ver-status. Pusula'nin uc degeri de standart
+    // ValueSet'te birebir karsilik buluyor, esleme zorlanmadan oturuyor.
+    private static JsonObject? VerificationStatus(string? taniTipiKodu) => taniTipiKodu switch
+    {
+        "1" => Kodlama("provisional", "Provisional"),
+        "2" => Kodlama("confirmed", "Confirmed"),
+        "3" => Kodlama("differential", "Differential"),
+        _ => null,
+    };
+
+    private static JsonObject Kodlama(string kod, string ad) => new()
+    {
+        ["coding"] = new JsonArray
+        {
+            new JsonObject { ["system"] = VerificationStatusSystem, ["code"] = kod, ["display"] = ad },
+        },
+    };
 
     // EncounterMapper/CompositionMapper ile ayni kural (Baki, +04:00, DST yok).
     private static string ToAzInstant(DateTime dt) => AzTime.ToAzInstant(dt);

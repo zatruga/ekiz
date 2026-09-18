@@ -10,8 +10,9 @@ belirtildi.
 | 1 | Telefon formatı (`+994`) | ✅ **Yapıldı** (`ad093ef`) | — |
 | 2 | Bölüm eşleştirmeleri (`Digər`) | **Bakanlık bekleniyor** | Terminoloji listesi güncellenecek |
 | 3a | Tanı açıklaması Azerbaycanca | ✅ **Yapıldı** (`ba23eec`) | — |
-| 3b | `diagnosis-type` | ✅ **Yapıldı** (`ba23eec`) | — |
+| 3b | `diagnosis-type` | ⚠️ **Kısmi** — tek tanılı protokollerde | Çok tanılıda kaynak yok |
 | 3c | `first-diagnosis` | **Karar gerekiyor** | Pusula'da böyle bir alan yok |
+| 3d | `verificationStatus` (ön/kesin tanı) | ✅ **Yapıldı** | — |
 | 4 | `az-observation` (vital/not) | **Yapılamıyor — gerekçeli** | Vital tablosu boş; notlar zaten epikrizde |
 | 5 | Laboratuvar `component` yapısı | ✅ **Yapıldı** (`e9f1908`) | — |
 | 6 | ImagingStudy | **Engelli** | PACS'tan Study Instance UID alınamıyor |
@@ -91,10 +92,10 @@ kayıt reddediliyor (bkz. ICD-10 boşluğu maddesi).
 
 Bu, açıklamayı **bakanlığın kendi terminolojisiyle birebir** aynı yapar.
 
-### 3b. `diagnosis-type`
+### 3b. `diagnosis-type` — kısmi
 
 Profilde `Condition.extension:diagnosis-type` **0..1**, `required` binding ile
-`http://fhir.az/CodeSystem/diagnosis-type`'a bağlı. Kod listesi:
+`http://fhir.az/CodeSystem/diagnosis-type`'a bağlı:
 
 | Kod | Anlam |
 |---|---|
@@ -102,22 +103,43 @@ Profilde `Condition.extension:diagnosis-type` **0..1**, `required` binding ile
 | 2 | əlavə diaqnoz |
 | 3 | Yanaşı xəstəliklər |
 
-**Pusula'da karşılığı var:** `Tedavi.ProtokolICD.IsBirincilTani` -- 611.518
-tanının 526.578'i (%86) işaretli. `IsBirincilTani = 1` → kod **1**, değilse
-kod **2**.
+Bu bir **sıra** eksenidir: hangisi ana tanı, hangisi ek.
 
-Kod **3** (yanaşı xəstəlik / komorbidite) için Pusula'da ayrı bir işaret yok;
-`IsAnaTani` alanı var ama anlamı doğrulanmadı (100.168 evet, 84.168 NULL).
-**Kod 3 gönderilmeyecek** -- anlamını doğrulamadan komorbidite demek, tanı
-bilgisini yanlış etiketlemek olur.
+**İlk eşleştirmemiz yanlıştı ve düzeltildi (2026-09-18).** `IsBirincilTani = 1` →
+kod 1 demiştik. Ölçtük, bu bayrak protokol başına **tek değil**:
+
+| Protokoldeki tanı | `IsBirincilTani = 1` olan | Protokol |
+|---|---|---:|
+| 2 tanı | 2'sinde birden | 17.351 |
+| 3 tanı | 3'ünde birden | 4.765 |
+| 4 tanı | 4'ünde birden | 2.367 |
+
+Yani 4 tanılı bir protokolde **4 tane "əsas diaqnoz"** gönderiyorduk — tanım
+gereği imkânsız.
+
+**Pusula'da bu eksenin kaynağı yok** (son 365 gün, 186.038 kayıt):
+
+| Alan | Durum |
+|---|---|
+| `IsBirincilTani` | protokol başına tek değil (yukarıdaki tablo) |
+| `IsEkTani` | %100 NULL |
+| `SiraNo` | %100 NULL |
+| `IsAnaTani` | `MedulaTaniTipiId = 2` ile birebir örtüşüyor — bağımsız bilgi değil |
+
+**Kullanıcı kararı:** protokolde **tek** tanı varsa o tanı mantıksal
+zorunlulukla esas tanıdır → kod **1** gönderilir. Birden fazla tanı varsa alan
+hiç gönderilmez (`0..1`, boş bırakmak profili bozmaz).
+
+Son 365 günde 137.998 protokolün **108.494'ü (%78)** tek tanılı — talebin büyük
+kısmı karşılanıyor, hiçbir tanı yanlış etiketlenmiyor.
 
 ### 3c. `first-diagnosis`
 
 Profilde `0..1`, **boolean**, binding yok. Anlamı: "bu tanı hastaya **ilk kez**
 mi konuldu".
 
-**Pusula'da böyle bir alan YOK.** `IsBirincilTani` bu değil -- o "birincil/esas
-tanı" demek, "ilk kez konulan tanı" değil. İkisi farklı kavram.
+**Pusula'da böyle bir alan YOK.** `IlkTaniTarihi` adında bir kolon var ama son
+365 günde 186.038 kaydın yalnızca **99'unda** dolu — kullanılmıyor.
 
 Hesaplayabiliriz: aynı hastanın geçmişinde aynı ICD kodu daha önce geçmiş mi
 diye bakılır. Ama bu bir **çıkarım**, kayıtlı bir olgu değil -- hasta başka bir
@@ -127,6 +149,47 @@ dışında kalır. Yanlış `false` göndermek, doğru bilgi göndermemekten kö
 **Öneri:** Bakanlığa sorulsun -- "ilk tanı" bilgisini yalnızca kendi
 sistemimizdeki geçmişe göre hesaplamamız kabul edilebilir mi, yoksa alan boş mu
 bırakılsın? Alan `0..1` olduğu için boş bırakmak profili bozmuyor.
+
+### 3d. Ön tanı / kesin tanı — `verificationStatus`
+
+**Kullanıcı düzeltmesi (2026-09-18):** "pusulada tanılar birinci ikinci değilde
+ön tanı kesin tanı şeklindedir."
+
+Doğrulandı — kaynak Pusula'nın **kendi** stored procedure'ü
+`Tedavi.usp_GetEpikrizTani`:
+
+```sql
+CASE MedulaTaniTipiId WHEN 1 THEN 'Ön Tanı '
+                      WHEN 2 THEN 'Kesin Tanı '
+                      WHEN 3 THEN 'Ayırıcı Tani ' END
+-- İngilizce sürümü: Pre-Diagnosis / Definitive Diagnosis / Differential Diagnosis
+```
+
+Bu bir **kesinlik** eksenidir ve HL7'nin `condition-ver-status` ValueSet'iyle
+birebir örtüşür. `az-condition`'da `verificationStatus` **0..1**, o standart
+ValueSet'e `required` bağlı — yani engel yoktu, sadece farkında değildik.
+
+**Eski davranış hatalıydı:** `verificationStatus` her tanıda sabit `confirmed`
+gönderiliyordu. Oysa son 365 günde:
+
+| | Protokol |
+|---|---:|
+| Yalnızca ön tanı | **92.614** |
+| Yalnızca kesin tanı | 39.169 |
+| İkisi karışık | 5.574 |
+| Ayırıcı tanı içeren | 73 |
+
+Yani **98.188 protokolde (%71)** en az bir ön tanı, bakanlığa "kesinleşmiş"
+olarak bildirilmişti.
+
+**Yeni eşleştirme:**
+
+| `MedulaTaniTipiId` | Pusula | FHIR `verificationStatus` |
+|---|---|---|
+| 1 | Ön Tanı | `provisional` |
+| 2 | Kesin Tanı | `confirmed` |
+| 3 | Ayırıcı Tanı | `differential` |
+| NULL (1.327 kayıt) | — | alan hiç gönderilmez |
 
 ---
 

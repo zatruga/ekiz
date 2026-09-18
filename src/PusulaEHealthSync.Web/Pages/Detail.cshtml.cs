@@ -138,7 +138,7 @@ public class DetailModel(
                     var tanilar = await pusulaRepository.GetTanilarByProtokolIdAsync(protokol.ProtokolId);
                     var tani = tanilar.FirstOrDefault(t => t.Id == existing.PusulaId);
                     if (tani is null) return await NotSupportedPage(existing, "Kaynak Pusula kaydı artık bulunamıyor.");
-                    var result = await conditionSyncService.SyncOneAsync(tani, protokol, azPatientId, azEncounterId, liveMode: true);
+                    var result = await conditionSyncService.SyncOneAsync(tani, protokol, azPatientId, azEncounterId, tanilar.Count, liveMode: true);
                     return RedirectToPage("/Detail", new { id = result.Id, fromProtokol = FromProtokol });
                 }
             case "Procedure":

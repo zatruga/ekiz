@@ -14,4 +14,13 @@ public class IcdTaniRecord
     public string? Adi { get; set; }
     public bool IsBirincilTani { get; set; }
     public bool? IsAnaTani { get; set; }
+
+    // Tedavi.ProtokolICD.MedulaTaniTipiId -- KAYNAK PUSULA'NIN KENDI KODU
+    // (Tedavi.usp_GetEpikrizTani stored procedure'u, 2026-09-18):
+    //   1 = On Tani   (Pre-Diagnosis)
+    //   2 = Kesin Tani (Definitive Diagnosis)
+    //   3 = Ayirici Tani (Differential Diagnosis)
+    // Son 365 gunde 186.038 kaydin 184.711'inde (%99,3) dolu. nvarchar olarak
+    // tutuluyor, o yuzden string okunuyor.
+    public string? TaniTipiKodu { get; set; }
 }

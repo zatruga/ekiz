@@ -410,7 +410,7 @@ public class ProtokolModel(
             var tanilar = await pusulaRepository.GetTanilarByProtokolIdAsync(Protokol.ProtokolId, ct);
             var tani = tanilar.FirstOrDefault(t => t.Id == taniId);
             if (tani is not null)
-                await conditionSyncService.SyncOneAsync(tani, Protokol, azPatientId, azEncounterId, liveMode: true, ct);
+                await conditionSyncService.SyncOneAsync(tani, Protokol, azPatientId, azEncounterId, tanilar.Count, liveMode: true, ct);
         }
         return RedirectToPage("/Protokol", new { id });
     }
@@ -479,7 +479,7 @@ public class ProtokolModel(
             foreach (var tani in tanilar)
             {
                 if (BasariylaGonderildi(taniStatuses.GetValueOrDefault(tani.Id))) continue;
-                await conditionSyncService.SyncOneAsync(tani, Protokol, azPatientId, azEncounterId, liveMode: true, ct);
+                await conditionSyncService.SyncOneAsync(tani, Protokol, azPatientId, azEncounterId, tanilar.Count, liveMode: true, ct);
             }
         }
         return RedirectToPage("/Protokol", new { id });

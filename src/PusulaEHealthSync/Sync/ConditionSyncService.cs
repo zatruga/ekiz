@@ -14,9 +14,10 @@ namespace PusulaEHealthSync.Sync;
 public class ConditionSyncService(EHealthClient eHealthClient, SyncLogStore syncLog, ILogger<ConditionSyncService> logger)
 {
     public async Task<SyncLogEntry> SyncOneAsync(
-        IcdTaniRecord tani, ProtokolListItem protokol, string azPatientId, string azEncounterId, bool liveMode, CancellationToken ct = default)
+        IcdTaniRecord tani, ProtokolListItem protokol, string azPatientId, string azEncounterId,
+        int protokoldekiTaniSayisi, bool liveMode, CancellationToken ct = default)
     {
-        var mapping = ConditionMapper.Map(tani, protokol, azPatientId, azEncounterId);
+        var mapping = ConditionMapper.Map(tani, protokol, azPatientId, azEncounterId, protokoldekiTaniSayisi);
         var success = (MappingResult.Success)mapping; // ConditionMapper.Map hicbir zaman Skipped donmez
         var condition = success.Resource;
         var requestJson = condition.ToJsonString(JsonDefaults.Options);

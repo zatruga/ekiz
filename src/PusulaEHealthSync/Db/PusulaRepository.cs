@@ -479,7 +479,8 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
     public async Task<List<IcdTaniRecord>> GetTanilarByProtokolIdAsync(int protokolId, CancellationToken ct = default)
     {
         const string sql = @"
-            SELECT pi.Id, pi.ProtokolId, pi.ICDId, ic.Kodu, ic.Adi, pi.IsBirincilTani, pi.IsAnaTani
+            SELECT pi.Id, pi.ProtokolId, pi.ICDId, ic.Kodu, ic.Adi, pi.IsBirincilTani, pi.IsAnaTani,
+                   pi.MedulaTaniTipiId
             FROM Tedavi.ProtokolICD pi
             JOIN Sube.Tedavi_ICD ic ON ic.Id = pi.ICDId
             WHERE pi.ProtokolId = @ProtokolId AND pi.State <> 0 AND ic.Kodu IS NOT NULL AND LEN(ic.Kodu) > 0
@@ -503,6 +504,7 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
                 Adi = reader.IsDBNull(4) ? null : reader.GetString(4),
                 IsBirincilTani = !reader.IsDBNull(5) && reader.GetBoolean(5),
                 IsAnaTani = reader.IsDBNull(6) ? null : reader.GetBoolean(6),
+                TaniTipiKodu = reader.IsDBNull(7) ? null : reader.GetString(7).Trim(),
             });
         }
         return result;
