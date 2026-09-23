@@ -1,0 +1,143 @@
+@page
+@model PusulaEHealthSync.Web.Pages.LabLoincEslestirmeModel
+@using PusulaEHealthSync.Persistence
+@{
+    ViewData["Title"] = "Lab LOINC Eşleştirme";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Lab LOINC Eşleştirme</h1>
+        <p class="page-subtitle">
+            LOINC karşılığı olmayan test kodları burada eşleştirilir. Pusula salt okunur olduğu için
+            eşleştirme bu uygulamada tutulur, gönderim anında uygulanır.
+        </p>
+    </div>
+</div>
+
+@if (Model.Saved)
+{
+    <div class="alert alert-success">Kaydedildi.</div>
+}
+
+<div class="card card-pad" style="margin-bottom:20px; display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+    <a asp-page="/LabLoincEslestirme" asp-route-Durum="Tumu" class="stat-link @(Model.Durum == "Tumu" ? "active" : "")">
+        <span class="stat-value" style="font-size:24px;">@Model.ToplamSayi</span>
+        <span class="text-muted" style="font-size:13px; display:block;">tümü</span>
+    </a>
+    <a asp-page="/LabLoincEslestirme" asp-route-Durum="Oneri" class="stat-link @(Model.Durum == "Oneri" ? "active" : "")">
+        <span class="stat-value" style="font-size:24px; color:var(--warning);">@Model.OneriSayi</span>
+        <span class="text-muted" style="font-size:13px; display:block;">öneri (lab onayı bekliyor)</span>
+    </a>
+    <a asp-page="/LabLoincEslestirme" asp-route-Durum="Laboratuvar" class="stat-link @(Model.Durum == "Laboratuvar" ? "active" : "")">
+        <span class="stat-value" style="font-size:24px; color:var(--success);">@Model.LabSayi</span>
+        <span class="text-muted" style="font-size:13px; display:block;">laboratuvar onaylı</span>
+    </a>
+
+    <form method="get" style="margin-left:auto; display:flex; gap:8px; align-items:center;">
+        <input type="hidden" name="Durum" value="@Model.Durum" />
+        <input type="text" name="Ara" value="@Model.Ara" placeholder="kod veya test adı ara"
+               class="form-control" style="width:240px;" />
+        <button type="submit" class="btn btn-outline btn-sm">Ara</button>
+    </form>
+</div>
+
+<div class="card card-pad" style="margin-bottom:20px;">
+    <form method="post" asp-page-handler="Ekle" style="display:flex; gap:8px; align-items:flex-end; flex-wrap:wrap;">
+        <input type="hidden" name="Durum" value="@Model.Durum" />
+        <div>
+            <label class="text-muted" style="font-size:12px; display:block;">Pusula test kodu</label>
+            <input type="text" name="yeniPusulaKodu" class="form-control" style="width:180px;" required />
+        </div>
+        <div>
+            <label class="text-muted" style="font-size:12px; display:block;">LOINC kodu</label>
+            <input type="text" name="yeniLoincKodu" class="form-control" style="width:140px;" placeholder="2744-1" />
+        </div>
+        <div>
+            <label class="text-muted" style="font-size:12px; display:block;">Test adı (isteğe bağlı)</label>
+            <input type="text" name="yeniTestAdi" class="form-control" style="width:280px;" />
+        </div>
+        <button type="submit" class="btn btn-primary btn-sm">Ekle</button>
+    </form>
+</div>
+
+<div class="card">
+    <div style="overflow-x:auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="width:150px;">Pusula Kodu</th>
+                    <th style="width:250px;">Test Adı</th>
+                    <th>LOINC Resmî Adı</th>
+                    <th style="width:130px;">Kaynak</th>
+                    <th style="width:330px;">LOINC kodu</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Satirlar.Count == 0)
+            {
+                <tr><td colspan="5" class="text-muted" style="padding:20px;">Kayıt bulunamadı.</td></tr>
+            }
+            @foreach (var s in Model.Satirlar)
+            {
+                var resmi = PusulaEHealthSync.Web.Pages.LabLoincEslestirmeModel.LoincAdi(s.LoincKodu);
+                var lab = s.Kaynak == LabTestLoincStore.KaynakLaboratuvar;
+                <tr>
+                    <td><code>@s.PusulaKodu</code></td>
+                    <td>@s.TestAdi</td>
+                    <td class="text-muted" style="font-size:13px;">
+                        @if (resmi is not null)
+                        {
+                            @resmi
+                        }
+                        else if (!string.IsNullOrWhiteSpace(s.LoincKodu))
+                        {
+                            <span style="color:var(--warning);">Gömülü LOINC listesinde yok -- kodu kontrol edin.</span>
+                        }
+                    </td>
+                    <td>
+                        @if (lab)
+                        {
+                            <span class="badge badge-success"><span class="badge-dot"></span>laboratuvar</span>
+                        }
+                        else
+                        {
+                            <span class="badge badge-warning"><span class="badge-dot"></span>öneri</span>
+                        }
+                    </td>
+                    <td>
+                        <div style="display:flex; gap:6px; align-items:center;">
+                            <form method="post" asp-page-handler="Kaydet" style="display:flex; gap:6px;">
+                                <input type="hidden" name="Durum" value="@Model.Durum" />
+                                <input type="hidden" name="Ara" value="@Model.Ara" />
+                                <input type="hidden" name="pusulaKodu" value="@s.PusulaKodu" />
+                                <input type="hidden" name="testAdi" value="@s.TestAdi" />
+                                <input type="text" name="loincKodu" value="@s.LoincKodu"
+                                       class="form-control" style="width:120px;" />
+                                <button type="submit" class="btn btn-primary btn-sm">Kaydet</button>
+                            </form>
+                            <form method="post" asp-page-handler="Sil">
+                                <input type="hidden" name="Durum" value="@Model.Durum" />
+                                <input type="hidden" name="Ara" value="@Model.Ara" />
+                                <input type="hidden" name="pusulaKodu" value="@s.PusulaKodu" />
+                                <button type="submit" class="btn btn-outline btn-sm"
+                                        style="border-color:var(--danger); color:var(--danger);"
+                                        onclick="return confirm('Bu eşleştirme silinecek. Emin misiniz?')">Sil</button>
+                            </form>
+                        </div>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-top:20px;">
+    <p class="text-muted" style="font-size:13px; margin:0;">
+        <strong>öneri</strong> = kod tarafımızdan önerildi ve HL7 terminoloji sunucusunda (LOINC 2.82) doğrulandı;
+        eşleştirmenin kendisi laboratuvar onayı bekliyor.
+        <strong>laboratuvar</strong> = bu sayfadan düzenlendi, onaylanmış sayılır.
+        Bu tablo Pusula'ya <em>yazmaz</em>; yalnızca e-Sağlık gönderiminde uygulanır.
+    </p>
+</div>

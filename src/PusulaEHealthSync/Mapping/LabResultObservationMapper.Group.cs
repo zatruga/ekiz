@@ -35,7 +35,8 @@ public static partial class LabResultObservationMapper
     private const string YerelLabCodeSystem = "http://pusula.local/CodeSystem/lab-test";
 
     public static MappingResult MapGroup(
-        LabGroupBuilder.LabGrup grup, string azPatientId, string? azEncounterId)
+        LabGroupBuilder.LabGrup grup, string azPatientId, string? azEncounterId,
+        IReadOnlyDictionary<string, string>? loincEslestirme = null)
     {
         var anahtar = grup.AnahtarSatir;
 
@@ -79,7 +80,7 @@ public static partial class LabResultObservationMapper
                     },
                 },
             },
-            ["code"] = Kodlama(kod!, gosterimAdi),
+            ["code"] = Kodlama(kod!, gosterimAdi, loincEslestirme),
             ["subject"] = new JsonObject { ["reference"] = $"Patient/{azPatientId}" },
             ["effectiveDateTime"] = AzTime.ToAzInstant(
                 anahtar.TetkikSonucOnayTarihi ?? anahtar.TetkikSonucTarihi ?? DateTime.Now),
@@ -116,7 +117,7 @@ public static partial class LabResultObservationMapper
             {
                 if (Bos(alt.TetkikSonucu) || Bos(alt.LoincKodu)) continue;
 
-                var c = new JsonObject { ["code"] = Kodlama(alt.LoincKodu!, alt.TetkikAdi ?? alt.LoincKodu!) };
+                var c = new JsonObject { ["code"] = Kodlama(alt.LoincKodu!, alt.TetkikAdi ?? alt.LoincKodu!, loincEslestirme) };
                 Deger(c, alt);
                 if (!Bos(alt.TetkikSonucuReferansDegeri))
                     c["referenceRange"] = new JsonArray { new JsonObject { ["text"] = alt.TetkikSonucuReferansDegeri } };
@@ -163,10 +164,18 @@ public static partial class LabResultObservationMapper
     //   - digerleri                -> az-other-lab-test-codes "other" + yerel kod
     // Olculdu (son 365 gun, 1.555.441 lab istemi): %49,1 dogrudan gecerli LOINC,
     // %7,3 taban koda inerek kurtariliyor, kalani "other" ile gidiyor.
-    private static JsonObject Kodlama(string kod, string lokalAd)
+    private static JsonObject Kodlama(
+        string kod, string lokalAd, IReadOnlyDictionary<string, string>? eslestirme = null)
     {
         var ham = kod.Trim();
-        var loinc = Loinc.Coz(ham);
+
+        // ONCE ELLE ESLESTIRME (LabTestLoincStore). Pusula salt okunur oldugu icin
+        // LIS.Test.LoincKodu'na yazamiyoruz; LOINC karsiligi olmayan testlerin kodu
+        // bizim kendi tablomuzda tutuluyor ve gonderim aninda burada uygulaniyor.
+        // Bolum eslestirmesiyle ayni kalip.
+        var loinc = eslestirme is not null && eslestirme.TryGetValue(ham, out var elle)
+            ? elle
+            : Loinc.Coz(ham);
 
         if (loinc is not null)
         {

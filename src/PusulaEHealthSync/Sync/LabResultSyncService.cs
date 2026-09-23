@@ -9,7 +9,9 @@ namespace PusulaEHealthSync.Sync;
 // ProcedureSyncService ile ayni kalip. Procedure'in aksine Observation.encounter ZORUNLU
 // DEGIL (bkz. LabResultObservationMapper) -- Muayine henuz gonderilmemis olsa bile lab
 // sonucu gonderilebilir, sadece Hasta'nin (Patient) e-Health'te var olmasi yeterli.
-public class LabResultSyncService(EHealthClient eHealthClient, SyncLogStore syncLog, ILogger<LabResultSyncService> logger)
+public class LabResultSyncService(
+    EHealthClient eHealthClient, SyncLogStore syncLog, LabTestLoincStore labTestLoincStore,
+    ILogger<LabResultSyncService> logger)
 {
     // BAKANLIK ISTEGI (2026-09-16): gonderim birimi artik TEK SATIR degil, GRUP --
     // alt parametreli bir panel tek Observation olarak, alt parametreleri component[]
@@ -20,7 +22,8 @@ public class LabResultSyncService(EHealthClient eHealthClient, SyncLogStore sync
         LabGroupBuilder.LabGrup grup, ProtokolListItem protokol, string azPatientId, string? azEncounterId, bool liveMode, CancellationToken ct = default)
     {
         var lab = grup.AnahtarSatir;
-        var mapping = LabResultObservationMapper.MapGroup(grup, azPatientId, azEncounterId);
+        var loincEslestirme = await labTestLoincStore.GetMapAsync(ct);
+        var mapping = LabResultObservationMapper.MapGroup(grup, azPatientId, azEncounterId, loincEslestirme);
         if (mapping is MappingResult.Skipped skip)
         {
             var skipEntry = NewEntry(lab, protokol, SyncStatus.Skipped);

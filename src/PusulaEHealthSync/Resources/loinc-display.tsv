@@ -9,6 +9,7 @@
 10501-5	Lutropin [Units/volume] in Serum or Plasma
 10525-4	Microscopic observation [Identifier] in Specimen by Cyto stain
 10704-5	Ova and parasites identified in Stool by Light microscopy
+108019-1	Treponema pallidum Ab [Measurement] in Serum
 10835-7	Lipoprotein a [Mass/volume] in Serum or Plasma
 10839-9	Troponin I.cardiac [Mass/volume] in Serum or Plasma
 10842-3	Deprecated HLA-DQ1 [Presence]
@@ -24,6 +25,7 @@
 11060-1	Reducing substances [Presence] in Stool
 11140-1	Metanephrine [Moles/time] in 24 hour Urine
 11253-2	Tacrolimus [Mass/volume] in Blood
+11259-9	Hepatitis C virus RNA [Presence] in Serum or Plasma by NAA with probe detection
 11545-1	Microscopic observation [Identifier] in Specimen by Acid fast stain
 11559-2	Fractional oxyhemoglobin in Blood
 11566-7	Liver kidney microsomal Ab [Units/volume] in Serum
@@ -127,6 +129,7 @@
 1779-8	Alkaline phosphatase.liver [Enzymatic activity/volume] in Serum or Plasma
 17838-4	Alkaline phosphatase.bone [Mass/volume] in Serum or Plasma
 17859-0	Helicobacter pylori IgG Ab [Presence] in Serum or Plasma by Immunoassay
+17862-4	Calcium [Mass/volume] in Urine
 17864-0	Calcium.ionized [Mass/volume] in Serum or Plasma by Ion-selective membrane electrode (ISE)
 17928-3	Bacteria identified in Blood by Aerobe culture
 17934-1	Bacteria identified in Blood by Anaerobe culture
@@ -261,6 +264,7 @@
 2308-5	Galactose [Mass/volume] in Serum or Plasma
 2324-2	Gamma glutamyl transferase [Enzymatic activity/volume] in Serum or Plasma
 2333-3	Gastrin [Mass/volume] in Serum or Plasma
+2335-8	Hemoglobin [Presence] in Stool from gastrointestinal
 2339-0	Glucose [Mass/volume] in Blood
 2342-4	Glucose [Mass/volume] in Cerebral spinal fluid
 2345-7	Glucose [Mass/volume] in Serum or Plasma
@@ -349,6 +353,7 @@
 2777-1	Phosphate [Mass/volume] in Serum or Plasma
 2778-9	Phosphate [Mass/volume] in Urine
 27810-1	Plasmin inhibitor actual/normal in Platelet poor plasma by Chromogenic method
+27819-2	Protein C actual/normal in Platelet poor plasma by Coagulation assay
 27830-9	Insulin [Units/volume] in Serum or Plasma --1 hour post 75 g glucose PO
 27834-1	Insulin [Units/volume] in Serum or Plasma --1.5 hours post 75 g glucose PO
 27860-6	Insulin [Units/volume] in Serum or Plasma --2 hours post 75 g glucose PO
@@ -668,6 +673,7 @@
 5594-7	Beryllium [Mass/volume] in Serum or Plasma
 56022-7	ACE gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal
 5609-3	Cadmium [Mass/volume] in Blood
+5622-6	Chromium [Mass/volume] in Serum or Plasma
 5634-1	Cyanide [Mass/volume] in Blood
 5643-2	Ethanol [Mass/volume] in Serum or Plasma
 56475-7	Salmonella sp antigenic formula [Identifier] in Isolate by Agglutination
@@ -890,6 +896,7 @@
 8072-1	Insulin Ab [Units/volume] in Serum
 8099-4	Thyroperoxidase Ab [Units/volume] in Serum or Plasma
 8122-4	CD3 cells [#/volume] in Blood
+8124-0	CD3 cells/cells in Blood
 8130-7	CD45 (Lymphs) cells/cells in Blood
 81732-0	PM-SCL-100 Ab [Presence] in Serum by Line blot
 82429-2	Deprecated Nucleosome Ab [Presence] in Serum by Immunoblot
