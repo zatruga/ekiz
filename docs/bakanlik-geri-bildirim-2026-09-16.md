@@ -435,12 +435,49 @@ kaybolmuyor:
 **Bakanlıktan istenecek:** yerel test kodları için resmî bir sistem URI'si. O
 gelene kadar `http://pusula.local/CodeSystem/lab-test` kullanılıyor.
 
-### Laboratuvara iletilen liste
+### LOINC eşleştirmesi uygulamanın içinde
 
-`lab-loinc-girilecek.xlsx` -- **121 koda** LOINC atanırsa oran **%49,1 → %90,8**
-çıkıyor. Önerilen her kod `tx.fhir.org` `$lookup` ile doğrulandı ve resmî adı
-Excel'de yanında yazıyor. Doğrulama dört yanlış tahmini yakaladı (örn. açlık
-insülini sandığım `14371-9` meğer "idrarda maya" imiş).
+**Kullanıcı sordu (2026-09-23): "bu eşleştirmeyi sen yapamaz mısın?"**
+
+Pusula **salt okunur** -- `LIS.Test.LoincKodu` alanına yazamayız. Ama yazmamız da
+gerekmiyor: eşleştirme kendi veritabanımızda tutuluyor ve gönderim anında
+uygulanıyor (`LabTestLoincStore`). Bölüm eşleştirmesinde (`BolumMappingStore`)
+aynı çözüm zaten vardı.
+
+Bu, Pusula'ya yazmaktan üç somut sebeple daha iyi:
+
+1. **Geri alınabilir** -- yanlış kod kendi tablomuzdan düzeltilir, hastanenin
+   üretim veritabanında iz kalmaz.
+2. **Kaynak bozulmaz** -- `LoincKodu` hastanenin kendi alanı; oraya bizim
+   çıkarımımızı yazmak laboratuvarın verisi ile öneriyi ayırt edilemez hale
+   getirirdi. `Kaynak` sütunu bunu görünür tutuyor.
+3. **Sürüm yükseltmesinden etkilenmez** -- HBYS güncellemesi bizim yazdığımızı
+   silebilir; kendi tablomuz bizde kalır.
+
+**İlk çalıştırmada** `Resources/lab-loinc-oneri.tsv` içindeki **61 eşleştirme**
+`Kaynak='oneri'` ile yüklenir ve hemen kullanılır (kullanıcı kararı). Laboratuvar
+**Lab LOINC Eşleştirme** sayfasından değiştirdiğinde `Kaynak='laboratuvar'` olur
+ve sonraki tohumlamalar o satıra dokunmaz -- test edildi.
+
+Kod tarafındaki 69 taban-kod düzeltmesi (`1533-9-A` → `1533-9`) zaten otomatik
+olduğu için tabloya girmiyor.
+
+### Oranlar (son 365 gün, 1.555.735 lab istemi)
+
+| | İstem | Pay |
+|---|---:|---:|
+| **Bugün, kimse bir şey yapmadan** | 875.856 | **%56,3** |
+| **61 öneri devreye girince** | 1.424.309 | **%91,6** |
+| + 26 belirsiz kod teyit edilirse | 1.517.141 | %97,5 |
+| Eşleştirilemeyen | 38.594 | %2,5 |
+
+Eşleştirilemeyenlerin %71'i tek bir test: `p50c` (27.408 istem). LOINC'ta
+karşılığı bulunamadı -- kan gazı cihazı üreticisinin kendi LOINC eşleştirme
+tablosu sorulmalı.
+
+Laboratuvara iletilen `lab-loinc-girilecek.xlsx` (130 kod) yine geçerli: orada
+girilen kodlar Pusula'nın kendi raporlarında da doğru görünür. Ancak e-Sağlık
+gönderimi artık **onu beklemiyor.**
 
 ## Durum (2026-09-18)
 
