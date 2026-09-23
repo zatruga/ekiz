@@ -18,18 +18,21 @@ namespace PusulaEHealthSync.Mapping;
 // ust seviyeyle AYNI yapida tanimli (component.code.coding 1..*, component.value[x] 1..1).
 public static partial class LabResultObservationMapper
 {
-    // LOINC kod bicimi: rakamlar + tire + TEK kontrol rakami (orn. 30522-7).
-    // Pusula'da bu bicime uymayan kodlar da var (MP15227, EH-011, LE-001, 9397-1-B,
-    // 5803-21) -- bunlar LOINC DEGIL. Hepsini loinc.org sistemiyle etiketlemek yanlisti;
-    // az-lab-test-codes-vs zaten LOINC'da olmayan testler icin ikinci bir sistem
-    // (az-other-lab-test-codes) kapsiyor, artik oraya yazilıyorlar.
-    [GeneratedRegex(@"^\d{1,6}-\d$")]
-    private static partial Regex LoincPattern { get; }
-
     private const string OtherLabCodeSystem = "http://fhir.az/CodeSystem/az-other-lab-test-codes";
 
-    private static string KodSistemi(string kod) =>
-        LoincPattern.IsMatch(kod.Trim()) ? LoincSystem : OtherLabCodeSystem;
+    // az-other-lab-test-codes CodeSystem'de TEK BIR kod var: "other"
+    // (content: complete, indirildi 2026-09-23). Yerel test kodumuzu o sisteme
+    // yazmak GECERSIZ -- Observation.code ve component.code ikisi de
+    // az-lab-test-codes-vs'e REQUIRED bagli, yani ICD-10'daki D38.1 reddinin
+    // aynisi olurdu.
+    private const string OtherLabCode = "other";
+    private const string OtherLabDisplay = "Digər laboratoriya testi";
+
+    // Yerel (LOINC olmayan) test kodlarini tasiyan sistem. Bakanliktan resmi bir
+    // URI istenmeli; o gelene kadar kaynak sistemi acikca isaretleyen bu URI
+    // kullaniliyor. REQUIRED baglama bundan ETKILENMIYOR: CodeableConcept icinde
+    // ValueSet'te bulunan EN AZ BIR coding olmasi yeterli, onu "other" sagliyor.
+    private const string YerelLabCodeSystem = "http://pusula.local/CodeSystem/lab-test";
 
     public static MappingResult MapGroup(
         LabGroupBuilder.LabGrup grup, string azPatientId, string? azEncounterId)
@@ -148,22 +151,59 @@ public static partial class LabResultObservationMapper
         return new MappingResult.Success(observation);
     }
 
-    // BAKANLIK NOTU (2026-09-16): display alanina "PDW" gibi lokal kisaltma degil, kodun
-    // STANDART acıklamasi yazilmali; lokal ad code.text'e gitmeli.
+    // BAKANLIK ISTEGI (2026-09-16, madde 7): display alanina "PDW" gibi lokal kisaltma
+    // degil kodun STANDART aciklamasi yazilmali; lokal ad code.text'e gitmeli.
     //
-    // text KISMI SIMDI YAPILDI. display hala lokal ad, cunku standart LOINC acıklamalarinin
-    // bir kaynagi YOK: az-lab-test-codes-vs dogrudan http://loinc.org'u kapsiyor ve IG
-    // CodeSystem'i yayinlamiyor (CodeSystem-az-lab-test-codes.json HTML donuyor). display
-    // profilde 1..1 zorunlu oldugu icin bos birakilamiyor. LOINC tablosu projeye eklenince
-    // burasi tek satirda duzelir (bkz. docs/bakanlik-geri-bildirim-2026-09-16.md, madde 7).
+    // ARTIK YAPILIYOR. Standart aciklamalar Loinc sinifindan geliyor (tx.fhir.org'dan
+    // cekilip gomuldu, LOINC 2.82) -- neden IG'den degil de oradan alindigi Loinc.cs'te.
+    //
+    // Kod cozumlemesi de bicim yerine KONTROL BASAMAGINA dayaniyor (Loinc.Coz):
+    //   - gecerli LOINC            -> loinc.org + kodun kendisi
+    //   - gecerli LOINC + yerel ek -> loinc.org + TABAN kod (1533-9-A -> 1533-9)
+    //   - digerleri                -> az-other-lab-test-codes "other" + yerel kod
+    // Olculdu (son 365 gun, 1.555.441 lab istemi): %49,1 dogrudan gecerli LOINC,
+    // %7,3 taban koda inerek kurtariliyor, kalani "other" ile gidiyor.
     private static JsonObject Kodlama(string kod, string lokalAd)
     {
-        var k = kod.Trim();
+        var ham = kod.Trim();
+        var loinc = Loinc.Coz(ham);
+
+        if (loinc is not null)
+        {
+            return new JsonObject
+            {
+                ["coding"] = new JsonArray
+                {
+                    new JsonObject
+                    {
+                        ["system"] = LoincSystem,
+                        ["code"] = loinc,
+                        // Tabloda yoksa lokal ada dusuluyor -- display profilde 1..1.
+                        ["display"] = Loinc.Display(loinc) ?? lokalAd,
+                    },
+                },
+                ["text"] = lokalAd,
+            };
+        }
+
+        // LOINC degil: baglamayi "other" sagliyor, yerel kod IKINCI coding olarak
+        // korunuyor -- bilgi kaybi olmadan gecerli kaynak.
         return new JsonObject
         {
             ["coding"] = new JsonArray
             {
-                new JsonObject { ["system"] = KodSistemi(k), ["code"] = k, ["display"] = lokalAd },
+                new JsonObject
+                {
+                    ["system"] = OtherLabCodeSystem,
+                    ["code"] = OtherLabCode,
+                    ["display"] = OtherLabDisplay,
+                },
+                new JsonObject
+                {
+                    ["system"] = YerelLabCodeSystem,
+                    ["code"] = ham,
+                    ["display"] = lokalAd,
+                },
             },
             ["text"] = lokalAd,
         };

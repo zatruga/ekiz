@@ -1,0 +1,922 @@
+1007-4	Direct antiglobulin test.polyspecific reagent [Presence] on Red Blood Cells
+101-6	Cefoperazone [Susceptibility] by Disk diffusion (KB)
+10331-7	Rh [Type] in Blood
+10334-1	Cancer Ag 125 [Units/volume] in Serum or Plasma
+10349-9	Brucella sp Ab [Units/volume] in Serum
+10352-3	Bacteria identified in Genital specimen by Aerobe culture
+10353-1	Bacteria identified in Nose by Aerobe culture
+10354-9	Bacteria identified in Urethra by Culture
+10501-5	Lutropin [Units/volume] in Serum or Plasma
+10525-4	Microscopic observation [Identifier] in Specimen by Cyto stain
+10704-5	Ova and parasites identified in Stool by Light microscopy
+10835-7	Lipoprotein a [Mass/volume] in Serum or Plasma
+10839-9	Troponin I.cardiac [Mass/volume] in Serum or Plasma
+10842-3	Deprecated HLA-DQ1 [Presence]
+10862-1	Basement membrane Ab [Titer] in Serum
+10885-2	Porphyrins [Mass/time] in 24 hour Urine
+10912-4	Lead [Mass/volume] in Serum or Plasma
+11029-6	Consistency of Stool
+11032-0	Glucose [Mass/volume] in Serum or Plasma --45 minutes post 50 g lactose PO
+11039-5	C reactive protein [Presence] in Serum or Plasma
+11043-7	Cryofibrinogen [Presence] in Plasma
+11050-2	Kappa light chains [Mass/volume] in Serum or Plasma
+11051-0	Lambda light chains [Mass/volume] in Serum or Plasma
+11060-1	Reducing substances [Presence] in Stool
+11140-1	Metanephrine [Moles/time] in 24 hour Urine
+11253-2	Tacrolimus [Mass/volume] in Blood
+11545-1	Microscopic observation [Identifier] in Specimen by Acid fast stain
+11559-2	Fractional oxyhemoglobin in Blood
+11566-7	Liver kidney microsomal Ab [Units/volume] in Serum
+11572-5	Rheumatoid factor [Units/volume] in Serum or Plasma
+12141-8	Fetal Umbilical artery between fetus and placenta Systolic flow/Diastolic flow US.doppler
+12258-0	Epithelial cells.squamous [Presence] in Urine sediment by Light microscopy
+12389-3	OLANZapine [Mass/volume] in Serum or Plasma
+1250-0	Major crossmatch [Interpretation]
+12782-9	Oligoclonal bands [Interpretation] in Cerebral spinal fluid by Electrophoresis
+13037-7	C peptide [Mass/volume] in Serum or Plasma --fasting
+13169-8	Immunoelectrophoresis for Serum or Plasma
+13252-2	Herpes simplex virus 2 IgM Ab [Units/volume] in Cerebral spinal fluid
+13259-7	Leishmania brasilensis IgM Ab [Units/volume] in Serum
+13303-3	HLA-A+B+C (class I) [Type]
+13500-4	Amino acid pattern [Interpretation] in Serum or Plasma
+13582-2	Theophylline [Mass/volume] in Body fluid
+13590-5	Activated protein C resistance [Time Ratio] in Platelet poor plasma by Coagulation assay
+13626-7	Mitotane [Mass/volume] in Serum or Plasma
+13834-7	Total IgE [Units/volume] in Serum by Radioallergosorbent test (RAST)
+13964-2	Methylmalonate [Moles/volume] in Serum or Plasma
+13967-5	Sex hormone binding globulin [Moles/volume] in Serum or Plasma
+14099-6	Nickel [Mass/volume] in Urine
+14113-5	CD56 cells [#/volume] in Blood
+14117-6	IgG clearance/Albumin clearance [Ratio] in Serum and CSF
+1418-3	Cortisol [Mass/volume] in Serum or Plasma --30 minutes post 250 ug corticotropin IM
+14196-0	Reticulocytes [#/volume] in Blood
+14246-3	Phosphatidylserine IgM Ab [Units/volume] in Serum
+14252-1	Smooth muscle Ab [Presence] in Serum
+14485-7	Mycoplasma sp and Ureaplasma sp [Identifier] in Vaginal fluid by Organism specific culture
+14486-5	Mycoplasma sp and Ureaplasma sp [Identifier] in Penis by Organism specific culture
+14487-3	Mycoplasma sp and Ureaplasma sp [Identifier] in Urethra by Organism specific culture
+14561-5	Mycobacterium tuberculosis DNA [Presence] in Cerebral spinal fluid by NAA with probe detection
+14567-2	11-Deoxycortisol [Moles/volume] in Serum or Plasma
+14588-8	Alkaline phosphatase isoenzymes [Interpretation] in Serum or Plasma
+14665-4	Copper [Moles/volume] in Serum or Plasma
+14675-3	Cortisol [Moles/volume] in Serum or Plasma
+14680-3	Creatine kinase isoenzymes [Interpretation] in Serum or Plasma by Electrophoresis
+14711-6	EPINEPHrine [Moles/volume] in Plasma
+14813-0	Lipoprotein.alpha [Moles/volume] in Serum or Plasma by Electrophoresis
+14814-8	Lipoprotein.beta [Moles/volume] in Serum or Plasma by Electrophoresis
+14816-3	Lipoprotein.pre-beta [Moles/volume] in Serum or Plasma by Electrophoresis
+14852-8	Norepinephrine [Moles/volume] in Plasma
+14853-6	Norepinephrine [Moles/volume] in Urine
+14934-4	Urate [Moles/volume] in Urine
+14956-7	Microalbumin [Mass/time] in 24 hour Urine
+14957-5	Microalbumin [Mass/volume] in Urine
+1496-9	Glucose [Mass/volume] in Serum or Plasma --1.5 hours post 75 g glucose PO
+15009-4	5-Hydroxyindoleacetate [Moles/volume] in Urine
+15010-2	Aldosterone [Moles/volume] in Urine
+15045-8	Creatine [Moles/volume] in Serum or Plasma
+15058-1	DOPamine [Moles/volume] in Urine
+15059-9	DOPamine [Moles/time] in 24 hour Urine
+1506-5	Glucose [Mass/volume] in Serum or Plasma --1 hour post 50 g lactose PO
+15060-7	Enolase.neuron specific [Mass/volume] in Serum or Plasma
+15061-5	Erythropoietin (EPO) [Units/volume] in Serum or Plasma
+15067-2	Follitropin [Units/volume] in Serum or Plasma
+1507-3	Glucose [Mass/volume] in Serum or Plasma --1 hour post 75 g glucose PO
+15073-0	Glucagon [Moles/volume] in Serum or Plasma
+15103-5	cycloSPORINE [Moles/volume] in Serum
+1517-2	Glucose [Mass/volume] in Serum or Plasma --2 hours post 50 g lactose PO
+1518-0	Glucose [Mass/volume] in Serum or Plasma --2 hours post 75 g glucose PO
+15185-2	IgM [Mass/volume] in Body fluid
+1520-6	Glucose [Mass/volume] in Urine --2 hours post 75 g glucose PO
+15205-8	Rheumatoid factor [Units/volume] in Serum by Nephelometry
+1526-3	Glucose [Mass/volume] in Serum or Plasma --30 minutes post 50 g lactose PO
+1527-1	Glucose [Mass/volume] in Serum or Plasma --30 minutes post 75 g glucose PO
+15284-3	Grey Alder IgE Ab [Units/volume] in Serum
+1533-9	Glucose [Mass/volume] in Serum or Plasma --3 hours post 75 g glucose PO
+15363-5	Busulfan [Mass/volume] in Serum or Plasma
+1551-1	Glucose [Mass/volume] in Serum or Plasma --pre 50 g lactose PO
+15549-9	Deprecated Aspergillus fumigatus IgE Ab RAST class [Presence] in Serum
+1558-6	Fasting glucose [Mass/volume] in Serum or Plasma
+15597-8	Deprecated Cocoa IgE Ab RAST class [Presence] in Serum
+15789-1	Deprecated House dust Greer IgE Ab RAST class [Presence] in Serum
+15803-0	Deprecated Lamb IgE Ab RAST class [Presence] in Serum
+16085-3	Deprecated Wheat IgE Ab RAST class [Presence] in Serum
+16107-5	CD8+HLA-DR+ cells [#/volume] in Blood
+16349-3	Aluminum [Mass/volume] in Body fluid
+16480-6	Borrelia burgdorferi IgG Ab [Presence] in Serum or Plasma by Immunoassay
+1668-3	17-Hydroxyprogesterone [Mass/volume] in Serum or Plasma
+1690-7	5'-Nucleotidase [Enzymatic activity/volume] in Serum or Plasma
+1695-6	5-Hydroxyindoleacetate [Mass/time] in 24 hour Urine
+17032-4	Jo-1 extractable nuclear Ab [Units/volume] in Serum by Immunofluorescence
+17045-6	Latex IgE Ab [Units/volume] in Blood
+1715-2	Acid phosphatase [Enzymatic activity/volume] in Serum or Plasma
+1722-8	Adenosine deaminase [Enzymatic activity/volume] in Blood
+17385-6	Organic acids [Units/volume] in Urine
+1743-4	Alanine aminotransferase [Enzymatic activity/volume] in Serum or Plasma by With P-5'-P
+17444-1	Phenytoin [Mass/volume] in Urine
+1746-7	Albumin [Mass/volume] in Cerebral spinal fluid
+1747-5	Albumin [Mass/volume] in Body fluid
+1751-7	Albumin [Mass/volume] in Serum or Plasma
+1753-3	Albumin [Presence] in Urine
+17570-3	SCL-70 extractable nuclear IgG Ab [Presence] in Serum by Immunoassay
+1761-6	Aldolase [Enzymatic activity/volume] in Serum or Plasma
+1763-2	Aldosterone [Mass/volume] in Serum or Plasma
+17647-9	Streptococcus pneumoniae Ab [Units/volume] in Serum
+1769-9	Fatty acids.nonesterified [Mass/volume] in Serum or Plasma
+17713-9	Topiramate [Mass/volume] in Serum or Plasma
+17734-5	Trichinella spiralis IgG Ab [Units/volume] in Serum
+1779-8	Alkaline phosphatase.liver [Enzymatic activity/volume] in Serum or Plasma
+17838-4	Alkaline phosphatase.bone [Mass/volume] in Serum or Plasma
+17859-0	Helicobacter pylori IgG Ab [Presence] in Serum or Plasma by Immunoassay
+17864-0	Calcium.ionized [Mass/volume] in Serum or Plasma by Ion-selective membrane electrode (ISE)
+17928-3	Bacteria identified in Blood by Aerobe culture
+17934-1	Bacteria identified in Blood by Anaerobe culture
+1795-4	Amylase [Enzymatic activity/volume] in Body fluid
+1798-8	Amylase [Enzymatic activity/volume] in Serum or Plasma
+1799-6	Amylase [Enzymatic activity/volume] in Urine
+1805-1	Amylase.pancreatic [Enzymatic activity/volume] in Serum or Plasma
+18191-7	Amino acids [Identifier] in 24 hour Urine
+18244-4	Niacin [Mass/volume] in Serum or Plasma
+18262-6	Cholesterol in LDL [Mass/volume] in Serum or Plasma by Direct assay
+18320-2	Globulin [Mass/volume] in Urine by calculation
+1834-1	Alpha-1-Fetoprotein [Mass/volume] in Serum or Plasma
+1848-1	Androstanolone [Mass/volume] in Serum or Plasma
+1854-9	Androstenedione [Mass/volume] in Serum or Plasma
+1869-7	Apolipoprotein A-I [Mass/volume] in Serum or Plasma
+1884-6	Apolipoprotein B [Mass/volume] in Serum or Plasma
+1901-8	Arylsulfatase [Enzymatic activity/volume] in Serum or Plasma
+1903-4	Ascorbate [Mass/volume] in Serum or Plasma
+19075-1	Cells Counted Total [#] in Cerebral spinal fluid
+19123-9	Magnesium [Mass/volume] in Serum or Plasma
+19128-8	Bacteria identified in Catheter tip by Culture
+19176-7	Alpha-1-Fetoprotein [Units/volume] in Serum or Plasma
+19182-5	Cytokeratin 19 [Units/volume] in Serum or Plasma
+1920-8	Aspartate aminotransferase [Enzymatic activity/volume] in Serum or Plasma
+19201-3	Prostate Specific Ag Free [Units/volume] in Serum or Plasma
+19218-7	Oxygen content in Arterial blood
+19225-2	Deoxyhemoglobin/Hemoglobin.total in Arterial blood
+19230-2	Bicarbonate [Moles/volume] standard in Arterial blood
+1925-7	Base excess in Arterial blood by calculation
+19255-9	Oxygen [Partial pressure] adjusted to patient's actual temperature in Arterial blood
+1941-4	Beta galactosidase [Enzymatic activity/volume] in Serum or Plasma
+1945-5	Beta glucuronidase [Enzymatic activity/volume] in Urine
+1952-1	Beta-2-Microglobulin [Mass/volume] in Serum or Plasma
+1953-9	Beta-2-Microglobulin [Mass/volume] in Urine
+1967-9	Bile acid [Mass/volume] in Serum
+1968-7	Bilirubin.direct [Mass/volume] in Serum or Plasma
+1971-1	Bilirubin.indirect [Mass/volume] in Serum or Plasma
+1974-5	Bilirubin.total [Mass/volume] in Body fluid
+1975-2	Bilirubin.total [Mass/volume] in Serum or Plasma
+1980-2	Biotin [Mass/volume] in Serum or Plasma
+1982-8	Biotinidase [Enzymatic activity/volume] in Serum or Plasma
+1986-9	C peptide [Mass/volume] in Serum or Plasma
+1988-5	C reactive protein [Mass/volume] in Serum or Plasma
+1992-7	Calcitonin [Mass/volume] in Serum or Plasma
+1994-3	Calcium.ionized [Moles/volume] in Blood
+2019-8	Carbon dioxide [Partial pressure] in Arterial blood
+2039-6	Carcinoembryonic Ag [Mass/volume] in Serum or Plasma
+20420-6	Prostatic acid phosphatase [Mass/volume] in Serum
+20425-5	Cardiolipin IgM Ab [Interpretation] in Serum
+20427-1	Acetylcholine receptor Ab [Moles/volume] in Serum
+20428-9	Phospholipid IgG Ab [Presence] in Serum
+20429-7	Phospholipid IgM Ab [Presence] in Serum
+20441-2	Glucose [Mass/volume] in Serum or Plasma --post 50 g glucose
+20448-7	Insulin [Units/volume] in Serum or Plasma
+20454-5	Protein [Presence] in Urine by Test strip
+20455-2	Leukocytes [Presence] in Urine sediment by Light microscopy
+20509-6	Hemoglobin [Mass/volume] in Blood by calculation
+20510-4	Lipoprotein fractions [Interpretation] in Serum or Plasma by Electrophoresis
+20563-3	Carboxyhemoglobin/Hemoglobin.total in Blood
+20565-8	Carbon dioxide, total [Moles/volume] in Blood
+20570-8	Hematocrit [Volume Fraction] of Blood by calculation
+20624-3	Creatinine [Mass/volume] in 24 hour Urine
+20636-7	Alanine [Moles/volume] in Serum or Plasma
+2064-4	Ceruloplasmin [Mass/volume] in Serum or Plasma
+2070-1	Chloride [Moles/volume] in Cerebral spinal fluid
+2075-0	Chloride [Moles/volume] in Serum or Plasma
+2085-9	Cholesterol in HDL [Mass/volume] in Serum or Plasma
+2093-3	Cholesterol [Mass/volume] in Serum or Plasma
+20932-0	Parasite identified in Specimen by Inspection
+20951-0	Salmonella sp serotype [Identifier] in Isolate by Agglutination
+21000-5	Erythrocyte distribution width [Entitic volume] by Automated count
+21012-0	CD15 cells [#/volume] in Blood
+21015-3	CD33 cells [#/volume] in Blood
+21032-8	Thrombin time [Interpretation] in Blood by Coagulation assay
+21130-0	Cadmium [Mass/volume] in 24 hour Urine
+21198-7	Choriogonadotropin.beta subunit [Units/volume] in Serum or Plasma
+2125-3	Chymotrypsin [Mass/mass] in Stool
+2132-9	Cobalamin (Vitamin B12) [Mass/volume] in Serum or Plasma
+21365-2	Leptin [Mass/volume] in Serum or Plasma
+21382-7	Manganese [Mass/volume] in 24 hour Urine
+2141-0	Corticotropin [Mass/volume] in Plasma
+2142-8	Cortisol [Mass/volume] in Saliva (oral fluid)
+2143-6	Cortisol [Mass/volume] in Serum or Plasma
+2147-7	Cortisol Free [Mass/time] in 24 hour Urine
+21476-7	Potassium [Moles/volume] in 24 hour Urine
+2152-7	Creatine kinase.BB [Enzymatic activity/volume] in Serum or Plasma by Electrophoresis
+2153-5	Creatine kinase.macromolecular [Enzymatic activity/volume] in Serum or Plasma
+2154-3	Creatine kinase.MB [Enzymatic activity/volume] in Serum or Plasma by Electrophoresis
+2155-0	Creatine kinase.MM [Enzymatic activity/volume] in Serum or Plasma by Electrophoresis
+21551-7	t(15;17)(q24.1;q21.1)(PML,RARA) fusion transcript [Presence] in Blood or Tissue by Molecular genetics method
+2157-6	Creatine kinase [Enzymatic activity/volume] in Serum or Plasma
+21572-3	Transferrin.carbohydrate deficient.asialo/Transferrin.total in Serum or Plasma
+21582-2	Tryptase [Mass/volume] in Serum or Plasma
+2159-2	Creatinine [Mass/volume] in Amniotic fluid
+2161-8	Creatinine [Mass/volume] in Urine
+2162-6	Creatinine [Mass/time] in 24 hour Urine
+21624-2	ATM gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal
+2164-2	Creatinine renal clearance in 24 hour Urine and Serum or Plasma
+21667-1	F5 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal
+21678-8	FGFR3 gene p.Gly380Arg [Presence] in Blood or Tissue by Molecular genetics method
+21700-0	Kallmann syndrome gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal
+21717-4	NF1 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal
+21719-0	NRAS gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal
+21723-2	SERPINA1 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal
+2177-4	Cystine [Mass/volume] in Serum or Plasma
+21772-9	Chromosome 7 trisomy [Presence] in Blood or Tissue by Cytogenetics
+21780-2	t(11;22)(p13;q12.2)(WT1,EWSR1) cells/Cells.total in Blood or Tissue by Molecular genetics method
+21800-8	t(1;19)(q23.3;p13.3)(PBX1,TCF3) fusion transcript [Presence] in Blood or Tissue by Molecular genetics method
+21816-4	t(5;12)(q33.1;p13)(PDGFRB,ETV6) fusion transcript [Presence] in Blood or Tissue by Molecular genetics method
+21819-8	t(8;21)(q22;q22.3)(RUNX1T1,RUNX1) fusion transcript [Presence] in Blood or Tissue by Molecular genetics method
+2191-5	Dehydroepiandrosterone sulfate (DHEA-S) [Mass/volume] in Serum or Plasma
+2193-1	Dehydroepiandrosterone (DHEA) [Mass/volume] in Serum or Plasma
+22135-8	Borrelia burgdorferi IgM Ab [Presence] in Serum
+2216-0	DOPamine [Mass/volume] in Serum or Plasma
+22191-1	Chlamydia trachomatis IgG Ab [Titer] in Serum
+22192-9	Chlamydia trachomatis IgM Ab [Units/volume] in Cerebral spinal fluid
+22314-9	Hepatitis A virus IgM Ab [Presence] in Serum
+22317-2	Hepatitis B virus core Ab [Units/volume] in Serum from Donor
+22322-2	Hepatitis B virus surface Ab [Presence] in Serum
+22338-8	Herpes simplex virus 2 IgM Ab [Titer] in Cerebral spinal fluid
+2243-4	Estradiol (E2) [Mass/volume] in Serum or Plasma
+22580-5	Toxoplasma gondii IgG Ab [Presence] in Serum
+22584-7	Toxoplasma gondii IgM Ab [Titer] in Serum
+22602-7	Varicella zoster virus IgG Ab [Titer] in Serum
+2270-7	Fat [Presence] in Stool
+22708-2	Homovanillate/Creatinine [Molar ratio] in Urine
+2276-4	Ferritin [Mass/volume] in Serum or Plasma
+22763-7	Ammonia [Mass/volume] in Plasma
+2280-6	Fibronectin [Mass/volume] in Plasma
+22824-7	Influenza virus A Ab [Titer] in Serum by Hemagglutination inhibition
+2284-8	Folate [Mass/volume] in Serum or Plasma
+2308-5	Galactose [Mass/volume] in Serum or Plasma
+2324-2	Gamma glutamyl transferase [Enzymatic activity/volume] in Serum or Plasma
+2333-3	Gastrin [Mass/volume] in Serum or Plasma
+2339-0	Glucose [Mass/volume] in Blood
+2342-4	Glucose [Mass/volume] in Cerebral spinal fluid
+2345-7	Glucose [Mass/volume] in Serum or Plasma
+2359-8	Glucose-6-Phosphate dehydrogenase [Enzymatic activity/volume] in Serum
+2376-2	Glutathione peroxidase [Enzymatic activity/volume] in Serum or Plasma
+23883-2	Inhibin A [Mass/volume] in Serum or Plasma
+2395-2	Glycolate [Mass/volume] in Serum or Plasma
+2398-6	Glycosaminoglycans [Presence] in Urine
+2415-8	Histamine [Mass/volume] in Blood
+2428-1	Homocysteine [Mass/volume] in Serum or Plasma
+24336-0	Gas panel - Arterial blood
+24351-9	Protein electrophoresis panel - Serum or Plasma
+24388-1	Brucella sp IgM Ab [Presence] in Serum by Immunoassay
+24393-1	Cortisol [Moles/volume] in Serum or Plasma --10 hours post 1 mg dexamethasone PO overnight
+2446-3	Hydroxyproline [Mass/volume] in Serum or Plasma
+24475-6	F2 gene c.20210G>A [Genotype] in Blood or Tissue by Molecular genetics method Nominal
+24476-4	F2 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal
+24480-6	Weed Allergen Mix 1 (Common ragweed+Mugwort+Goosefoot or Lambs quarters+English plantain+Saltwort) IgE Ab [Units/volume] in Serum by Multidisk
+24481-4	Weed Allergen Mix 1 (Common ragweed+Mugwort+Goosefoot or Lambs quarters+English plantain+Saltwort) IgE Ab RAST class [Presence] in Serum by Multidisk
+2458-8	IgA [Mass/volume] in Serum or Plasma
+2460-4	IgD [Mass/volume] in Serum
+2465-3	IgG [Mass/volume] in Serum or Plasma
+2466-1	IgG subclass 1 [Mass/volume] in Serum
+2467-9	IgG subclass 2 [Mass/volume] in Serum
+2468-7	IgG subclass 3 [Mass/volume] in Serum
+2469-5	IgG subclass 4 [Mass/volume] in Serum
+2483-6	Insulin-like growth factor binding protein 3 [Mass/volume] in Serum or Plasma
+2484-4	Insulin-like growth factor-I [Mass/volume] in Serum or Plasma
+2495-0	Iodine [Mass/volume] in Urine
+2498-4	Iron [Mass/volume] in Serum or Plasma
+2500-7	Iron binding capacity [Mass/volume] in Serum or Plasma
+2514-8	Ketones [Presence] in Urine by Test strip
+25165-2	CD23 cells [#/volume] in Blood
+2518-9	Lactate [Moles/volume] in Arterial blood
+2528-8	Lactate dehydrogenase [Enzymatic activity/volume] in Cerebral spinal fluid
+2529-6	Lactate dehydrogenase [Enzymatic activity/volume] in Body fluid
+2532-0	Lactate dehydrogenase [Enzymatic activity/volume] in Serum or Plasma
+25339-3	Echinococcus sp Ab [Presence] in Serum
+2537-9	Lactate dehydrogenase 1 [Enzymatic activity/volume] in Serum or Plasma
+25386-4	Creatinine [Moles/volume] in Body fluid
+2540-3	Lactate dehydrogenase 2 [Enzymatic activity/volume] in Serum or Plasma
+25428-4	Glucose [Presence] in Urine by Test strip
+2543-7	Lactate dehydrogenase 3 [Enzymatic activity/volume] in Serum or Plasma
+2546-0	Lactate dehydrogenase 4 [Enzymatic activity/volume] in Serum or Plasma
+25474-8	Metanephrines [Moles/volume] in Serum or Plasma
+2549-4	Lactate dehydrogenase 5 [Enzymatic activity/volume] in Serum or Plasma
+25638-8	Eosinophil cationic protein (ECP) [Mass/volume] in Serum
+2571-8	Triglyceride [Mass/volume] in Serum or Plasma
+25726-1	OXcarbazepine [Moles/volume] in Serum or Plasma
+25844-2	Alanine/Creatinine [Molar ratio] in 24 hour Urine
+25907-7	Elastase.pancreatic [Mass/mass] in Stool
+25908-5	EPINEPHrine [Moles/volume] in 24 hour Urine
+25931-7	Homovanillate/Creatinine [Molar ratio] in 24 hour Urine
+25963-0	Norepinephrine [Moles/volume] in 24 hour Urine
+2598-1	Magnesium [Moles/volume] in Urine
+26043-0	HLA-B27 [Presence] by NAA with probe detection
+2614-6	Methemoglobin/Hemoglobin.total in Blood
+2639-3	Myoglobin [Mass/volume] in Serum or Plasma
+2641-9	Myoglobin [Mass/volume] in Urine
+26571-0	CD16 cells [#/volume] in Blood
+26715-3	Chlamydia trachomatis IgG Ab [Units/volume] in Serum by Immunoassay
+26728-6	CD38 cells [#/volume] in Blood
+26746-8	Magnesium [Mass/volume] in Red Blood Cells
+26775-7	Myelin associated glycoprotein Ab [Presence] in Serum by Immunoassay
+26881-3	Interleukin 6 [Mass/volume] in Serum or Plasma
+2692-2	Osmolality of Serum or Plasma
+26924-1	Cancer Ag 19-9 [Units/volume] in Body fluid
+26928-2	Vasopressin [Presence] in 24 hour Urine
+2695-5	Osmolality of Urine
+2697-1	Osteocalcin [Mass/volume] in Serum or Plasma
+26983-7	CD4+HLA-DR+ cells [#/volume] in Blood
+2699-7	Oxalate [Mass/volume] in Serum or Plasma
+27011-6	CD14 cells [#/volume] in Blood
+2703-7	Oxygen [Partial pressure] in Arterial blood
+27038-9	Endomysium IgA Ab [Titer] in Serum by Immunofluorescence
+2708-6	Oxygen saturation in Arterial blood
+2722-7	Pantothenate [Mass/volume] in Serum, Plasma or Blood
+27265-8	Giardia sp Ag [Presence] in Stool
+2731-8	Parathyrin.intact [Mass/volume] in Serum or Plasma
+27365-6	Kappa light chains [Mass/volume] in Urine
+27382-1	Porphobilinogen [Mass/volume] in 24 hour Urine
+2742-5	Angiotensin converting enzyme [Enzymatic activity/volume] in Serum or Plasma
+27424-1	Deoxypyridinoline [Moles/volume] in Urine
+2744-1	pH of Arterial blood
+2755-7	pH of Stool
+2777-1	Phosphate [Mass/volume] in Serum or Plasma
+2778-9	Phosphate [Mass/volume] in Urine
+27810-1	Plasmin inhibitor actual/normal in Platelet poor plasma by Chromogenic method
+27830-9	Insulin [Units/volume] in Serum or Plasma --1 hour post 75 g glucose PO
+27834-1	Insulin [Units/volume] in Serum or Plasma --1.5 hours post 75 g glucose PO
+27860-6	Insulin [Units/volume] in Serum or Plasma --2 hours post 75 g glucose PO
+27873-9	Insulin [Units/volume] in Serum or Plasma --fasting
+27980-2	Thyroxine binding globulin [Moles/volume] in Serum or Plasma
+28005-7	MTHFR gene c.677C>T [Genotype] in Blood or Tissue by Molecular genetics method Nominal
+28060-2	MTHFR gene c.1298A>C [Genotype] in Blood or Tissue by Molecular genetics method Nominal
+2811-8	Porphobilinogen [Moles/volume] in Urine
+2821-7	Potassium [Moles/volume] in Body fluid
+2839-9	Progesterone [Mass/volume] in Serum or Plasma
+2842-3	Prolactin [Mass/volume] in Serum or Plasma
+2857-1	Prostate specific Ag [Mass/volume] in Serum or Plasma
+2880-3	Protein [Mass/volume] in Cerebral spinal fluid
+2881-1	Protein [Mass/volume] in Body fluid
+2885-2	Protein [Mass/volume] in Serum or Plasma
+2889-4	Protein [Mass/time] in 24 hour Urine
+2890-2	Protein/Creatinine [Mass Ratio] in Urine
+2913-2	Pyruvate kinase [Enzymatic activity/volume] in Serum or Plasma
+2915-7	Renin [Enzymatic activity/volume] in Plasma
+2923-1	Retinol [Mass/volume] in Serum or Plasma
+2924-9	Riboflavin [Mass/volume] in Serum or Plasma
+29247-4	Sirolimus [Mass/volume] in Blood
+2939-7	Serotonin [Mass/volume] in Blood
+29463-7	Body weight
+2947-0	Sodium [Moles/volume] in Blood
+2950-4	Sodium [Moles/volume] in Body fluid
+2951-2	Sodium [Moles/volume] in Serum or Plasma
+29574-1	Thyrotropin [Presence] in DBS
+2963-7	Somatotropin [Mass/volume] in Serum or Plasma
+29641-8	Neutrophil Cytoplasmic Ab atypical [Presence] in Serum by Immunofluorescence
+2966-0	Specific gravity of 24 hour Urine
+2967-8	Starch granules [Presence] in Stool by Light microscopy
+29674-9	Bordetella pertussis IgG Ab [Presence] in Serum
+29747-3	Tocopherols [Moles/volume] in Serum or Plasma
+29765-5	Cholesterol [Moles/volume] in Body fluid
+29766-3	Triglyceride [Moles/volume] in Body fluid
+2986-8	Testosterone [Mass/volume] in Serum or Plasma
+29905-7	Entamoeba histolytica Ag [Presence] in Stool by Immunoassay
+2991-8	Testosterone Free [Mass/volume] in Serum or Plasma
+29936-2	Nickel [Mass/volume] in 24 hour Urine
+3013-0	Thyroglobulin [Mass/volume] in Serum or Plasma
+3016-3	Thyrotropin [Units/volume] in Serum or Plasma
+30184-6	Tree Allergen Mix 1 (Boxelder+Silver birch+White oak+White elm+California walnut) IgE Ab [Units/volume] in Serum by Multidisk
+3024-7	Thyroxine (T4) free [Mass/volume] in Serum or Plasma
+3026-2	Thyroxine (T4) [Mass/volume] in Serum or Plasma
+30313-1	Hemoglobin [Mass/volume] in Arterial blood
+3034-6	Transferrin [Mass/volume] in Serum or Plasma
+30341-2	Erythrocyte [Sedimentation Rate] in Blood
+30347-9	Glutamate decarboxylase 65 Ab [Moles/volume] in Serum
+30362-8	Insulin [Units/volume] in Serum or Plasma --30 minutes post 75 g glucose PO
+3040-3	Lipase [Enzymatic activity/volume] in Serum or Plasma
+30427-9	Macrophages/Leukocytes in Body fluid
+30471-7	levETIRAcetam [Mass/volume] in Serum or Plasma
+3051-0	Triiodothyronine (T3) Free [Mass/volume] in Serum or Plasma
+3052-8	Triiodothyronine (T3).reverse [Mass/volume] in Serum or Plasma
+30522-7	C reactive protein [Mass/volume] in Serum or Plasma by High sensitivity method
+3053-6	Triiodothyronine (T3) [Mass/volume] in Serum or Plasma
+30572-2	Pyridoxal [Mass/volume] in Serum or Plasma
+3084-1	Urate [Mass/volume] in Serum or Plasma
+30902-1	Fibrinogen [Mass/volume] in Platelet poor plasma by Heat denaturation
+3091-6	Urea [Mass/volume] in Serum or Plasma
+3092-4	Urea [Mass/volume] in Urine
+30934-4	Natriuretic peptide B [Mass/volume] in Serum or Plasma
+3094-0	Urea nitrogen [Mass/volume] in Serum or Plasma
+31017-7	Tissue transglutaminase IgA Ab [Units/volume] in Serum
+31024-3	Voltage-gated calcium channel Ab [Moles/volume] in Serum
+3122-9	Vanillylmandelate [Mass/time] in 24 hour Urine
+3126-0	Vasopressin [Mass/volume] in Serum or Plasma
+3129-4	Menadione [Mass/volume] in Serum or Plasma
+31300-7	Chlamydophila pneumoniae IgA Ab [Units/volume] in Serum
+31302-3	Chlamydophila pneumoniae IgG Ab [Units/volume] in Serum
+31304-9	Chlamydophila pneumoniae IgM Ab [Units/volume] in Serum
+31374-2	Epstein Barr virus nuclear IgG Ab [Units/volume] in Serum
+31547-3	Pancreatic islet cell Ab [Presence] in Serum
+31625-7	Sjogrens syndrome-A extractable nuclear IgG Ab [Presence] in Serum
+3167-4	Volume of 24 hour Urine
+3173-2	aPTT in Blood by Coagulation assay
+3174-0	Antithrombin [Units/volume] in Platelet poor plasma by Chromogenic method
+3179-9	Bleeding time by Ivy method
+3181-5	Cardiolipin IgG Ab [Units/volume] in Serum by Immunoassay
+31843-6	Helicobacter pylori Ag [Presence] in Stool
+3187-2	Coagulation factor IX activity actual/normal in Platelet poor plasma by Coagulation assay
+3198-9	Coagulation factor VII activity actual/normal in Platelet poor plasma by Coagulation assay
+32033-3	Phosphatidylserine IgM Ab [Units/volume] in Serum by Immunoassay
+3204-5	Coagulation factor VIII inhibitor [Units/volume] in Platelet poor plasma by Coagulation assay
+3209-4	Coagulation factor VIII activity actual/normal in Platelet poor plasma by Coagulation assay
+32133-1	Lactate [Moles/volume] in Plasma venous
+32147-1	Reducing substances [Mass/volume] in Urine
+3217-7	Coagulation factor X activity [Units/volume] in Platelet poor plasma by Coagulation assay
+32206-5	Plasmodium sp identified in Blood by Light microscopy
+32207-3	Platelet distribution width [Entitic volume] in Blood by Automated count
+32218-0	Cyclic citrullinated peptide Ab [Units/volume] in Serum by Immunoassay
+32294-1	Albumin/Creatinine [Ratio] in Urine
+32296-6	Amino acid pattern [Interpretation] in Urine
+3232-6	Coagulation factor XII activity actual/normal in Platelet poor plasma by Coagulation assay
+32356-8	Yeast [Presence] in Urine sediment by Light microscopy
+32362-6	BK virus DNA [Presence] in Serum or Plasma by NAA with probe detection
+32368-3	Ureaplasma sp identified in Specimen by Organism specific culture
+3239-1	Coagulation factor XIII Ag actual/normal in Platelet poor plasma by Immunoassay
+3246-6	Deprecated Fibrin D-dimer [Units/volume] in Platelet poor plasma by Immunoassay
+32554-8	Thiamine [Moles/volume] in Blood
+32623-1	Platelet [Entitic mean volume] in Blood by Automated count
+32672-8	Cold agglutinin [Presence] in Serum or Plasma
+32673-6	Creatine kinase.MB [Enzymatic activity/volume] in Serum or Plasma
+32693-4	Lactate [Moles/volume] in Blood
+32713-0	Potassium [Moles/volume] in Arterial blood
+32717-1	Sodium [Moles/volume] in Arterial blood
+3274-8	Heparin unfractionated [Units/volume] in Platelet poor plasma by Chromogenic method
+32771-8	Carbon dioxide [Partial pressure] adjusted to patient's actual temperature in Arterial blood
+3298-7	Acetaminophen [Mass/volume] in Serum or Plasma
+32998-7	Tissue transglutaminase IgG Ab [Units/volume] in Serum
+33027-4	Herpes simplex virus+Varicella zoster virus DNA [Presence] in Specimen by NAA with probe detection
+33042-3	Immunofixation for 24 hour Urine
+33045-6	Respiratory syncytial virus Ag [Presence] in Nose
+33050-6	Pseudocholinesterase phenotype [Identifier] in Serum or Plasma
+33254-4	pH of Arterial blood adjusted to patient's actual temperature
+33513-3	Specific gravity of Specimen
+33559-6	Kappa light chains/Lambda light chains [Mass Ratio] in Urine
+33610-7	Sjogrens syndrome-A extractable nuclear IgG Ab [Units/volume] in Serum
+33613-1	Sjogrens syndrome-B extractable nuclear IgG Ab [Units/volume] in Serum
+33773-3	Karyotype [Identifier] in Amniotic fluid Nominal
+33774-1	Karyotype [Identifier] in Chorionic villus sample Nominal
+33799-8	DNA double strand IgG Ab [Units/volume] in Serum or Plasma by Immunoassay
+33805-3	Fructosamine [Mass/volume] in Serum or Plasma
+33893-9	Karyotype [Identifier] in Bone marrow Nominal
+33914-3	Glomerular filtration rate [Volume Rate/Area] in Serum or Plasma by Creatinine-based formula (MDRD)/1.73 sq M
+33944-0	Lambda light chains.free [Mass/volume] in Serum or Plasma
+33959-8	Procalcitonin [Mass/volume] in Serum or Plasma
+34161-0	Cancer Ag 72-4 [Units/volume] in Body fluid
+34256-8	Cancer Ag 50 [Units/volume] in Serum or Plasma
+34316-0	Histamine [Moles/volume] in Serum or Plasma
+3432-2	carBAMazepine [Mass/volume] in Serum or Plasma
+34339-2	Metanephrine [Moles/volume] in Urine
+34348-3	Normetanephrine/Creatinine [Molar ratio] in Urine
+34385-5	Urate/Creatinine [Molar ratio] in Urine
+34422-6	Toxoplasma gondii IgG Ab avidity [Ratio] in Serum
+34491-1	PRF1 gene targeted mutation analysis in Blood or Tissue by Molecular genetics method
+34557-9	Cell count and Differential panel - Body fluid
+34628-8	Methotrexate [Moles/volume] in Cerebral spinal fluid
+35138-7	MEFV gene mutations tested for in Blood or Tissue by Molecular genetics method Nominal
+35215-3	Iron binding capacity [Mass or Moles/volume] in Serum or Plasma
+35334-2	Collagen crosslinked N-telopeptide [Moles/volume] in 24 hour Urine
+35354-0	COL1A1+COL1A2 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal
+35358-1	LHON syndrome gene targeted mutation analysis in Blood or Tissue by Molecular genetics method
+35378-9	HNPCC genes mutations tested for in Blood or Tissue by Molecular genetics method Nominal
+35456-3	Y chromosome deletion [Identifier] in Blood or Tissue Nominal
+35530-5	Candida albicans IgG Ab [Mass/volume] in Serum
+35591-7	Creatinine renal clearance predicted by Cockcroft-Gault formula
+3563-4	Digoxin>12 hours post dose [Mass/volume] in Serum or Plasma
+35663-4	Protein [Mass/volume] in Urine collected for unspecified duration
+35722-8	Chlamydia sp DNA [Presence] in Serum by NAA with probe detection
+35871-3	Succinate [Moles/volume] in Serum or Plasma
+36911-6	SCA gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal
+36916-5	Kappa light chains.free [Mass/volume] in Serum
+3719-2	Lithium [Mass/volume] in Serum or Plasma
+3773-9	Methadone [Presence] in Urine
+37987-5	Dust Allergen Mix 2 (Cockroach+American house dust mite+European house dust mite+House dust Hollister Stier) IgE Ab [Units/volume] in Serum by Multidisk
+3830-7	Morphine [Presence] in Urine
+38370-3	Voriconazole [Mass/volume] in Serum or Plasma
+38372-9	Human papilloma virus 6+11+16+18+31+33+35+39+42+43+44+45+51+52+56+58+59+68 DNA [Presence] in Cervix by Probe with signal amplification
+38404-0	CFTR gene targeted mutation analysis in Blood or Tissue by Molecular genetics method
+38445-3	Calprotectin [Mass/mass] in Stool
+38476-8	Mullerian inhibiting substance [Mass/volume] in Serum or Plasma
+38897-5	Fibers [Presence] in Stool by Light microscopy
+38901-5	Leflunomide [Mass/volume] in Serum or Plasma
+38926-2	Macroprolactin [Mass/volume] in Serum or Plasma
+39156-5	Body mass index (BMI) [Ratio]
+39554-1	Endomysium IgG Ab [Presence] in Serum
+3978-4	Primidone [Mass/volume] in Serum or Plasma
+4024-6	Salicylates [Mass/volume] in Serum or Plasma
+40299-0	Somatotropin [Mass/volume] in Serum or Plasma --1 hour post dose cloNIDine
+40301-4	Somatotropin [Mass/volume] in Serum or Plasma --2 hours post dose cloNIDine
+40574-6	Platelets [#/volume] in Body fluid by Automated count
+40614-0	Brucella sp Ab [Presence] in Serum by Agglutination
+40662-9	Protein [Mass/time] in 12 hour Urine --resting
+40663-7	Protein [Mass/time] in 12 hour Urine --upright
+40699-1	Mycobacterium sp identified in Specimen
+40751-0	Epstein Barr virus capsid IgM Ab [Presence] in Serum by Immunofluorescence
+4086-5	Valproate [Mass/volume] in Serum or Plasma
+40879-9	Chicken IgE Ab [Units/volume] in Serum
+40977-1	Adenovirus IgG Ab [Presence] in Serum by Immunoassay
+41048-0	TPMT gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal
+41053-0	SMN1 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal
+41397-1	Deprecated Beta lactoglobulin IgE Ab [Units/volume] in Serum
+41742-8	Mold Allergen Mix 1 (Alternaria alternata+Aspergillus fumigatus+Cladosporium herbarum+Penicillium notatum) IgE Ab [Units/volume] in Serum by Multidisk
+41871-5	Voltage-gated potassium channel Ab [Moles/volume] in Serum
+42315-2	APOE gene alleles e2 and e3 and e4 [Identifier] in Blood or Tissue by Molecular genetics method Nominal
+42719-5	Bilirubin.total [Mass/volume] in Blood
+42783-1	ERBB2 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal
+43113-0	Hemoglobin electrophoresis panel in Blood
+43119-7	Extractable nuclear Ab panel - Serum
+43368-0	Microsatellite instability [Identifier] in Tissue by Molecular genetics method Nominal
+43410-0	Bacteria identified in Cervix by Culture
+43433-2	Acylcarnitine panel - Serum or Plasma
+43441-5	Bacteria identified in Bronchoalveolar lavage by Aerobe culture
+43607-1	Microalbumin [Mass/time] in 12 hour Urine
+43677-4	Fatty acid very long chain (C22-C26) panel - Serum or Plasma
+43730-1	Epstein Barr virus DNA [Units/volume] (viral load) in Serum or Plasma by NAA with probe detection
+43858-0	Beta-2 transferrin [Presence] in Specimen
+43872-1	Aspergillus sp IgG Ab [Presence] in Serum
+44086-7	ABO and Rh group [Interpretation] in Blood from Newborn
+44348-1	Phenylalanine/Creatinine [Mass Ratio] in 24 hour Urine
+44448-9	Beta 2 glycoprotein 1 IgG Ab [Units/volume] in Serum or Plasma by Immunoassay
+44449-7	Beta 2 glycoprotein 1 IgM Ab [Units/volume] in Serum or Plasma by Immunoassay
+44560-1	Influenza virus A Ag [Presence] in Nose by Immunofluorescence
+44573-4	Influenza virus B Ag [Presence] in Nose by Immunofluorescence
+44702-9	Complement C1q Ab [Units/volume] in Serum
+4477-6	Complement C1 esterase inhibitor [Mass/volume] in Serum or Plasma
+44817-5	Cytomegalovirus IgM Ab [Units/volume] in Cerebral spinal fluid by Immunoassay
+4485-9	Complement C3 [Mass/volume] in Serum or Plasma
+4498-2	Complement C4 [Mass/volume] in Serum or Plasma
+45006-4	Chlamydia trachomatis IgA Ab [Units/volume] in Serum by Immunoassay
+45028-8	HLA-B SBT [Type] by High resolution
+45031-2	HLA-C SBT [Type] by High resolution
+45032-0	Tyrosine [Mass/volume] in DBS
+45186-4	Kiwifruit IgE Ab/IgE total in Serum
+4542-7	Haptoglobin [Mass/volume] in Serum or Plasma
+4548-4	Hemoglobin A1c/Hemoglobin.total in Blood
+46419-8	Erythrocytes [#/area] in Urine sediment by Automated count
+4667-2	Osmotic fragility of Red Blood Cells
+46709-2	Weed Allergen Mix 3 (Mugwort+Goosefoot or Lambs quarters+English plantain+Goldenrod+Nettle) IgE Ab [Mass/volume] in Serum by Multidisk
+46986-6	Cholesterol in VLDL 3 [Mass/volume] in Serum or Plasma
+46993-2	HLA Ab panel - Serum
+47214-2	Homeostasis model assessment
+47222-5	Trisomy 21 risk based on maternal age+Alpha-1-Fetoprotein+Choriogonadotropin+Estriol.unconjugated [Likelihood] in Fetus
+47275-3	S100 calcium binding protein B [Mass/volume] in Serum
+47320-7	Baker's yeast IgA Ab [Units/volume] in Serum by Immunoassay
+47409-8	Herpes simplex virus 1+2 DNA [#/volume] (viral load) in Serum or Plasma by NAA with probe detection
+47416-3	RB1 gene targeted mutation analysis in Blood or Tissue by Molecular genetics method
+4759-7	HLA-B52(5) [Presence]
+47828-9	Adiponectin [Mass/volume] in Serum or Plasma
+47844-6	Cortisol [Mass/volume] in Serum or Plasma --post 1 mg dexamethasone PO overnight
+47846-1	Cortisol [Mass/volume] in Serum or Plasma --post 2 mg dexamethasone PO 2.5 day high dose q6h
+47978-2	17-Ketosteroids [Mass/volume] in Serum
+4821-5	HLA-B27 [Presence]
+48498-0	Amyloid A [Mass/volume] in Serum or Plasma
+48552-4	HIV 1 RNA [Log #/volume] (viral load) in Serum or Plasma by Probe and target amplification method detection limit = 2.6 log copies/mL
+48633-2	Trypsinogen I Free [Mass/volume] in DBS
+48783-5	Dipyrone IgE Ab [Units/volume] in Serum
+48818-9	Karyotype [Identifier] in Blood or Tissue by High resolution Nominal
+48819-7	Karyotype [Identifier] in Tissue from Fetus Nominal
+48999-7	Urea [Mass/time] in 24 hour Urine
+49028-4	Microdeletion syndromes [Identifier] in Blood or Tissue by FISH Nominal
+49030-0	Trisomy 21 risk based on maternal age+Pregnancy associated plasma protein A+Choriogonadotropin+Nuchal translucency [Likelihood] in Fetus
+49054-0	25-hydroxyvitamin D2 [Mass/volume] in Serum or Plasma
+49101-9	Helicobacter pylori DNA [Presence] in Specimen by NAA with probe detection
+49616-6	Legionella sp DNA [Identifier] in Specimen by NAA with probe detection
+49765-1	Calcium [Mass/volume] in Blood
+50231-0	Hyaline casts [Presence] in Urine by Automated
+5048-4	Nuclear Ab [Titer] in Serum by Immunofluorescence
+50544-6	Everolimus [Mass/volume] in Blood
+50556-0	Urinalysis dipstick panel - Urine by Automated test strip
+50558-6	Nitrite [Presence] in Urine by Automated test strip
+50564-4	Urinalysis panel - Urine by Automated
+50654-3	Grass Allergen Mix 3 (Sweet vernal grass+Perennial rye grass+Timothy+Rye+Velvet grass) IgE Ab [Units/volume] in Serum by Multidisk
+50666-7	Nuclear matrix protein 22 [Presence] in Urine
+5116-9	Corynebacterium diphtheriae Ab [Units/volume] in Serum by Immunoassay
+51165-9	CD34 blasts [Units/volume] in Blood
+5117-7	Cryoglobulin [Presence] in Serum
+5124-3	Cytomegalovirus IgG Ab [Units/volume] in Serum or Plasma by Immunoassay
+5126-8	Cytomegalovirus IgM Ab [Units/volume] in Serum or Plasma by Immunoassay
+5130-0	DNA double strand Ab [Units/volume] in Serum
+5135-9	Echinococcus sp Ab [Units/volume] in Serum by Hemagglutination
+5151-6	Entamoeba histolytica Ab [Units/volume] in Serum by Hemagglutination
+51527-0	Tree Allergen Mix 4 (White oak+White elm+London plane or Maple leaf sycamore+Willow+Cottonwood) IgE Ab [Presence] in Serum by Multidisk
+51637-7	Plateletcrit [Volume Fraction] in Blood
+5170-6	Gliadin IgG Ab [Units/volume] in Serum
+51714-4	Microscopic observation [Identifier] in Blood by Giemsa stain
+51733-4	Oxygen saturation Calculated from oxygen partial pressure in Arterial blood
+5179-7	Hepatitis A virus IgG Ab [Units/volume] in Serum by Immunoassay
+51798-7	Hepatitis E virus IgM Ab [Units/volume] in Serum
+51826-6	Herpes virus 8 IgG Ab [Units/volume] in Serum by Immunoassay
+5186-2	Hepatitis B virus core IgM Ab [Units/volume] in Serum by Radioimmunoassay (RIA)
+51867-0	t(9;22)(q34.1;q11)(ABL1,BCR) fusion transcript in Blood or Tissue by FISH
+5189-6	Hepatitis B virus e Ab [Units/volume] in Serum by Immunoassay
+5190-4	Hepatitis B virus e Ab [Units/volume] in Serum by Radioimmunoassay (RIA)
+5196-1	Hepatitis B virus surface Ag [Presence] in Serum or Plasma by Immunoassay
+5198-7	Hepatitis C virus Ab [Units/volume] in Serum by Immunoassay
+5247-2	Mitochondria Ab [Titer] in Serum by Immunofluorescence
+5271-2	Parietal cell Ab [Titer] in Serum by Immunofluorescence
+5273-8	Parvovirus B19 IgG Ab [Units/volume] in Serum by Immunoassay
+5274-6	Parvovirus B19 IgM Ab [Units/volume] in Serum by Immunoassay
+52758-0	SERPINE1 gene c.-844A>G [Presence] in Blood or Tissue by Molecular genetics method
+5292-8	Reagin Ab [Presence] in Serum by VDRL
+52966-9	Bacteria identified in Anal by Culture
+52984-2	Cytomegalovirus IgG Ab avidity [Ratio] in Serum or Plasma by Immunoassay
+52986-7	Rubella virus IgG Ab avidity [Ratio] in Serum by Immunoassay
+53017-0	Sjogrens syndrome-A extractable nuclear 52kD Ab [Units/volume] in Serum
+532-2	Mycobacterium sp identified in Aspirate by Organism specific culture
+53222-6	Coagulation factor XI activity [Units/volume] in Platelet poor plasma by Coagulation assay
+53322-4	Crystals [#/area] in Urine sediment by Automated count
+5334-8	Rubella virus IgG Ab [Units/volume] in Serum or Plasma by Immunoassay
+534-8	Mycobacterium sp identified in Cerebral spinal fluid by Organism specific culture
+535-5	Mycobacterium sp identified in Body fluid by Organism specific culture
+5361-1	Spermatozoa Ab [Units/volume] in Semen
+5370-2	Streptolysin O Ab [Units/volume] in Serum or Plasma
+53761-3	JAK2 gene.p.Val617Phe mutant/Normal in Blood or Tissue by Molecular genetics method
+5380-1	Thyroglobulin Ab [Units/volume] in Serum by Radioimmunoassay (RIA)
+5385-0	Thyrotropin receptor Ab [Units/volume] in Serum
+53871-0	HRAS gene targeted mutation analysis in Blood or Tissue by Molecular genetics method
+539-7	Mycobacterium sp identified in Sputum by Organism specific culture
+540-5	Mycobacterium sp identified in Tissue by Organism specific culture
+54026-0	Deprecated Soluble liver Ab [Units/volume] in Serum
+5404-9	Varicella zoster virus IgM Ab [Units/volume] in Serum by Immunoassay
+54080-7	Galactosemia newborn screening panel (SI units)
+541-3	Mycobacterium sp identified in Urine by Organism specific culture
+54231-6	Semen analysis fertility panel
+543-9	Mycobacterium sp identified in Specimen by Organism specific culture
+54448-6	NPM1 gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal
+546-2	Streptococcus.beta-hemolytic [Presence] in Throat by Organism specific culture
+55201-8	KIT gene targeted mutation analysis in Blood or Tissue by Molecular genetics method
+55219-0	Antioxidants [Moles/volume] in Serum or Plasma
+55305-7	Fungus [Presence] in Specimen by KOH preparation
+5570-7	Acetone [Mass/volume] in Urine
+5577-2	Aluminum [Mass/volume] in Urine
+5584-8	Arsenic [Mass/mass] in Hair
+5594-7	Beryllium [Mass/volume] in Serum or Plasma
+56022-7	ACE gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal
+5609-3	Cadmium [Mass/volume] in Blood
+5634-1	Cyanide [Mass/volume] in Blood
+5643-2	Ethanol [Mass/volume] in Serum or Plasma
+56475-7	Salmonella sp antigenic formula [Identifier] in Isolate by Agglutination
+56513-5	Hepatitis E virus IgG Ab [Units/volume] in Serum or Plasma by Immunoassay
+56539-0	Intrinsic factor Ab [Units/volume] in Serum by Immunoassay
+56730-5	Smith extractable nuclear Ab [Presence] in Serum by Immunoblot
+56731-3	Jo-1 extractable nuclear Ab [Presence] in Serum by Immunoblot
+56732-1	Ribosomal P Ab [Presence] in Serum by Immunoblot
+56733-9	PCNA extractable nuclear Ab [Presence] in Serum by Immunoblot
+56734-7	Centromere protein B Ab [Presence] in Serum by Immunoblot
+56735-4	Mitochondria M2 Ab [Presence] in Serum by Immunoblot
+5676-2	Lead [Mass/volume] in Urine
+5683-8	Manganese [Mass/volume] in Serum or Plasma
+5685-3	Mercury [Mass/volume] in Blood
+56923-6	Fasciola hepatica Ab [Presence] in Serum by Immunoassay
+5693-7	Methanol [Mass/volume] in Serum or Plasma
+5702-6	Nickel [Mass/volume] in Serum or Plasma
+57037-4	Chromosome 13+18+21+X+Y aneuploidy in Amniotic fluid by Molecular genetics method Nominal
+57132-3	CYP2C19 gene allele [Genotype] in Blood or Tissue by Molecular genetics method Nominal
+5724-0	Selenium [Mass/volume] in Serum or Plasma
+573-6	Fungus identified in Nail by Culture
+57310-5	SRY gene mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal
+5748-9	Tin [Mass/volume] in Serum or Plasma
+5763-8	Zinc [Mass/volume] in Serum or Plasma
+5766-1	Ammonium urate crystals [Presence] in Urine sediment by Light microscopy
+5770-3	Bilirubin.total [Presence] in Urine by Test strip
+57710-6	Amino acidemias newborn screening comment-discussion
+57794-0	Newborn screening test results panel - DBS
+57802-1	Chromosome analysis.interphase [Interpretation] in Blood or Marrow by FISH Narrative
+5789-3	Fatty casts [#/area] in Urine sediment by Microscopy low power field
+57906-0	9p21 chromosome deletion [Identifier] in Blood or Tissue by FISH Nominal
+5803-2	pH of Urine by Test strip
+5811-5	Specific gravity of Urine by Test strip
+5818-0	Urobilinogen [Presence] in Urine by Test strip
+5826-3	Adenovirus Ag [Presence] in Stool by Immunofluorescence
+584-3	Streptococcus agalactiae [Presence] in Vaginal fluid by Organism specific culture
+58410-2	CBC panel - Blood by Automated count
+58458-1	Mitochondria Ab pattern [Interpretation] in Serum by Immunofluorescence
+58755-0	Varicella zoster virus IgG Ab [Units/volume] in Cerebral spinal fluid by Immunoassay
+58760-0	Epstein Barr virus capsid IgG Ab [Units/volume] in Cerebral spinal fluid by Immunoassay
+58765-9	Histone Ab [Presence] in Serum by Immunoassay
+58783-2	Herpes simplex virus 2 IgM Ab [Units/volume] in Cerebral spinal fluid by Immunoassay
+58784-0	Herpes simplex virus 1 IgM Ab [Units/volume] in Cerebral spinal fluid by Immunoassay
+58786-5	Herpes simplex virus 1 IgG Ab [Units/volume] in Cerebral spinal fluid by Immunoassay
+5879-2	Rotavirus Ag [Presence] in Stool by Agglutination
+58900-2	HIV 1+2 Ab+HIV1 p24 Ag [Units/volume] in Serum or Plasma by Immunoassay
+58931-7	Mycobacterium tuberculosis DNA [Presence] in Body fluid by NAA with probe detection
+58942-4	Microscopic observation [Identifier] in Pleural fluid by Acid fast stain.Ziehl-Neelsen
+58943-2	Microscopic observation [Identifier] in Cerebral spinal fluid by Acid fast stain.Ziehl-Neelsen
+5902-2	Prothrombin time (PT)
+5905-5	Monocytes/Leukocytes in Blood by Automated count
+59050-5	Chromosome analysis.interphase [Interpretation] in Specimen by FISH Narrative
+5910-5	Lactate dehydrogenase isoenzymes [Interpretation] in Serum or Plasma
+5920-4	Protein [Mass/volume] in Dialysis fluid
+597-5	Bacteria identified in Aspirate by Aerobe culture
+59804-5	Cortisol [Molar concentration difference] in Serum or Plasma --1 hour post XXX challenge
+59827-6	Bilirubin.total [Mass/volume] in Arterial blood
+6012-9	von Willebrand factor (vWf) Ag [Units/volume] in Platelet poor plasma by Immunoassay
+6014-5	von Willebrand factor (vWf) actual/normal in Platelet poor plasma by Aggregometry.ristocetin cofactor activity
+6020-2	Alternaria alternata IgE Ab [Units/volume] in Serum
+6021-0	Apple IgE Ab [Units/volume] in Serum
+6035-0	Banana IgE Ab [Units/volume] in Serum
+6038-4	American Beech IgE Ab [Units/volume] in Serum
+6039-2	Beef IgE Ab [Units/volume] in Serum
+6045-9	Black Pepper IgE Ab [Units/volume] in Serum
+606-4	Bacteria identified in Cerebral spinal fluid by Culture
+6061-6	Carrot IgE Ab [Units/volume] in Serum
+6062-4	Casein IgE Ab [Units/volume] in Serum
+6071-5	Chicken meat IgE Ab [Units/volume] in Serum
+6075-6	Cladosporium herbarum IgE Ab [Units/volume] in Serum
+6078-0	Cockroach IgE Ab [Units/volume] in Serum
+608-0	Bacteria identified in Ear by Aerobe culture
+6081-4	Coconut IgE Ab [Units/volume] in Serum
+6082-2	Codfish IgE Ab [Units/volume] in Serum
+6087-1	Corn IgE Ab [Units/volume] in Serum
+6090-5	Cottonwood IgE Ab [Units/volume] in Serum
+6095-4	American house dust mite IgE Ab [Units/volume] in Serum
+6096-2	European house dust mite IgE Ab [Units/volume] in Serum
+6099-6	Dog epithelium IgE Ab [Units/volume] in Serum
+6106-9	Egg white IgE Ab [Units/volume] in Serum
+6107-7	Egg yolk IgE Ab [Units/volume] in Serum
+6122-6	Garlic IgE Ab [Units/volume] in Serum
+6125-9	Gluten IgE Ab [Units/volume] in Serum
+61313-3	Sesame Seed IgE Ab/IgE total in Serum
+61334-9	Dog epithelium IgE Ab/IgE total in Serum
+6136-6	Hazelnut IgE Ab [Units/volume] in Serum
+6190-3	Oat IgE Ab [Units/volume] in Serum
+6193-7	Onion IgE Ab [Units/volume] in Serum
+6194-5	Orange IgE Ab [Units/volume] in Serum
+6206-7	Peanut IgE Ab [Units/volume] in Serum
+621-3	Bacteria identified in Synovial fluid by Culture
+6212-5	Penicillium notatum IgE Ab [Units/volume] in Serum
+6219-0	Pork IgE Ab [Units/volume] in Serum
+622-1	Bacteria identified in Sputum by Aerobe culture
+6220-8	Potato IgE Ab [Units/volume] in Serum
+6227-3	Red Pepper IgE Ab [Units/volume] in Serum
+6230-7	Rice IgE Ab [Units/volume] in Serum
+62367-8	Chromosome analysis panel by FISH
+6237-2	Salmon IgE Ab [Units/volume] in Serum
+6245-5	Sheep wool IgE Ab [Units/volume] in Serum
+62465-0	Toxoplasma gondii DNA [#/volume] in Cerebral spinal fluid by NAA with probe detection
+6248-9	Soybean IgE Ab [Units/volume] in Serum
+625-4	Bacteria identified in Stool by Culture
+6257-0	Strawberry IgE Ab [Units/volume] in Serum
+626-2	Bacteria identified in Throat by Culture
+6261-2	Sweet Vernal grass IgE Ab [Units/volume] in Serum
+6265-3	Timothy IgE Ab [Units/volume] in Serum
+6266-1	Tomato IgE Ab [Units/volume] in Serum
+6270-3	Tuna IgE Ab [Units/volume] in Serum
+6271-1	Turkey meat IgE Ab [Units/volume] in Serum
+6272-9	Velvet grass IgE Ab [Units/volume] in Serum
+6285-1	Willow IgE Ab [Units/volume] in Serum
+6298-4	Potassium [Moles/volume] in Blood
+630-4	Bacteria identified in Urine by Culture
+6301-6	INR in Platelet poor plasma by Coagulation assay
+6303-2	dRVVT in Platelet poor plasma by Coagulation assay
+63481-6	Urea [Mass/volume] in 24 hour Urine
+63486-5	Nut allergen panel - Serum
+63551-6	Pituitary Ab [Titer] in Serum by Immunofluorescence
+63556-5	Fat [Mass/mass] in Stool
+6361-0	Clostridioides difficile toxin A+B [Units/volume] in Serum by Immunoassay
+6391-7	Echinococcus sp Ab [Units/volume] in Serum by Immunoassay
+6447-7	Legionella pneumophila Ag [Presence] in Urine by Immunoassay
+6462-6	Bacteria identified in Wound by Culture
+647-8	Microscopic observation [Identifier] in Sputum by Acid fast stain.Ziehl-Neelsen
+6476-6	Mumps virus IgG Ab [Presence] in Serum by Immunoassay
+6478-2	Mumps virus IgM Ab [Presence] in Serum by Immunoassay
+652-8	Microscopic observation [Identifier] in Urine by Acid fast stain.Ziehl-Neelsen
+65761-9	Lymphocyte subset interpretation in Blood by Flow cytometry (FC)
+664-3	Microscopic observation [Identifier] in Specimen by Gram stain
+6690-2	Leukocytes [#/volume] in Blood by Automated count
+6762-9	Glucose [Mass/volume] in Serum or Plasma --1.5 hours post 50 g lactose PO
+6768-6	Alkaline phosphatase [Enzymatic activity/volume] in Serum or Plasma
+6770-2	Alpha 1 antitrypsin phenotype [Identifier] in Serum or Plasma by Immunofixation
+680-9	Microscopic observation [Identifier] in Specimen by Wet preparation
+6833-8	Cat dander IgE Ab [Units/volume] in Serum
+6841-1	Grape IgE Ab [Units/volume] in Serum
+6852-8	Green Pepper IgE Ab [Units/volume] in Serum
+68548-7	Aquaporin 4 water channel IgG Ab [Units/volume] in Serum or Plasma by Immunoassay
+6873-4	Beta hydroxybutyrate [Moles/volume] in Serum or Plasma
+6874-2	Calcium [Mass/time] in 24 hour Urine
+6875-9	Cancer Ag 15-3 [Units/volume] in Serum or Plasma
+6901-3	Insulin Free [Units/volume] in Serum or Plasma
+6921-1	Cytomegalovirus IgG Ab [Units/volume] in Cerebral spinal fluid by Immunoassay
+6924-5	Gliadin IgA Ab [Units/volume] in Serum
+69739-1	Drugs of abuse panel - Urine by Screen method
+69843-1	Alpha hydroxybutyrate [Moles/volume] in Serum or Plasma
+70012-0	Coxsackievirus IgM Ab [Presence] in Serum or Plasma by Immunoassay
+70022-9	Candida albicans DNA [Presence] in Blood by NAA with probe detection
+70291-0	inv(16)(p13.1;q22.1)(MYH11,CBFB) fusion transcript [Presence] in Blood or Tissue by Molecular genetics method
+704-7	Basophils [#/volume] in Blood by Automated count
+706-2	Basophils/Leukocytes in Blood by Automated count
+7091-2	Apricot IgE Ab [Units/volume] in Serum
+711-2	Eosinophils [#/volume] in Blood by Automated count
+713-8	Eosinophils/Leukocytes in Blood by Automated count
+71356-0	TPMT gene c.238G>C+460G>A+719A>G [Identifier] in Blood or Tissue by Molecular genetics method Narrative
+71357-8	PDGFRA gene exon 18 targeted mutation analysis in Blood or Tissue by Sequencing
+71698-5	Granulocytes [#/volume] in Body fluid by Automated count
+71772-8	Mitogen stimulated gamma interferon [Units/volume] in Blood
+718-7	Hemoglobin [Mass/volume] in Blood
+72365-0	Influenza virus A and B Ag [Identifier] in Nose by Immunofluorescence
+72576-2	Prostate Specific Ag Free/Prostate specific Ag.total [Pure mass fraction] in Serum or Plasma
+7258-7	Cow milk IgE Ab [Units/volume] in Serum
+72654-7	SNRPN gene 15q11 deletion and duplication mutation analysis [Identifier] in Blood or Tissue by FISH Nominal
+72726-3	t(4;14)(p16;q32)(FGFR3,IGH) fusion transcript [Identifier] in Blood or Tissue by FISH Nominal
+7278-5	European house dust mite IgG Ab [Units/volume] in Serum
+72880-8	Deprecated CYP2D6 gene drug metabolism analysis overall interpretation [Interpretation] in Blood, Tissue or Saliva Qualitative by Molecular genetics method
+731-0	Lymphocytes [#/volume] in Blood by Automated count
+736-9	Lymphocytes/Leukocytes in Blood by Automated count
+7369-2	Perennial rye grass IgE Ab [Units/volume] in Serum
+73967-2	Noninvasive prenatal fetal aneuploidy panel - Plasma cell-free DNA
+742-7	Monocytes [#/volume] in Blood by Automated count
+7425-2	House dust Hollister Stier IgE Ab [Units/volume] in Serum
+74446-6	Stone analysis panel
+74944-0	lamoTRIgine [Mass/volume] in Serum or Plasma --trough
+75012-5	t(4;11)(q21.3;q23)(AFF1,MLL) fusion transcript [Presence] in Bone marrow by Molecular genetics method
+751-8	Neutrophils [#/volume] in Blood by Automated count
+75357-4	Bacteria identified in Abscess by Anaerobe+Aerobe culture
+75603-1	Comment on fetal 1p36 deletion risk [Text] in Plasma cell-free+WBC DNA by Dosage of chromosome-specific cfDNA Narrative
+7591-1	Chili Pepper IgE Ab [Units/volume] in Serum
+7674-5	Rye IgE Ab [Units/volume] in Serum
+76766-5	Treponema pallidum polA gene [Presence] in Genital specimen by NAA with probe detection
+770-8	Neutrophils/Leukocytes in Blood by Automated count
+77030-5	t(1;19)(q23.3;p13.3)(PBX1,TCF3) fusion transcript in Blood or Tissue by FISH
+77032-1	t(8;14)(q24;q32)(MYC,IGH) fusion transcript in Blood or Tissue by FISH
+77033-9	t(14;16)(q32;q23)(IGH,MAF) fusion transcript in Blood or Tissue by FISH
+77037-0	t(11;14)(q13;q32)(CCND1,IGH) fusion transcript in Blood or Tissue by FISH
+77161-8	Prothrombin activity [Units/volume] in Platelet poor plasma by Coagulation assay --immediately after addition of factor II depleted plasma
+77174-1	CALR gene exon 9 mutations found [Identifier] in Blood or Tissue by Molecular genetics method Nominal
+77395-2	Human papilloma virus 18 DNA [Presence] in Anorectal by NAA with probe detection
+77636-9	HLA-C [Type] by High resolution typing
+77638-5	HLA-DP and DQ and DR (class II) IgG panel [Identifier] - Serum or Plasma by Immunoassay
+777-3	Platelets [#/volume] in Blood by Automated count
+78013-0	HLA-A and B and DRB and DQB1 panel [Type] - Blood or Tissue by Low resolution
+78014-8	HLA-A [Type] by Low resolution
+78204-5	CCND1 gene duplication [Presence] in Blood or Tissue by FISH
+78210-2	ALK gene rearrangements [Interpretation] in Blood or Tissue by FISH Narrative
+78215-1	MYC gene rearrangements [Presence] in Blood or Tissue by FISH
+78226-8	MLL gene rearrangements [Interpretation] in Blood or Tissue by FISH Narrative
+78228-4	IGH gene rearrangements [Interpretation] in Blood or Tissue by FISH Narrative
+785-6	MCH [Entitic mass] by Automated count
+786-4	MCHC [Entitic Mass/volume] in Red Blood Cells by Automated count
+787-2	MCV [Entitic mean volume] in Red Blood Cells by Automated count
+78740-8	Pathologic casts [#/area] in Urine by Automated count
+7884-0	Epstein Barr virus nuclear IgM Ab [Presence] in Serum
+789-8	Erythrocytes [#/volume] in Blood by Automated count
+7909-5	Herpes simplex virus 1 IgG Ab [Units/volume] in Serum
+7910-3	Herpes simplex virus 1 IgM Ab [Units/volume] in Serum
+7912-9	Herpes simplex virus 2 IgG Ab [Units/volume] in Serum
+79187-1	Cells.CD3+CD4+CD8+ (Double positive) [#/volume] in Blood
+79210-1	FLT3 gene internal tandem duplication [Presence] in Blood or Tissue by Molecular genetics method
+79401-6	HBB gene full mutation analysis [Identifier] in Blood or Tissue by Sequencing
+7970-7	Mycoplasma pneumoniae IgG Ab [Units/volume] in Serum
+7992-1	Respiratory syncytial virus IgM Ab [Units/volume] in Serum
+8015-0	Rubella virus IgM Ab [Units/volume] in Serum
+80223-1	CD4 cells/Lymphocytes in Specimen
+804-5	Leukocytes [#/volume] in Blood by Manual count
+8041-6	Treponema pallidum Ab [Presence] in Serum by Hemagglutination
+80426-0	Hepatitis D virus RNA [#/volume] (viral load) in Serum or Plasma by NAA with probe detection
+8072-1	Insulin Ab [Units/volume] in Serum
+8099-4	Thyroperoxidase Ab [Units/volume] in Serum or Plasma
+8122-4	CD3 cells [#/volume] in Blood
+8130-7	CD45 (Lymphs) cells/cells in Blood
+81732-0	PM-SCL-100 Ab [Presence] in Serum by Line blot
+82429-2	Deprecated Nucleosome Ab [Presence] in Serum by Immunoblot
+8277-6	Body surface area
+82926-7	Phospholipase A2 receptor IgG Ab [Presence] in Serum by Line blot
+82979-6	Contactin-associated protein 2 IgG Ab [Presence] in Serum or Plasma by Immunofluorescence
+82998-6	Dense fine speckled 70 protein IgG Ab [Presence] in Serum or Plasma by Line blot
+8302-2	Body height
+8310-5	Body temperature
+8462-4	Diastolic blood pressure
+8480-6	Systolic blood pressure
+84873-9	Myelin oligodendrocyte glycoprotein IgG Ab [Titer] in Serum or Plasma by Immunofluorescence
+85286-3	Promoter methylation testing method [Type] in Cancer specimen
+85354-9	Blood pressure panel with all children optional
+87352-1	Senecavirus A whole genome [Nucleotide sequence] in Isolate by Sequencing
+882-1	ABO and Rh group [Type] in Blood
+8867-4	Heart rate
+888-8	Blood group antibodies identified in Serum or Plasma
+88884-2	Fatty acid omega-3 and omega-6 panel - Serum or Plasma
+9397-1	Color of Stool
+9404-5	Adenosine deaminase [Enzymatic activity/volume] in Body fluid
+9407-8	Alpha 1 antitrypsin [Mass/volume] in Stool
+94564-2	SARS-CoV-2 (COVID-19) IgM Ab [Presence] in Serum or Plasma by Immunoassay
+94761-4	SARS-CoV-2 (COVID-19) IgG Ab [Presence] in DBS by Immunoassay
+9525-7	Hepatitis D virus IgM Ab [Units/volume] in Serum
+9554-7	CD10 cells [#/volume] in Blood
+9559-6	CD5 cells [#/volume] in Blood
+9563-8	CD7 cells [#/volume] in Blood
+9624-8	Vanillylmandelate [Mass/volume] in Urine
+9745-1	Gamma globulin [Mass/volume] in Urine by Electrophoresis

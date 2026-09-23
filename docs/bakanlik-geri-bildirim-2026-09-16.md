@@ -16,7 +16,7 @@ belirtildi.
 | 4 | `az-observation` (vital/not) | ✅ **Yapıldı** (vital) | Doktor notları zaten epikrizde — mükerrer olmasın diye gönderilmiyor |
 | 5 | Laboratuvar `component` yapısı | ✅ **Yapıldı** (`e9f1908`) | — |
 | 6 | ImagingStudy | **Engelli** | PACS'tan Study Instance UID alınamıyor |
-| 7 | LOINC `display` | **Kaynak gerekiyor** | IG standart LOINC adlarını yayınlamıyor |
+| 7 | LOINC `display` | ✅ **Yapıldı** | Kaynak: tx.fhir.org (HL7 resmî), LOINC 2.82 |
 
 ---
 
@@ -349,31 +349,98 @@ da aynı anda çözülür (profilde `0..*`, opsiyonel).
 
 ---
 
-## 7. LOINC `display` alanı
+## 7. LOINC `display` alanı — yapıldı
 
 Bakanlık `display`'e "PDW" gibi lokal kısaltma değil, kodun standart açıklamasını
-istiyor (`"Platelet distribution width [Entitic volume] in Blood by Automated
-count"`), lokal ad ise `code.text` içinde gitmeli.
+istiyor; lokal ad `code.text` içinde gitmeli.
 
-**Kaynak sorunu:** `az-lab-test-codes-vs` doğrudan `http://loinc.org`'u ve
-`az-other-lab-test-codes`'u kapsıyor. Yani **IG standart LOINC açıklamalarını
-yayınlamıyor**; `CodeSystem-az-lab-test-codes.json` adresi de HTML dönüyor
-(yayınlanmamış). Pusula'daki `LIS.Test` yalnızca lokal adı tutuyor.
+### Kaynak sorunu ve çözümü
 
-**Seçenekler:**
-1. LOINC resmi sürümünü indirip (ücretsiz, hesap gerektirir) kod→display
-   tablosunu projeye gömmek. Kalıcı ve doğru çözüm.
-2. Bakanlıktan `az-lab-test-codes` CodeSystem'ini yayınlamasını istemek.
+IG standart LOINC açıklamalarını **yayınlamıyor** -- `az-lab-test-codes-vs`
+doğrudan `http://loinc.org`'u filtresiz kapsıyor, `expansion` yok. Bakanlığın
+sandbox ucu da terminoloji sorgusu kabul etmiyor (**canlı denendi, 2026-09-23**):
 
-Ne olursa olsun `code.text = lokal ad` kısmı hemen yapılabilir; eksik olan
-yalnızca standart `display`.
+```
+GET /fhir/CodeSystem/$lookup?system=http://loinc.org&code=32207-3
+  -> HTTP 400  "Unsupported resource type: CodeSystem. It is not in the allowed list."
+GET /fhir/ValueSet/az-lab-test-codes-vs/$expand
+  -> HTTP 404
+```
 
-**Ayrıca:** Pusula'daki bazı kodlar LOINC bile değil (`MP15227`, `EH-011`,
-`LE-001`, `9397-1-B`, `20455-2-A`). Bunlar için `az-other-lab-test-codes`
-sistemine geçilmeli; şu an hepsi `http://loinc.org` sistemiyle gönderiliyor ki
-bu **yanlış** -- LOINC olmayan bir kodu LOINC sistemiyle etiketliyoruz.
+Açıklamalar bu yüzden **HL7'nin resmî açık terminoloji sunucusundan**
+(`tx.fhir.org`, LOINC **2.82**) çekilip projeye gömüldü -- `az-icd-10` ile aynı
+kalıp: `Resources/loinc-display.tsv`, **922 kod**, 58 KB. Çalışma anında internet
+gerekmiyor, dış servis düştüğünde gönderim durmuyor.
 
----
+Bakanlığın verdiği örnek artık birebir üretiliyor:
+
+```json
+"code": {
+  "coding": [{ "system": "http://loinc.org", "code": "32207-3",
+               "display": "Platelet distribution width [Entitic volume] in Blood by Automated count" }],
+  "text": "PDW"
+}
+```
+
+### Kod çözümlemesi artık kontrol basamağına dayanıyor
+
+LOINC kodunun son hanesi gövdesinden **Mod-10 (Luhn)** ile hesaplanır. Bu, kodun
+gerçekten LOINC olup olmadığını tabloya bakmadan söylüyor. Ölçüldü (son 365 gün,
+**1.555.441 lab istemi**):
+
+| Durum | Kod | İstem | Pay | Gönderim |
+|---|---:|---:|---:|---|
+| Geçerli LOINC | 550 | 763.045 | %49,1 | `loinc.org` + kod |
+| Geçerli LOINC + ayırıcılı ek (`1533-9-A`) | 51 | 111.643 | %7,2 | `loinc.org` + **taban kod** |
+| Geçerli LOINC + bitişik harf (`10842-3C`) | 18 | 976 | %0,1 | `loinc.org` + taban kod |
+| Bitişik rakam (`1558-62`) -- **belirsiz** | 26 | 92.816 | %6,0 | `other` (teyit bekliyor) |
+| Sahte LOINC (`101-1`) | 14 | 5.825 | %0,4 | `other` |
+| Tamamen yerel (`PAT15197`) | 294 | 581.136 | %37,4 | `other` |
+
+**Sahte LOINC'lar:** `LIS.Test`'te `101-1, 101-2, 101-3, 101-4, 101-5` gibi diziler
+var -- aynı gövdenin beş farklı kontrol basamağı olamaz, doğrusu `101-6`. Bunları
+`loinc.org` sistemiyle göndermek, LOINC'ta olmayan bir kodu LOINC diye
+etiketlemekti.
+
+**Bitişik rakam neden dışarıda:** `1558-62` iki türlü okunabiliyor -- "LOINC
+`1558-6` + yerel varyant `2`" ya da düpedüz `1558-62` adlı yerel kod. Kontrol
+basamağı ikisini **ayıramaz**, çünkü `1558-6` zaten geçerli bir LOINC. Tahmin
+edip yanılırsak açlık kan şekeri olmayan bir testi öyle bildirmiş oluruz.
+Laboratuvar teyidi bekleniyor.
+
+### `az-other-lab-test-codes` hatası düzeltildi
+
+Önceki sürüm LOINC olmayan kodları `az-other-lab-test-codes` sistemine **kendi
+yerel kodlarıyla** yazıyordu. O CodeSystem indirildi (`content: complete`):
+**içinde tek bir kod var, `other`**. `Observation.code` ve `component.code` ikisi
+de `az-lab-test-codes-vs`'e **`required`** bağlı olduğu için bu, ICD-10'daki
+D38.1 reddinin aynısını üretirdi.
+
+Artık `CodeableConcept` iki coding taşıyor -- `required` bağlama en az bir
+coding'in ValueSet'te olmasını ister, onu `other` sağlıyor; yerel kod da
+kaybolmuyor:
+
+```json
+"code": {
+  "coding": [
+    { "system": "http://fhir.az/CodeSystem/az-other-lab-test-codes",
+      "code": "other", "display": "Digər laboratoriya testi" },
+    { "system": "http://pusula.local/CodeSystem/lab-test",
+      "code": "ART-001", "display": "pH" }
+  ],
+  "text": "pH"
+}
+```
+
+**Bakanlıktan istenecek:** yerel test kodları için resmî bir sistem URI'si. O
+gelene kadar `http://pusula.local/CodeSystem/lab-test` kullanılıyor.
+
+### Laboratuvara iletilen liste
+
+`lab-loinc-girilecek.xlsx` -- **121 koda** LOINC atanırsa oran **%49,1 → %90,8**
+çıkıyor. Önerilen her kod `tx.fhir.org` `$lookup` ile doğrulandı ve resmî adı
+Excel'de yanında yazıyor. Doğrulama dört yanlış tahmini yakaladı (örn. açlık
+insülini sandığım `14371-9` meğer "idrarda maya" imiş).
 
 ## Durum (2026-09-18)
 

@@ -62,13 +62,11 @@ public static partial class LabResultObservationMapper
                     },
                 },
             },
-            ["code"] = new JsonObject
-            {
-                ["coding"] = new JsonArray
-                {
-                    new JsonObject { ["system"] = LoincSystem, ["code"] = lab.LoincKodu, ["display"] = lab.TetkikAdi ?? lab.LoincKodu },
-                },
-            },
+            // Grup yapisindaki Kodlama() ile AYNI yol: kontrol basamagiyla cozulen
+            // gercek LOINC + STANDART display, cozulemezse "other" + yerel coding.
+            // (Bu asiri yuk su an CAGRILMIYOR -- gonderim MapGroup uzerinden gidiyor --
+            // ama yanlis kod ureten olu kod, onu ileride dirilten icin tuzak olur.)
+            ["code"] = Kodlama(lab.LoincKodu!, lab.TetkikAdi ?? lab.LoincKodu!),
             ["subject"] = new JsonObject { ["reference"] = $"Patient/{azPatientId}" },
             ["effectiveDateTime"] = ToAzInstant(lab.TetkikSonucOnayTarihi ?? lab.TetkikSonucTarihi ?? DateTime.Now),
             ["extension"] = new JsonArray
