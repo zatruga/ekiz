@@ -52,7 +52,7 @@ public class HizmetMappingStore
 
     public record Satir(
         int HizmetId, string HizmetKodu, string HizmetAdi, string HizmetTipi, int Istem,
-        string IcbariKodu, string? Oneri, string? AzKod, bool Gonderilmez, string Kaynak, string UpdatedAtUtc)
+        string IcbariKodu, string? Oneri, string? Adaylar, string? AzKod, bool Gonderilmez, string Kaynak, string UpdatedAtUtc)
     {
         /// <summary>
         /// Gonderimde kullanilacak kod. SIRA ONEMLI: elle girilen > Pusula'nin Icbari kodu > oneri.
@@ -75,6 +75,15 @@ public class HizmetMappingStore
 
         /// <summary>Pusula'da eslesmesi YOK -- Excel'e alinip Pusula'da islenecekler.</summary>
         public bool PusuladaEksik => string.IsNullOrWhiteSpace(IcbariKodu);
+
+        /// <summary>
+        /// Acilir listede gosterilecek ADAY bakanlik kodlari. ONERI DEGIL -- algoritma
+        /// 3.052 secenegi 6'ya indiriyor, karari insan veriyor. Otomatik oneri denendi
+        /// ve guvenilmez cikti (0,72 skorlu yanlis, 0,52 skorlu dogru eslesme), o yuzden
+        /// bu liste "aday" olarak sunuluyor, "oneri" olarak degil.
+        /// </summary>
+        public string[] AdayListesi => string.IsNullOrWhiteSpace(Adaylar)
+            ? [] : Adaylar.Split(';', StringSplitOptions.RemoveEmptyEntries | StringSplitOptions.TrimEntries);
     }
 
     private void EnsureSchema()
@@ -91,6 +100,7 @@ public class HizmetMappingStore
                 Istem        INTEGER NOT NULL DEFAULT 0,
                 IcbariKodu   TEXT NOT NULL DEFAULT '',
                 Oneri        TEXT NULL,
+                Adaylar      TEXT NULL,
                 AzKod        TEXT NULL,
                 Gonderilmez  INTEGER NOT NULL DEFAULT 0,
                 Kaynak       TEXT NOT NULL DEFAULT '',
@@ -106,7 +116,7 @@ public class HizmetMappingStore
         // her seferinde SIFIRDAN bir dosya kullandi, o yuzden gecis yolu hic
         // calismadi. Hata ancak var olan synclog.db'de ortaya cikti.
         // LabTestLoincStore'da ayni gecis bastan yazilmisti; burada atlanmis.
-        foreach (var ek in new[] { "Oneri TEXT NULL" })
+        foreach (var ek in new[] { "Oneri TEXT NULL", "Adaylar TEXT NULL" })
         {
             try
             {
@@ -133,15 +143,16 @@ public class HizmetMappingStore
         using var cmd = conn.CreateCommand();
         cmd.Transaction = tx;
         cmd.CommandText = @"
-            INSERT INTO HizmetMapping (HizmetId, HizmetKodu, HizmetAdi, HizmetTipi, Istem, IcbariKodu, Oneri, AzKod, Gonderilmez, Kaynak, UpdatedAtUtc)
-            VALUES ($id, $k, $a, $t, $i, $ic, $o, NULL, 0, '', $u)
+            INSERT INTO HizmetMapping (HizmetId, HizmetKodu, HizmetAdi, HizmetTipi, Istem, IcbariKodu, Oneri, Adaylar, AzKod, Gonderilmez, Kaynak, UpdatedAtUtc)
+            VALUES ($id, $k, $a, $t, $i, $ic, $o, $ad, NULL, 0, '', $u)
             ON CONFLICT(HizmetId) DO UPDATE SET
                 HizmetKodu = excluded.HizmetKodu,
                 HizmetAdi  = excluded.HizmetAdi,
                 HizmetTipi = excluded.HizmetTipi,
                 Istem      = excluded.Istem,
                 IcbariKodu = excluded.IcbariKodu,
-                Oneri      = excluded.Oneri;";
+                Oneri      = excluded.Oneri,
+                Adaylar    = excluded.Adaylar;";
         var pid = cmd.Parameters.Add("$id", SqliteType.Integer);
         var pk = cmd.Parameters.Add("$k", SqliteType.Text);
         var pa = cmd.Parameters.Add("$a", SqliteType.Text);
@@ -149,6 +160,7 @@ public class HizmetMappingStore
         var pi = cmd.Parameters.Add("$i", SqliteType.Integer);
         var pic = cmd.Parameters.Add("$ic", SqliteType.Text);
         var po = cmd.Parameters.Add("$o", SqliteType.Text);
+        var pad = cmd.Parameters.Add("$ad", SqliteType.Text);
         cmd.Parameters.AddWithValue("$u", DateTime.UtcNow.ToString("O"));
 
         while (reader.ReadLine() is { } satir)
@@ -162,6 +174,7 @@ public class HizmetMappingStore
             pi.Value = p.Length > 4 && int.TryParse(p[4], out var n) ? n : 0;
             pic.Value = p.Length > 5 ? p[5].Trim() : "";
             po.Value = p.Length > 6 && !string.IsNullOrWhiteSpace(p[6]) ? p[6].Trim() : (object)DBNull.Value;
+            pad.Value = p.Length > 7 && !string.IsNullOrWhiteSpace(p[7]) ? p[7].Trim() : (object)DBNull.Value;
             cmd.ExecuteNonQuery();
         }
         tx.Commit();
@@ -198,14 +211,14 @@ public class HizmetMappingStore
         await conn.OpenAsync(ct);
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"SELECT HizmetId, HizmetKodu, HizmetAdi, HizmetTipi, Istem,
-                                   IcbariKodu, Oneri, AzKod, Gonderilmez, Kaynak, UpdatedAtUtc
+                                   IcbariKodu, Oneri, Adaylar, AzKod, Gonderilmez, Kaynak, UpdatedAtUtc
                             FROM HizmetMapping ORDER BY Istem DESC, HizmetAdi";
         var list = new List<Satir>();
         await using var r = await cmd.ExecuteReaderAsync(ct);
         while (await r.ReadAsync(ct))
             list.Add(new Satir(r.GetInt32(0), r.GetString(1), r.GetString(2), r.GetString(3), r.GetInt32(4),
                 r.GetString(5), r.IsDBNull(6) ? null : r.GetString(6), r.IsDBNull(7) ? null : r.GetString(7),
-                r.GetInt32(8) == 1, r.GetString(9), r.GetString(10)));
+                r.IsDBNull(8) ? null : r.GetString(8), r.GetInt32(9) == 1, r.GetString(10), r.GetString(11)));
         return list;
     }
 

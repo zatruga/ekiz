@@ -107,7 +107,7 @@
                         <th style="width:105px;">Bakanlık Kodu</th>
                         <th>Bakanlık Karşılığı</th>
                         <th style="width:105px;">Kaynak</th>
-                        <th style="width:240px;"></th>
+                        <th style="width:400px;">Eşleştir</th>
                     </tr>
                 </thead>
                 <tbody>
@@ -177,7 +177,22 @@
                         </td>
                         <td>
                             <div style="display:flex; gap:5px; align-items:center; flex-wrap:wrap;">
-                                <input type="text" form="f-@s.HizmetId" name="azKod" value="@s.AzKod"
+                                @if (s.AdayListesi.Length > 0)
+                                {
+                                    @* Aday listesi: algoritma 3.052 secenegi birkac tanesine indiriyor,
+                                       karari kullanici veriyor. Secilince ustteki kutuya yaziliyor. *@
+                                    <select class="form-control" style="width:150px;"
+                                            onchange="var i=document.getElementById('k-@s.HizmetId'); if(this.value){i.value=this.value;}">
+                                        <option value="">— aday seç —</option>
+                                        @foreach (var c in s.AdayListesi)
+                                        {
+                                            var cadi = PusulaEHealthSync.Web.Pages.HizmetEslestirmeModel.AzAdiTr(c)
+                                                       ?? PusulaEHealthSync.Web.Pages.HizmetEslestirmeModel.AzAdi(c);
+                                            <option value="@c">@c — @(cadi is null ? "" : cadi.Length > 60 ? cadi[..60] + "…" : cadi)</option>
+                                        }
+                                    </select>
+                                }
+                                <input type="text" form="f-@s.HizmetId" id="k-@s.HizmetId" name="azKod" value="@s.AzKod"
                                        placeholder="@(s.Oneri ?? s.IcbariKodu)" class="form-control" style="width:95px;" />
                                 <button type="submit" form="f-@s.HizmetId" class="btn btn-primary btn-sm">Kaydet</button>
                                 @if (!s.Gonderilmez)
@@ -226,6 +241,7 @@
     <p class="text-muted" style="font-size:13px; margin:0;">
         <strong>Pusula</strong> = eşleşme Pusula'daki İcbari Sigorta Fiyat Listesi'nden geliyor, hazır.
         <strong>Medigate</strong> = bizim önerimiz, henüz Pusula'ya işlenmedi.
+        <strong>aday seç</strong> = algoritmanın bulduğu yakın kodlar -- öneri değil, aday; kararı siz verirsiniz.
         <strong>elle</strong> = bu ekrandan girildi.
         <strong>gönderilmez</strong> = tıbbi işlem değil (yatak ücreti, kafeterya, refakatçi), bakanlığa hiç gitmez.
         Bu tablo Pusula'ya <em>yazmaz</em>; asıl eşleştirme Pusula'da yapılır.
