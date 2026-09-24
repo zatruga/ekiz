@@ -34,8 +34,10 @@ namespace PusulaEHealthSync.Persistence;
 // 2.017'de 1 tam eslesme cikti. Yani bunlar "adi farkli yazilmis ayni hizmet" degil.
 public class HizmetMappingStore
 {
-    public const string KaynakOneri = "oneri";
-    public const string KaynakKullanici = "kullanici";
+    // Eslestirmenin NEREDEN geldigi -- ekranda rozet olarak gorunur.
+    public const string KaynakPusula = "pusula";       // Icbari Sigorta Fiyat Listesi
+    public const string KaynakMedigate = "medigate";   // bizim onerimiz, Pusula'ya islenmeyi bekliyor
+    public const string KaynakKullanici = "kullanici"; // bu ekrandan elle girilmis
 
     private const string ResourceName = "PusulaEHealthSync.Resources.hizmet-eslestirme.tsv";
 
@@ -50,17 +52,29 @@ public class HizmetMappingStore
 
     public record Satir(
         int HizmetId, string HizmetKodu, string HizmetAdi, string HizmetTipi, int Istem,
-        string IcbariKodu, string? AzKod, bool Gonderilmez, string Kaynak, string UpdatedAtUtc)
+        string IcbariKodu, string? Oneri, string? AzKod, bool Gonderilmez, string Kaynak, string UpdatedAtUtc)
     {
-        /// <summary>Gonderimde kullanilacak kod: elle girilen varsa o, yoksa Pusula'daki Icbari.</summary>
+        /// <summary>
+        /// Gonderimde kullanilacak kod. SIRA ONEMLI: elle girilen > Pusula'nin Icbari kodu > oneri.
+        /// Oneri en sonda, cunku o henuz Pusula'ya islenmemis bir TEKLIF -- Icbari kodu varken
+        /// onun onune gecmemeli.
+        /// </summary>
         public string? EtkinKod => !string.IsNullOrWhiteSpace(AzKod) ? AzKod
-            : !string.IsNullOrWhiteSpace(IcbariKodu) ? IcbariKodu : null;
+            : !string.IsNullOrWhiteSpace(IcbariKodu) ? IcbariKodu
+            : !string.IsNullOrWhiteSpace(Oneri) ? Oneri : null;
 
         public bool Eslesti => !Gonderilmez && EtkinKod is not null;
         public bool Bekliyor => !Gonderilmez && EtkinKod is null;
 
-        /// <summary>Icbari'den mi geliyor yoksa elle mi girildi -- ekranda ayirt edilsin.</summary>
-        public bool IcbaridenGeliyor => string.IsNullOrWhiteSpace(AzKod) && !string.IsNullOrWhiteSpace(IcbariKodu);
+        /// <summary>Rozet: eslestirme nereden geliyor.</summary>
+        public string Rozet =>
+            !string.IsNullOrWhiteSpace(AzKod) ? KaynakKullanici
+            : !string.IsNullOrWhiteSpace(IcbariKodu) ? KaynakPusula
+            : !string.IsNullOrWhiteSpace(Oneri) ? KaynakMedigate
+            : "";
+
+        /// <summary>Pusula'da eslesmesi YOK -- Excel'e alinip Pusula'da islenecekler.</summary>
+        public bool PusuladaEksik => string.IsNullOrWhiteSpace(IcbariKodu);
     }
 
     private void EnsureSchema()
@@ -76,9 +90,10 @@ public class HizmetMappingStore
                 HizmetTipi   TEXT NOT NULL DEFAULT '',
                 Istem        INTEGER NOT NULL DEFAULT 0,
                 IcbariKodu   TEXT NOT NULL DEFAULT '',
+                Oneri        TEXT NULL,
                 AzKod        TEXT NULL,
                 Gonderilmez  INTEGER NOT NULL DEFAULT 0,
-                Kaynak       TEXT NOT NULL DEFAULT 'oneri',
+                Kaynak       TEXT NOT NULL DEFAULT '',
                 UpdatedAtUtc TEXT NOT NULL
             );";
         cmd.ExecuteNonQuery();
@@ -99,21 +114,22 @@ public class HizmetMappingStore
         using var cmd = conn.CreateCommand();
         cmd.Transaction = tx;
         cmd.CommandText = @"
-            INSERT INTO HizmetMapping (HizmetId, HizmetKodu, HizmetAdi, HizmetTipi, Istem, IcbariKodu, AzKod, Gonderilmez, Kaynak, UpdatedAtUtc)
-            VALUES ($id, $k, $a, $t, $i, $ic, NULL, 0, $s, $u)
+            INSERT INTO HizmetMapping (HizmetId, HizmetKodu, HizmetAdi, HizmetTipi, Istem, IcbariKodu, Oneri, AzKod, Gonderilmez, Kaynak, UpdatedAtUtc)
+            VALUES ($id, $k, $a, $t, $i, $ic, $o, NULL, 0, '', $u)
             ON CONFLICT(HizmetId) DO UPDATE SET
                 HizmetKodu = excluded.HizmetKodu,
                 HizmetAdi  = excluded.HizmetAdi,
                 HizmetTipi = excluded.HizmetTipi,
                 Istem      = excluded.Istem,
-                IcbariKodu = excluded.IcbariKodu;";
+                IcbariKodu = excluded.IcbariKodu,
+                Oneri      = excluded.Oneri;";
         var pid = cmd.Parameters.Add("$id", SqliteType.Integer);
         var pk = cmd.Parameters.Add("$k", SqliteType.Text);
         var pa = cmd.Parameters.Add("$a", SqliteType.Text);
         var pt = cmd.Parameters.Add("$t", SqliteType.Text);
         var pi = cmd.Parameters.Add("$i", SqliteType.Integer);
         var pic = cmd.Parameters.Add("$ic", SqliteType.Text);
-        cmd.Parameters.AddWithValue("$s", KaynakOneri);
+        var po = cmd.Parameters.Add("$o", SqliteType.Text);
         cmd.Parameters.AddWithValue("$u", DateTime.UtcNow.ToString("O"));
 
         while (reader.ReadLine() is { } satir)
@@ -126,6 +142,7 @@ public class HizmetMappingStore
             pt.Value = p.Length > 3 ? p[3].Trim() : "";
             pi.Value = p.Length > 4 && int.TryParse(p[4], out var n) ? n : 0;
             pic.Value = p.Length > 5 ? p[5].Trim() : "";
+            po.Value = p.Length > 6 && !string.IsNullOrWhiteSpace(p[6]) ? p[6].Trim() : (object)DBNull.Value;
             cmd.ExecuteNonQuery();
         }
         tx.Commit();
@@ -140,15 +157,18 @@ public class HizmetMappingStore
         using var conn = new SqliteConnection(_connectionString);
         await conn.OpenAsync(ct);
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT HizmetId, AzKod, IcbariKodu, Gonderilmez FROM HizmetMapping";
+        cmd.CommandText = "SELECT HizmetId, AzKod, IcbariKodu, Oneri, Gonderilmez FROM HizmetMapping";
         var d = new Dictionary<int, (string?, bool)>();
         await using var r = await cmd.ExecuteReaderAsync(ct);
         while (await r.ReadAsync(ct))
         {
             var az = r.IsDBNull(1) ? null : r.GetString(1);
             var icb = r.IsDBNull(2) ? "" : r.GetString(2);
-            var kod = !string.IsNullOrWhiteSpace(az) ? az : (!string.IsNullOrWhiteSpace(icb) ? icb : null);
-            d[r.GetInt32(0)] = (kod, r.GetInt32(3) == 1);
+            var oneri = r.IsDBNull(3) ? null : r.GetString(3);
+            var kod = !string.IsNullOrWhiteSpace(az) ? az
+                : !string.IsNullOrWhiteSpace(icb) ? icb
+                : !string.IsNullOrWhiteSpace(oneri) ? oneri : null;
+            d[r.GetInt32(0)] = (kod, r.GetInt32(4) == 1);
         }
         return d;
     }
@@ -159,14 +179,14 @@ public class HizmetMappingStore
         await conn.OpenAsync(ct);
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"SELECT HizmetId, HizmetKodu, HizmetAdi, HizmetTipi, Istem,
-                                   IcbariKodu, AzKod, Gonderilmez, Kaynak, UpdatedAtUtc
+                                   IcbariKodu, Oneri, AzKod, Gonderilmez, Kaynak, UpdatedAtUtc
                             FROM HizmetMapping ORDER BY Istem DESC, HizmetAdi";
         var list = new List<Satir>();
         await using var r = await cmd.ExecuteReaderAsync(ct);
         while (await r.ReadAsync(ct))
             list.Add(new Satir(r.GetInt32(0), r.GetString(1), r.GetString(2), r.GetString(3), r.GetInt32(4),
-                r.GetString(5), r.IsDBNull(6) ? null : r.GetString(6), r.GetInt32(7) == 1,
-                r.GetString(8), r.GetString(9)));
+                r.GetString(5), r.IsDBNull(6) ? null : r.GetString(6), r.IsDBNull(7) ? null : r.GetString(7),
+                r.GetInt32(8) == 1, r.GetString(9), r.GetString(10)));
         return list;
     }
 
@@ -195,10 +215,9 @@ public class HizmetMappingStore
         await conn.OpenAsync(ct);
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"UPDATE HizmetMapping
-                               SET AzKod = NULL, Gonderilmez = 0, Kaynak = $s, UpdatedAtUtc = $u
+                               SET AzKod = NULL, Gonderilmez = 0, Kaynak = '', UpdatedAtUtc = $u
                              WHERE HizmetId = $id;";
         cmd.Parameters.AddWithValue("$id", hizmetId);
-        cmd.Parameters.AddWithValue("$s", KaynakOneri);
         cmd.Parameters.AddWithValue("$u", DateTime.UtcNow.ToString("O"));
         await cmd.ExecuteNonQueryAsync(ct);
     }
