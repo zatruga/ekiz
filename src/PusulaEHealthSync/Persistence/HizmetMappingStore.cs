@@ -97,6 +97,25 @@ public class HizmetMappingStore
                 UpdatedAtUtc TEXT NOT NULL
             );";
         cmd.ExecuteNonQuery();
+
+        // SONRADAN EKLENEN KOLONLAR. CREATE TABLE IF NOT EXISTS var olan tabloya
+        // kolon EKLEMEZ -- bu yuzden ALTER sart (SQLite'ta ADD COLUMN IF NOT EXISTS yok,
+        // o yuzden deneyip yakaliyoruz).
+        //
+        // NEDEN GECIKTI: bu tablonun ilk surumu ayni oturumda olusturuldu ve testler
+        // her seferinde SIFIRDAN bir dosya kullandi, o yuzden gecis yolu hic
+        // calismadi. Hata ancak var olan synclog.db'de ortaya cikti.
+        // LabTestLoincStore'da ayni gecis bastan yazilmisti; burada atlanmis.
+        foreach (var ek in new[] { "Oneri TEXT NULL" })
+        {
+            try
+            {
+                using var alter = conn.CreateCommand();
+                alter.CommandText = $"ALTER TABLE HizmetMapping ADD COLUMN {ek};";
+                alter.ExecuteNonQuery();
+            }
+            catch (SqliteException) { /* kolon zaten var */ }
+        }
     }
 
     // Gomulu liste hizmet KATALOGUDUR (kod, ad, tip, hacim, Icbari kodu). Bunlarin
