@@ -53,6 +53,7 @@
     <EmbeddedResource Include="Resources/az-icd-10.tsv" LogicalName="PusulaEHealthSync.Resources.az-icd-10.tsv" />
     <EmbeddedResource Include="Resources/loinc-display.tsv" LogicalName="PusulaEHealthSync.Resources.loinc-display.tsv" />
     <EmbeddedResource Include="Resources/lab-loinc-oneri.tsv" LogicalName="PusulaEHealthSync.Resources.lab-loinc-oneri.tsv" />
+    <EmbeddedResource Include="Resources/loinc-tr.tsv" LogicalName="PusulaEHealthSync.Resources.loinc-tr.tsv" />
   </ItemGroup>
 
 </Project>

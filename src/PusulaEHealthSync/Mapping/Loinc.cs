@@ -35,12 +35,24 @@ public static partial class Loinc
 {
     private const string ResourceName = "PusulaEHealthSync.Resources.loinc-display.tsv";
 
-    private static readonly Lazy<FrozenDictionary<string, string>> Tablo = new(Yukle);
+    private static readonly Lazy<FrozenDictionary<string, string>> Tablo = new(() => Yukle(ResourceName));
 
-    private static FrozenDictionary<string, string> Yukle()
+    // TURKCE karsiliklar -- KULLANICI ISTEGI (2026-09-24): "onerilerin turkce
+    // tercumelerinide listelesen guzel olur". Laboratuvar Ingilizce LOINC adini
+    // okumak zorunda kalmasin diye. Yalnizca ONERDIGIMIZ kodlar icin var; eksikse
+    // ekranda Ingilizce resmi ad gosterilir.
+    private const string TrResourceName = "PusulaEHealthSync.Resources.loinc-tr.tsv";
+    private static readonly Lazy<FrozenDictionary<string, string>> TrTablo = new(() => Yukle(TrResourceName));
+
+    /// <summary>Kodun Turkce karsiligi; tanimli degilse null.</summary>
+    public static string? DisplayTr(string? kod) =>
+        string.IsNullOrWhiteSpace(kod) ? null
+        : TrTablo.Value.TryGetValue(kod.Trim(), out var d) ? d : null;
+
+    private static FrozenDictionary<string, string> Yukle(string kaynak)
     {
-        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(ResourceName)
-            ?? throw new InvalidOperationException($"Gomulu kaynak bulunamadi: {ResourceName}");
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(kaynak)
+            ?? throw new InvalidOperationException($"Gomulu kaynak bulunamadi: {kaynak}");
         using var reader = new StreamReader(stream);
 
         var d = new Dictionary<string, string>(700, StringComparer.OrdinalIgnoreCase);

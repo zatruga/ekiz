@@ -1,61 +1,334 @@
-13037-8	1986-9	C-Peptit(toxluq)
-1945	24336-0	Qan Qazları (Laboratoriya)
-2335-B	2335-8	gizli qan
-508-55	5048-4	ANA (Anti nükleer antikor) IFA
-ART-001	2744-1	pH
-ART-002	2019-8	pCO2
-ART-003	2703-7	pO2
-ART-005	19230-2	cHCO3-(P,st)c
-ART-006	1925-7	cBase(Ecf)c
-ART-007	32771-8	PCO2T
-ART-009	2518-9	Lac (Kan Gazı)
-ART-012	6298-4	cK+
-ART-013	1994-3	Ca++(kan gazkarı*)
-ART-014	20563-3	COHb
-ART-015	42719-5	ctbil-(kan gazı)
-ART-016	20565-8	ctCO2(P)c
-ART-017	718-7	ctHb(est)(kan gazlar*)
-ART-018	19218-7	ctO2
-ART-019	19225-2	FHHb
-ART-020	2339-0	GLUKOZ*
-ART-021	20570-8	HCT (kan gazları*)
-ART-022	2614-6	MetHb
-ART-023	2947-0	Na + (kan gazları *)
-ART-024	11559-2	O2Hb
-ART-025	2708-6	O2sat (kan gazları *)
-ART-027	33254-4	pHT
-ART-028	19255-9	pO2T
-ATM-01	3174-0	Anti Trombin ııı
-CBASE1	1925-7	cBase(Ecf)c
-CHC0333	20565-8	ctCO2(P)c
-CHCO31000	19230-2	cHCO3-(P,st)c
-GP1012-E	27819-2	Protein C aktiviliyi
-HCCCT-1	20570-8	HCT (kan gazları*)
-IDR030	2889-4	24 Saatlik İdrarda Protein
-IDR040	6874-2	24 Saatlik İdrarda Kalsiyum
-IDR080	2162-6	24 Saatlik İdrarda Kreatinin
-IDR120	48999-7	24 Saatlik İdrarda Üre
-IZM-35151	108019-1	Syphilis TP (K?MİYY?T)
-KG00009	19225-2	FHHb
-KR0101	5622-6	Krom (kan)
-LANT-001	6303-2	Lupus antikoagülan
-MP15013	3092-4	Üre (İdrar)
-MP15019	10835-7	Lipoprotein (a)
-MP15038	8124-0	CD3 (T limfosit) qanda
-MP15228	1527-1	Glukoz 30 dk
-MP15229	1496-9	Glukoz 90 dk
-MP15240	30362-8	İnsülin 30 dk
-MP15242	27860-6	İnsülin 120.Dk
-MP15242-1	1986-9	C-Peptid(Tokluk)120 dk
-MP15349	2890-2	Protein / Kreatinin (Spot İdrar).
-MP17801	20563-3	COHb
-MP17802	11559-2	O2Hb
-MP178056	2614-6	MetHb
-MP18243	27834-1	İnsülin 90 dk
-OGT-48	1558-6	Glukoz Açlık
-OGT-54	27873-9	İnsülin Açlık
-ORK-125	17862-4	Kalsiyum (Spot idrar)
-ORK-400	11259-9	HCV RNA
-PAT15197	33254-4	pHT
-pCO2T12	32771-8	PCO2T
-pO2T61	19255-9	pO2T
+PAT15197	33254-4	pHT	27408	oneri
+MP15229	1496-9	Glukoz 90 dk	15704	oneri
+1558-62		Tokluk Glukoz 2.saat	15704	belirsiz:1558-6
+MP15228	1527-1	Glukoz 30 dk	15704	oneri
+OGT-48	1558-6	Glukoz Açlık	15704	oneri
+2359-81		GLUKOZ*	13704	belirsiz:2359-8
+ART-022	2614-6	MetHb	13704	oneri
+ART-027	33254-4	pHT	13704	oneri
+CBASE1	1925-7	cBase(Ecf)c	13704	oneri
+CHCO31000	19230-2	cHCO3-(P,st)c	13704	oneri
+ART-001	2744-1	pH	13704	oneri
+ART-013	1994-3	Ca++(kan gazkarı*)	13704	oneri
+ART-015	42719-5	ctbil-(kan gazı)	13704	oneri
+ART-017	718-7	ctHb(est)(kan gazlar*)	13704	oneri
+ART-024	11559-2	O2Hb	13704	oneri
+30313-12		O2sat (kan gazları *)	13704	belirsiz:30313-1
+ART-002	2019-8	pCO2	13704	oneri
+ART-009	2518-9	Lac (Kan Gazı)	13704	oneri
+ART-016	20565-8	ctCO2(P)c	13704	oneri
+ART-020	2339-0	GLUKOZ*	13704	oneri
+ART-023	2947-0	Na + (kan gazları *)	13704	oneri
+ART-025	2708-6	O2sat (kan gazları *)	13704	oneri
+2026-31		pCO2	13704	belirsiz:2026-3
+ART-003	2703-7	pO2	13704	oneri
+ART-005	19230-2	cHCO3-(P,st)c	13704	oneri
+ART-007	32771-8	PCO2T	13704	oneri
+ART-026		p50c	13704	yok
+CHC0333	20565-8	ctCO2(P)c	13704	oneri
+HCCCT-1	20570-8	HCT (kan gazları*)	13704	oneri
+pCO2T12	32771-8	PCO2T	13704	oneri
+MP17801	20563-3	COHb	13704	oneri
+ART-014	20563-3	COHb	13704	oneri
+ART-021	20570-8	HCT (kan gazları*)	13704	oneri
+ART-012	6298-4	cK+	13704	oneri
+ART-019	19225-2	FHHb	13704	oneri
+ART-028	19255-9	pO2T	13704	oneri
+MP178056	2614-6	MetHb	13704	oneri
+ART-006	1925-7	cBase(Ecf)c	13704	oneri
+ART-018	19218-7	ctO2	13704	oneri
+p50-72		p50c	13704	yok
+pO2T61	19255-9	pO2T	13704	oneri
+49765-12		Ca++(kan gazları*)	13704	belirsiz:49765-1
+KG00009	19225-2	FHHb	13704	oneri
+MP17802	11559-2	O2Hb	13704	oneri
+2951-21		Sodyum	7898	belirsiz:2951-2
+1945	24336-0	Qan Qazları (Laboratoriya)	7197	oneri
+1996-81		Kalsium	6865	belirsiz:1996-8
+30341-21		Sedimentasiyon	5775	belirsiz:30341-2
+101-9		Cross Match	4294	yok
+IZM-35151	108019-1	Syphilis TP (K?MİYY?T)	3454	oneri
+MP15242	27860-6	İnsülin 120.Dk	1685	oneri
+MP18243	27834-1	İnsülin 90 dk	1685	oneri
+MP15240	30362-8	İnsülin 30 dk	1685	oneri
+OGT-54	27873-9	İnsülin Açlık	1685	oneri
+MLPCARE000		WİLSON H.-ATP7B Tüm Gen Dizi Analizi	1367	yok
+1007-41		Coombs, direkt	804	belirsiz:1007-4
+508-55	5048-4	ANA (Anti nükleer antikor) IFA	771	oneri
+SPRM-011		VİSKOZİTE	761	yok
+13037-8	1986-9	C-Peptit(toxluq)	688	oneri
+MP15242-1	1986-9	C-Peptid(Tokluk)120 dk	688	oneri
+PHTEST-001		4 lü Panel Hızlı Test (İnfluenza A ve B, Rsv, Adeno,Covid-19)	599	yok
+49030-01		İkili Test	413	belirsiz:49030-0
+MP15349	2890-2	Protein / Kreatinin (Spot İdrar).	368	oneri
+IDR120	48999-7	24 Saatlik İdrarda Üre	274	oneri
+MP15013	3092-4	Üre (İdrar)	274	oneri
+IDR030	2889-4	24 Saatlik İdrarda Protein	242	oneri
+KLTR-030		Allergy-Q (107 Allerjen Test)	186	yok
+TBC-003		TBC PZR (Vücut Sıvıları)	169	yok
+TBC-004		TBC PZR (Balgam)	169	yok
+TBC-002		TBC PZR (BAL)	169	yok
+IDR080	2162-6	24 Saatlik İdrarda Kreatinin	167	oneri
+IDR040	6874-2	24 Saatlik İdrarda Kalsiyum	167	oneri
+MP15019	10835-7	Lipoprotein (a)	166	oneri
+29641-81		c-ANCA	165	belirsiz:29641-8
+IRS-002		İrsi X?rç?ng Paneli (Kişi) (Sayy Bio)	150	yok
+IRS-001		İrsi X?rç?ng Paneli (Qadin) (Sayy Bio)	150	yok
+50997-b		nCOV-2019 Coronavirüs Hızlı Antijen Testi	136	yok
+2335-B	2335-8	gizli qan	131	oneri
+1003-31		Coombs, indirekt	125	belirsiz:1003-3
+PAT15212		Üreaz testi (Helicobacter pylori)	107	yok
+RVP-001		Respiratuvar Viral Panel	107	yok
+LANT-001	6303-2	Lupus antikoagülan	106	oneri
+MLPCARE001		WT1 Ekspresyon Analizi	103	yok
+BAK55		ACE (Vücud Mayileri)	100	yok
+40614-01		Brucella tüp aglutinasyon (Wright testi)	96	belirsiz:40614-0
+NGS02-002		NGS ile Anöploidi Taraması Amaçlı Preimplantasyon Genetik Test (PGT-A)	95	yok
+MP15310-1		Kültür,Anaerob	88	yok
+MP15006		Kültür, doku	78	yok
+ORK-125	17862-4	Kalsiyum (Spot idrar)	76	oneri
+HS-001		Hücre sayımı	74	yok
+MP15252		Demodex sp. bakısı	74	yok
+MP15045		CD19	68	yok
+MP15035		Monoklonal antikor (Herbiri)	68	yok
+MP15038	8124-0	CD3 (T limfosit) qanda	68	oneri
+ORK-50		CD25 Oranı, Kan	68	yok
+MPCD20		CD20(Kan)	68	yok
+ACBP-5		Femoflor Cinsel Bulaş Pcr (HPV'siz)	62	yok
+ACBP-1		Androflor Cinsel Bulaş Pcr (HPV'siz)	62	yok
+MLPCARE002		Tümör Mutasyon Burden (TMB) Testi	58	yok
+DS24244		Lupus Antikoagülan Doğrulama	57	yok
+Nİ-24		Normetanefrin, İdrar (24 saat)	56	yok
+MP15304		Akut Lösemi Paneli	51	yok
+KKIDR00		Kalsiyum/Kreatinin Spot İdrar Oranı	50	yok
+3182-31		ACA-IgA (Antikardiyolipin antikor)	43	belirsiz:3182-3
+G123-81		Aspergillus Antijeni	43	yok
+1989-33		Vitamin D3 (1.25 Dihidroksivitamin D3)	43	belirsiz:1989-3
+ATM-01	3174-0	Anti Trombin ııı	42	oneri
+DIS120001		MRD (Minimal Rezidüel Hastalık) PANELİ	42	yok
+ANT-33		ANTİ DEAMINE GLIADIN PEPTIT (DGP) ANTİKOR IgG	39	yok
+HEL001		Helicobakter pylori IgM	38	yok
+MP15289		CD4 / CD8	38	yok
+ORK-400	11259-9	HCV RNA	36	oneri
+DL-001		Zn (sink), sidikd?	35	yok
+121141-13		LAMBDA Yünqül Z?ncir(s?rb?st) qan	35	yok
+MG0012		TROMBOFİLİ PANELİ	35	yok
+GP1012-E	27819-2	Protein C aktiviliyi	35	oneri
+GP1012-A		Protein S aktivliyi	33	yok
+GRV-001		Gaitada Rota/Adeno/Noro Virüs Antijen	32	yok
+FISH02-002		FISH ile ile Anöploidi Taraması Amaçlı Preimplantasyon Genetik Test (PGT-A)	27	yok
+KKP-001		KOLOREKTAL KANSER PANELİ(BİOSAYY)	26	yok
+KKP-004		AKCİĞER PLUS KANSER PANELİ(BİOSAYY)	26	yok
+CGE-001		Crypto+Giardia+Entamoeba Hızlı Antijen Testi, Gaita	22	yok
+901500		Glukoz (Vücut sıvıları)	22	yok
+GP1012-C		Protein C, antigen	21	yok
+GP1012-B		Protein S, antigen	21	yok
+MP15355		Paraneoplastik Panel (BOS)	20	yok
+121141-19		Musk Antikoru	20	yok
+2164-21		Paraneoplastik Panel	20	belirsiz:2164-2
+MLPCARE100		Valine (Val)	19	yok
+MOL125		Parvovirus B19 DNA (PZR)	19	yok
+DL-031		Disbakterioz	17	yok
+GGP-012		GANGLİOSİD GENİŞ PANEL IgM , Serum	16	yok
+GGP-036		GANGLİOSİD GENİŞ PANEL IgM , BOS	16	yok
+GGP-024		GANGLİOSİD GENİŞ PANEL IgG , BOS	16	yok
+PAT15072		Kemik iliği, biyopsi, patolojik inceleme	16	yok
+LK-001		Laktoferrin	16	yok
+GGP-001		GANGLİOSİD GENİŞ PANEL IgG , Serum	16	yok
+25383-2		SpIgG Gf2 İnek Sütü	16	yok
+AP-001		AÇİLKARNİTİN PROFİLİ Plazma	15	yok
+KLR-020		MEME KANSERİ	15	yok
+33858-21		GH	15	belirsiz:33858-2
+ALG-001		Ascarida Lumbricoides IgG	15	yok
+121141-16		Bartonella henselae Ig M	14	yok
+121141-15		Bartonella henselae Ig G	14	yok
+6106-91		Sp IgE Yumurta Ağı (f1)	14	belirsiz:6106-9
+47320-8		ASCAi İgG antiteli	13	yok
+121151-7		Borrelia IgG (BOS)	13	yok
+121151-8		Borrelia IgM (BOS)	13	yok
+IDR050		24 Saatlik İdrarda Sodyum	13	yok
+ENSA-0010		OTOİMMUN ENSAFALİT PANELİ TESTİ	13	yok
+MP15040		İmmunfenotipleme (lenfoma paneli)	12	yok
+LENP-1		Lenfoma Paneli	12	yok
+21406-41		Mycoplasma pneumoniae Ig M	11	belirsiz:21406-4
+KR0101	5622-6	Krom (kan)	11	oneri
+LRP-001		LRP4 Antikoru	11	yok
+PZR-001		Parazit Paneli (PZR)(GAİTA)	11	yok
+MDKİ-1		MDS Paneli, Kemik İliği	10	yok
+DL-003		Cu (mis), sutkalıq sidikd?	10	yok
+MP15154		Miyozit Panel	10	yok
+MP15243		Beta-Cross Laps (Beta-CTx)	10	yok
+MP15018		ANCA Profili	10	yok
+YMTG-1		YENİDOĞAN METABOLİK TARAMA(GENİŞ PANEL)	10	yok
+MDS-3070		MDS PANELİ	10	yok
+STS-001		siParadigm Solid Tumor Slide Deck	10	yok
+33852-2		GH (Böyüme Hormonu)	10	yok
+APTT1001		APTT Karışım Testi	10	yok
+IDR060		24 Saatlik İdrarda Potasyum	9	yok
+IDR020		24 Saatlik İdrarda Fosfor	9	yok
+IRS-006		DERMATOLOJİ PANELİ	8	yok
+5803-21		pH	8	belirsiz:5803-2
+IDR-1560		İdrar Sitometrisi	8	yok
+PT-2		Parathorman -related Peptif (PTHrP)	8	yok
+TRB0001		PNH Paneli	8	yok
+SS-1001		Sitrat (24 saatlik idrar)	8	yok
+OSİ-3		Sitrat (Spot idrar)	8	yok
+3198-91		Faktor V (proakselerin)	8	belirsiz:3198-9
+IDR-1570		RBC İNDEKSLERİ	8	yok
+IDR000		24 Saatlik İdrarda Ürikasit	8	yok
+AML-57		AML PANELİ	8	yok
+KKP-002		KOLOREKTAL PLUS KANSER PANELİ(BİOSAYY)	7	yok
+PAT15205		İmmünohistokimyasal inceleme	7	yok
+ADAMTS13		ADAMTS13 AKTİVİTESİ	7	yok
+5751		MPL MUTASYON ANALIZI	7	yok
+432-1-B		Sp IgE g15 (Buğday)	7	yok
+121141-32		HE4	7	yok
+KKP-003		AKCİĞER KANSER PANELİ(BİOSAYY)	7	yok
+PAT15029		Histokimyasal Boyamalar	7	yok
+IGG-2		IgG2	6	yok
+BSM-013		EBV IgM PROFILI	6	yok
+BSM-007		EBV IgG PROFILI	6	yok
+TSİ-001		Tiroid Stimula Ed?n Immunglobulin (TSİ)	6	yok
+IDR010		24 Saatlik İdrarda Mikroalbumin	6	yok
+52352-0		Kromozom Analizi (Abort Materyali).	6	yok
+4156-8B		FISH t(6;14) CCND/IGH	6	yok
+IGG-3		IgG3	6	yok
+32362-8		BK VIRUS PCR (İdrar)	6	yok
+IDR070		24 Saatlik İdrarda Magnezyum	6	yok
+MPKP-001		MEME PLUS KANSER PANELİ	6	yok
+RARA-3910		RARA 17Q21 YENİDEN DÜZENLEMELER	6	yok
+6019-42		Sp IgE Badam (f20)	5	belirsiz:6019-4
+DI0028		Desmoglein 3 IgG Antikoru	5	yok
+ESR1-001		ESR1 geni (Dokudan) (Tüm Gen Dizi Analizi)	5	yok
+DI0024		Desmoglein I IgG Antikoru	5	yok
+GS-003		Geenseeq NGS TMB+MSI+HRD	5	yok
+DNR-001		Spermiogram (donör)	5	yok
+MMP-003		Multiple Myeloma Paneli (Flow cytometry)	5	yok
+PT1001		PT Karışım Testi	5	yok
+RBC-001		RBC folate (Eritrositl?rd? fol turşusu)	5	yok
+MP15105		HLA-B Low resolution (Molekül düşük çözünürlükte	5	yok
+P00124		PD-L1	5	yok
+SPE-005		Spesifik IgE-Ton Balığı (f40)	4	yok
+ATP-001		Anti-Treponema Pallidum IgG	4	yok
+KO00032		Kolinesteraz	4	yok
+G123-2		FTA-ABS IgG Antikoru	4	yok
+Rİ-1		ROMA-İndeksi ( Over Malignite Riski )	4	yok
+SPE-006		Spesifik IgE-Tarçın (f220)	4	yok
+NF1230		NF1	4	yok
+SPE-011		Spesifik IgE-Karpuz (f329)	4	yok
+TC009324		Toxocara canis IgG (ELISA)	4	yok
+2		f87(kavun)	4	yok
+MG111		FISH t(15;17), PML/RARa	4	yok
+ALL-56		ALL PANELİ	4	yok
+PB-001		Pb (Qurğuşun) sidikd?	4	yok
+MP15287		Polyoma JCV,PCR	4	yok
+SPE-001		Spesifik IgE- Coffee (f221)	4	yok
+SPE-008		Spesifik IgE- Karabiber (Black Pepper) (f280)	4	yok
+ATP-002		Anti -Treponema Pallidum IgM	4	yok
+MP15249		Leptospira antikoru IgM	4	yok
+HHV-006		Herpes Virüs 6 ( HHV 6 ) DNA PCR	4	yok
+IDR110		24 Saatlik İdrarda Glukoz	4	yok
+MET1234		Ağır Metal Paneli	4	yok
+G123-1		FTA-ABS IgM Antikoru	4	yok
+SPE-002		Spesifik IgE- Kırmızıbiber (Chili Pepper) (f279)	4	yok
+SPE-010		Spesifik IgE- Sivrisinek (Mosquito) (i71)	4	yok
+Kiraz12345		Sp IgE Kiraz(f242)	4	yok
+A2117		Sistatin C	4	yok
+PSA1001		ProPsa(Prostat Sağlık İndeksi)	3	yok
+K9903311		C1 Complaman	3	yok
+ACT-001		ANTİ ÇİNKO TRANSPORTER 8 ANTİKORU ( ZNT8)	3	yok
+CEA-456		CEA(Vücut Sıvılarında)	3	yok
+MP15036		Xromogranin a	3	yok
+MP15249-1		Leptospira antikoru IgG	3	yok
+MIX1001		Mix Meal Sonrası 5 Saatlik OGTT (8'li)	3	yok
+A123216		tümör nekrozis faktör-alfa (TNF-ALFA)	3	yok
+G123-6		Synacten testi-(17-OH Progesteron, kortizol)	3	yok
+MKR-001		Makro-TSH	3	yok
+121141-13A		LAMBDA Yünqül Z?ncir(s?rb?st) sidik	3	yok
+PGT02-002		Tek Gen Hastalıkları Tanısı Amaçlı Preimplantasyon Genetik Test (PGT-M)	3	yok
+U090423		üre (vücut sıvılarında)	3	yok
+IDR112		sidkd? glukoza	3	yok
+BTDD-06		Beta Talasemi Delesyon Duplikasyon Analizi	3	yok
+121141-59		Pneumocystis Carinii (PCR)	2	yok
+OKS-050		OKSIDE LDL	2	yok
+FAI-001		Faktör IX inhibitaörü	2	yok
+BR0001		Brucella DNA PZR	2	yok
+MMP-001		Multiple Myeloma Paneli	2	yok
+FNG-001		FUNGITELL (Beta-D glucan)	2	yok
+MOL120-1		Anti-trombosit antiteli	2	yok
+ANT-002		Adalimumab, Serum	2	yok
+LSP-001		Leishmania spp. DNA (PCR)	2	yok
+MH-001		Mycoplasma hominis IgM	2	yok
+MH-002		Mycoplasma hominis IgG	2	yok
+P1NP-001		Prokollajen Tip 1N-Terminal Propeptid (P1NP)	2	yok
+56731-5		ANTİ-JO-1	2	yok
+DL-008		I (Yod), sutkalıq sidik	2	yok
+MP15249-2		Leptospira  PCR	2	yok
+82733-12		VGKC (Voltage Gated Potassium Channel) Antikoru (BOS)	2	yok
+KİT-001		KİT Gastroenterit Paneli PCR	2	yok
+MP16092		Mikro CRP	2	yok
+121141-12		Leishmania Antikoru IgG	2	yok
+0		Laktoz tolerans testi (Açıklama)	2	yok
+PMSP-1		Post Mayotik Sperm Paneli (Semen)	1	yok
+PR-001		PERAMPANEL	1	yok
+PRS-001		Proinsülin	1	yok
+KLL-3066		KLL PANELİ	1	yok
+BP180-2980		Anti BP 180 Antikoru IgG	1	yok
+ACBP-2		Androflor Cinsel Bulaş Pcr + (HPV'li)	1	yok
+23883-21		Inhibin A	1	belirsiz:23883-2
+MT-001		Metapnevmovirus (HMPV) Expres Test	1	yok
+OSİ-1		Okzalat (Spot idrar)	1	yok
+OSİ-2		Okzalat (24 saatlik idar)	1	yok
+UI-002		Ureaplasma IgM	1	yok
+HM-001		Hemokromatozis Paneli (FTH1, HAMP, HFE, HFE2, SLC40A1, TFR2, HJV	1	yok
+HTLV-002		HTLV 1/2  Antikor Tarama	1	yok
+IL-8		İnterleukin-8 (IL-8)	1	yok
+21-HİDRO		21-hidroksilaz	1	yok
+ACT-002		ANTİ TİROZİN FOSFATAZ ( IA2) ANTİKORU	1	yok
+AO-001		Anti-Opistorchis IgG	1	yok
+DL-014		Mo (Molibden),serum	1	yok
+PP0001		Panorama Prenatal Tanı Testi	1	yok
+ILIB-1		İnterleukin 1 Beta (IL-1B)	1	yok
+L011		Anti fosfatidilserin IgG	1	yok
+LİD-1		Lakozamid ilaç düzeyi	1	yok
+THK-115		T HÜCRE KLONALİTESİ TESTİ	1	yok
+6248-91		Sp IgE Soya (f14)	1	belirsiz:6248-9
+DL-002		Cu (mis), sidikd?	1	yok
+DL-011		Cd (Kadmium) sidikd?	1	yok
+DL-012		Co (Kobalt) sidikd?	1	yok
+G123-9		Fibro Max Testi	1	yok
+MLP5857		Zonulin,serum	1	yok
+M009923		Anti Bp 230 Antikoru IgG	1	yok
+MP15342		GIDA İNTOLERANS TESTİ (200)	1	yok
+OKİT-003		HOMOGENTİSİK ASİT/ KREATİNİN ORANI, SPOT İDRAR	1	yok
+TBC001		TBC ANTİBİYOTİK DUYARLILIK	1	yok
+UI-001		Ureaplasma IgG	1	yok
+MG113		FISH t(8;21), AML/ETO	1	yok
+MP17822		Krom İdrar	1	yok
+SPE-007		Spesifik IgE- Arpa Unu (Barley) (f6)	1	yok
+GIPY9-001		Genital İnfeksiyalar Panel (9`lu), Yaxma	1	yok
+GPKP-001		GLIOMA PLUS KANSER PANELİ	1	yok
+ASS-1		Anti-Strongyloides Stercoralis Antikoru, IgG	1	yok
+609-9		Göz (konjonktiva) Kültürü (aerob)	1	yok
+HM04-004		Tek Gen Hastalıkları Tanısı ve HLA Tiplendirmesi Amaçlı Preimplantasyon Genetik Test(PGT-M)	1	yok
+HMG-C001		HMG-CoA Redüktaz (HMGCR) Antikoru	1	yok
+IDR100		24 Saatlik İdrarda Klor	1	yok
+LD-001		Leishmania Donavani IgA	1	yok
+SC-001		Sistatin C (idrar)	1	yok
+G123-20A		Coxiella burnetii Antikoru FazII IgM	1	yok
+CA-003		CA 242	1	yok
+ASİ-2		Aluminyum, Spot İdrar	1	yok
+21194-61		Klor (spot idrarda)	1	belirsiz:21194-6
+1453-63		Civa, idrar	1	yok
+121141-42		Francisella Tularensis IgM	1	yok
+PİYP-1		Primer İmmün Yetmezlik Paneli	1	yok
+NGS-003		B-ALL NGS Paneli	1	yok
+MPA-454747		standart doz acth stimülasyon	1	yok
+121141-43		Francisella Tularensis IgG	1	yok
+6220-82		SpIgE (Kartof) (f35)	1	belirsiz:6220-8
+RUF-001		Rufinamid	1	yok
+ACBP-6		Femoflor Cinsel Bulaş Pcr + (HPV'li)	1	yok
+HPS-1		HEMOGLOBİN,PLAZMA(SERBEST)	1	yok
+MOL187		Kardiyovasküler Risk Paneli	1	yok
+KKKA-001		KIRIM-KONGO KANAMALI ATEŞ (KKKA)	1	yok
+MG112		FISH inv(16), CBFB	1	yok

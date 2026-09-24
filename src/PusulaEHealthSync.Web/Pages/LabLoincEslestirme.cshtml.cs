@@ -22,11 +22,19 @@ public class LabLoincEslestirmeModel(LabTestLoincStore store) : PageModel
     public int ToplamSayi { get; set; }
     public int OneriSayi { get; set; }
     public int LabSayi { get; set; }
+    public int BelirsizSayi { get; set; }
+    public int BosSayi { get; set; }
+    public int ToplamIstem { get; set; }
+    public int KapaliIstem { get; set; }
 
     // Standart LOINC adi -- kullanici girdigi kodun ne anlama geldigini ANINDA gorsun
     // diye. Tabloda yoksa null doner; bu, kodun gomulu listede olmadigini gosterir
     // (yanlis olmak zorunda degil, ama dikkat etmeye deger).
     public static string? LoincAdi(string? kod) => Loinc.Display(kod);
+
+    // KULLANICI ISTEGI (2026-09-24): Ingilizce LOINC adi laboratuvara yetmiyor,
+    // Turkce karsiligi da gorunsun. Yoksa null doner, ekran Ingilizceye duser.
+    public static string? LoincAdiTr(string? kod) => Loinc.DisplayTr(kod);
 
     public async Task OnGetAsync(bool saved = false, CancellationToken ct = default)
     {
@@ -34,13 +42,22 @@ public class LabLoincEslestirmeModel(LabTestLoincStore store) : PageModel
         var hepsi = await store.GetAllAsync(ct);
 
         ToplamSayi = hepsi.Count;
-        OneriSayi = hepsi.Count(s => s.Kaynak == LabTestLoincStore.KaynakOneri);
         LabSayi = hepsi.Count(s => s.Kaynak == LabTestLoincStore.KaynakLaboratuvar);
+        OneriSayi = hepsi.Count(s => s.Kaynak == LabTestLoincStore.KaynakOneri && !s.Bekliyor);
+        BelirsizSayi = hepsi.Count(s => s.Bekliyor && s.GrupAdi == "belirsiz");
+        BosSayi = hepsi.Count(s => s.Bekliyor && s.GrupAdi == "yok");
+
+        // Ilerleme gostergesi: kod atanmis testlerin yillik istem PAYI. Satir sayisi
+        // yaniltici olurdu -- 247 kaydin cogu yilda 20 kez isteniyor, biri 27.408 kez.
+        ToplamIstem = hepsi.Sum(s => s.Istem);
+        KapaliIstem = hepsi.Where(s => !s.Bekliyor).Sum(s => s.Istem);
 
         var liste = Durum switch
         {
-            "Oneri" => hepsi.Where(s => s.Kaynak == LabTestLoincStore.KaynakOneri),
+            "Oneri" => hepsi.Where(s => s.Kaynak == LabTestLoincStore.KaynakOneri && !s.Bekliyor),
             "Laboratuvar" => hepsi.Where(s => s.Kaynak == LabTestLoincStore.KaynakLaboratuvar),
+            "Belirsiz" => hepsi.Where(s => s.Bekliyor && s.GrupAdi == "belirsiz"),
+            "Bos" => hepsi.Where(s => s.Bekliyor && s.GrupAdi == "yok"),
             _ => hepsi.AsEnumerable(),
         };
 
