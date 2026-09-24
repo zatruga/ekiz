@@ -44,6 +44,12 @@ builder.Services.AddSingleton(sp =>
     var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SyncLogOptions>>().Value;
     return new LabTestLoincStore(options.DbPath);
 });
+
+builder.Services.AddSingleton(sp =>
+{
+    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SyncLogOptions>>().Value;
+    return new HizmetMappingStore(options.DbPath);
+});
 builder.Services.AddSingleton(sp =>
 {
     var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SyncLogOptions>>().Value;

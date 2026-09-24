@@ -1,0 +1,204 @@
+@page
+@model PusulaEHealthSync.Web.Pages.HizmetEslestirmeModel
+@using PusulaEHealthSync.Persistence
+@{
+    ViewData["Title"] = "Hizmet Eşleştirme";
+}
+
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Hizmet Eşleştirme</h1>
+        <p class="page-subtitle">
+            Pusula hizmetleri ile bakanlığın <code>az-procedure-codes</code> listesi (6.094 kod) eşleştirilir.
+            Tıbbi işlem olmayan kalemler "gönderilmez" işaretlenir.
+        </p>
+    </div>
+</div>
+
+@if (Model.Saved)
+{
+    <div class="alert alert-success">Kaydedildi.</div>
+}
+
+<div class="card card-pad" style="margin-bottom:20px;">
+    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
+        <a asp-page="/HizmetEslestirme" asp-route-Durum="Tumu" asp-route-Tip="@Model.Tip" class="stat-link @(Model.Durum == "Tumu" ? "active" : "")">
+            <span class="stat-value" style="font-size:24px;">@Model.ToplamSayi</span>
+            <span class="text-muted" style="font-size:13px; display:block;">tümü</span>
+        </a>
+        <a asp-page="/HizmetEslestirme" asp-route-Durum="Eslesen" asp-route-Tip="@Model.Tip" class="stat-link @(Model.Durum == "Eslesen" ? "active" : "")">
+            <span class="stat-value" style="font-size:24px; color:var(--success);">@Model.EslesenSayi</span>
+            <span class="text-muted" style="font-size:13px; display:block;">eşleşen</span>
+        </a>
+        <a asp-page="/HizmetEslestirme" asp-route-Durum="Bekleyen" asp-route-Tip="@Model.Tip" class="stat-link @(Model.Durum == "Bekleyen" ? "active" : "")">
+            <span class="stat-value" style="font-size:24px; color:var(--danger);">@Model.BekleyenSayi</span>
+            <span class="text-muted" style="font-size:13px; display:block;">karar bekliyor</span>
+        </a>
+        <a asp-page="/HizmetEslestirme" asp-route-Durum="Gonderilmez" asp-route-Tip="@Model.Tip" class="stat-link @(Model.Durum == "Gonderilmez" ? "active" : "")">
+            <span class="stat-value" style="font-size:24px; color:var(--text-muted);">@Model.GonderilmezSayi</span>
+            <span class="text-muted" style="font-size:13px; display:block;">gönderilmez</span>
+        </a>
+        <a asp-page="/HizmetEslestirme" asp-route-Durum="Elle" asp-route-Tip="@Model.Tip" class="stat-link @(Model.Durum == "Elle" ? "active" : "")">
+            <span class="stat-value" style="font-size:24px; color:var(--warning);">@Model.ElleSayi</span>
+            <span class="text-muted" style="font-size:13px; display:block;">elle karar verilmiş</span>
+        </a>
+
+        <form method="get" style="margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
+            <input type="hidden" name="Durum" value="@Model.Durum" />
+            <select name="Tip" class="form-control" style="width:200px;">
+                <option value="">— tüm hizmet tipleri —</option>
+                @foreach (var t in Model.Tipler)
+                {
+                    <option value="@t" selected="@(Model.Tip == t)">@t</option>
+                }
+            </select>
+            <input type="text" name="Ara" value="@Model.Ara" placeholder="hizmet adı veya kod ara"
+                   class="form-control" style="width:230px;" />
+            <button type="submit" class="btn btn-outline btn-sm">Filtrele</button>
+        </form>
+    </div>
+
+    @{
+        var oran = Model.ToplamIstem == 0 ? 0 : 100.0 * Model.KararliIstem / Model.ToplamIstem;
+    }
+    <div style="margin-top:14px;">
+        <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px;">
+            <span class="text-muted">Kararı verilmiş hizmetlerin yıllık istem payı</span>
+            <span><strong>@oran.ToString("0.0")%</strong>
+                  <span class="text-muted">(@Model.KararliIstem.ToString("N0") / @Model.ToplamIstem.ToString("N0") istem)</span></span>
+        </div>
+        <div style="height:8px; background:var(--border); border-radius:4px; overflow:hidden;">
+            <div style="height:100%; width:@oran.ToString("0.0")%; background:var(--success);"></div>
+        </div>
+        <p class="text-muted" style="font-size:12px; margin:6px 0 0;">
+            "Karar" hem kod atamak hem de <strong>gönderilmez</strong> demek -- ikisi de bir sonuca bağlamış sayılır.
+            Liste istem hacmine göre sıralı, en çok 300 satır gösterilir; daraltmak için filtreleri kullanın.
+        </p>
+    </div>
+</div>
+
+<div class="card">
+    <div style="overflow-x:auto;">
+        <table class="table">
+            <thead>
+                <tr>
+                    <th style="width:110px;">Hizmet Kodu</th>
+                    <th style="width:240px;">Hizmet Adı</th>
+                    <th style="width:130px;">Hizmet Tipi</th>
+                    <th style="width:85px; text-align:right;">İstem/yıl</th>
+                    <th>Bakanlık Karşılığı</th>
+                    <th style="width:130px;">Durum</th>
+                    <th style="width:290px;">Bakanlık kodu</th>
+                </tr>
+            </thead>
+            <tbody>
+            @if (Model.Satirlar.Count == 0)
+            {
+                <tr><td colspan="7" class="text-muted" style="padding:20px;">Kayıt bulunamadı.</td></tr>
+            }
+            @foreach (var s in Model.Satirlar)
+            {
+                var kod = s.EtkinKod;
+                var az = PusulaEHealthSync.Web.Pages.HizmetEslestirmeModel.AzAdi(kod);
+                var tr = PusulaEHealthSync.Web.Pages.HizmetEslestirmeModel.AzAdiTr(kod);
+                <tr>
+                    <td><code>@s.HizmetKodu</code></td>
+                    <td>@s.HizmetAdi</td>
+                    <td class="text-muted" style="font-size:12px;">@s.HizmetTipi</td>
+                    <td style="text-align:right; font-variant-numeric:tabular-nums;">@s.Istem.ToString("N0")</td>
+                    <td style="font-size:13px;">
+                        @if (s.Gonderilmez)
+                        {
+                            <span class="text-muted">Bakanlığa gönderilmiyor.</span>
+                        }
+                        else if (az is not null)
+                        {
+                            @if (tr is not null)
+                            {
+                                <div>@tr</div>
+                                <div class="text-muted" style="font-size:12px; margin-top:2px;">@az</div>
+                            }
+                            else
+                            {
+                                <div>@az</div>
+                            }
+                        }
+                        else if (kod is not null)
+                        {
+                            <span style="color:var(--danger);">
+                                <code>@kod</code> bakanlık listesinde yok -- kodu kontrol edin.
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="text-muted">
+                                Karşılık yok. Tıbbi bir işlemse kod girin, değilse <strong>gönderilmez</strong> işaretleyin.
+                            </span>
+                        }
+                    </td>
+                    <td>
+                        @if (s.Gonderilmez)
+                        {
+                            <span class="badge"><span class="badge-dot"></span>gönderilmez</span>
+                        }
+                        else if (s.Eslesti)
+                        {
+                            <span class="badge badge-success">
+                                <span class="badge-dot"></span>@(s.IcbaridenGeliyor ? "İcbari" : "elle")
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="badge badge-danger"><span class="badge-dot"></span>bekliyor</span>
+                        }
+                    </td>
+                    <td>
+                        <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                            <form method="post" asp-page-handler="Kaydet" style="display:flex; gap:6px;">
+                                <input type="hidden" name="Durum" value="@Model.Durum" />
+                                <input type="hidden" name="Tip" value="@Model.Tip" />
+                                <input type="hidden" name="Ara" value="@Model.Ara" />
+                                <input type="hidden" name="hizmetId" value="@s.HizmetId" />
+                                <input type="text" name="azKod" value="@(s.AzKod ?? s.IcbariKodu)"
+                                       placeholder="2.1.441" class="form-control" style="width:110px;" />
+                                <button type="submit" class="btn btn-primary btn-sm">Kaydet</button>
+                            </form>
+                            @if (!s.Gonderilmez)
+                            {
+                                <form method="post" asp-page-handler="Gonderilmez">
+                                    <input type="hidden" name="Durum" value="@Model.Durum" />
+                                    <input type="hidden" name="Tip" value="@Model.Tip" />
+                                    <input type="hidden" name="Ara" value="@Model.Ara" />
+                                    <input type="hidden" name="hizmetId" value="@s.HizmetId" />
+                                    <button type="submit" class="btn btn-outline btn-sm">Gönderilmez</button>
+                                </form>
+                            }
+                            @if (s.Kaynak == HizmetMappingStore.KaynakKullanici)
+                            {
+                                <form method="post" asp-page-handler="Sifirla">
+                                    <input type="hidden" name="Durum" value="@Model.Durum" />
+                                    <input type="hidden" name="Tip" value="@Model.Tip" />
+                                    <input type="hidden" name="Ara" value="@Model.Ara" />
+                                    <input type="hidden" name="hizmetId" value="@s.HizmetId" />
+                                    <button type="submit" class="btn btn-outline btn-sm"
+                                            style="border-color:var(--danger); color:var(--danger);"
+                                            onclick="return confirm('Bu hizmetin kararı sıfırlanacak. Emin misiniz?')">Sıfırla</button>
+                                </form>
+                            }
+                        </div>
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+<div class="card card-pad" style="margin-top:20px;">
+    <p class="text-muted" style="font-size:13px; margin:0;">
+        <strong>İcbari</strong> = kod Pusula'daki İcbari Sigorta Fiyat Listesi eşleştirmesinden geliyor, dokunmaya gerek yok.
+        <strong>elle</strong> = bu ekrandan girilmiş.
+        <strong>gönderilmez</strong> = tıbbi işlem değil, bakanlığa hiç gitmez.
+        Bu tablo Pusula'ya <em>yazmaz</em>; yalnızca e-Sağlık gönderiminde uygulanır.
+    </p>
+</div>

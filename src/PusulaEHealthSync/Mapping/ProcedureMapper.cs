@@ -15,9 +15,23 @@ public static class ProcedureMapper
 {
     private const string ProcedureCodeSystem = "http://fhir.az/CodeSystem/az-procedure-codes";
 
-    public static MappingResult Map(IslemRecord islem, string azPatientId, string azEncounterId)
+    public static MappingResult Map(
+        IslemRecord islem, string azPatientId, string azEncounterId,
+        IReadOnlyDictionary<int, (string? Kod, bool Gonderilmez)>? eslestirme = null)
     {
-        var kod = islem.IcbariKodu.TrimEnd('.');
+        // HIZMET ESLESTIRME EKRANININ KARARI (HizmetMappingStore, 2026-09-24).
+        // Iki ayri sey soyleyebiliyor:
+        //   Gonderilmez -> bu kalem bakanliga hic gitmez (yatak ucreti, recete islemi,
+        //                  CD ucreti gibi TIBBI ISLEM OLMAYAN kalemler)
+        //   Kod         -> Icbari kodu yoksa elle girilen bakanlik kodu
+        var karar = eslestirme is not null && eslestirme.TryGetValue(islem.HizmetId, out var k) ? k : default;
+        if (karar.Gonderilmez)
+            return new MappingResult.Skipped("Hizmet Eşleştirme ekranında \"gönderilmez\" işaretli");
+
+        var kod = (karar.Kod ?? islem.IcbariKodu ?? "").Trim().TrimEnd('.');
+        if (string.IsNullOrWhiteSpace(kod))
+            return new MappingResult.Skipped(
+                "Bakanlık hizmet kodu yok -- Hizmet Eşleştirme ekranından kod girilmeli ya da \"gönderilmez\" işaretlenmeli");
 
         var procedure = new JsonObject
         {
@@ -29,7 +43,14 @@ public static class ProcedureMapper
             {
                 ["coding"] = new JsonArray
                 {
-                    new JsonObject { ["system"] = ProcedureCodeSystem, ["code"] = kod, ["display"] = islem.IcbariAdi },
+                    // display bakanligin KENDI listesinden okunuyor (AzProcedureCodes); listede
+                    // yoksa Pusula'daki ada dusuluyor. ConditionMapper'daki ICD-10 ile ayni ilke.
+                    new JsonObject
+                    {
+                        ["system"] = ProcedureCodeSystem,
+                        ["code"] = kod,
+                        ["display"] = AzProcedureCodes.Display(kod) ?? islem.IcbariAdi ?? islem.HizmetAdi ?? kod,
+                    },
                 },
             },
             ["subject"] = new JsonObject { ["reference"] = $"Patient/{azPatientId}" },

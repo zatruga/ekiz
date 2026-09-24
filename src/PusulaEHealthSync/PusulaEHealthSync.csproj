@@ -54,6 +54,9 @@
     <EmbeddedResource Include="Resources/loinc-display.tsv" LogicalName="PusulaEHealthSync.Resources.loinc-display.tsv" />
     <EmbeddedResource Include="Resources/lab-loinc-oneri.tsv" LogicalName="PusulaEHealthSync.Resources.lab-loinc-oneri.tsv" />
     <EmbeddedResource Include="Resources/loinc-tr.tsv" LogicalName="PusulaEHealthSync.Resources.loinc-tr.tsv" />
+    <EmbeddedResource Include="Resources/az-procedure-codes.tsv" LogicalName="PusulaEHealthSync.Resources.az-procedure-codes.tsv" />
+    <EmbeddedResource Include="Resources/hizmet-eslestirme.tsv" LogicalName="PusulaEHealthSync.Resources.hizmet-eslestirme.tsv" />
+    <EmbeddedResource Include="Resources/az-procedure-tr.tsv" LogicalName="PusulaEHealthSync.Resources.az-procedure-tr.tsv" />
   </ItemGroup>
 
 </Project>

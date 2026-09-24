@@ -52,6 +52,15 @@ builder.Services.AddSingleton(sp =>
         : Path.Combine(AppContext.BaseDirectory, options.DbPath);
     return new LabTestLoincStore(path);
 });
+
+builder.Services.AddSingleton(sp =>
+{
+    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SyncLogOptions>>().Value;
+    var path = Path.IsPathRooted(options.DbPath)
+        ? options.DbPath
+        : Path.Combine(AppContext.BaseDirectory, options.DbPath);
+    return new HizmetMappingStore(path);
+});
 builder.Services.AddSingleton<PatientSyncService>();
 builder.Services.AddSingleton<PractitionerSyncService>();
 builder.Services.AddSingleton<ConditionSyncService>();
