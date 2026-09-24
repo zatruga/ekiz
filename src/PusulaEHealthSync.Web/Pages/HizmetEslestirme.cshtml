@@ -24,7 +24,11 @@
     <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
         <a asp-page="/HizmetEslestirme" asp-route-Durum="Tumu" asp-route-Tip="@Model.Tip" class="stat-link @(Model.Durum == "Tumu" ? "active" : "")">
             <span class="stat-value" style="font-size:24px;">@Model.ToplamSayi</span>
-            <span class="text-muted" style="font-size:13px; display:block;">tüm hizmetler</span>
+            <span class="text-muted" style="font-size:13px; display:block;">Pusula'daki tüm hizmetler</span>
+        </a>
+        <a asp-page="/HizmetEslestirme" asp-route-Durum="Kullanimda" asp-route-Tip="@Model.Tip" class="stat-link @(Model.Durum == "Kullanimda" ? "active" : "")">
+            <span class="stat-value" style="font-size:24px;">@Model.KullanilanSayi</span>
+            <span class="text-muted" style="font-size:13px; display:block;">son 1 yılda kullanılan</span>
         </a>
         <a asp-page="/HizmetEslestirme" asp-route-Durum="Pusula" asp-route-Tip="@Model.Tip" class="stat-link @(Model.Durum == "Pusula" ? "active" : "")">
             <span class="stat-value" style="font-size:24px; color:var(--success);">@Model.PusulaSayi</span>
@@ -37,6 +41,10 @@
         <a asp-page="/HizmetEslestirme" asp-route-Durum="Eksik" asp-route-Tip="@Model.Tip" class="stat-link @(Model.Durum == "Eksik" ? "active" : "")">
             <span class="stat-value" style="font-size:24px; color:var(--danger);">@Model.EksikSayi</span>
             <span class="text-muted" style="font-size:13px; display:block;">Pusula'da eşleşme yok</span>
+        </a>
+        <a asp-page="/HizmetEslestirme" asp-route-Durum="KullanimdaEksik" asp-route-Tip="@Model.Tip" class="stat-link @(Model.Durum == "KullanimdaEksik" ? "active" : "")" style="border:1px dashed var(--danger);">
+            <span class="stat-value" style="font-size:24px; color:var(--danger);">@Model.EksikKullanilanSayi</span>
+            <span class="text-muted" style="font-size:13px; display:block;">▶ öncelikli: kullanımda + eşleşme yok</span>
         </a>
         <a asp-page="/HizmetEslestirme" asp-route-Durum="Gonderilmez" asp-route-Tip="@Model.Tip" class="stat-link @(Model.Durum == "Gonderilmez" ? "active" : "")">
             <span class="stat-value" style="font-size:24px; color:var(--text-muted);">@Model.GonderilmezSayi</span>

@@ -32,6 +32,8 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
     public int ToplamIstem { get; set; }
     public int EslesenIstem { get; set; }
     public int GosterilenSayi { get; set; }
+    public int KullanilanSayi { get; set; }
+    public int EksikKullanilanSayi { get; set; }
 
     public static string? AzAdi(string? kod) => AzProcedureCodes.Display(kod);
     public static string? AzAdiTr(string? kod) => AzProcedureCodes.DisplayTr(kod);
@@ -45,6 +47,8 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
         MedigateSayi = hepsi.Count(s => s.Rozet == HizmetMappingStore.KaynakMedigate);
         GonderilmezSayi = hepsi.Count(s => s.Gonderilmez);
         EksikSayi = hepsi.Count(s => s.PusuladaEksik && !s.Gonderilmez);
+        KullanilanSayi = hepsi.Count(s => s.Istem > 0);
+        EksikKullanilanSayi = hepsi.Count(s => s.Istem > 0 && s.PusuladaEksik && !s.Gonderilmez);
         ToplamIstem = hepsi.Sum(s => s.Istem);
         EslesenIstem = hepsi.Where(s => s.Eslesti).Sum(s => s.Istem);
         Tipler = [.. hepsi.Select(s => s.HizmetTipi).Where(t => !string.IsNullOrWhiteSpace(t)).Distinct().OrderBy(t => t)];
@@ -55,6 +59,10 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
             "Medigate" => hepsi.Where(s => s.Rozet == HizmetMappingStore.KaynakMedigate),
             "Eksik" => hepsi.Where(s => s.PusuladaEksik && !s.Gonderilmez),
             "Gonderilmez" => hepsi.Where(s => s.Gonderilmez),
+            // Katalogda 20.613 hizmet var ama 17.008'i son bir yilda HIC istenmemis.
+            // Bu filtre gercekten kullanilan kalemlere odaklanmayi sagliyor.
+            "Kullanimda" => hepsi.Where(s => s.Istem > 0),
+            "KullanimdaEksik" => hepsi.Where(s => s.Istem > 0 && s.PusuladaEksik && !s.Gonderilmez),
             _ => hepsi.AsEnumerable(),
         };
 
@@ -80,7 +88,7 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
         Saved = saved;
         var liste = await FiltreleAsync(ct);
         GosterilenSayi = liste.Count;
-        // 3.604 satiri birden cizmek sayfayi agirlastiriyor -- hacme gore ilk 400,
+        // 20.613 satiri birden cizmek sayfayi agirlastiriyor -- hacme gore ilk 400,
         // daraltmak icin filtreler var. Excel'e aktarim TUM filtre sonucunu alir.
         Satirlar = [.. liste.Take(400)];
     }
