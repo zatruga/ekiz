@@ -46,13 +46,20 @@ public class LabTestLoincStore
 
     public record Satir(
         string PusulaKodu, string LoincKodu, string? TestAdi, int Istem, string Grup,
-        string Kaynak, string UpdatedAtUtc)
+        string? LoincAdi, string Kaynak, string UpdatedAtUtc)
     {
         // Grup "belirsiz:1558-6" bicimindeyse taban LOINC kodunu tasir -- laboratuvara
         // "bu kod su LOINC'un varyanti mi?" diye sorabilmek icin.
         public string GrupAdi => Grup.Split(':')[0];
         public string? BelirsizTaban => Grup.StartsWith("belirsiz:") ? Grup[9..] : null;
         public bool Bekliyor => string.IsNullOrWhiteSpace(LoincKodu);
+
+        /// <summary>
+        /// Kodun standart LOINC aciklamasi. Once gomulu tablo, yoksa kaydederken
+        /// tx.fhir.org'dan cekilip saklanan deger. Ikisi de yoksa null -- kod
+        /// dogrulanamamis demektir.
+        /// </summary>
+        public string? Aciklama => Mapping.Loinc.Display(LoincKodu) ?? LoincAdi;
     }
 
     private void EnsureSchema()
@@ -65,6 +72,7 @@ public class LabTestLoincStore
                 PusulaKodu   TEXT PRIMARY KEY,
                 LoincKodu    TEXT NULL,
                 TestAdi      TEXT NULL,
+                LoincAdi     TEXT NULL,
                 Kaynak       TEXT NOT NULL,
                 UpdatedAtUtc TEXT NOT NULL
             );";
@@ -72,7 +80,7 @@ public class LabTestLoincStore
 
         // Sonradan eklenen kolonlar -- var olan kurulumlarda tablo zaten olusmus
         // olabilir, o yuzden ALTER ile ekleniyor (SQLite'ta IF NOT EXISTS yok).
-        foreach (var ek in new[] { "Istem INTEGER NOT NULL DEFAULT 0", "Grup TEXT NOT NULL DEFAULT 'yok'" })
+        foreach (var ek in new[] { "Istem INTEGER NOT NULL DEFAULT 0", "Grup TEXT NOT NULL DEFAULT 'yok'", "LoincAdi TEXT NULL" })
         {
             try
             {
@@ -150,34 +158,36 @@ public class LabTestLoincStore
         using var cmd = conn.CreateCommand();
         // Hacme gore sirali -- laboratuvar nereden baslayacagini gorsun. 247 kaydin
         // cogu yilda 20 kez isteniyor, biri 27.408 kez.
-        cmd.CommandText = @"SELECT PusulaKodu, LoincKodu, TestAdi, Istem, Grup, Kaynak, UpdatedAtUtc
+        cmd.CommandText = @"SELECT PusulaKodu, LoincKodu, TestAdi, Istem, Grup, LoincAdi, Kaynak, UpdatedAtUtc
                             FROM LabTestLoincMapping ORDER BY Istem DESC, PusulaKodu";
         var list = new List<Satir>();
         await using var r = await cmd.ExecuteReaderAsync(ct);
         while (await r.ReadAsync(ct))
             list.Add(new Satir(r.GetString(0), r.IsDBNull(1) ? "" : r.GetString(1),
                 r.IsDBNull(2) ? null : r.GetString(2), r.GetInt32(3), r.GetString(4),
-                r.GetString(5), r.GetString(6)));
+                r.IsDBNull(5) ? null : r.GetString(5), r.GetString(6), r.GetString(7)));
         return list;
     }
 
     /// <summary>Elle duzenleme -- her zaman Kaynak='laboratuvar' isaretler.</summary>
-    public async Task SetAsync(string pusulaKodu, string? loincKodu, string? testAdi, CancellationToken ct = default)
+    public async Task SetAsync(string pusulaKodu, string? loincKodu, string? testAdi, string? loincAdi = null, CancellationToken ct = default)
     {
         using var conn = new SqliteConnection(_connectionString);
         await conn.OpenAsync(ct);
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
-            INSERT INTO LabTestLoincMapping (PusulaKodu, LoincKodu, TestAdi, Kaynak, UpdatedAtUtc)
-            VALUES ($k, $l, $a, $s, $t)
+            INSERT INTO LabTestLoincMapping (PusulaKodu, LoincKodu, TestAdi, LoincAdi, Kaynak, UpdatedAtUtc)
+            VALUES ($k, $l, $a, $la, $s, $t)
             ON CONFLICT(PusulaKodu) DO UPDATE SET
                 LoincKodu = excluded.LoincKodu,
                 TestAdi = COALESCE(excluded.TestAdi, TestAdi),
+                LoincAdi = excluded.LoincAdi,
                 Kaynak = excluded.Kaynak,
                 UpdatedAtUtc = excluded.UpdatedAtUtc;";
         cmd.Parameters.AddWithValue("$k", pusulaKodu.Trim());
         cmd.Parameters.AddWithValue("$l", string.IsNullOrWhiteSpace(loincKodu) ? DBNull.Value : loincKodu.Trim());
         cmd.Parameters.AddWithValue("$a", (object?)testAdi ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$la", string.IsNullOrWhiteSpace(loincAdi) ? DBNull.Value : loincAdi);
         cmd.Parameters.AddWithValue("$s", KaynakLaboratuvar);
         cmd.Parameters.AddWithValue("$t", DateTime.UtcNow.ToString("O"));
         await cmd.ExecuteNonQueryAsync(ct);

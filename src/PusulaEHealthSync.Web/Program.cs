@@ -59,6 +59,7 @@ builder.Services.AddSingleton<PatientSyncService>();
 builder.Services.AddSingleton<PractitionerSyncService>();
 builder.Services.AddSingleton<ConditionSyncService>();
 builder.Services.AddSingleton<VitalSignsSyncService>();
+builder.Services.AddHttpClient<PusulaEHealthSync.Mapping.LoincLookup>();
 builder.Services.AddSingleton<ProcedureSyncService>();
 builder.Services.AddSingleton<EncounterSyncService>();
 builder.Services.AddSingleton<CompositionSyncService>();

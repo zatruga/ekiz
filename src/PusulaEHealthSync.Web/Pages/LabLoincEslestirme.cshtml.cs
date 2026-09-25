@@ -8,7 +8,7 @@ namespace PusulaEHealthSync.Web.Pages;
 // Lab test kodu -> LOINC eslestirmesi. Pusula SALT OKUNUR oldugu icin bu eslestirme
 // LIS.Test.LoincKodu'na yazilamiyor; kendi veritabanimizda tutuluyor ve gonderim
 // aninda uygulaniyor (bkz. LabTestLoincStore). Bolum Eslestirme sayfasiyla ayni kalip.
-public class LabLoincEslestirmeModel(LabTestLoincStore store) : PageModel
+public class LabLoincEslestirmeModel(LabTestLoincStore store, LoincLookup lookup) : PageModel
 {
     public List<LabTestLoincStore.Satir> Satirlar { get; set; } = [];
 
@@ -76,7 +76,13 @@ public class LabLoincEslestirmeModel(LabTestLoincStore store) : PageModel
     public async Task<IActionResult> OnPostKaydetAsync(
         string pusulaKodu, string? loincKodu, string? testAdi, CancellationToken ct)
     {
-        await store.SetAsync(pusulaKodu, loincKodu, testAdi, ct);
+        // Girilen kodun STANDART aciklamasini al ve sakla. Gomulu tabloda varsa
+        // internete cikilmaz; yoksa tx.fhir.org'a tek bir sorgu gider ve sonuc
+        // veritabanina yazilir -- ayni kod icin bir daha sorulmaz.
+        // Yan fayda: kod gecersizse aciklama null doner ve ekranda "doğrulanamadı"
+        // gorunur, yani yazim hatasi aninda yakalanir.
+        var aciklama = await lookup.DisplayAsync(loincKodu, ct);
+        await store.SetAsync(pusulaKodu, loincKodu, testAdi, aciklama, ct);
         return RedirectToPage("/LabLoincEslestirme", new { saved = true, Durum, Ara });
     }
 
@@ -90,7 +96,10 @@ public class LabLoincEslestirmeModel(LabTestLoincStore store) : PageModel
         string yeniPusulaKodu, string? yeniLoincKodu, string? yeniTestAdi, CancellationToken ct)
     {
         if (!string.IsNullOrWhiteSpace(yeniPusulaKodu))
-            await store.SetAsync(yeniPusulaKodu, yeniLoincKodu, yeniTestAdi, ct);
+        {
+            var aciklama = await lookup.DisplayAsync(yeniLoincKodu, ct);
+            await store.SetAsync(yeniPusulaKodu, yeniLoincKodu, yeniTestAdi, aciklama, ct);
+        }
         return RedirectToPage("/LabLoincEslestirme", new { saved = true, Durum, Ara });
     }
 }

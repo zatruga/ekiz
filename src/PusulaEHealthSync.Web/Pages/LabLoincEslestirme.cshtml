@@ -110,38 +110,43 @@
             @foreach (var s in Model.Satirlar)
             {
                 var tr = PusulaEHealthSync.Web.Pages.LabLoincEslestirmeModel.LoincAdiTr(s.LoincKodu);
-                var en = PusulaEHealthSync.Web.Pages.LabLoincEslestirmeModel.LoincAdi(s.LoincKodu);
+                var aciklama = s.Aciklama;
                 var lab = s.Kaynak == LabTestLoincStore.KaynakLaboratuvar;
                 <tr>
                     <td><code>@s.PusulaKodu</code></td>
                     <td>@s.TestAdi</td>
                     <td style="text-align:right; font-variant-numeric:tabular-nums;">@s.Istem.ToString("N0")</td>
                     <td style="font-size:13px;">
-                        @if (tr is not null)
+                        @if (aciklama is not null)
                         {
-                            <div>@tr</div>
-                            <div class="text-muted" style="font-size:12px; margin-top:2px;">@en</div>
-                        }
-                        else if (en is not null)
-                        {
-                            <div class="text-muted">@en</div>
-                        }
-                        else if (s.Bekliyor)
-                        {
-                            @if (s.BelirsizTaban is { } taban)
+                            @* Kod girilmis ve DOGRULANMIS -- Turkce varsa ustte, resmi ad altta *@
+                            @if (tr is not null)
                             {
-                                <span style="color:var(--warning);">
-                                    Bu kod <code>@taban</code> LOINC'unun varyantı mı, yoksa kendi kodunuz mu?
-                                </span>
+                                <div>@tr</div>
+                                <div class="text-muted" style="font-size:12px; margin-top:2px;">@aciklama</div>
                             }
                             else
                             {
-                                <span class="text-muted">Karşılık önerilemedi -- kodu siz girmelisiniz.</span>
+                                <div>@aciklama</div>
                             }
+                        }
+                        else if (!s.Bekliyor)
+                        {
+                            @* Kod var ama aciklamasi alinamadi -- ya kod yanlis ya internet yoktu *@
+                            <span style="color:var(--warning);">
+                                <code>@s.LoincKodu</code> doğrulanamadı -- kodu kontrol edin
+                                (internet yoksa kaydedince tekrar denenir).
+                            </span>
+                        }
+                        else if (s.BelirsizTaban is { } taban)
+                        {
+                            <span style="color:var(--warning);">
+                                Bu kod <code>@taban</code> LOINC'unun varyantı mı, yoksa kendi kodunuz mu?
+                            </span>
                         }
                         else
                         {
-                            <span style="color:var(--warning);">Gömülü LOINC listesinde yok -- kodu kontrol edin.</span>
+                            <span class="text-muted">Karşılık önerilemedi -- kodu siz girmelisiniz.</span>
                         }
                     </td>
                     <td>
