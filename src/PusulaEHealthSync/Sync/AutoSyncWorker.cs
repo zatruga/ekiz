@@ -86,6 +86,21 @@ public class AutoSyncWorker(
             pending.ToplamProtokolSayisi, uygun.Count, batchSize);
 
         int basarili = 0, basarisiz = 0;
+
+        // DEVRE KESICI (2026-09-28 inceleme). Bakanlik sunucusu ulasilamaz oldugunda eski
+        // hal her protokol icin sirayla ag zaman asimina dusuyordu: 50 protokol x 100 sn
+        // varsayilan HttpClient zaman asimi = bir turun 80 dakikayi asmasi, yani saatlik
+        // aralikta turlarin birbirine yetismesi. Kimlik dogrulama da her protokolde
+        // yeniden deneniyordu -- kapali bir sunucuya duzenli yuklenme.
+        //
+        // Ayrim bilincli: NORMAL basarisizlik (ornegin bakanligin reddettigi bir ICD-10
+        // kodu) sayilmaz, cunku o protokole ozgudur ve digerleri gonderilebilir. Yalnizca
+        // ISTISNA sayilir -- ag hatasi, kimlik dogrulama hatasi gibi altyapi sorunlari.
+        // Ust uste bu kadar istisna geldiyse sorun tek tek protokollerde degil baglantida
+        // demektir; tur birakilir, bir sonraki turda yeniden denenir.
+        const int UstUsteIstisnaSiniri = 5;
+        int ustUsteIstisna = 0;
+
         foreach (var p in uygun)
         {
             if (ct.IsCancellationRequested) break;
@@ -97,11 +112,22 @@ public class AutoSyncWorker(
                 // ayni eksik canli olarak yakalandi).
                 var tam = await protocolFullSync.SyncAllAsync(p.Protokol, ct);
                 if (tam.EncounterStatus == SyncStatus.Success) basarili++; else basarisiz++;
+                ustUsteIstisna = 0;
             }
             catch (Exception ex)
             {
                 basarisiz++;
+                ustUsteIstisna++;
                 logger.LogWarning(ex, "Otomatik gonderim: protokol {Id} gonderilemedi.", p.Protokol.ProtokolId);
+
+                if (ustUsteIstisna >= UstUsteIstisnaSiniri)
+                {
+                    logger.LogError(
+                        "Otomatik gonderim: ust uste {Sayi} protokolde istisna olustu -- baglanti/kimlik "
+                        + "sorunu varsayiliyor, bu tur birakiliyor. Kalan {Kalan} protokol bir sonraki turda denenecek.",
+                        ustUsteIstisna, uygun.Count - (basarili + basarisiz));
+                    break;
+                }
             }
         }
 

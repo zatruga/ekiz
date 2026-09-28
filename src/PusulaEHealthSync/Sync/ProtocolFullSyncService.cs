@@ -28,9 +28,18 @@ namespace PusulaEHealthSync.Sync;
 // 7f50755'te yalnizca Protokol Detay'a eklendi), bu yuzden cozum "diger cagri
 // yerlerine de ekleyelim" degil: zincir ARTIK TEK BIR YERDE. Yeni bir kaynak tipi
 // eklendiginde burasi guncellenir ve uc cagri yeri de kendiliginden dogru olur.
+//
+// AYAR KAPISI (2026-09-28 inceleme bulgusu): radyoloji ve patoloji gonderiminin
+// acik/kapali anahtarlari (RadiologyReport.SendEnabled, PathologyReport.SendEnabled)
+// YALNIZCA EncounterSyncService'in cascade'inde denetleniyordu. Zincir buraya
+// tasinirken kontroller birlikte tasinmamis -- yani bu servis anahtarlar kapaliyken
+// de gonderiyordu. Iki anahtar bugun Ayarlar ekraninda gosterilmedigi (hep varsayilan
+// true oldugu) icin pratikte bir zarar dogmamis; ama otomatik gonderim bu servis
+// uzerinden calisacagi icin kapi burada da kuruldu.
 public class ProtocolFullSyncService(
     PusulaRepository pusulaRepository,
     SyncLogStore syncLog,
+    SettingsStore settings,
     EHealthClient eHealthClient,
     EncounterSyncService encounterSyncService,
     CompositionSyncService compositionSyncService,
@@ -135,6 +144,8 @@ public class ProtocolFullSyncService(
     private async Task<int> SendAllRadiologyAsync(
         ProtokolListItem protokol, string azPatientId, string? azEncounterId, CancellationToken ct)
     {
+        if (!await settings.GetBoolAsync(SettingsStore.RadiologyReportSendEnabledKey, true, ct)) return 0;
+
         var reports = await pusulaRepository.GetRadiologyReportsByProtokolIdAsync(protokol.ProtokolId, ct);
         var durumlar = await syncLog.GetLatestByPusulaIdsAsync(
             "DiagnosticReport", reports.Select(r => r.TetkikIslemId).ToList(), ct);
@@ -175,6 +186,8 @@ public class ProtocolFullSyncService(
     private async Task<int> SendAllPathologyAsync(
         ProtokolListItem protokol, string azPatientId, string? azEncounterId, CancellationToken ct)
     {
+        if (!await settings.GetBoolAsync(SettingsStore.PathologyReportSendEnabledKey, true, ct)) return 0;
+
         var reports = await pusulaRepository.GetPathologyReportsByProtokolIdAsync(protokol.ProtokolId, ct);
         var durumlar = await syncLog.GetLatestByPusulaIdsAsync(
             "DiagnosticReport-Patoloji", reports.Select(r => r.ResultId).ToList(), ct);

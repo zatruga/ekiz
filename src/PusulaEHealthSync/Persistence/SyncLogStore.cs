@@ -43,6 +43,10 @@ public class SyncLogStore
             );
             CREATE INDEX IF NOT EXISTS IX_SyncLog_PusulaId ON SyncLog(ResourceType, PusulaId);
             CREATE INDEX IF NOT EXISTS IX_SyncLog_Status ON SyncLog(Status);
+            -- Aktivite sayfasi ve Genel Bakis grafigi tarih araligiyla filtreliyor
+            -- (QueryAsync, GetDailyTrendAsync, GetStatusCountsAsync). Bu indeks olmadan
+            -- her tarih filtresi tablonun tamamini tariyordu (2026-09-28 inceleme).
+            CREATE INDEX IF NOT EXISTS IX_SyncLog_CreatedAtUtc ON SyncLog(CreatedAtUtc);
         ";
         cmd.ExecuteNonQuery();
     }
@@ -196,8 +200,13 @@ public class SyncLogStore
         using var conn = new SqliteConnection(_connectionString);
         await conn.OpenAsync(ct);
         using var cmd = conn.CreateCommand();
+        // Govdesiz projeksiyon (2026-09-28): bu sorgu Ana Sayfa'nin HER acilisinda,
+        // bugune kadar basariyla gonderilmis TUM Encounter'lar icin calisiyor. Cagiran
+        // (Index sayfasi) yalnizca PusulaId/AzResourceId/hasta bilgisine bakiyor;
+        // gonderilen FHIR govdesini hic kullanmiyor. Gunluk buyudukce bu iki kolon
+        // sayfa acilisinin en pahali kismi olurdu.
         cmd.CommandText = $@"
-            SELECT {SelectColumns}
+            SELECT {SelectColumnsGovdesiz}
             FROM SyncLog
             WHERE ResourceType = 'Encounter'
               AND AzResourceId IS NOT NULL
