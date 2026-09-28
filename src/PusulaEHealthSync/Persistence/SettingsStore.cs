@@ -47,6 +47,24 @@ public class SettingsStore
     public const string AutoSendBatchSizeKey = "AutoSend.BatchSize";
     public const int AutoSendBatchSizeDefault = 50;
 
+    // -- Bekleyen is taramasi araligi -----------------------------------------------------
+    // KULLANICI ISTEGI (2026-09-28): "bu tarama tum data degil, Ayarlar kismina alan
+    // ekleyelim; orada girilen tarihten itibaren datayi al; bir de son 1 ay / son 3 ay
+    // gibi bir alan olsun -- istenirse tarih, istenirse secilen tanima gore filtre."
+    //
+    // NEDEN GEREKTI: tarama penceresi kodda sabit 60 gundu ve maliyeti olculmemisti.
+    // Canli olcum (2026-09-28): 60 gunluk pencere 850.327 aday satir cekiyor (islem
+    // 426.539 + laboratuvar 405.396 + digerleri). Otomatik gonderim acildiginda bu HER
+    // SAAT tekrarlanacakti. Artik pencere ekrandan ayarlanabiliyor.
+    //
+    // Mod "Preset" ise PendingScan.PresetDays gun geriye bakilir; "Date" ise
+    // PendingScan.FromDate (yyyy-MM-dd) tarihinden ITIBAREN taranir.
+    public const string PendingScanModeKey = "PendingScan.Mode";      // "Preset" | "Date"
+    public const string PendingScanModeDefault = "Preset";
+    public const string PendingScanPresetDaysKey = "PendingScan.PresetDays";
+    public const int PendingScanPresetDaysDefault = 60;
+    public const string PendingScanFromDateKey = "PendingScan.FromDate";
+
     // -- Hata sonrasi tekrar deneme -------------------------------------------------------
     public const string RetryIntervalMinutesKey = "Retry.IntervalMinutes";
     public const int RetryIntervalMinutesDefault = 30;

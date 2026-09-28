@@ -120,7 +120,7 @@ toplu okuma yapıyor.
 Bu iki madde **ölçüldü ama değiştirilmedi** -- ikisi de sizin tasarım kararınızı
 gerektiriyor ve ikisi de **otomatik gönderim açılmadan önce** cevaplanmalı.
 
-### A. Bekleyen iş taraması gerçekte 850.000 satır çekiyor
+### A. Bekleyen iş taraması gerçekte 850.000 satır çekiyor -- ÇÖZÜLDÜ (2026-09-28)
 
 `PendingWorkService.DefaultScanDays = 60`. Kodun kendi yorumu taramanın
 "~15 sn sürdüğünü, 54.000 laboratuvar + 24.000 işlem adayı tarandığını"
@@ -148,7 +148,29 @@ sınırlar, karar kriteri değildir."* Pencere 14 güne inerse, 14 günden uzun
 süredir gönderilememiş bir laboratuvar sonucu listeden **kalıcı olarak düşer** --
 sistemin kendini onarma özelliği kaybolur.
 
-**Seçenekler:**
+**KARAR (kullanıcı, 2026-09-28):** pencere koddan çıkarıldı, **Ayarlar > Tarama
+Aralığı** kartına taşındı. İki mod var:
+
+- **Hazır aralık** -- Son 1 hafta / 2 hafta / 1 ay / 3 ay / 6 ay / 1 yıl
+- **Belirli tarihten itibaren** -- tarih seçici
+
+Seçilen aralığı hem bekleyen iş taraması hem otomatik gönderim döngüsü hem de
+iptal senkronu kullanır (`PendingWorkService.TaramaBaslangiciAsync` tek kaynak --
+ikisi ayrı çözülürse "gönderilecekler" ile "iptal edilecekler" farklı aralıklara
+bakardı). Bekleyen İşler sayfası artık "son N gün" yerine gerçek başlangıç
+tarihini gösteriyor; adres çubuğuna `?Gun=14` yazarak tek seferlik ezilebilir.
+
+Tarih modu seçilip tarih boş/bozuk bırakılırsa **sınırsız taramaya düşmez** --
+hazır aralık değerine geri döner. Kaçınmak istediğimiz şey tam olarak sınırsız
+taramaydı.
+
+Varsayılan 60 gün olarak bırakıldı: mevcut davranış hiçbir şey değiştirilmeden
+aynı kalıyor, daraltma bilinçli bir tercih olarak kullanıcıya bırakıldı.
+
+Doğrulandı: 7 senaryo (varsayılan, 30 gün, 90 gün, belirli tarih, boş tarih,
+bozuk tarih, kaydetme sonrası anında etki) test edildi, hepsi doğru.
+
+**Değerlendirilen diğer seçenekler (uygulanmadı):**
 
 1. **Kaynak başına farklı pencere.** 60 gün patoloji için konmuş
    (immünohistokimya haftalar sürebiliyor) ve patoloji 60 günde yalnızca 1.119

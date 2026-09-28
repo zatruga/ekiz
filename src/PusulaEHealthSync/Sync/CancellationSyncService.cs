@@ -25,13 +25,18 @@ namespace PusulaEHealthSync.Sync;
 public class CancellationSyncService(
     PusulaRepository repository,
     SyncLogStore syncLog,
+    SettingsStore settings,
     DeleteService deleteService,
     ILogger<CancellationSyncService> logger)
 {
+    // Pencere bekleyen is taramasiyla AYNI kaynaktan geliyor (Ayarlar) -- ikisi ayri
+    // cozulurse "gonderilecekler" ile "iptal edilecekler" farkli araliklara bakardi.
     public async Task<CancellationRunResult> RunAsync(
-        int scanDays = PendingWorkService.DefaultScanDays, CancellationToken ct = default)
+        int? scanDays = null, CancellationToken ct = default)
     {
-        var fromLocal = DateTime.Now.Date.AddDays(-scanDays);
+        var fromLocal = scanDays is { } gun && gun > 0
+            ? DateTime.Now.Date.AddDays(-gun)
+            : await PendingWorkService.TaramaBaslangiciAsync(settings, ct);
         int silinen = 0, hata = 0;
 
         // 1) IPTAL EDILMIS PROTOKOLLER -- butun zincir gecersiz.

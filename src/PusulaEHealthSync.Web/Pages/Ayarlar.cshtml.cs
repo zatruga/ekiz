@@ -1,7 +1,9 @@
 using System.ComponentModel.DataAnnotations;
+using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using PusulaEHealthSync.Persistence;
+using PusulaEHealthSync.Sync;
 
 namespace PusulaEHealthSync.Web.Pages;
 
@@ -69,6 +71,32 @@ public class AyarlarModel(SettingsStore settings) : PageModel
     [Range(1, 500)]
     public int AutoSendBatchSize { get; set; }
 
+    // -- Bekleyen is taramasi araligi -------------------------------------------------------
+    // KULLANICI ISTEGI (2026-09-28): tarama "tum data" olmasin; ya hazir bir aralik
+    // (son 1 ay / son 3 ay ...) ya da girilen bir tarihten itibaren olsun.
+    [BindProperty]
+    public string PendingScanMode { get; set; } = SettingsStore.PendingScanModeDefault;
+    [BindProperty]
+    [Range(1, 3650)]
+    public int PendingScanPresetDays { get; set; }
+    [BindProperty]
+    [DataType(DataType.Date)]
+    public DateTime? PendingScanFromDate { get; set; }
+
+    // Ekrandaki "su an sunu tariyor" ozeti -- secim kaydedildikten sonra ne olacagini
+    // kullanicinin tahmin etmesi gerekmesin.
+    public DateTime PendingScanEffectiveFrom { get; private set; }
+
+    public static readonly (int Gun, string Ad)[] TaramaHazirAraliklar =
+    [
+        (7, "Son 1 hafta"),
+        (14, "Son 2 hafta"),
+        (30, "Son 1 ay"),
+        (90, "Son 3 ay"),
+        (180, "Son 6 ay"),
+        (365, "Son 1 yıl"),
+    ];
+
     // -- Hata sonrasi tekrar deneme --------------------------------------------------------
     [BindProperty]
     [Range(1, 1440)]
@@ -128,6 +156,38 @@ public class AyarlarModel(SettingsStore settings) : PageModel
         if (!ModelState.IsValid) { await LoadAsync(ct, skipProtokol: true); return Page(); }
         await settings.SetIntAsync(SettingsStore.OpenProtokolSendAfterDaysKey, OpenProtokolSendAfterDays, ct);
         return await SavedAsync("protokol", ct);
+    }
+
+    // Tarama araligi. Iki mod tek formda: hazir aralik (gun sayisi) ya da belirli tarih.
+    // Secilmeyen modun alani DOGRULANMAZ -- ornegin hazir aralik seciliyken bos birakilmis
+    // bir tarih kutusu formu gecersiz kilmamali.
+    public async Task<IActionResult> OnPostTaramaAsync(CancellationToken ct)
+    {
+        var tarihModu = string.Equals(PendingScanMode, "Date", StringComparison.OrdinalIgnoreCase);
+
+        if (tarihModu)
+        {
+            ModelState.Remove(nameof(PendingScanPresetDays));
+            if (PendingScanFromDate is null)
+                ModelState.AddModelError(nameof(PendingScanFromDate), "Bir başlangıç tarihi seçin.");
+            else if (PendingScanFromDate.Value.Date > DateTime.Now.Date)
+                ModelState.AddModelError(nameof(PendingScanFromDate), "Başlangıç tarihi gelecekte olamaz.");
+        }
+        else
+        {
+            ModelState.Remove(nameof(PendingScanFromDate));
+        }
+
+        if (!ModelState.IsValid) { await LoadAsync(ct, skipTarama: true); return Page(); }
+
+        await settings.SetStringAsync(SettingsStore.PendingScanModeKey, tarihModu ? "Date" : "Preset", ct);
+        if (tarihModu)
+            await settings.SetStringAsync(SettingsStore.PendingScanFromDateKey,
+                PendingScanFromDate!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), ct);
+        else
+            await settings.SetIntAsync(SettingsStore.PendingScanPresetDaysKey, PendingScanPresetDays, ct);
+
+        return await SavedAsync("tarama", ct);
     }
 
     // DUZELTME (2026-08-21, canli olayda bulundu): Sifre alanlari <input type="password">
@@ -221,8 +281,24 @@ public class AyarlarModel(SettingsStore settings) : PageModel
     }
 
     private async Task LoadAsync(CancellationToken ct,
-        bool skipProtokol = false, bool skipGenel = false, bool skipTekrar = false, bool skipMail = false)
+        bool skipProtokol = false, bool skipGenel = false, bool skipTekrar = false, bool skipMail = false,
+        bool skipTarama = false)
     {
+        if (!skipTarama)
+        {
+            PendingScanMode = await settings.GetStringAsync(
+                SettingsStore.PendingScanModeKey, SettingsStore.PendingScanModeDefault, ct);
+            PendingScanPresetDays = await settings.GetIntAsync(
+                SettingsStore.PendingScanPresetDaysKey, SettingsStore.PendingScanPresetDaysDefault, ct);
+            var hamTarih = await settings.GetStringAsync(SettingsStore.PendingScanFromDateKey, "", ct);
+            PendingScanFromDate = DateTime.TryParseExact(
+                hamTarih, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var t)
+                ? t : null;
+        }
+        // Ozet her zaman GERCEK ayardan hesaplanir (form dogrulamasi patlasa bile
+        // kullaniciya "su an sunu tariyor" dogru gosterilsin).
+        PendingScanEffectiveFrom = await PendingWorkService.TaramaBaslangiciAsync(settings, ct);
+
         if (!skipProtokol)
             OpenProtokolSendAfterDays = await settings.GetIntAsync(SettingsStore.OpenProtokolSendAfterDaysKey, SettingsStore.OpenProtokolSendAfterDaysDefault, ct);
 

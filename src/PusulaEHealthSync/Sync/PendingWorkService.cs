@@ -1,3 +1,4 @@
+using System.Globalization;
 using PusulaEHealthSync.Db;
 using PusulaEHealthSync.Mapping;
 using PusulaEHealthSync.Persistence;
@@ -26,7 +27,36 @@ public class PendingWorkService(
     SettingsStore settings)
 {
     // Patoloji immunohistokimya ile haftalar surebiliyor; pencere bunu rahat kapsamali.
+    // ARTIK SADECE VARSAYILAN: gercek pencere Ayarlar'dan geliyor (bkz. TaramaBaslangiciAsync).
     public const int DefaultScanDays = 60;
+
+    // Taramanin baslangic tarihini Ayarlar'dan cozer (KULLANICI ISTEGI 2026-09-28).
+    //
+    // Iki mod var ve ikisi de ayni seye cevap veriyor -- "nereden itibaren tara":
+    //   Preset : bugunden N gun geriye  (son 1 ay, son 3 ay, ...)
+    //   Date   : girilen tarihten itibaren (sabit bir baslangic noktasi)
+    //
+    // Statik ve SettingsStore aliyor cunku ayni pencereyi iptal senkronu da kullaniyor
+    // (CancellationSyncService) -- iki yerde ayri ayri cozulurse birbirinden kayarlar.
+    public static async Task<DateTime> TaramaBaslangiciAsync(SettingsStore settings, CancellationToken ct)
+    {
+        var mod = await settings.GetStringAsync(
+            SettingsStore.PendingScanModeKey, SettingsStore.PendingScanModeDefault, ct);
+
+        if (string.Equals(mod, "Date", StringComparison.OrdinalIgnoreCase))
+        {
+            var ham = await settings.GetStringAsync(SettingsStore.PendingScanFromDateKey, "", ct);
+            if (DateOnly.TryParseExact(ham, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                    DateTimeStyles.None, out var tarih))
+                return tarih.ToDateTime(TimeOnly.MinValue);
+            // Tarih modu secili ama tarih bos/bozuksa: sessizce TUM gecmisi taramak yerine
+            // guvenli varsayilana dus. Sinirsiz tarama tam da kacinmak istedigimiz sey.
+        }
+
+        var gun = await settings.GetIntAsync(
+            SettingsStore.PendingScanPresetDaysKey, SettingsStore.PendingScanPresetDaysDefault, ct);
+        return DateTime.Now.Date.AddDays(-Math.Max(1, gun));
+    }
 
     // Yatan hastada kural "taburcu olunca gonder". Ama protokol veri girisi hatasiyla hic
     // kapanmazsa sonsuza dek beklerdi -- kullanici karari (2026-09-09): makul bir tavan koy.
@@ -40,8 +70,10 @@ public class PendingWorkService(
     public PendingWorkResult? SonSonuc { get; private set; }
     public DateTime? SonHesaplamaUtc { get; private set; }
 
+    // scanDays null ise pencere Ayarlar'dan okunur. Sayi verilirse (Bekleyen Isler
+    // sayfasindaki elle "gun" kutusu) o tur icin ayar GECICI olarak ezilir.
     public async Task<PendingWorkResult> RefreshAsync(
-        int scanDays = DefaultScanDays, int maxProtocols = 200, CancellationToken ct = default)
+        int? scanDays = null, int maxProtocols = 200, CancellationToken ct = default)
     {
         // Ayni anda iki tarama baslamasin (sayfa + dongu ayni saniyede tetiklerse).
         await _refreshLock.WaitAsync(ct);
@@ -56,9 +88,11 @@ public class PendingWorkService(
     }
 
     public async Task<PendingWorkResult> GetPendingAsync(
-        int scanDays = DefaultScanDays, int maxProtocols = 200, CancellationToken ct = default)
+        int? scanDays = null, int maxProtocols = 200, CancellationToken ct = default)
     {
-        var fromLocal = DateTime.Now.Date.AddDays(-scanDays);
+        var fromLocal = scanDays is { } gun && gun > 0
+            ? DateTime.Now.Date.AddDays(-gun)
+            : await TaramaBaslangiciAsync(settings, ct);
 
         // 1) Pusula'da hazir olan her sey. Her kaynak KENDI sonuclanma tarihiyle taranir.
         var candidates = new List<PendingCandidate>();

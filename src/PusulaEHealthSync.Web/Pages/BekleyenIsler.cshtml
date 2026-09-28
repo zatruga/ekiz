@@ -33,7 +33,7 @@ else
         <span>
             Son hesaplama:
             <strong>@(Model.SonHesaplamaUtc is null ? "-" : AzTime.ToLocal(Model.SonHesaplamaUtc.Value).ToString("yyyy-MM-dd HH:mm"))</strong>
-            &middot; Son @Model.Gun günlük pencere
+            &middot; @Model.TaramaBaslangici.ToString("dd.MM.yyyy") tarihinden itibaren taranıyor
         </span>
         <span>
             Otomatik gönderim:

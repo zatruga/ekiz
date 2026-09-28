@@ -23,19 +23,32 @@ public class BekleyenIslerModel(PendingWorkService pendingWork, SettingsStore se
     public DateTime? SonHesaplamaUtc { get; private set; }
     public bool OtomatikGonderimAcik { get; private set; }
 
+    // 0 = "Ayarlar'daki tarama araligini kullan" (KULLANICI ISTEGI 2026-09-28: pencere
+    // artik kodda sabit degil, Ayarlar > Tarama Araligi'ndan yonetiliyor). Adres cubuguna
+    // ?Gun=14 yazilirsa o tur icin ayar gecici olarak ezilebilir.
     [BindProperty(SupportsGet = true)]
-    public int Gun { get; set; } = PendingWorkService.DefaultScanDays;
+    public int Gun { get; set; }
+
+    // Ekranda gosterilecek gercek baslangic tarihi -- ayar "belirli tarih" modundaysa
+    // "son N gun" demek yaniltici olurdu.
+    public DateTime TaramaBaslangici { get; private set; }
 
     public async Task OnGetAsync(CancellationToken ct)
     {
         OtomatikGonderimAcik = await settings.GetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, false, ct);
+        TaramaBaslangici = await BaslangicAsync(ct);
         Sonuc = pendingWork.SonSonuc;
         SonHesaplamaUtc = pendingWork.SonHesaplamaUtc;
     }
 
     public async Task<IActionResult> OnPostYenileAsync(CancellationToken ct)
     {
-        await pendingWork.RefreshAsync(Gun, 200, ct);
+        await pendingWork.RefreshAsync(Gun > 0 ? Gun : null, 200, ct);
         return RedirectToPage(new { Gun });
     }
+
+    private async Task<DateTime> BaslangicAsync(CancellationToken ct) =>
+        Gun > 0
+            ? DateTime.Now.Date.AddDays(-Gun)
+            : await PendingWorkService.TaramaBaslangiciAsync(settings, ct);
 }

@@ -77,8 +77,9 @@ public class AutoSyncWorker(
 
         // 1) Bekleyenleri hesapla. maxProtocols parti boyutundan BUYUK tutuluyor ki
         //    Bekleyen Isler sayfasi anlamli bir liste gosterebilsin.
+        // scanDays verilmiyor -> pencere Ayarlar'dan (PendingScan.*) okunuyor.
         var pending = await pendingWork.RefreshAsync(
-            PendingWorkService.DefaultScanDays, Math.Max(batchSize, 200), ct);
+            scanDays: null, Math.Max(batchSize, 200), ct);
 
         var uygun = pending.Protokoller.Where(p => p.Eligible).Take(batchSize).ToList();
         logger.LogInformation(
@@ -132,7 +133,7 @@ public class AutoSyncWorker(
         }
 
         // 2) Iptal senkronu -- Pusula'da silinmis olanlari e-Health'ten de sil.
-        var iptal = await cancellationSync.RunAsync(PendingWorkService.DefaultScanDays, ct);
+        var iptal = await cancellationSync.RunAsync(scanDays: null, ct);
 
         logger.LogInformation(
             "Otomatik gonderim turu bitti: {Basarili} basarili, {Basarisiz} basarisiz. " +
