@@ -18,6 +18,7 @@ builder.Services.Configure<EHealthOptions>(builder.Configuration.GetSection("EHe
 builder.Services.Configure<SyncLogOptions>(builder.Configuration.GetSection("SyncLog"));
 
 builder.Services.AddSingleton<PusulaRepository>();
+builder.Services.AddSingleton<EHealthTokenCache>();
 builder.Services.AddHttpClient<EHealthClient>();
 builder.Services.AddSingleton(sp =>
 {

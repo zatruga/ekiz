@@ -39,7 +39,7 @@ public class LabTestLoincStore
 
     public LabTestLoincStore(string dbPath)
     {
-        _connectionString = $"Data Source={dbPath}";
+        _connectionString = SqliteDb.ConnectionString(dbPath);
         EnsureSchema();
         Tohumla();
     }

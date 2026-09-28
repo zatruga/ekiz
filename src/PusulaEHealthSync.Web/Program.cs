@@ -22,6 +22,7 @@ builder.Services.Configure<DashboardAuthOptions>(builder.Configuration.GetSectio
 builder.Services.Configure<DeployOptions>(builder.Configuration.GetSection("Deploy"));
 
 builder.Services.AddSingleton<PusulaRepository>();
+builder.Services.AddSingleton<EHealthTokenCache>();
 builder.Services.AddHttpClient<EHealthClient>();
 builder.Services.AddSingleton(sp =>
 {

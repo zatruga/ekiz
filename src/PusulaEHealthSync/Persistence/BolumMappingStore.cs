@@ -12,7 +12,7 @@ public class BolumMappingStore
 
     public BolumMappingStore(string dbPath)
     {
-        _connectionString = $"Data Source={dbPath}";
+        _connectionString = SqliteDb.ConnectionString(dbPath);
         EnsureSchema();
     }
 

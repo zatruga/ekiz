@@ -19,7 +19,7 @@ public class UserAccountStore
 
     public UserAccountStore(string dbPath)
     {
-        _connectionString = $"Data Source={dbPath}";
+        _connectionString = SqliteDb.ConnectionString(dbPath);
         EnsureSchema();
     }
 

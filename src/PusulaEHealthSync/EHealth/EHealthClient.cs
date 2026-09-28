@@ -18,15 +18,20 @@ public class EHealthClient
     private readonly HttpClient _http;
     private readonly EHealthOptions _options;
     private readonly SettingsStore _settings;
+    private readonly EHealthTokenCache _tokens;
     private readonly ILogger<EHealthClient> _logger;
-    private string? _sessionToken;
-    private EHealthEndpoint? _tokenEndpoint;
 
-    public EHealthClient(HttpClient http, IOptions<EHealthOptions> options, SettingsStore settings, ILogger<EHealthClient> logger)
+    public EHealthClient(
+        HttpClient http,
+        IOptions<EHealthOptions> options,
+        SettingsStore settings,
+        EHealthTokenCache tokens,
+        ILogger<EHealthClient> logger)
     {
         _http = http;
         _options = options.Value;
         _settings = settings;
+        _tokens = tokens;
         _logger = logger;
     }
 
@@ -126,54 +131,61 @@ public class EHealthClient
     private async Task<RawResult> SendRawAsync(HttpMethod method, string path, string? jsonBody, CancellationToken ct)
     {
         var endpoint = await ResolveEndpointAsync(ct);
-        await EnsureTokenAsync(endpoint, ct);
-        var response = await SendOnceAsync(endpoint, method, path, jsonBody, ct);
+        var token = await _tokens.GetAsync(endpoint, TokenAlAsync, ct);
 
-        if (response.StatusCode == HttpStatusCode.Unauthorized)
+        // HttpResponseMessage IDisposable -- govde okunduktan sonra birakilmali. Eskiden
+        // hicbir yerde dispose edilmiyordu; her istek, GC toplayana kadar acik kalan bir
+        // yanit nesnesi birakiyordu.
+        using (var response = await SendOnceAsync(endpoint, token, method, path, jsonBody, ct))
         {
-            _logger.LogWarning("Token gecersiz/suresi dolmus, yenileniyor ve istek tekrarlaniyor.");
-            _sessionToken = null;
-            await EnsureTokenAsync(endpoint, ct);
-            response = await SendOnceAsync(endpoint, method, path, jsonBody, ct);
+            if (response.StatusCode != HttpStatusCode.Unauthorized)
+            {
+                var content = await response.Content.ReadAsStringAsync(ct);
+                return new RawResult(response.IsSuccessStatusCode, (int)response.StatusCode, content);
+            }
         }
 
-        var content = await response.Content.ReadAsStringAsync(ct);
-        return new RawResult(response.IsSuccessStatusCode, (int)response.StatusCode, content);
+        _logger.LogWarning("Token gecersiz/suresi dolmus, yenileniyor ve istek tekrarlaniyor.");
+        var yeniToken = await _tokens.RefreshAsync(endpoint, TokenAlAsync, token, ct);
+
+        using var tekrar = await SendOnceAsync(endpoint, yeniToken, method, path, jsonBody, ct);
+        var tekrarContent = await tekrar.Content.ReadAsStringAsync(ct);
+        return new RawResult(tekrar.IsSuccessStatusCode, (int)tekrar.StatusCode, tekrarContent);
     }
 
-    private async Task<HttpResponseMessage> SendOnceAsync(EHealthEndpoint endpoint, HttpMethod method, string path, string? jsonBody, CancellationToken ct)
+    private async Task<HttpResponseMessage> SendOnceAsync(
+        EHealthEndpoint endpoint, string token, HttpMethod method, string path, string? jsonBody, CancellationToken ct)
     {
-        var request = new HttpRequestMessage(method, BuildUri(endpoint.BaseUrl, path));
-        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", _sessionToken);
+        using var request = new HttpRequestMessage(method, BuildUri(endpoint.BaseUrl, path));
+        request.Headers.Authorization = new AuthenticationHeaderValue("Bearer", token);
         if (jsonBody is not null)
             request.Content = new StringContent(jsonBody, Encoding.UTF8, "application/json");
         return await _http.SendAsync(request, ct);
     }
 
-    private async Task EnsureTokenAsync(EHealthEndpoint endpoint, CancellationToken ct)
+    // Token'in kendisi artik EHealthTokenCache'te (singleton) tutuluyor; burasi yalnizca
+    // "nasil alinir" bilgisini saglar.
+    private async Task<string> TokenAlAsync(EHealthEndpoint endpoint, CancellationToken ct)
     {
-        if (_sessionToken is not null && _tokenEndpoint == endpoint) return;
-
         if (string.IsNullOrWhiteSpace(endpoint.BaseUrl))
             throw new InvalidOperationException("Aktif ortam (Test/Canlı) için e-Health adresi tanımlı değil -- Ayarlar sayfasından girin.");
 
-        var request = new HttpRequestMessage(HttpMethod.Post, BuildUri(endpoint.BaseUrl, "/auth/token"));
+        using var request = new HttpRequestMessage(HttpMethod.Post, BuildUri(endpoint.BaseUrl, "/auth/token"));
         var basicAuth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{endpoint.UserName}:{endpoint.Password}"));
         request.Headers.Authorization = new AuthenticationHeaderValue("Basic", basicAuth);
         request.Headers.Accept.Add(new MediaTypeWithQualityHeaderValue("text/plain"));
         var body = new JsonObject { ["healthcareProviderId"] = endpoint.ProviderId };
         request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json-patch+json");
 
-        var response = await _http.SendAsync(request, ct);
+        using var response = await _http.SendAsync(request, ct);
         var content = await response.Content.ReadAsStringAsync(ct);
         if (!response.IsSuccessStatusCode)
             throw new InvalidOperationException(
                 $"e-Health kimlik doğrulama başarısız (HTTP {(int)response.StatusCode} {endpoint.BaseUrl}): {content}");
 
         var json = JsonNode.Parse(content)?.AsObject();
-        _sessionToken = json?["payload"]?["sessionId"]?.GetValue<string>()
+        return json?["payload"]?["sessionId"]?.GetValue<string>()
             ?? throw new InvalidOperationException("Token yaniti sessionId icermiyor: " + content);
-        _tokenEndpoint = endpoint;
     }
 
     private static Uri BuildUri(string baseUrl, string path)

@@ -13,7 +13,7 @@ public class SyncLogStore
 
     public SyncLogStore(string dbPath)
     {
-        _connectionString = $"Data Source={dbPath}";
+        _connectionString = SqliteDb.ConnectionString(dbPath);
         EnsureSchema();
     }
 
@@ -130,8 +130,18 @@ public class SyncLogStore
     // Protokol Listesi'nde her satirin "Hasta bilgisi" durumunu N+1 sorgu yapmadan
     // gosterebilmek icin -- verilen pusulaId kumesindeki her biri icin EN SON kaydi
     // (Id'ye gore) tek sorguda doner.
+    // Ayni kolon sirasi, ama iki agir kolon (gonderilen/donen FHIR govdesi) yerine NULL.
+    // Boylece ReadEntry'nin indeksleri degismeden ayni kod iki sorguyu da okuyabiliyor.
+    private const string SelectColumnsGovdesiz = @"Id, ResourceType, PusulaId, Status, Operation, AzResourceId, Message,
+            NULL, NULL, PatientFullName, FathersName, BirthDate, Gender, Fin, RecordOpenedAt, CreatedAtUtc";
+
+    // govdeleriGetir=false: RequestJson/ResponseJson okunmaz (null gelir). Yalnizca DURUM
+    // bilgisine bakan, buyuk id listeleriyle calisan cagiranlar icindir -- bkz.
+    // PendingWorkService. Detay ekrani gibi govdeyi GOSTEREN cagiranlar varsayilani
+    // (true) kullanmali.
     public async Task<Dictionary<int, SyncLogEntry>> GetLatestByPusulaIdsAsync(
-        string resourceType, IReadOnlyCollection<int> pusulaIds, CancellationToken ct = default)
+        string resourceType, IReadOnlyCollection<int> pusulaIds, CancellationToken ct = default,
+        bool govdeleriGetir = true)
     {
         var result = new Dictionary<int, SyncLogEntry>();
         if (pusulaIds.Count == 0) return result;
@@ -139,25 +149,29 @@ public class SyncLogStore
         using var conn = new SqliteConnection(_connectionString);
         await conn.OpenAsync(ct);
 
-        // PARTILI OKUMA (2026-09-10): id listesi sorguda IKI kez kullanildigi icin parametre
-        // sayisi id sayisinin iki katina cikiyor; SQLite'in degisken siniri (varsayilan 999)
-        // asilinca "too many SQL variables" ile patliyordu. Eski cagiranlar hep kucuk listeler
-        // (tek protokolun kalemleri) verdigi icin hic ortaya cikmamisti -- PendingWorkService
-        // 54.000 laboratuvar id'si ile cagirinca gorundu. 400 x 2 = 800 parametre, guvenli.
-        foreach (var chunk in pusulaIds.Distinct().Chunk(400))
+        // TEK GECISLI SORGU (2026-09-28 inceleme). Eski hali id listesini sorguda IKI kez
+        // kullaniyordu (bir dis WHERE, bir de MAX(Id) alt sorgusunda) -- yani tabloyu iki
+        // kez tarayip parametre sayisini de ikiye katliyordu. Bu yuzden parti boyutu
+        // SQLite'in 999 degisken sinirina takilmamak icin 400'de tutulmustu.
+        //
+        // Yeni hali SQLite'in belgelenmis davranisina dayaniyor: sorguda tek aggregate
+        // olarak max() kullanildiginda, GROUP BY'daki "ciplak" kolonlar max'in geldigi
+        // SATIRIN degerlerini alir. Yani tek gecisle hem en buyuk Id hem o satirin tum
+        // kolonlari geliyor.
+        //
+        // Sonuc: tarama yariya indi, parametre sayisi id sayisina esitlendi, parti boyutu
+        // 400'den 900'e cikti (54.000 id icin 135 sorgu yerine 60 sorgu).
+        var kolonlar = govdeleriGetir ? SelectColumns : SelectColumnsGovdesiz;
+        foreach (var chunk in pusulaIds.Distinct().Chunk(900))
         {
             using var cmd = conn.CreateCommand();
             var placeholders = chunk.Select((_, i) => $"$id{i}").ToList();
             cmd.CommandText = $@"
-                SELECT {SelectColumns}
+                SELECT {kolonlar}, MAX(Id)
                 FROM SyncLog
                 WHERE ResourceType = $resourceType
                   AND PusulaId IN ({string.Join(",", placeholders)})
-                  AND Id IN (
-                      SELECT MAX(Id) FROM SyncLog
-                      WHERE ResourceType = $resourceType AND PusulaId IN ({string.Join(",", placeholders)})
-                      GROUP BY PusulaId
-                  )";
+                GROUP BY PusulaId";
             cmd.Parameters.AddWithValue("$resourceType", resourceType);
             for (var i = 0; i < chunk.Length; i++)
                 cmd.Parameters.AddWithValue($"$id{i}", chunk[i]);

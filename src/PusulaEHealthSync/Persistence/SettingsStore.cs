@@ -110,7 +110,7 @@ public class SettingsStore
 
     public SettingsStore(string dbPath)
     {
-        _connectionString = $"Data Source={dbPath}";
+        _connectionString = SqliteDb.ConnectionString(dbPath);
         EnsureSchema();
     }
 
@@ -127,15 +127,66 @@ public class SettingsStore
         cmd.ExecuteNonQuery();
     }
 
+    // KISA OMURLU ANLIK GORUNTU ONBELLEGI (2026-09-28 inceleme bulgusu)
+    //
+    // Bu tablo cok kucuk (birkac dusuna satir) ama INANILMAZ sik okunuyordu: her ayar
+    // okumasi kendi SQLite baglantisini aciyordu ve cagiranlar tek seferde birden cok
+    // anahtar istiyor:
+    //   - EHealthClient.ResolveEndpointAsync -> HER e-Health isteginde 5 okuma
+    //   - PusulaRepository.ConnectionStringAsync -> HER Pusula sorgusunda 3-4 okuma
+    // Yani tek bir protokolun gonderimi yuzlerce gereksiz baglanti acip kapatiyordu.
+    //
+    // Cozum: tablonun TAMAMI tek sorguyla okunup kisa sure bellekte tutuluyor.
+    //
+    // NEDEN SURESIZ DEGIL: bu dosyayi IKI SURECI birden kullaniyor (Web + Worker
+    // servisi, bkz. SqliteDb). Web'de yapilan bir ayar degisikligini Worker'in gormesi
+    // gerekiyor. Sonsuz onbellek bunu kalici olarak bozardi. 3 saniyelik omur, tek bir
+    // gonderim turundaki yuzlerce okumayi tek okumaya indirirken sureclerarasi
+    // gecikmeyi insanin fark edemeyecegi bir seviyede tutuyor.
+    //
+    // Ayni surecteki yazma ise BEKLEMEZ: SetStringAsync onbellegi aninda dusurur, yani
+    // Ayarlar sayfasindan kaydedilen deger o istekte hemen gecerli olur.
+    private static readonly TimeSpan OnbellekOmru = TimeSpan.FromSeconds(3);
+    private readonly SemaphoreSlim _yenilemeKilidi = new(1, 1);
+    private volatile Dictionary<string, string>? _onbellek;
+    private DateTime _onbellekSonKullanmaUtc = DateTime.MinValue;
+
+    private async Task<Dictionary<string, string>> AnlikGoruntuAsync(CancellationToken ct)
+    {
+        var mevcut = _onbellek;
+        if (mevcut is not null && DateTime.UtcNow < _onbellekSonKullanmaUtc) return mevcut;
+
+        await _yenilemeKilidi.WaitAsync(ct);
+        try
+        {
+            // Kilidi beklerken baska biri tazelemis olabilir -- tekrar bak.
+            mevcut = _onbellek;
+            if (mevcut is not null && DateTime.UtcNow < _onbellekSonKullanmaUtc) return mevcut;
+
+            var taze = new Dictionary<string, string>(StringComparer.Ordinal);
+            using (var conn = new SqliteConnection(_connectionString))
+            {
+                await conn.OpenAsync(ct);
+                using var cmd = conn.CreateCommand();
+                cmd.CommandText = "SELECT Key, Value FROM Settings";
+                using var reader = await cmd.ExecuteReaderAsync(ct);
+                while (await reader.ReadAsync(ct))
+                    taze[reader.GetString(0)] = reader.GetString(1);
+            }
+
+            _onbellek = taze;
+            _onbellekSonKullanmaUtc = DateTime.UtcNow.Add(OnbellekOmru);
+            return taze;
+        }
+        finally { _yenilemeKilidi.Release(); }
+    }
+
+    private void OnbellegiDusur() => _onbellekSonKullanmaUtc = DateTime.MinValue;
+
     public async Task<int> GetIntAsync(string key, int defaultValue, CancellationToken ct = default)
     {
-        using var conn = new SqliteConnection(_connectionString);
-        await conn.OpenAsync(ct);
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT Value FROM Settings WHERE Key = $key";
-        cmd.Parameters.AddWithValue("$key", key);
-        var value = await cmd.ExecuteScalarAsync(ct);
-        return value is string s && int.TryParse(s, out var i) ? i : defaultValue;
+        var value = await GetStringOrNullAsync(key, ct);
+        return value is not null && int.TryParse(value, out var i) ? i : defaultValue;
     }
 
     public async Task SetIntAsync(string key, int value, CancellationToken ct = default)
@@ -154,15 +205,7 @@ public class SettingsStore
         => await GetStringOrNullAsync(key, ct) ?? defaultValue;
 
     private async Task<string?> GetStringOrNullAsync(string key, CancellationToken ct)
-    {
-        using var conn = new SqliteConnection(_connectionString);
-        await conn.OpenAsync(ct);
-        using var cmd = conn.CreateCommand();
-        cmd.CommandText = "SELECT Value FROM Settings WHERE Key = $key";
-        cmd.Parameters.AddWithValue("$key", key);
-        var value = await cmd.ExecuteScalarAsync(ct);
-        return value as string;
-    }
+        => (await AnlikGoruntuAsync(ct)).GetValueOrDefault(key);
 
     public async Task SetStringAsync(string key, string value, CancellationToken ct = default)
     {
@@ -175,5 +218,6 @@ public class SettingsStore
         cmd.Parameters.AddWithValue("$key", key);
         cmd.Parameters.AddWithValue("$value", value);
         await cmd.ExecuteNonQueryAsync(ct);
+        OnbellegiDusur();
     }
 }

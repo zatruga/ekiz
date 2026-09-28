@@ -91,7 +91,10 @@ public class PendingWorkService(
         foreach (var group in candidates.GroupBy(c => c.ResourceType))
         {
             var ids = group.Select(c => c.PusulaId).Distinct().ToList();
-            var sent = await syncLog.GetLatestByPusulaIdsAsync(group.Key, ids, ct);
+            // govdeleriGetir: false -- burada yalnizca DURUM'a bakiliyor (IsPending), gonderilen
+            // FHIR govdesi hic kullanilmiyor. Tarama 54.000'i askin id ile calistigi icin bu iki
+            // kolonu okumamak ciddi bellek/G-C tasarrufu (bkz. SyncLogStore).
+            var sent = await syncLog.GetLatestByPusulaIdsAsync(group.Key, ids, ct, govdeleriGetir: false);
             foreach (var kv in sent) sentLookup[(group.Key, kv.Key)] = kv.Value;
         }
 

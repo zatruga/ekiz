@@ -139,22 +139,25 @@ public class ProtocolFullSyncService(
         var durumlar = await syncLog.GetLatestByPusulaIdsAsync(
             "DiagnosticReport", reports.Select(r => r.TetkikIslemId).ToList(), ct);
 
+        // TOPLU OKUMA (2026-09-28 inceleme): Procedure ve Practitioner durumlari eskiden
+        // dongunun ICINDE, rapor basina birer sorguyla okunuyordu -- klasik N+1. 10 raporlu
+        // bir protokol 20 ayri SQLite sorgusu aciyordu. Artik dongu oncesi tek sorguda.
+        var islemDurumlari = await syncLog.GetLatestByPusulaIdsAsync(
+            "Procedure", reports.Select(r => r.ProtokolIslemId).ToList(), ct);
+        var doktorDurumlari = await syncLog.GetLatestByPusulaIdsAsync(
+            "Practitioner",
+            reports.Where(r => r.RaporuOnaylayanDoktorId is not null)
+                   .Select(r => r.RaporuOnaylayanDoktorId!.Value).ToList(), ct);
+
         int n = 0;
         foreach (var report in reports)
         {
             if (BasariylaGonderildi(durumlar.GetValueOrDefault(report.TetkikIslemId))) continue;
 
-            var procedureStatuses = await syncLog.GetLatestByPusulaIdsAsync("Procedure", [report.ProtokolIslemId], ct);
-            var azProcedureId = procedureStatuses.GetValueOrDefault(report.ProtokolIslemId) is
-                { Status: SyncStatus.Success, AzResourceId: not null } proc ? proc.AzResourceId : null;
-
-            string? azPractitionerId = null;
-            if (report.RaporuOnaylayanDoktorId is { } doktorId)
-            {
-                var pracStatuses = await syncLog.GetLatestByPusulaIdsAsync("Practitioner", [doktorId], ct);
-                azPractitionerId = pracStatuses.GetValueOrDefault(doktorId) is
-                    { Status: SyncStatus.Success, AzResourceId: not null } prac ? prac.AzResourceId : null;
-            }
+            var azProcedureId = CanliAzId(islemDurumlari, report.ProtokolIslemId);
+            var azPractitionerId = report.RaporuOnaylayanDoktorId is { } doktorId
+                ? CanliAzId(doktorDurumlari, doktorId)
+                : null;
 
             var r = await radiologyReportSyncService.SyncOneAsync(
                 report, protokol, azPatientId, azEncounterId, azProcedureId, azPractitionerId, liveMode: true, ct);
@@ -163,6 +166,12 @@ public class ProtocolFullSyncService(
         return n;
     }
 
+    // Gunlukteki son kayit BASARILI ve bir AZ id'si varsa onu doner, yoksa null.
+    private static string? CanliAzId(Dictionary<int, SyncLogEntry> durumlar, int pusulaId) =>
+        durumlar.GetValueOrDefault(pusulaId) is { Status: SyncStatus.Success, AzResourceId: not null } kayit
+            ? kayit.AzResourceId
+            : null;
+
     private async Task<int> SendAllPathologyAsync(
         ProtokolListItem protokol, string azPatientId, string? azEncounterId, CancellationToken ct)
     {
@@ -170,26 +179,27 @@ public class ProtocolFullSyncService(
         var durumlar = await syncLog.GetLatestByPusulaIdsAsync(
             "DiagnosticReport-Patoloji", reports.Select(r => r.ResultId).ToList(), ct);
 
+        // Radyolojideki ile ayni N+1 duzeltmesi -- bkz. SendAllRadiologyAsync.
+        var islemDurumlari = await syncLog.GetLatestByPusulaIdsAsync(
+            "Procedure",
+            reports.Where(r => r.ProtokolIslemId is not null)
+                   .Select(r => r.ProtokolIslemId!.Value).ToList(), ct);
+        var doktorDurumlari = await syncLog.GetLatestByPusulaIdsAsync(
+            "Practitioner",
+            reports.Where(r => r.ApprovedById is not null)
+                   .Select(r => r.ApprovedById!.Value).ToList(), ct);
+
         int n = 0;
         foreach (var report in reports)
         {
             if (BasariylaGonderildi(durumlar.GetValueOrDefault(report.ResultId))) continue;
 
-            string? azProcedureId = null;
-            if (report.ProtokolIslemId is { } islemId)
-            {
-                var procedureStatuses = await syncLog.GetLatestByPusulaIdsAsync("Procedure", [islemId], ct);
-                azProcedureId = procedureStatuses.GetValueOrDefault(islemId) is
-                    { Status: SyncStatus.Success, AzResourceId: not null } proc ? proc.AzResourceId : null;
-            }
-
-            string? azPractitionerId = null;
-            if (report.ApprovedById is { } doktorId)
-            {
-                var pracStatuses = await syncLog.GetLatestByPusulaIdsAsync("Practitioner", [doktorId], ct);
-                azPractitionerId = pracStatuses.GetValueOrDefault(doktorId) is
-                    { Status: SyncStatus.Success, AzResourceId: not null } prac ? prac.AzResourceId : null;
-            }
+            var azProcedureId = report.ProtokolIslemId is { } islemId
+                ? CanliAzId(islemDurumlari, islemId)
+                : null;
+            var azPractitionerId = report.ApprovedById is { } doktorId
+                ? CanliAzId(doktorDurumlari, doktorId)
+                : null;
 
             var r = await pathologyReportSyncService.SyncOneAsync(
                 report, protokol, azPatientId, azEncounterId, azProcedureId, azPractitionerId, liveMode: true, ct);
