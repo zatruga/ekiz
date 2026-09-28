@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Data.Sqlite;
 
 namespace PusulaEHealthSync.Persistence;
@@ -314,10 +315,24 @@ public class SyncLogStore
         ResponseJson = reader.IsDBNull(8) ? null : reader.GetString(8),
         PatientFullName = reader.IsDBNull(9) ? null : reader.GetString(9),
         FathersName = reader.IsDBNull(10) ? null : reader.GetString(10),
-        BirthDate = reader.IsDBNull(11) ? null : DateOnly.Parse(reader.GetString(11)),
+        // TARIH AYRISTIRMA -- kultur ve Kind ACIKCA belirtiliyor (2026-09-28 inceleme).
+        // Sunucu tr-TR kulturuyle calisiyor (kisa tarih kalibi "d.MM.yyyy"). Olculdu:
+        // bu ISO bicimleri tr-TR altinda da dogru ayrisiyor, yani mevcut veride bir hata
+        // YOK. Yine de kulture birakmak kirilgan.
+        //
+        // RoundtripKind asil korumayi sagliyor: sonunda "Z" olan deger Kind=Utc olarak
+        // okunuyor. Bu olmadan .NET onu Kind=Local yapiyordu ve dogru sonuc yalnizca
+        // ToUniversalTime'in geri cevirmesi sayesinde cikiyordu. Bir gun CreatedAtUtc
+        // Kind=Unspecified bir degerle yazilirsa (yani "O" sonekSIZ uretirse) eski hal
+        // sessizce 4 SAAT kaydirirdi -- GetDailyTrendAsync'te bir kez yasanan hatanin
+        // aynisi.
+        BirthDate = reader.IsDBNull(11) ? null : DateOnly.Parse(reader.GetString(11), CultureInfo.InvariantCulture),
         Gender = reader.IsDBNull(12) ? null : reader.GetString(12),
         Fin = reader.IsDBNull(13) ? null : reader.GetString(13),
-        RecordOpenedAt = reader.IsDBNull(14) ? null : DateTime.Parse(reader.GetString(14)),
-        CreatedAtUtc = DateTime.Parse(reader.GetString(15)).ToUniversalTime(),
+        // RecordOpenedAt Pusula'nin YEREL saati -- soneksiz saklanir, Unspecified kalmali.
+        RecordOpenedAt = reader.IsDBNull(14) ? null : DateTime.Parse(
+            reader.GetString(14), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
+        CreatedAtUtc = DateTime.Parse(
+            reader.GetString(15), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToUniversalTime(),
     };
 }

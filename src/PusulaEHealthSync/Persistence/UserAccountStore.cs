@@ -1,3 +1,4 @@
+using System.Globalization;
 using Microsoft.Data.Sqlite;
 
 namespace PusulaEHealthSync.Persistence;
@@ -128,5 +129,5 @@ public class UserAccountStore
 
     private static UserAccount Map(SqliteDataReader r) => new(
         r.GetInt32(0), r.GetString(1), r.GetString(2), r.GetString(3),
-        r.GetInt32(4) == 1, DateTime.Parse(r.GetString(5)).ToUniversalTime());
+        r.GetInt32(4) == 1, DateTime.Parse(r.GetString(5), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToUniversalTime());
 }
