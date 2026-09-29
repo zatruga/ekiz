@@ -216,10 +216,26 @@ else
         // pusulaLockSubmit (bkz. _Layout.cshtml) formdaki ILK submit butonunu kilitliyor --
         // bu formda IKI submit butonu oldugu icin (Gönder/Sil) o yanlis butonu kilitleyebilir.
         // Bunun yerine TIKLANAN butonu (this) dogrudan kilitliyoruz.
+        // DIKKAT -- butonu BU AN devre disi BIRAKMA (2026-09-29 canli hata):
+        // "doktor ekraninda gonder dedikten sonra isleniyorda kaliyor ve gonderim
+        // yapmiyor". Sebep tam burasiydi.
+        //
+        // HTML spesifikasyonunda bir submit butonunun "etkinlestirme davranisi" (formu
+        // gonderme) olay isleyicilerinden SONRA calisir ve o anda disabled kontrolu
+        // yapilir. Buton kendi onclick'i icinde devre disi birakilirsa tarayici formu
+        // HIC GONDERMEZ: buton "Isleniyor..." yazar, sunucuya tek bir istek gitmez,
+        // gunluge de hicbir sey dusmez. Protokol sayfasi calisiyordu cunku orada
+        // kilitleme formun onsubmit'inde -- yani tarayici gonderime karar verdikten
+        // sonra -- yapiliyor.
+        //
+        // setTimeout(...,0) ile kilitleme bir sonraki gorev dongusune birakiliyor:
+        // gonderim baslamis oluyor, buton yine de cift tiklamaya karsi kilitleniyor.
         function pusulaBulkConfirm(btn, message) {
             if (!confirm(message)) return false;
-            btn.disabled = true;
-            btn.textContent = 'İşleniyor…';
+            setTimeout(function () {
+                btn.disabled = true;
+                btn.textContent = 'İşleniyor…';
+            }, 0);
             return true;
         }
     </script>
