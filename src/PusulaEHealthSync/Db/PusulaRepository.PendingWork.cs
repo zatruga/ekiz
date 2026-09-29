@@ -151,46 +151,6 @@ public partial class PusulaRepository
         return await QueryCandidatesAsync(sql, fromLocal, "DiagnosticReport", "İptal edilen radyoloji raporu", ct);
     }
 
-    // TERS YONLU KONTROL -- "gonderdigim laboratuvar sonuclari Pusula'da HALA duruyor mu?"
-    //
-    // NEDEN GEREKTI: laboratuvarda iptal, taranarak BULUNAMIYOR. Kaynak bir view
-    // (LIS.uv_LaboratuarSonucKayitBilgileriByProtokolId) ve onceden Status=6 ile
-    // filtrelenmis -- olculdu: 7 gunluk pencerede donen 52.850 satirin TAMAMI State=6.
-    // Yani iptal edilen satir view'dan tamamen KAYBOLUYOR; "iptal edildi" diye
-    // isaretlenmis bir satir yok ki tarayalim.
-    //
-    // Cozum soruyu ters cevirmek: gonderdiklerimizin id listesini Pusula'ya verip
-    // "bunlardan hangileri hala duruyor" diye soruyoruz. Donmeyen = iptal edilmis.
-    //
-    // Yalnizca HALA VAR OLANLARI dondurur; eksigi cagiran taraf hesaplar (bkz.
-    // CancellationSyncService) -- boylece "sorgu hic satir dondurmedi" ile "hepsi
-    // iptal edilmis" birbirine karismaz.
-    public async Task<HashSet<int>> GetExistingLabResultIdsAsync(
-        IReadOnlyCollection<int> labSonucIds, CancellationToken ct = default)
-    {
-        var mevcut = new HashSet<int>();
-        if (labSonucIds.Count == 0) return mevcut;
-
-        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
-        await conn.OpenAsync(ct);
-
-        // SQL Server'in 2100 parametre siniri -- rahat bir paylada ilerliyoruz.
-        foreach (var chunk in labSonucIds.Distinct().Chunk(1000))
-        {
-            var isimler = chunk.Select((_, i) => "@p" + i).ToList();
-            var sql = $@"
-                SELECT lab.LabaratuarSonucId
-                FROM LIS.uv_LaboratuarSonucKayitBilgileriByProtokolId lab
-                WHERE lab.Status = 6 AND lab.LabaratuarSonucId IN ({string.Join(",", isimler)})";
-            await using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 300 };
-            for (var i = 0; i < chunk.Length; i++) cmd.Parameters.AddWithValue("@p" + i, chunk[i]);
-
-            await using var reader = await cmd.ExecuteReaderAsync(ct);
-            while (await reader.ReadAsync(ct)) mevcut.Add(reader.GetInt32(0));
-        }
-        return mevcut;
-    }
-
     // Aday listelerindeki protokolleri TOPLU getirir -- uygunluk kurallari (yatan/ayaktan,
     // 7 gun, 90 gun tavan) ve ekranda hasta/doktor gosterimi icin. Tek tek
     // GetProtokolByIdAsync cagirmak yuzlerce gidis-donus olurdu.
@@ -237,6 +197,86 @@ public partial class PusulaRepository
             }
         }
         return result;
+    }
+
+    // TERS YONLU KONTROL -- "gonderdiklerim Pusula'da HALA gecerli mi?"
+    //
+    // NEDEN GEREKTI (2026-09-29, kullanici sorusu): iptal her kaynakta taranarak
+    // bulunamiyor.
+    //   - Laboratuvar: kaynak view onceden Status=6 ile filtrelenmis, iptal edilen satir
+    //     view'dan TAMAMEN kayboluyor -- isaretli bir satir yok ki taransin.
+    //   - Epikriz: kilidi acilan epikrizin "iptal" izi yok, sadece KilitDurumuId degisiyor.
+    //   - Islem: State=0 olan 22 kayitta IptalTarihi BOS -- tarih filtresi bunlari atliyor.
+    // Her biri icin ayri bir tarih sorgusu yazmak yerine soruyu tersine ceviriyoruz.
+    //
+    // KRITIK KURAL: buradaki kosul, ilgili kaynagin GONDERIM kosulunun BIREBIR AYNISI
+    // olmali. Farkli olursa sistem sildigini bir sonraki turda yeniden gonderir ve
+    // sonsuz bir sil-gonder dongusune girer. Her satirin yanindaki yorum hangi metodu
+    // yansittigini soyluyor.
+    private static (string Tablo, string IdKolonu, string Kosul)? TersKontrolKaynagi(string resourceType) => resourceType switch
+    {
+        // Kosullar "t." ile NITELENMIS yaziliyor -- sorguda tablo takma adi t.
+        // GetCompletedLabResultsAsync ile ayni
+        "Observation" => ("LIS.uv_LaboratuarSonucKayitBilgileriByProtokolId", "LabaratuarSonucId", "t.Status = 6"),
+        // GetCompletedRadiologyAsync ile ayni
+        "DiagnosticReport" => ("RIS.TetkikIslem", "Id", "t.State = 6"),
+        // GetCompletedPathologyAsync ile ayni
+        "DiagnosticReport-Patoloji" => ("[EMR.Pathology].[Result]", "Id", "t.ReportState = 4"),
+        // EPIKRIZ -- burada kural TARAMA kosuluyla BILEREK AYNI DEGIL (PusulaId = ProtokolId).
+        //
+        // Ilk denemede kosul GetLockedEpikrizAsync'in aynisi (KilitDurumuId=1 ...) yazilmisti
+        // ve canli kuru calistirmada gonderilmis 5 epikrizin BESI de "gecersiz" cikti --
+        // yani mekanizma hepsini silmek isteyecekti. Toplu silme kapisi engelledi, sonra
+        // sebep bulundu: bes epikrizin hepsi KilitDurumuId=0, ikisinde Epikriz metni bos.
+        //
+        // Cunku epikrizin IKI ayri gonderim yolu var ve kurallari farkli:
+        //   1. Otomatik tarama  -> yalnizca KilitDurumuId=1 olanlari ADAY gosterir
+        //   2. Protokol Detay'daki elle gonderim -> Epikriz.OnlySigned ayari kapaliysa
+        //      kilitlenmemis epikrizi de gonderir (bu 5 kayit boyle gitmis)
+        // Ayrica CompositionMapper epikriz metni bos olsa bile Sikayet/Anamnez/Muayene
+        // bolumlerinden gecerli bir belge uretebiliyor.
+        //
+        // Dolayisiyla "kilidi acilmis" = "gecersiz" DEGIL; kullanici bilerek imzasiz
+        // gondermis olabilir. Tek net gecersizlik kaydin SILINMESI: State = 0.
+        "Composition" => ("Tedavi.GenelMuayene", "ProtokolId", "t.State <> 0"),
+        // GetCreatedProceduresAsync ile ayni
+        "Procedure" => ("Hasta.ProtokolIslem", "Id", "t.State >= 2"),
+        _ => null,
+    };
+
+    public static bool TersKontrolDestekleniyorMu(string resourceType) => TersKontrolKaynagi(resourceType) is not null;
+
+    // Verilen id'lerden Pusula'da HALA GECERLI olanlari dondurur.
+    //
+    // Yalnizca VAR OLANLARI dondurur; eksigi cagiran taraf hesaplar (bkz.
+    // CancellationSyncService) -- boylece "sorgu hic satir dondurmedi" ile "hepsi
+    // iptal edilmis" birbirine karismaz.
+    public async Task<HashSet<int>> GetExistingIdsAsync(
+        string resourceType, IReadOnlyCollection<int> ids, CancellationToken ct = default)
+    {
+        var mevcut = new HashSet<int>();
+        if (ids.Count == 0) return mevcut;
+        if (TersKontrolKaynagi(resourceType) is not { } kaynak) return mevcut;
+
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
+        await conn.OpenAsync(ct);
+
+        // SQL Server'in 2100 parametre siniri -- rahat bir paylada ilerliyoruz.
+        foreach (var chunk in ids.Distinct().Chunk(1000))
+        {
+            var isimler = chunk.Select((_, i) => "@p" + i).ToList();
+            var sql = $@"
+                SELECT DISTINCT t.{kaynak.IdKolonu}
+                FROM {kaynak.Tablo} t
+                WHERE ({kaynak.Kosul})
+                  AND t.{kaynak.IdKolonu} IN ({string.Join(",", isimler)})";
+            await using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 300 };
+            for (var i = 0; i < chunk.Length; i++) cmd.Parameters.AddWithValue("@p" + i, chunk[i]);
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct)) mevcut.Add(reader.GetInt32(0));
+        }
+        return mevcut;
     }
 
     private async Task<List<PendingCandidate>> QueryCandidatesAsync(

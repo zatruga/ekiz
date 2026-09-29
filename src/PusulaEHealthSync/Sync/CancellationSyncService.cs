@@ -70,76 +70,92 @@ public class CancellationSyncService(
             silinen += ok; hata += err;
         }
 
-        // 4) IPTAL EDILMIS LABORATUVAR SONUCLARI -- TERS YONLU kontrol.
-        var (labSilinen, labHata) = await IptalLabSonuclariniSilAsync(iptalProtokolIdSet, ct);
-        silinen += labSilinen; hata += labHata;
+        // 4) TERS YONLU KONTROL -- "gonderdiklerim Pusula'da hala gecerli mi?"
+        var (tersSilinen, tersHata) = await TersKontrolAsync(ct);
+        silinen += tersSilinen; hata += tersHata;
 
         return new CancellationRunResult(
             iptalProtokoller.Count, iptalIslemler.Count, iptalRadyoloji.Count, silinen, hata);
     }
 
-    // LABORATUVAR IPTALI -- taranarak bulunamadigi icin soru TERS CEVRILIYOR.
+    // TERS YONLU KONTROL (2026-09-29, kullanici istegi uzerine patoloji/epikriz/islem/
+    // muayene de kapsandi).
     //
-    // Kaynak view onceden Status=6 ile filtrelenmis: iptal edilen satir view'dan tamamen
-    // kayboluyor, "iptal edildi" diye isaretli bir satir yok. Bu yuzden Pusula'ya
-    // "sunlar hala duruyor mu?" diye soruyoruz; donmeyen iptal edilmis sayiliyor.
+    // NEDEN TARAMA YETMIYOR -- her kaynakta ayri bir sebep, hepsi olculdu:
+    //   Laboratuvar : kaynak view onceden Status=6 ile filtreli, iptal edilen satir
+    //                 view'dan TAMAMEN kayboluyor (7 gunluk pencerede donen 52.850
+    //                 satirin tamami State=6). Taranacak bir "iptal" satiri yok.
+    //   Epikriz     : kilidi acilan epikrizin iptal izi yok, sadece KilitDurumuId degisiyor.
+    //   Islem       : State=0 olan 22 kayitta IptalTarihi BOS -- tarih filtresi atliyor.
+    //   Patoloji    : bugun canli veride ornegi yok (State=0 ve ReportState<>4 icin 0
+    //                 kayit olculdu) ama kolonlar var, yani yarin olabilir.
     //
-    // TOPLU YANLIS SILME KORUMASI: bu yontemin dogal riski, sorgunun herhangi bir
-    // sebeple (view degisikligi, gecici hata, yanlis id uzayi) BOS donmesi halinde
-    // gonderdigimiz her seyi "iptal edilmis" sayip silmesi. Bakanlik sisteminden silme
-    // KALICI ve geri alinamaz. Bu yuzden iki kapi var:
-    //   1. Sorgu hic satir dondurmediyse HICBIR SEY silinmez -- "hepsi iptal" senaryosu
-    //      gercek hayatta olmaz, bu cok daha buyuk ihtimalle bir sorgu sorunudur.
-    //   2. Kayip oran esigi asarsa islem durdurulur ve hata olarak loglanir.
-    private const double LabKayipOraniEsigi = 0.20;   // %20
-    private const int LabKayipTabani = 20;            // bu sayinin altinda oran kapisi islemez
+    // Her biri icin ayri tarih sorgusu yazmak yerine soru tersine cevriliyor: gonderdigimiz
+    // id'leri Pusula'ya verip "hangileri hala gecerli" diye soruyoruz, donmeyen iptal
+    // sayiliyor. Kosullar gonderim kosullarinin BIREBIR AYNISI (bkz. TersKontrolKaynagi) --
+    // farkli olsalardi sildigimizi bir sonraki turda yeniden gonderirdik.
+    //
+    // SIRA DISTAN ICERIYE: FHIR hala referans edilen bir kaydi 409 ile reddeder, bu yuzden
+    // raporlar once, Procedure en sonda.
+    private static readonly string[] TersKontrolSirasi =
+        ["DiagnosticReport-Patoloji", "DiagnosticReport", "Observation", "Composition", "Procedure"];
 
-    private async Task<(int Silinen, int Hata)> IptalLabSonuclariniSilAsync(
-        HashSet<int> iptalProtokolIdSet, CancellationToken ct)
+    // TOPLU YANLIS SILME KORUMASI. Silme bakanlik sisteminden KALICI veri cikarir, bu
+    // yuzden iki kapi var:
+    //   1. Sorgu hic satir dondurmediyse HICBIR SEY silinmez -- "gonderdigimin hepsi iptal
+    //      edilmis" gercek hayatta olmaz, cok daha buyuk ihtimalle sorgu/baglanti sorunudur.
+    //   2. Kayip oran esigi asarsa durdurulur ve hata loglanir.
+    private const double KayipOraniEsigi = 0.20;   // %20
+    private const int KayipTabani = 20;            // bu sayinin altinda oran kapisi islemez
+
+    private async Task<(int Silinen, int Hata)> TersKontrolAsync(CancellationToken ct)
     {
-        // Gonderilmis (Success + AzResourceId) laboratuvar Observation'lari.
-        // SyncLog'daki PusulaId = LabGroupBuilder'in anahtar satiri = LabaratuarSonucId.
-        var gonderilmis = await syncLog.GetLiveSentIdsAsync("Observation", ct);
-        if (gonderilmis.Count == 0) return (0, 0);
-
-        var halaVar = await repository.GetExistingLabResultIdsAsync(gonderilmis, ct);
-
-        // KAPI 1: sorgu hicbir sey dondurmediyse dur.
-        if (halaVar.Count == 0)
-        {
-            logger.LogError(
-                "Laboratuvar iptal kontrolu DURDURULDU: {Gonderilmis} gonderilmis sonucun HICBIRI "
-                + "Pusula'da bulunamadi. Bu, hepsinin iptal edildigi anlamina gelmez -- cok daha "
-                + "buyuk ihtimalle sorgu ya da baglanti sorunu. Silme yapilmadi.",
-                gonderilmis.Count);
-            return (0, 1);
-        }
-
-        var kayip = gonderilmis.Where(id => !halaVar.Contains(id)).ToList();
-        if (kayip.Count == 0) return (0, 0);
-
-        // KAPI 2: oran esigi.
-        var oran = (double)kayip.Count / gonderilmis.Count;
-        if (kayip.Count >= LabKayipTabani && oran > LabKayipOraniEsigi)
-        {
-            logger.LogError(
-                "Laboratuvar iptal kontrolu DURDURULDU: {Gonderilmis} sonucun {Kayip} tanesi "
-                + "({Oran:P1}) Pusula'da bulunamadi -- esik %{Esik}. Bu kadar coklu iptal beklenmez, "
-                + "veri/sorgu sorunu varsayildi. Silme yapilmadi.",
-                gonderilmis.Count, kayip.Count, oran, LabKayipOraniEsigi * 100);
-            return (0, 1);
-        }
-
         int silinen = 0, hata = 0;
-        foreach (var id in kayip)
+
+        foreach (var resourceType in TersKontrolSirasi)
         {
-            var (ok, err) = await DeleteTargetsAsync([("Observation", id)], "iptal laboratuvar", ct);
-            silinen += ok; hata += err;
+            var gonderilmis = await syncLog.GetLiveSentIdsAsync(resourceType, ct);
+            if (gonderilmis.Count == 0) continue;
+
+            var halaVar = await repository.GetExistingIdsAsync(resourceType, gonderilmis, ct);
+
+            if (halaVar.Count == 0)
+            {
+                logger.LogError(
+                    "Ters kontrol DURDURULDU ({Tip}): gonderilmis {Adet} kaydin HICBIRI Pusula'da "
+                    + "bulunamadi. Bu hepsinin iptal edildigi anlamina gelmez -- cok daha buyuk "
+                    + "ihtimalle sorgu ya da baglanti sorunu. Silme yapilmadi.",
+                    resourceType, gonderilmis.Count);
+                hata++;
+                continue;
+            }
+
+            var kayip = gonderilmis.Where(id => !halaVar.Contains(id)).ToList();
+            if (kayip.Count == 0) continue;
+
+            var oran = (double)kayip.Count / gonderilmis.Count;
+            if (kayip.Count >= KayipTabani && oran > KayipOraniEsigi)
+            {
+                logger.LogError(
+                    "Ters kontrol DURDURULDU ({Tip}): {Adet} kaydin {Kayip} tanesi ({Oran:P1}) "
+                    + "Pusula'da bulunamadi -- esik %{Esik}. Bu kadar coklu iptal beklenmez, "
+                    + "veri/sorgu sorunu varsayildi. Silme yapilmadi.",
+                    resourceType, gonderilmis.Count, kayip.Count, oran, KayipOraniEsigi * 100);
+                hata++;
+                continue;
+            }
+
+            foreach (var id in kayip)
+            {
+                var (ok, err) = await DeleteTargetsAsync([(resourceType, id)], "ters kontrol", ct);
+                silinen += ok; hata += err;
+            }
+            logger.LogInformation(
+                "Ters kontrol ({Tip}): {Adet} gonderilmis kayit kontrol edildi, {Kayip} tanesi "
+                + "Pusula'da gecerli degil -> {Silinen} kayit silindi.",
+                resourceType, gonderilmis.Count, kayip.Count, silinen);
         }
-        logger.LogInformation(
-            "Laboratuvar iptal kontrolu: {Gonderilmis} gonderilmis sonuc kontrol edildi, "
-            + "{Kayip} tanesi Pusula'da yok -> {Silinen} kayit silindi.",
-            gonderilmis.Count, kayip.Count, silinen);
+
         return (silinen, hata);
     }
 
