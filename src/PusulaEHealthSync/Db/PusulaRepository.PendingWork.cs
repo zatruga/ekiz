@@ -103,13 +103,92 @@ public partial class PusulaRepository
     }
 
     // Iptal edilmis PROTOKOLLER -- butun zincir (Encounter + altindaki her sey) gecersiz.
+    //
+    // DUZELTME (2026-09-29, kullanici sorusu uzerine bulundu): filtre yalnizca
+    // ISNULL(KapanisTarihi, AcilisTarihi) >= @From idi -- yani KAYDIN tarihine bakiyordu,
+    // IPTAL ANINA degil. 90 gun once kapanmis bir protokol bugun iptal edilse kapanis
+    // tarihi pencerenin disinda kaldigi icin HIC fark edilmiyordu.
+    //
+    // hasta.protokol'de iptal tarihi tutan bir kolon YOK (olculdu: yalnizca ModifiedDate,
+    // State, OldState, IptalAciklamasi var). ModifiedDate iptal aninin en iyi gostergesi
+    // ve canli veride guvenilir: 10.898 iptal protokolun yalnizca 1'inde bos, 5'inde
+    // kapanis tarihinden geride.
+    //
+    // Iki kosul OR ile birlestirildi -- yeni filtre eskisinin US KUMESI, yani bu degisiklik
+    // daha once yakalanan hicbir kaydi kaybettiremez.
     public async Task<List<PendingCandidate>> GetCancelledProtokollerAsync(DateTime fromLocal, CancellationToken ct = default)
     {
         const string sql = @"
-            SELECT p.Id, p.Id, ISNULL(p.KapanisTarihi, p.AcilisTarihi), 'İptal edilen protokol'
+            SELECT p.Id, p.Id,
+                   ISNULL(p.ModifiedDate, ISNULL(p.KapanisTarihi, p.AcilisTarihi)),
+                   'İptal edilen protokol'
             FROM hasta.protokol p
-            WHERE p.State = 0 AND ISNULL(p.KapanisTarihi, p.AcilisTarihi) >= @From";
+            WHERE p.State = 0
+              AND (p.ModifiedDate >= @From OR ISNULL(p.KapanisTarihi, p.AcilisTarihi) >= @From)";
         return await QueryCandidatesAsync(sql, fromLocal, "Encounter", "İptal edilen protokol", ct);
+    }
+
+    // Iptal edilmis RADYOLOJI tetkikleri (2026-09-29'da eklendi -- boyle bir sorgu HIC YOKTU).
+    //
+    // Radyoloji raporu, bagli oldugu islem iptal edilmeden de tek basina gecersiz
+    // kilinabiliyor. RIS.TetkikIslem'de bunun UC ayri izi var ve ucu de canli veride dolu
+    // (son 60 gun): OnayIptalTarihi 661, RaporYazildiIptalTarihi 640, IptalTarihi 0.
+    // Hicbiri taranmadigi icin bu raporlar e-Health'te asili kaliyordu.
+    //
+    // State <> 6 SART: onayi iptal edilip SONRADAN yeniden onaylanmis bir tetkik tekrar
+    // State=6 olur ve gonderilmeye devam etmeli -- onu silmek gercek veriyi kaybetmek olurdu.
+    public async Task<List<PendingCandidate>> GetCancelledRadiologyAsync(DateTime fromLocal, CancellationToken ct = default)
+    {
+        const string sql = @"
+            SELECT rti.ProtokolId, rti.Id,
+                   ISNULL(rti.IptalTarihi, ISNULL(rti.OnayIptalTarihi, rti.RaporYazildiIptalTarihi)),
+                   'İptal edilen radyoloji raporu'
+            FROM RIS.TetkikIslem rti
+            WHERE rti.State <> 6
+              AND (rti.IptalTarihi >= @From
+                OR rti.OnayIptalTarihi >= @From
+                OR rti.RaporYazildiIptalTarihi >= @From)";
+        return await QueryCandidatesAsync(sql, fromLocal, "DiagnosticReport", "İptal edilen radyoloji raporu", ct);
+    }
+
+    // TERS YONLU KONTROL -- "gonderdigim laboratuvar sonuclari Pusula'da HALA duruyor mu?"
+    //
+    // NEDEN GEREKTI: laboratuvarda iptal, taranarak BULUNAMIYOR. Kaynak bir view
+    // (LIS.uv_LaboratuarSonucKayitBilgileriByProtokolId) ve onceden Status=6 ile
+    // filtrelenmis -- olculdu: 7 gunluk pencerede donen 52.850 satirin TAMAMI State=6.
+    // Yani iptal edilen satir view'dan tamamen KAYBOLUYOR; "iptal edildi" diye
+    // isaretlenmis bir satir yok ki tarayalim.
+    //
+    // Cozum soruyu ters cevirmek: gonderdiklerimizin id listesini Pusula'ya verip
+    // "bunlardan hangileri hala duruyor" diye soruyoruz. Donmeyen = iptal edilmis.
+    //
+    // Yalnizca HALA VAR OLANLARI dondurur; eksigi cagiran taraf hesaplar (bkz.
+    // CancellationSyncService) -- boylece "sorgu hic satir dondurmedi" ile "hepsi
+    // iptal edilmis" birbirine karismaz.
+    public async Task<HashSet<int>> GetExistingLabResultIdsAsync(
+        IReadOnlyCollection<int> labSonucIds, CancellationToken ct = default)
+    {
+        var mevcut = new HashSet<int>();
+        if (labSonucIds.Count == 0) return mevcut;
+
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
+        await conn.OpenAsync(ct);
+
+        // SQL Server'in 2100 parametre siniri -- rahat bir paylada ilerliyoruz.
+        foreach (var chunk in labSonucIds.Distinct().Chunk(1000))
+        {
+            var isimler = chunk.Select((_, i) => "@p" + i).ToList();
+            var sql = $@"
+                SELECT lab.LabaratuarSonucId
+                FROM LIS.uv_LaboratuarSonucKayitBilgileriByProtokolId lab
+                WHERE lab.Status = 6 AND lab.LabaratuarSonucId IN ({string.Join(",", isimler)})";
+            await using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 300 };
+            for (var i = 0; i < chunk.Length; i++) cmd.Parameters.AddWithValue("@p" + i, chunk[i]);
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct)) mevcut.Add(reader.GetInt32(0));
+        }
+        return mevcut;
     }
 
     // Aday listelerindeki protokolleri TOPLU getirir -- uygunluk kurallari (yatan/ayaktan,

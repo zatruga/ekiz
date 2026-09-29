@@ -223,6 +223,35 @@ public class SyncLogStore
         return result;
     }
 
+    // Bir kaynak tipinde SU AN e-Health'te CANLI sayilan PusulaId'ler -- yani en son
+    // denemesi basarili olan ve sonradan silinmemis olanlar.
+    //
+    // NEDEN (2026-09-29): laboratuvar iptali Pusula taranarak bulunamiyor (kaynak view
+    // iptal edilen satiri hic dondurmuyor). Soru ters cevriliyor: "gonderdiklerim hala
+    // duruyor mu?" Bu metot o sorunun SOL tarafini verir.
+    public async Task<List<int>> GetLiveSentIdsAsync(string resourceType, CancellationToken ct = default)
+    {
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+        using var cmd = conn.CreateCommand();
+        // Tek gecisli max() kalibi -- GROUP BY'daki ciplak kolonlar en buyuk Id'nin
+        // geldigi satirdan gelir (bkz. GetLatestByPusulaIdsAsync'teki ayni aciklama).
+        cmd.CommandText = @"
+            SELECT PusulaId, Status, Operation, AzResourceId, MAX(Id)
+            FROM SyncLog
+            WHERE ResourceType = $resourceType
+            GROUP BY PusulaId
+            HAVING Status = 'Success'
+               AND AzResourceId IS NOT NULL
+               AND (Operation IS NULL OR Operation <> 'Delete')";
+        cmd.Parameters.AddWithValue("$resourceType", resourceType);
+
+        var result = new List<int>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct)) result.Add(reader.GetInt32(0));
+        return result;
+    }
+
     // Genel Bakış paneli -- gönderim trendi grafiği icin gunluk basarili/hatali sayilari.
     // DUZELTME (2026-09-09): gun anahtari eskiden dogrudan substr(CreatedAtUtc,1,10) ile
     // aliniyordu -- yani UTC gunune gore. Baki +04:00 oldugu icin YEREL saatle 00:00-04:00

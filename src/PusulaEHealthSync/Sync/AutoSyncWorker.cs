@@ -140,7 +140,9 @@ public class AutoSyncWorker(
 
         logger.LogInformation(
             "Otomatik gonderim turu bitti: {Basarili} basarili, {Basarisiz} basarisiz. " +
-            "Iptal senkronu: {IptalProtokol} iptal protokol / {IptalIslem} iptal islem tarandi, {Silinen} kayit silindi, {Hata} hata.",
-            basarili, basarisiz, iptal.IptalProtokol, iptal.IptalIslem, iptal.Silinen, iptal.Hata);
+            "Iptal senkronu: {IptalProtokol} protokol / {IptalIslem} islem / {IptalRadyoloji} radyoloji "
+            + "tarandi, {Silinen} kayit silindi, {Hata} hata.",
+            basarili, basarisiz,
+            iptal.IptalProtokol, iptal.IptalIslem, iptal.IptalRadyoloji, iptal.Silinen, iptal.Hata);
     }
 }
