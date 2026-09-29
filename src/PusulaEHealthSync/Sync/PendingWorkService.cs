@@ -292,6 +292,22 @@ public class PendingWorkService(
             if (!protokoller.TryGetValue(group.Key, out var protokol)) continue;
             if (protokol.State == 0) continue;   // iptal edilmis protokol -- Is 3'un konusu
 
+            // RECETE PROTOKOLLERI HIC GONDERILMIYOR (2026-09-29, kullanici sordu:
+            // "bekleyen islere recete islem vs almiyoruz dimi?" -- aliyorduk).
+            //
+            // Recete, gonderim tarafinda uc ayri yerde atlaniyor (EncounterMapper,
+            // CompositionSyncService, ProtocolFullSyncService) ama TARAMA tarafinda
+            // filtrelenmiyordu. Sonucu iki turlu:
+            //   1. Ekranda hicbir zaman yapilmayacak is gorunuyordu -- sayfanin amaci
+            //      "neyin biriktigini gormek", yanlis birikim gostermek onu bozar.
+            //   2. Daha sinsisi: recete asla gonderilemedigi icin SONSUZA KADAR bekliyor
+            //      kaliyor. AutoSyncWorker en eski bekleyenden basladigindan bunlar
+            //      kalici olarak listenin tepesine yerlesip her turda parti kontenjani
+            //      isgal ederdi (SyncAllAsync onlari aninda Skipped dondurur).
+            // Canli veride su an 2 kayit -- kucuk, ama birikimli ve kendiliginden
+            // temizlenmeyen bir sizinti.
+            if (protokol.ProtokolTipiId == EncounterMapper.ReceteProtokolTipiId) continue;
+
             var (eligible, reason) = IsEligible(protokol, openAfterDays);
             var items = group
                 .Select(c => new PendingItem(
