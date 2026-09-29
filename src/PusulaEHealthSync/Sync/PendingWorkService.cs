@@ -104,10 +104,11 @@ public class PendingWorkService(
         await _refreshLock.WaitAsync(ct);
         try
         {
-            var sonuc = await HesaplaAsync(baslangic, maxProtocols, ct);
+            var sonuc = await HesaplaAsync(baslangic, null, maxProtocols, ct);
             SonSonuc = sonuc;
             SonHesaplamaUtc = DateTime.UtcNow;
             SonTaramaBaslangici = baslangic;
+            SonTaramaBitisi = null;
 
             // ISARETLER YALNIZCA BASARILI TARAMADAN SONRA ILERLER. Tarama ortasinda
             // istisna olursa buraya hic gelinmez, yani bir sonraki tur ayni yerden
@@ -190,25 +191,32 @@ public class PendingWorkService(
             await settings.SetStringAsync(SettingsStore.PendingScanOldestPendingKey, "", ct);
     }
 
-    // Son turun fiilen kullandigi baslangic -- ekranda gostermek icin.
+    // Son turun fiilen kullandigi aralik -- ekranda gostermek icin.
     public DateTime? SonTaramaBaslangici { get; private set; }
+    public DateTime? SonTaramaBitisi { get; private set; }
 
     // scanDays null ise pencere Ayarlar'dan okunur. Sayi verilirse (Bekleyen Isler
     // sayfasindaki elle "gun" kutusu) o tur icin ayar GECICI olarak ezilir.
+    // toLocalExclusive: bitis siniri (haric). null = sinir yok -- otomatik dongu boyle
+    // cagiriyor, yani davranisi degismiyor. Bekleyen Isler sayfasi iki tarih secimiyle
+    // acikca aralik verebiliyor (KULLANICI ISTEGI 2026-09-29).
     public async Task<PendingWorkResult> RefreshAsync(
-        int? scanDays = null, int maxProtocols = 200, CancellationToken ct = default)
+        int? scanDays = null, int maxProtocols = 200, CancellationToken ct = default,
+        DateTime? fromLocalOverride = null, DateTime? toLocalExclusive = null)
     {
         // Ayni anda iki tarama baslamasin (sayfa + dongu ayni saniyede tetiklerse).
         await _refreshLock.WaitAsync(ct);
         try
         {
-            var baslangic = scanDays is { } gun && gun > 0
-                ? DateTime.Now.Date.AddDays(-gun)
-                : await TaramaBaslangiciAsync(settings, ct);
-            var sonuc = await HesaplaAsync(baslangic, maxProtocols, ct);
+            var baslangic = fromLocalOverride
+                ?? (scanDays is { } gun && gun > 0
+                    ? DateTime.Now.Date.AddDays(-gun)
+                    : await TaramaBaslangiciAsync(settings, ct));
+            var sonuc = await HesaplaAsync(baslangic, toLocalExclusive, maxProtocols, ct);
             SonSonuc = sonuc;
             SonHesaplamaUtc = DateTime.UtcNow;
             SonTaramaBaslangici = baslangic;
+            SonTaramaBitisi = toLocalExclusive;
             return sonuc;
         }
         finally { _refreshLock.Release(); }
@@ -220,22 +228,22 @@ public class PendingWorkService(
         var baslangic = scanDays is { } gun && gun > 0
             ? DateTime.Now.Date.AddDays(-gun)
             : await TaramaBaslangiciAsync(settings, ct);
-        return await HesaplaAsync(baslangic, maxProtocols, ct);
+        return await HesaplaAsync(baslangic, null, maxProtocols, ct);
     }
 
     // Asil hesap. Baslangic tarihi DISARIDAN verilir -- artimli tarama da, tam tarama da,
     // ekrandaki elle "gun" kutusu da ayni koddan gecer; yalnizca baslangic degisir.
     private async Task<PendingWorkResult> HesaplaAsync(
-        DateTime fromLocal, int maxProtocols, CancellationToken ct)
+        DateTime fromLocal, DateTime? toLocalExclusive, int maxProtocols, CancellationToken ct)
     {
 
         // 1) Pusula'da hazir olan her sey. Her kaynak KENDI sonuclanma tarihiyle taranir.
         var candidates = new List<PendingCandidate>();
-        candidates.AddRange(await repository.GetCompletedLabResultsAsync(fromLocal, ct));
-        candidates.AddRange(await repository.GetCompletedRadiologyAsync(fromLocal, ct));
-        candidates.AddRange(await repository.GetCompletedPathologyAsync(fromLocal, ct));
-        candidates.AddRange(await repository.GetCreatedProceduresAsync(fromLocal, ct));
-        candidates.AddRange(await repository.GetLockedEpikrizAsync(fromLocal, ct));
+        candidates.AddRange(await repository.GetCompletedLabResultsAsync(fromLocal, toLocalExclusive, ct));
+        candidates.AddRange(await repository.GetCompletedRadiologyAsync(fromLocal, toLocalExclusive, ct));
+        candidates.AddRange(await repository.GetCompletedPathologyAsync(fromLocal, toLocalExclusive, ct));
+        candidates.AddRange(await repository.GetCreatedProceduresAsync(fromLocal, toLocalExclusive, ct));
+        candidates.AddRange(await repository.GetLockedEpikrizAsync(fromLocal, toLocalExclusive, ct));
 
         // 2) Protokolun KENDISI de bir kalem: Muayine (Encounter) gonderilmemisse altindaki
         //    hicbir sey gonderilemez (hepsi azEncounterId'ye bagli). Bu yuzden aday listesine

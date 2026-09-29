@@ -10,16 +10,32 @@
         <h1 class="page-title">Bekleyen İşler</h1>
         <p class="page-subtitle">Pusula'da sonuçlanmış ama e-Health'e henüz gönderilmemiş kayıtlar -- bu sayfa hiçbir şey göndermez</p>
     </div>
-    <form method="post" asp-page-handler="Yenile">
-        <input type="hidden" name="Gun" value="@Model.Gun" />
+    <form method="post" asp-page-handler="Yenile" class="filter-bar" style="margin:0; gap:10px; align-items:flex-end;">
+        <div class="field" style="margin:0;">
+            <label for="baslangic">Başlangıç</label>
+            <input type="date" id="baslangic" name="Baslangic" value="@Model.EtkinBaslangic.ToString("yyyy-MM-dd")" />
+        </div>
+        <div class="field" style="margin:0;">
+            <label for="bitis">Bitiş</label>
+            <input type="date" id="bitis" name="Bitis" value="@Model.EtkinBitis.ToString("yyyy-MM-dd")" />
+        </div>
         <button type="submit" class="btn btn-primary">Yeniden Hesapla</button>
     </form>
 </div>
+
+@if (Model.UyariMesaji is not null)
+{
+    <div class="alert alert-warning" style="margin-bottom:14px;">@Model.UyariMesaji</div>
+}
 
 @if (Model.Sonuc is null)
 {
     <div class="empty-state">
         <p>Henüz hesaplanmadı.</p>
+        <p class="text-muted">
+            Seçili aralık:
+            <strong>@Model.EtkinBaslangic.ToString("dd.MM.yyyy") - @Model.EtkinBitis.ToString("dd.MM.yyyy")</strong>
+        </p>
         <p class="text-muted">
             Tam tarama canlı veride yaklaşık 15 saniye sürüyor, bu yüzden sayfa her açılışta hesaplamıyor.
             Yukarıdaki <strong>Yeniden Hesapla</strong> ile başlatabilirsiniz; otomatik gönderim açıksa
@@ -33,7 +49,7 @@ else
         <span>
             Son hesaplama:
             <strong>@(Model.SonHesaplamaUtc is null ? "-" : AzTime.ToLocal(Model.SonHesaplamaUtc.Value).ToString("yyyy-MM-dd HH:mm"))</strong>
-            &middot; @Model.TaramaBaslangici.ToString("dd.MM.yyyy") tarihinden itibaren taranıyor
+            &middot; <strong>@Model.EtkinBaslangic.ToString("dd.MM.yyyy") - @Model.EtkinBitis.ToString("dd.MM.yyyy")</strong> aralığı taranıyor
         </span>
         <span>
             Otomatik gönderim:

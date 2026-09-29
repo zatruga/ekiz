@@ -23,51 +23,61 @@ namespace PusulaEHealthSync.Db;
 // Boylece dongu bir gun calismazsa kayit kaybolmaz, gonderilene kadar listede kalir.
 public partial class PusulaRepository
 {
+    // "Bitis sinirini uygulama" demek icin uzak bir tarih. NULL + (@To IS NULL OR ...)
+    // kalibi yerine bu tercih edildi: OR'lu predicate SQL Server'da plan kararsizligina
+    // yol aciyor (bkz. PusulaRepository'deki OPTIMIZE FOR UNKNOWN notu), sabit bir tavan
+    // ise sorgunun seklini hic degistirmiyor.
+    public static readonly DateTime SinirYok = new(9999, 1, 1);
+
     // Laboratuvar -- LabResultSyncService ile AYNI onay kurali (Status=6).
     // SyncLog karsiligi: ResourceType="Observation", PusulaId=LabaratuarSonucId.
-    public async Task<List<PendingCandidate>> GetCompletedLabResultsAsync(DateTime fromLocal, CancellationToken ct = default)
+    public async Task<List<PendingCandidate>> GetCompletedLabResultsAsync(
+        DateTime fromLocal, DateTime? toLocalExclusive = null, CancellationToken ct = default)
     {
         const string sql = @"
             SELECT lab.VisitId, lab.LabaratuarSonucId, lab.TetkikSonucOnayTarihi, lab.TetkikAdi
             FROM LIS.uv_LaboratuarSonucKayitBilgileriByProtokolId lab
-            WHERE lab.Status = 6 AND lab.TetkikSonucOnayTarihi >= @From";
-        return await QueryCandidatesAsync(sql, fromLocal, "Observation", "Laboratuvar", ct);
+            WHERE lab.Status = 6 AND lab.TetkikSonucOnayTarihi >= @From AND lab.TetkikSonucOnayTarihi < @To";
+        return await QueryCandidatesAsync(sql, fromLocal, toLocalExclusive ?? SinirYok, "Observation", "Laboratuvar", ct);
     }
 
     // Radyoloji -- RadiologyReportSyncService ile AYNI onay kurali (State=6).
     // SyncLog karsiligi: ResourceType="DiagnosticReport", PusulaId=TetkikIslem.Id.
-    public async Task<List<PendingCandidate>> GetCompletedRadiologyAsync(DateTime fromLocal, CancellationToken ct = default)
+    public async Task<List<PendingCandidate>> GetCompletedRadiologyAsync(
+        DateTime fromLocal, DateTime? toLocalExclusive = null, CancellationToken ct = default)
     {
         const string sql = @"
             SELECT pi.ProtokolId, rti.Id, rti.OnaylanmaTarihi, oh.Adi
             FROM RIS.TetkikIslem rti
             INNER JOIN Hasta.ProtokolIslem pi ON pi.Id = rti.ProtokolIslemId
             INNER JOIN Ortak.Hizmet oh ON oh.Id = pi.HizmetId
-            WHERE rti.State = 6 AND rti.OnaylanmaTarihi >= @From";
-        return await QueryCandidatesAsync(sql, fromLocal, "DiagnosticReport", "Radyoloji", ct);
+            WHERE rti.State = 6 AND rti.OnaylanmaTarihi >= @From AND rti.OnaylanmaTarihi < @To";
+        return await QueryCandidatesAsync(sql, fromLocal, toLocalExclusive ?? SinirYok, "DiagnosticReport", "Radyoloji", ct);
     }
 
     // Patoloji -- PathologyReportSyncService ile AYNI onay kurali (ReportState=4).
     // SyncLog karsiligi: ResourceType="DiagnosticReport-Patoloji", PusulaId=Result.Id.
-    public async Task<List<PendingCandidate>> GetCompletedPathologyAsync(DateTime fromLocal, CancellationToken ct = default)
+    public async Task<List<PendingCandidate>> GetCompletedPathologyAsync(
+        DateTime fromLocal, DateTime? toLocalExclusive = null, CancellationToken ct = default)
     {
         const string sql = @"
             SELECT r.VisitId, r.Id, r.ApprovedDate, r.Morphology
             FROM [EMR.Pathology].[Result] r
-            WHERE r.ReportState = 4 AND r.ApprovedDate >= @From";
-        return await QueryCandidatesAsync(sql, fromLocal, "DiagnosticReport-Patoloji", "Patoloji", ct);
+            WHERE r.ReportState = 4 AND r.ApprovedDate >= @From AND r.ApprovedDate < @To";
+        return await QueryCandidatesAsync(sql, fromLocal, toLocalExclusive ?? SinirYok, "DiagnosticReport-Patoloji", "Patoloji", ct);
     }
 
     // Prosedur -- GetIslemlerByProtokolIdAsync ile AYNI gecerlilik kurali (State>=2).
     // SyncLog karsiligi: ResourceType="Procedure", PusulaId=ProtokolIslem.Id.
-    public async Task<List<PendingCandidate>> GetCreatedProceduresAsync(DateTime fromLocal, CancellationToken ct = default)
+    public async Task<List<PendingCandidate>> GetCreatedProceduresAsync(
+        DateTime fromLocal, DateTime? toLocalExclusive = null, CancellationToken ct = default)
     {
         const string sql = @"
             SELECT pi.ProtokolId, pi.Id, pi.CreatedDate, oh.Adi
             FROM Hasta.ProtokolIslem pi
             INNER JOIN Ortak.Hizmet oh ON oh.Id = pi.HizmetId
-            WHERE pi.State >= 2 AND pi.CreatedDate >= @From";
-        return await QueryCandidatesAsync(sql, fromLocal, "Procedure", "İşlem", ct);
+            WHERE pi.State >= 2 AND pi.CreatedDate >= @From AND pi.CreatedDate < @To";
+        return await QueryCandidatesAsync(sql, fromLocal, toLocalExclusive ?? SinirYok, "Procedure", "İşlem", ct);
     }
 
     // Epikriz -- CompositionSyncService ile AYNI tamamlanma kurali (KilitDurumuId=1).
@@ -78,15 +88,16 @@ public partial class PusulaRepository
     // kayitlarda %100 dolu (29.856/29.856, olculdu 2026-09-09) -- boş cikanlar zaten metni
     // olmadigi icin gonderilmeyen kayitlar. Ayrica epikriz SILINMEZ, DEGISIR: doktor metni
     // duzeltince ModifiedDate ilerler ve kayit yeniden listeye duser (Update olarak gider).
-    public async Task<List<PendingCandidate>> GetLockedEpikrizAsync(DateTime fromLocal, CancellationToken ct = default)
+    public async Task<List<PendingCandidate>> GetLockedEpikrizAsync(
+        DateTime fromLocal, DateTime? toLocalExclusive = null, CancellationToken ct = default)
     {
         const string sql = @"
             SELECT g.ProtokolId, g.ProtokolId, g.ModifiedDate, 'Epikriz'
             FROM Tedavi.GenelMuayene g
             WHERE g.KilitDurumuId = 1 AND g.State <> 0
               AND g.Epikriz IS NOT NULL AND DATALENGTH(g.Epikriz) > 0
-              AND g.ModifiedDate >= @From";
-        return await QueryCandidatesAsync(sql, fromLocal, "Composition", "Epikriz", ct);
+              AND g.ModifiedDate >= @From AND g.ModifiedDate < @To";
+        return await QueryCandidatesAsync(sql, fromLocal, toLocalExclusive ?? SinirYok, "Composition", "Epikriz", ct);
     }
 
     // IPTAL EDILENLER (Is 3) -- gonderdiklerimizden artik gecerli olmayanlar. Diger
@@ -99,7 +110,7 @@ public partial class PusulaRepository
             FROM Hasta.ProtokolIslem pi
             INNER JOIN Ortak.Hizmet oh ON oh.Id = pi.HizmetId
             WHERE pi.State = 0 AND pi.IptalTarihi >= @From";
-        return await QueryCandidatesAsync(sql, fromLocal, "Procedure", "İptal edilen işlem", ct);
+        return await QueryCandidatesAsync(sql, fromLocal, SinirYok, "Procedure", "İptal edilen işlem", ct);
     }
 
     // Iptal edilmis PROTOKOLLER -- butun zincir (Encounter + altindaki her sey) gecersiz.
@@ -125,7 +136,7 @@ public partial class PusulaRepository
             FROM hasta.protokol p
             WHERE p.State = 0
               AND (p.ModifiedDate >= @From OR ISNULL(p.KapanisTarihi, p.AcilisTarihi) >= @From)";
-        return await QueryCandidatesAsync(sql, fromLocal, "Encounter", "İptal edilen protokol", ct);
+        return await QueryCandidatesAsync(sql, fromLocal, SinirYok, "Encounter", "İptal edilen protokol", ct);
     }
 
     // Iptal edilmis RADYOLOJI tetkikleri (2026-09-29'da eklendi -- boyle bir sorgu HIC YOKTU).
@@ -148,7 +159,7 @@ public partial class PusulaRepository
               AND (rti.IptalTarihi >= @From
                 OR rti.OnayIptalTarihi >= @From
                 OR rti.RaporYazildiIptalTarihi >= @From)";
-        return await QueryCandidatesAsync(sql, fromLocal, "DiagnosticReport", "İptal edilen radyoloji raporu", ct);
+        return await QueryCandidatesAsync(sql, fromLocal, SinirYok, "DiagnosticReport", "İptal edilen radyoloji raporu", ct);
     }
 
     // Aday listelerindeki protokolleri TOPLU getirir -- uygunluk kurallari (yatan/ayaktan,
@@ -280,12 +291,14 @@ public partial class PusulaRepository
     }
 
     private async Task<List<PendingCandidate>> QueryCandidatesAsync(
-        string sql, DateTime fromLocal, string resourceType, string baslik, CancellationToken ct)
+        string sql, DateTime fromLocal, DateTime toLocalExclusive,
+        string resourceType, string baslik, CancellationToken ct)
     {
         await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 300 };
         cmd.Parameters.AddWithValue("@From", fromLocal);
+        cmd.Parameters.AddWithValue("@To", toLocalExclusive);
 
         var result = new List<PendingCandidate>();
         await using var reader = await cmd.ExecuteReaderAsync(ct);
