@@ -29,6 +29,19 @@ public partial class PusulaRepository
     // ise sorgunun seklini hic degistirmiyor.
     public static readonly DateTime SinirYok = new(9999, 1, 1);
 
+    // RECETE ISLEMI -- e-Health'e HIC gonderilmez (KULLANICI KARARI 2026-09-29:
+    // "recete islem hizmet kodu 30105, bu hizmet var ise gonderim yapilmamali").
+    //
+    // Ortak.Hizmet.Kodu='30105', Id=107223, adi "Recete islem". Tibbi bir prosedur
+    // degil; recete yazilmasinin faturalama/idari karsiligi.
+    //
+    // ISLEM BAZINDA elenir, PROTOKOL bazinda degil. Olculdu (son 60 gun): 1.690 satir /
+    // 1.689 protokol, ama bunlarin 102'sinde BASKA islem, 69'unda LABORATUVAR sonucu da
+    // var. Protokolun tamamini elemek o gercek verileri de dusururdu. Islem bazinda
+    // elenince sadece-recete protokoller zaten listeden kendiliginde dusuyor (geriye
+    // hic aday kalmiyor), karisik protokoller ise gercek icerigiyle gitmeye devam ediyor.
+    public const string ReceteIslemHizmetKodu = "30105";
+
     // Laboratuvar -- LabResultSyncService ile AYNI onay kurali (Status=6).
     // SyncLog karsiligi: ResourceType="Observation", PusulaId=LabaratuarSonucId.
     public async Task<List<PendingCandidate>> GetCompletedLabResultsAsync(
@@ -76,7 +89,8 @@ public partial class PusulaRepository
             SELECT pi.ProtokolId, pi.Id, pi.CreatedDate, oh.Adi
             FROM Hasta.ProtokolIslem pi
             INNER JOIN Ortak.Hizmet oh ON oh.Id = pi.HizmetId
-            WHERE pi.State >= 2 AND pi.CreatedDate >= @From AND pi.CreatedDate < @To";
+            WHERE pi.State >= 2 AND pi.CreatedDate >= @From AND pi.CreatedDate < @To
+              AND oh.Kodu <> '30105'";
         return await QueryCandidatesAsync(sql, fromLocal, toLocalExclusive ?? SinirYok, "Procedure", "İşlem", ct);
     }
 

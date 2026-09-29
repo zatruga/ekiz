@@ -577,6 +577,10 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
             ) icb
             WHERE pi.ProtokolId = @ProtokolId AND pi.State >= 2 AND pi.HizmetId IS NOT NULL
               AND icb.Kodu IS NOT NULL AND LEN(icb.Kodu) > 0
+              -- RECETE ISLEMI hic gonderilmez (bkz. PendingWork.ReceteIslemHizmetKodu).
+              -- Burada da elenmeli: aday taramasindan cikarmak yetmez, protokolun
+              -- gonderim listesi AYRI bir sorgudan geliyor.
+              AND oh.Kodu <> '30105'
               AND NOT EXISTS (
                   SELECT 1 FROM RIS.TetkikIslem rti
                   WHERE rti.ProtokolIslemId = pi.Id AND rti.State <> 0 AND rti.State <> 6
