@@ -163,12 +163,30 @@ public class EHealthClient
         return await _http.SendAsync(request, ct);
     }
 
+    // Kimlik dogrulama icin AYRI ve KISA zaman asimi.
+    //
+    // NEDEN (2026-09-29, canli hata: "doktor gonder dedikten sonra isleniyorda kaliyor"):
+    // token alma islemi EHealthTokenCache'te bir kilidin ICINDE yapiliyor -- dogru, cunku
+    // es zamanli isteklerin ayni anda kimlik dogrulamasini engelliyor. Ama HttpClient'in
+    // varsayilan zaman asimi 100 saniye; bakanlik ucu cevap vermezse kilit 100 saniye
+    // boyunca tutulur ve o sure boyunca SISTEMDEKI TUM e-Health istekleri sirada bekler.
+    // Kullaniciya bu "hicbir sey olmuyor, sonsuza kadar isleniyor" olarak gorunur.
+    //
+    // /auth/token kucuk bir POST -- saglikli bir sunucuda saniyeler surer. 30 saniye
+    // cömert bir tavan; asilirsa sorun bizde degil ucta demektir ve NET bir hata mesaji
+    // vermek, sessizce beklemekten iyidir.
+    private static readonly TimeSpan TokenZamanAsimi = TimeSpan.FromSeconds(30);
+
     // Token'in kendisi artik EHealthTokenCache'te (singleton) tutuluyor; burasi yalnizca
     // "nasil alinir" bilgisini saglar.
     private async Task<string> TokenAlAsync(EHealthEndpoint endpoint, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(endpoint.BaseUrl))
             throw new InvalidOperationException("Aktif ortam (Test/Canlı) için e-Health adresi tanımlı değil -- Ayarlar sayfasından girin.");
+
+        using var zamanAsimi = CancellationTokenSource.CreateLinkedTokenSource(ct);
+        zamanAsimi.CancelAfter(TokenZamanAsimi);
+        var tokenCt = zamanAsimi.Token;
 
         using var request = new HttpRequestMessage(HttpMethod.Post, BuildUri(endpoint.BaseUrl, "/auth/token"));
         var basicAuth = Convert.ToBase64String(Encoding.UTF8.GetBytes($"{endpoint.UserName}:{endpoint.Password}"));
@@ -177,16 +195,38 @@ public class EHealthClient
         var body = new JsonObject { ["healthcareProviderId"] = endpoint.ProviderId };
         request.Content = new StringContent(body.ToJsonString(), Encoding.UTF8, "application/json-patch+json");
 
-        using var response = await _http.SendAsync(request, ct);
-        var content = await response.Content.ReadAsStringAsync(ct);
-        if (!response.IsSuccessStatusCode)
+        HttpResponseMessage response;
+        try
+        {
+            response = await _http.SendAsync(request, tokenCt);
+        }
+        catch (OperationCanceledException) when (!ct.IsCancellationRequested)
+        {
+            // Zaman asimi -- cagiran iptal etmedi, ucta cevap yok. Sessizce beklemek yerine
+            // net hata: kullanici "isleniyor" ekraninda kalmasin, sebebi gorsun.
+            _logger.LogError(
+                "e-Health kimlik dogrulama {Saniye} saniyede cevap vermedi ({Adres}). "
+                + "Ag/guvenlik duvari ya da ucun kendisi kontrol edilmeli.",
+                TokenZamanAsimi.TotalSeconds, endpoint.BaseUrl);
             throw new InvalidOperationException(
-                $"e-Health kimlik doğrulama başarısız (HTTP {(int)response.StatusCode} {endpoint.BaseUrl}): {content}");
+                $"e-Health kimlik doğrulama {TokenZamanAsimi.TotalSeconds:0} saniyede yanıt vermedi "
+                + $"({endpoint.BaseUrl}). Sunucuya erişilemiyor olabilir.");
+        }
 
-        var json = JsonNode.Parse(content)?.AsObject();
-        return json?["payload"]?["sessionId"]?.GetValue<string>()
-            ?? throw new InvalidOperationException("Token yaniti sessionId icermiyor: " + content);
+        using (response)
+        {
+            var content = await response.Content.ReadAsStringAsync(ct);
+            if (!response.IsSuccessStatusCode)
+                throw new InvalidOperationException(
+                    $"e-Health kimlik doğrulama başarısız (HTTP {(int)response.StatusCode} {endpoint.BaseUrl}): {content}");
+
+            var json = JsonNode.Parse(content)?.AsObject();
+            return json?["payload"]?["sessionId"]?.GetValue<string>()
+                ?? throw new InvalidOperationException("Token yaniti sessionId icermiyor: " + content);
+        }
     }
+
+
 
     private static Uri BuildUri(string baseUrl, string path)
         => new(baseUrl.TrimEnd('/') + "/" + path.TrimStart('/'));
