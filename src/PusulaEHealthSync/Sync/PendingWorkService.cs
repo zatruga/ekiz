@@ -70,6 +70,129 @@ public class PendingWorkService(
     public PendingWorkResult? SonSonuc { get; private set; }
     public DateTime? SonHesaplamaUtc { get; private set; }
 
+    // ARTIMLI TARAMA -- yalnizca otomatik gonderim dongusu kullanir (AutoSyncWorker).
+    //
+    // Pencere IKI SINIR arasina sikistirilir:
+    //   UST SINIR : Ayarlar'daki pencere. Tarama bundan daha GENIS olamaz, yani en kotu
+    //               durumda bugunku davranisin aynisi olur -- hicbir sey kotulesemez.
+    //   ALT SINIR : son basarili taramanin isareti (guvenlik payi kadar geriden).
+    //
+    // Aradaki belirleyici: HALA BEKLEYEN en eski kalem. Pencere onun gerisine asla
+    // cekilmez. Sonuc:
+    //   - her sey akiyorsa  -> pencere ~1 saat, sorgu kucucuk
+    //   - bir kalem takildiysa -> pencere kendiliginden o tarihe kadar genisler
+    //   - kalem kalici olarak gonderilemiyorsa (orn. bakanligin reddettigi ICD-10) ->
+    //     ust sinir devreye girer, pencere sonsuza kadar acilmaz
+    //
+    // Gunde bir kez TAM SUPURME yapilir: geriye donuk duzeltmeleri (biri dunun onay
+    // tarihini elle degistirirse) artimli tarama kaciririr, supurme yakalar.
+    public async Task<PendingWorkResult> RefreshIncrementalAsync(
+        int maxProtocols = 200, CancellationToken ct = default)
+    {
+        var acik = await settings.GetBoolAsync(SettingsStore.PendingScanIncrementalEnabledKey, false, ct);
+        var tamPencere = await TaramaBaslangiciAsync(settings, ct);
+
+        if (!acik)
+            return await RefreshAsync(scanDays: null, maxProtocols, ct);
+
+        var simdiUtc = DateTime.UtcNow;
+        var supurmeGerekli = await TamSupurmeGerekliMiAsync(ct);
+        var baslangic = supurmeGerekli
+            ? tamPencere
+            : await ArtimliBaslangicAsync(tamPencere, ct);
+
+        await _refreshLock.WaitAsync(ct);
+        try
+        {
+            var sonuc = await HesaplaAsync(baslangic, maxProtocols, ct);
+            SonSonuc = sonuc;
+            SonHesaplamaUtc = DateTime.UtcNow;
+            SonTaramaBaslangici = baslangic;
+
+            // ISARETLER YALNIZCA BASARILI TARAMADAN SONRA ILERLER. Tarama ortasinda
+            // istisna olursa buraya hic gelinmez, yani bir sonraki tur ayni yerden
+            // devam eder -- kayit atlanmaz.
+            await settings.SetStringAsync(SettingsStore.PendingScanWatermarkKey,
+                simdiUtc.ToString("O", CultureInfo.InvariantCulture), ct);
+            await EnEskiBekleyeniKaydetAsync(sonuc, ct);
+            if (supurmeGerekli)
+                await settings.SetStringAsync(SettingsStore.PendingScanLastFullSweepKey,
+                    DateTime.Now.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), ct);
+
+            return sonuc;
+        }
+        finally { _refreshLock.Release(); }
+    }
+
+    // Gunde bir kez, yapilandirilan saatte. Hic yapilmadiysa ILK turda yapilir --
+    // boylece artimli mod acilir acilmaz once tam bir resim cikarilmis olur.
+    private async Task<bool> TamSupurmeGerekliMiAsync(CancellationToken ct)
+    {
+        var sonHam = await settings.GetStringAsync(SettingsStore.PendingScanLastFullSweepKey, "", ct);
+        if (!DateOnly.TryParseExact(sonHam, "yyyy-MM-dd", CultureInfo.InvariantCulture,
+                DateTimeStyles.None, out var son))
+            return true;
+
+        if (son >= DateOnly.FromDateTime(DateTime.Now)) return false;
+
+        var saat = await settings.GetIntAsync(
+            SettingsStore.PendingScanFullSweepHourKey, SettingsStore.PendingScanFullSweepHourDefault, ct);
+        return DateTime.Now.Hour >= saat;
+    }
+
+    private async Task<DateTime> ArtimliBaslangicAsync(DateTime tamPencere, CancellationToken ct)
+    {
+        var isaretHam = await settings.GetStringAsync(SettingsStore.PendingScanWatermarkKey, "", ct);
+        DateTime? isaretUtc = DateTime.TryParse(isaretHam, CultureInfo.InvariantCulture,
+            DateTimeStyles.RoundtripKind, out var i) ? i : null;
+
+        var enEskiHam = await settings.GetStringAsync(SettingsStore.PendingScanOldestPendingKey, "", ct);
+        DateTime? enEski = DateTime.TryParse(enEskiHam, CultureInfo.InvariantCulture,
+            DateTimeStyles.RoundtripKind, out var e) ? e : null;
+
+        return ArtimliPencere(tamPencere, isaretUtc, enEski);
+    }
+
+    // Pencere hesabinin TAMAMI -- saf fonksiyon, yan etkisiz, dogrudan test edilebilir.
+    // Artimli taramanin butun guvenligi bu uc satirda toplandigi icin ayri duruyor.
+    //
+    //   tamPencere : Ayarlar'daki baslangic (UST SINIR -- daha geriye gidilmez)
+    //   isaretUtc  : son basarili taramanin basladigi an; null ise hic tarama yapilmamis
+    //   enEskiBekleyen : hala gonderilememis en eski kalemin tarihi (yerel); null ise yok
+    public static DateTime ArtimliPencere(DateTime tamPencere, DateTime? isaretUtc, DateTime? enEskiBekleyen)
+    {
+        // Hic isaret yoksa (ilk calisma) tam pencere taranir -- eksik resimle baslamayalim.
+        if (isaretUtc is not { } isaret) return tamPencere;
+
+        // Isaret UTC tutuluyor, Pusula tarihleri YEREL -- karsilastirmadan once cevir.
+        // Guvenlik payi: isaretin biraz GERISINDEN basla (saat kaymasi, gec commit).
+        var baslangic = AzTime.ToLocal(isaret).AddMinutes(-SettingsStore.PendingScanOverlapMinutes);
+
+        // Hala bekleyen en eski kalemin gerisine cekilme -- yoksa takilan kayit listeden
+        // duser ve bir daha hic gonderilmez. Kendini onarma ozelligi TAM BURADA korunuyor.
+        if (enEskiBekleyen is { } eski && eski < baslangic) baslangic = eski;
+
+        // UST SINIR: Ayarlar'daki pencereden daha geriye asla gidilmez. Bu olmasaydi,
+        // kalici olarak gonderilemeyen tek bir kalem (orn. bakanligin reddettigi bir
+        // ICD-10 kodu) pencereyi sonsuza kadar acik tutardi.
+        return baslangic < tamPencere ? tamPencere : baslangic;
+    }
+
+    private async Task EnEskiBekleyeniKaydetAsync(PendingWorkResult sonuc, CancellationToken ct)
+    {
+        // DIKKAT: ozet TUM bekleyenleri kapsar ama Protokoller listesi maxProtocols ile
+        // KIRPILMIS olabilir. Kirpilmis listeden hesaplanan "en eski" yaniltici olurdu,
+        // bu yuzden kirpilmamis en eski tarih ayrica tasiniyor (bkz. PendingWorkResult).
+        if (sonuc.EnEskiBekleyenTarih is { } t)
+            await settings.SetStringAsync(SettingsStore.PendingScanOldestPendingKey,
+                t.ToString("O", CultureInfo.InvariantCulture), ct);
+        else
+            await settings.SetStringAsync(SettingsStore.PendingScanOldestPendingKey, "", ct);
+    }
+
+    // Son turun fiilen kullandigi baslangic -- ekranda gostermek icin.
+    public DateTime? SonTaramaBaslangici { get; private set; }
+
     // scanDays null ise pencere Ayarlar'dan okunur. Sayi verilirse (Bekleyen Isler
     // sayfasindaki elle "gun" kutusu) o tur icin ayar GECICI olarak ezilir.
     public async Task<PendingWorkResult> RefreshAsync(
@@ -79,9 +202,13 @@ public class PendingWorkService(
         await _refreshLock.WaitAsync(ct);
         try
         {
-            var sonuc = await GetPendingAsync(scanDays, maxProtocols, ct);
+            var baslangic = scanDays is { } gun && gun > 0
+                ? DateTime.Now.Date.AddDays(-gun)
+                : await TaramaBaslangiciAsync(settings, ct);
+            var sonuc = await HesaplaAsync(baslangic, maxProtocols, ct);
             SonSonuc = sonuc;
             SonHesaplamaUtc = DateTime.UtcNow;
+            SonTaramaBaslangici = baslangic;
             return sonuc;
         }
         finally { _refreshLock.Release(); }
@@ -90,9 +217,17 @@ public class PendingWorkService(
     public async Task<PendingWorkResult> GetPendingAsync(
         int? scanDays = null, int maxProtocols = 200, CancellationToken ct = default)
     {
-        var fromLocal = scanDays is { } gun && gun > 0
+        var baslangic = scanDays is { } gun && gun > 0
             ? DateTime.Now.Date.AddDays(-gun)
             : await TaramaBaslangiciAsync(settings, ct);
+        return await HesaplaAsync(baslangic, maxProtocols, ct);
+    }
+
+    // Asil hesap. Baslangic tarihi DISARIDAN verilir -- artimli tarama da, tam tarama da,
+    // ekrandaki elle "gun" kutusu da ayni koddan gecer; yalnizca baslangic degisir.
+    private async Task<PendingWorkResult> HesaplaAsync(
+        DateTime fromLocal, int maxProtocols, CancellationToken ct)
+    {
 
         // 1) Pusula'da hazir olan her sey. Her kaynak KENDI sonuclanma tarihiyle taranir.
         var candidates = new List<PendingCandidate>();
@@ -118,7 +253,7 @@ public class PendingWorkService(
             });
 
         if (candidates.Count == 0)
-            return new PendingWorkResult([], new Dictionary<string, int>(), 0);
+            return new PendingWorkResult([], new Dictionary<string, int>(), 0, null);
 
         // 3) SyncLog'da ne var? Kaynak tipi bazinda toplu okuma.
         var sentLookup = new Dictionary<(string, int), SyncLogEntry>();
@@ -135,7 +270,7 @@ public class PendingWorkService(
         // 4) Fark: gonderilmemis (ya da epikrizde: gonderildikten SONRA degismis) olanlar.
         var pending = candidates.Where(c => IsPending(c, sentLookup)).ToList();
         if (pending.Count == 0)
-            return new PendingWorkResult([], new Dictionary<string, int>(), 0);
+            return new PendingWorkResult([], new Dictionary<string, int>(), 0, null);
 
         // 5) Protokol bilgisi + uygunluk kurallari.
         var protokoller = await repository.GetProtokollerByIdsAsync(
@@ -174,7 +309,16 @@ public class PendingWorkService(
             .Take(maxProtocols)
             .ToList();
 
-        return new PendingWorkResult(kirpilmis, ozet, toplamProtokol);
+        // EN ESKI BEKLEYEN -- KIRPILMAMIS kumeden. Artimli tarama penceresini bu belirliyor
+        // (bkz. RefreshIncrementalAsync); kirpilmis listeden hesaplansaydi, ekrana sigmayan
+        // eski bir kalem pencerenin disinda kalir ve bir daha hic gonderilmezdi.
+        DateTime? enEski = null;
+        foreach (var g in gruplar)
+            foreach (var i in g.Items)
+                if (i.SonuclanmaTarihi != DateTime.MinValue && (enEski is null || i.SonuclanmaTarihi < enEski))
+                    enEski = i.SonuclanmaTarihi;
+
+        return new PendingWorkResult(kirpilmis, ozet, toplamProtokol, enEski);
     }
 
     // Bir kalem hala bekliyor mu?
@@ -252,4 +396,7 @@ public record PendingProtocol(
 public record PendingWorkResult(
     List<PendingProtocol> Protokoller,
     Dictionary<string, int> OzetSayimlar,
-    int ToplamProtokolSayisi);
+    int ToplamProtokolSayisi,
+    // Kirpilmamis kumedeki en eski bekleyen kalemin tarihi. Artimli tarama penceresinin
+    // alt sinirini bu belirler -- null ise bekleyen is yok demektir.
+    DateTime? EnEskiBekleyenTarih);

@@ -77,9 +77,12 @@ public class AutoSyncWorker(
 
         // 1) Bekleyenleri hesapla. maxProtocols parti boyutundan BUYUK tutuluyor ki
         //    Bekleyen Isler sayfasi anlamli bir liste gosterebilsin.
-        // scanDays verilmiyor -> pencere Ayarlar'dan (PendingScan.*) okunuyor.
-        var pending = await pendingWork.RefreshAsync(
-            scanDays: null, Math.Max(batchSize, 200), ct);
+        //
+        // ARTIMLI TARAMA (2026-09-29): artik RefreshIncrementalAsync cagriliyor. Ayarlar'da
+        // artimli mod KAPALIYSA bu metot kendiliginden eski tam taramaya duser, yani
+        // davranis degismez. Acikken pencere "son isaretten beri"ye iner -- ayrintili
+        // gerekce PendingWorkService.RefreshIncrementalAsync'te.
+        var pending = await pendingWork.RefreshIncrementalAsync(Math.Max(batchSize, 200), ct);
 
         var uygun = pending.Protokoller.Where(p => p.Eligible).Take(batchSize).ToList();
         logger.LogInformation(

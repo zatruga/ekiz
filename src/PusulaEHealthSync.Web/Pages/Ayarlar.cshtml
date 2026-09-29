@@ -215,6 +215,29 @@
                             Şu anki ayarla <b>@Model.PendingScanEffectiveFrom.ToString("dd.MM.yyyy")</b>
                             tarihinden itibaren taranıyor.
                         </p>
+
+                        <hr style="border:0; border-top:1px solid var(--border); margin:16px 0 14px;" />
+
+                        <div class="toggle-row">
+                            <input type="checkbox" id="scanIncremental" asp-for="PendingScanIncrementalEnabled" />
+                            <label for="scanIncremental">Artımlı tarama (önerilir)</label>
+                        </div>
+                        <p class="card-desc" style="margin-left:26px;">
+                            Açıkken saatlik döngü yukarıdaki pencerenin tamamını değil, <b>son taramadan bu yana</b>
+                            tamamlananları sorar. Hâlâ gönderilememiş bir kalem varsa pencere kendiliğinden
+                            o tarihe kadar genişler &mdash; yani takılan hiçbir kayıt listeden düşmez.
+                            Yukarıdaki pencere <b>üst sınır</b> olarak kalır.
+                            Kapalıyken eski davranış (her turda tam pencere) geçerlidir.
+                        </p>
+                        <div class="field" style="max-width:260px; margin-left:26px;">
+                            <label for="sweepHour">Gecelik tam süpürme saati</label>
+                            <input type="number" id="sweepHour" asp-for="PendingScanFullSweepHour" min="0" max="23" />
+                            <span class="card-desc" style="display:block; margin-top:6px;">
+                                Günde bir kez tam pencere taranır &mdash; geriye dönük düzeltmeler
+                                (onay tarihi sonradan değiştirilen kayıtlar) bu turda yakalanır.
+                            </span>
+                            <span asp-validation-for="PendingScanFullSweepHour" style="display:block; margin-top:6px; font-size:12.5px; color:var(--danger);"></span>
+                        </div>
                         <div class="card-actions">
                             <button type="submit" class="btn btn-primary">Kaydet</button>
                             @if (Model.Saved && Model.SavedSection == "tarama")

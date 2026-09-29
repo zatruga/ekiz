@@ -170,6 +170,48 @@ aynı kalıyor, daraltma bilinçli bir tercih olarak kullanıcıya bırakıldı.
 Doğrulandı: 7 senaryo (varsayılan, 30 gün, 90 gün, belirli tarih, boş tarih,
 bozuk tarih, kaydetme sonrası anında etki) test edildi, hepsi doğru.
 
+#### Devamı: artımlı tarama (2026-09-29)
+
+Kullanıcı doğru soruyu sordu: *"amacımız hep bugün gönderileceklerin listesini
+göndermek değil mi?"* Aralık ayarı maliyeti azaltıyordu ama mimariyi
+değiştirmiyordu -- hâlâ "pencerede tamamlanan her şeyi çek, sonra gönderdiklerimi
+çıkar" mantığıydı.
+
+Saatlik döngü artık `RefreshIncrementalAsync` kullanıyor. Pencere **iki sınır**
+arasına sıkıştırılıyor:
+
+- **Üst sınır:** Ayarlar'daki pencere. Tarama bundan geniş olamaz, yani en kötü
+  durumda eski davranışın aynısı -- hiçbir şey kötüleşemez.
+- **Alt sınır:** son başarılı taramanın işareti (2 saat güvenlik payıyla).
+- **Belirleyici:** hâlâ bekleyen en eski kalemin tarihi. Pencere onun gerisine
+  asla çekilmez -- kendini onarma özelliği tam burada korunuyor.
+
+Kalıcı olarak gönderilemeyen bir kalem (örn. bakanlığın reddettiği ICD-10 kodu)
+pencereyi sonsuza açamaz, çünkü üst sınır devrede.
+
+Gecelik **tam süpürme** (varsayılan 03:00) geriye dönük düzeltmeleri yakalar --
+biri dünün onay tarihini elle değiştirirse artımlı tarama kaçırır, süpürme
+bulur.
+
+**Ölçüldü (2026-09-29, mesai saati):**
+
+| Kaynak | 3 saatlik pencere | 60 günlük pencere |
+|---|---:|---:|
+| İşlem | 2.256 | 423.382 |
+| Laboratuvar | 1.897 | 402.935 |
+| Radyoloji | 42 | 11.232 |
+| Patoloji | 6 | 1.114 |
+| Epikriz | 1 | 4.960 |
+| **Toplam** | **4.202** | **843.623** |
+
+**~200 kat** azalma. Pencere hesabı saf bir fonksiyona çıkarıldı
+(`PendingWorkService.ArtimliPencere`) ve 7 uç durumla test edildi: işaret yok,
+bekleyen yok, 10 gün takılı kalem, 200 gün takılı kalem (üst sınır), çok yeni
+kalem, 5 günlük kesinti, saat kayması.
+
+**Varsayılan KAPALI.** Ayarlar > Tarama Aralığı > "Artımlı tarama" açılmadan
+davranış değişmiyor.
+
 **Değerlendirilen diğer seçenekler (uygulanmadı):**
 
 1. **Kaynak başına farklı pencere.** 60 gün patoloji için konmuş

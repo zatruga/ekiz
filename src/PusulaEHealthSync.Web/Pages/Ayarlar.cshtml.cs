@@ -83,6 +83,14 @@ public class AyarlarModel(SettingsStore settings) : PageModel
     [DataType(DataType.Date)]
     public DateTime? PendingScanFromDate { get; set; }
 
+    // Artimli tarama: saatlik tur yukaridaki pencerenin TAMAMINI degil, son taramadan
+    // beri tamamlananlari sorar. Ust sinir yine yukaridaki pencere.
+    [BindProperty]
+    public bool PendingScanIncrementalEnabled { get; set; }
+    [BindProperty]
+    [Range(0, 23)]
+    public int PendingScanFullSweepHour { get; set; }
+
     // Ekrandaki "su an sunu tariyor" ozeti -- secim kaydedildikten sonra ne olacagini
     // kullanicinin tahmin etmesi gerekmesin.
     public DateTime PendingScanEffectiveFrom { get; private set; }
@@ -186,6 +194,11 @@ public class AyarlarModel(SettingsStore settings) : PageModel
                 PendingScanFromDate!.Value.ToString("yyyy-MM-dd", CultureInfo.InvariantCulture), ct);
         else
             await settings.SetIntAsync(SettingsStore.PendingScanPresetDaysKey, PendingScanPresetDays, ct);
+
+        await settings.SetBoolAsync(
+            SettingsStore.PendingScanIncrementalEnabledKey, PendingScanIncrementalEnabled, ct);
+        await settings.SetIntAsync(
+            SettingsStore.PendingScanFullSweepHourKey, PendingScanFullSweepHour, ct);
 
         return await SavedAsync("tarama", ct);
     }
@@ -294,6 +307,10 @@ public class AyarlarModel(SettingsStore settings) : PageModel
             PendingScanFromDate = DateTime.TryParseExact(
                 hamTarih, "yyyy-MM-dd", CultureInfo.InvariantCulture, DateTimeStyles.None, out var t)
                 ? t : null;
+            PendingScanIncrementalEnabled = await settings.GetBoolAsync(
+                SettingsStore.PendingScanIncrementalEnabledKey, false, ct);
+            PendingScanFullSweepHour = await settings.GetIntAsync(
+                SettingsStore.PendingScanFullSweepHourKey, SettingsStore.PendingScanFullSweepHourDefault, ct);
         }
         // Ozet her zaman GERCEK ayardan hesaplanir (form dogrulamasi patlasa bile
         // kullaniciya "su an sunu tariyor" dogru gosterilsin).

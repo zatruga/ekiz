@@ -65,6 +65,33 @@ public class SettingsStore
     public const int PendingScanPresetDaysDefault = 60;
     public const string PendingScanFromDateKey = "PendingScan.FromDate";
 
+    // -- Artimli tarama (otomatik gonderim dongusu) ----------------------------------------
+    // KULLANICI SORUSU (2026-09-29): "neden 885 bin satirlik veri cekiyoruz, amacimiz hep
+    // bugun gonderileceklerin listesi degil mi?" -- hakliydi. Eski yontem her turda
+    // "yapilandirilmis pencerede TAMAMLANAN her seyi" cekip bellekte "gonderdiklerimi"
+    // cikariyordu. Artimli tarama ayni sonucu cok daha kucuk bir sorguyla buluyor.
+    //
+    // ISARET (Watermark): son BASARILI otomatik taramanin BASLADIGI an (UTC). Bir sonraki
+    // tur buradan itibaren bakar. Bitis degil baslangic kaydediliyor -- tarama surerken
+    // tamamlanan kayitlar atlanmasin diye.
+    //
+    // EN ESKI BEKLEYEN: hala gonderilememis kalemlerin en eskisinin tarihi. Pencere bunun
+    // gerisine ASLA cekilmez, yoksa takilan kayit listeden duser ve sistemin kendini
+    // onarma ozelligi kaybolurdu.
+    //
+    // TAM SUPURME: gunde bir kez tam pencere taranir. Geriye donuk duzeltmeleri (biri
+    // dunun onay tarihini elle degistirirse) artimli tarama kaciririr; bu onun guvenlik agi.
+    public const string PendingScanIncrementalEnabledKey = "PendingScan.Incremental.Enabled";
+    public const string PendingScanWatermarkKey = "PendingScan.Watermark";
+    public const string PendingScanOldestPendingKey = "PendingScan.OldestPending";
+    public const string PendingScanFullSweepHourKey = "PendingScan.FullSweepHour";
+    public const int PendingScanFullSweepHourDefault = 3;               // gece 03:00
+    public const string PendingScanLastFullSweepKey = "PendingScan.LastFullSweep";
+
+    // Saat kaymasi ve gec commit olan islemler icin guvenlik payi: isaretin biraz
+    // GERISINDEN baslanir. Fazladan birkac yuz satir okumak, bir kaydi kacirmaktan iyidir.
+    public const int PendingScanOverlapMinutes = 120;
+
     // -- Hata sonrasi tekrar deneme -------------------------------------------------------
     public const string RetryIntervalMinutesKey = "Retry.IntervalMinutes";
     public const int RetryIntervalMinutesDefault = 30;
