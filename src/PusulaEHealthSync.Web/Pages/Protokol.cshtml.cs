@@ -502,11 +502,19 @@ public class ProtokolModel(
     // yanlışlıkla/gereksiz gitmiş olabilir, bu yüzden her satırda tek tek silinebilmeli --
     // genel Detail sayfasındaki "Sil" zaten çalışıyordu ama buradan (Protokol Detay'dan)
     // tıklamak icin ayrı bir tur almaya gerek kalmasin diye dogrudan buraya da eklendi.
+    // TANI SILME: Encounter.diagnosis baglantisi ONCE cozulmeli. Encounter ile Condition
+    // birbirine referans verdigi icin sunucu aksi halde HTTP 409 doner ve tani silinemez
+    // (bkz. CancellationSyncService.EncounterTanilariniAyirAsync). SADECE bu taninin
+    // baglantisi kaldirilir -- ayni protokoldeki diger tanilarin bagi korunur.
     public async Task<IActionResult> OnPostSilTaniAsync(int id, long durumId, CancellationToken ct)
     {
         var entry = await syncLog.GetByIdAsync(durumId, ct);
         if (entry is not null)
+        {
+            if (entry.AzResourceId is not null)
+                await cancellationSyncService.EncounterTanilariniAyirAsync(id, [entry.AzResourceId], ct);
             await deleteService.DeleteAsync(entry, ct);
+        }
         return RedirectToPage("/Protokol", new { id });
     }
 
@@ -568,7 +576,13 @@ public class ProtokolModel(
 
         var tanilar = await pusulaRepository.GetTanilarByProtokolIdAsync(Protokol.ProtokolId, ct);
         var taniStatuses = await syncLog.GetLatestByPusulaIdsAsync("Condition", tanilar.Select(t => t.Id).ToList(), ct);
-        foreach (var durum in taniStatuses.Values.Where(SyncLogEntry.CanDelete))
+        var silinecekler = taniStatuses.Values.Where(SyncLogEntry.CanDelete).ToList();
+
+        // Encounter.diagnosis baglantisi once cozulmeli -- yoksa hepsi HTTP 409 alir.
+        await cancellationSyncService.EncounterTanilariniAyirAsync(
+            Protokol.ProtokolId, silinecekler.Select(d => d.AzResourceId!).ToList(), ct);
+
+        foreach (var durum in silinecekler)
             await deleteService.DeleteAsync(durum, ct);
         return RedirectToPage("/Protokol", new { id });
     }

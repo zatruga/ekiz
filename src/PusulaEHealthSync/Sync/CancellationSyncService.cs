@@ -1,4 +1,6 @@
+using System.Text.Json.Nodes;
 using PusulaEHealthSync.Db;
+using PusulaEHealthSync.EHealth;
 using PusulaEHealthSync.Persistence;
 
 namespace PusulaEHealthSync.Sync;
@@ -27,6 +29,7 @@ public class CancellationSyncService(
     SyncLogStore syncLog,
     SettingsStore settings,
     DeleteService deleteService,
+    EHealthClient eHealthClient,
     ILogger<CancellationSyncService> logger)
 {
     // Pencere bekleyen is taramasiyla AYNI kaynaktan geliyor (Ayarlar) -- ikisi ayri
@@ -179,18 +182,40 @@ public class CancellationSyncService(
         foreach (var l in await repository.GetLabResultsByProtokolIdAsync(protokolId, ct))
             hedefler.Add(("Observation", l.LabaratuarSonucId));
 
-        // -- Ortadaki halka: epikriz, islemler, tanilar --
+        // VITAL BULGULAR (2026-09-30'da eklendi -- tani sorunu arastirilirken bulundu).
+        // Zincirde HIC YOKTULAR: "Tümünü Sil" sonrasi bakanlikta yetim kaliyorlardi, ustelik
+        // az-observation govdesi Encounter'a referans verdigi icin (VitalSignsMapper) en
+        // sondaki Encounter silmesini de HTTP 409 ile dusuruyorlardi. Laboratuvardan farkli
+        // bir anahtar kullaniyorlar: ResourceType "Observation-Vital", PusulaId =
+        // GenelMuayene.Id (bkz. VitalSignsSyncService) -- bu yuzden lab dongusune takilmiyor.
+        if (await repository.GetGenelMuayeneByProtokolIdAsync(protokolId, ct) is { } muayene)
+            hedefler.Add(("Observation-Vital", muayene.Id));
+
+        // -- Ortadaki halka: epikriz, islemler --
         hedefler.Add(("Composition", protokolId));
         foreach (var i in await repository.GetIslemlerByProtokolIdAsync(protokolId, ct))
             hedefler.Add(("Procedure", i.Id));
-        foreach (var t in await repository.GetTanilarByProtokolIdAsync(protokolId, ct))
-            hedefler.Add(("Condition", t.Id));
+
+        baglam ??= $"iptal protokol {protokolId}";
+        var (ok, err) = await DeleteTargetsAsync(hedefler, baglam, ct);
+
+        // -- Tanilar AYRI bir asama (2026-09-30): Encounter.diagnosis baglantisi once
+        //    cozulmeli, yoksa sunucu HTTP 409 ile reddeder ve tani bakanlikta yetim kalir
+        //    (bkz. EncounterTanilariniAyirAsync). Cozme basarisiz olsa bile silme YINE
+        //    deneniyor -- eski davranisin aynisi, yani bu adim hicbir durumu kotulestirmiyor.
+        var tanilar = await repository.GetTanilarByProtokolIdAsync(protokolId, ct);
+        if (tanilar.Count > 0)
+        {
+            await TanilariEncounterdanCozAsync(protokolId, tanilar.Select(t => t.Id).ToList(), ct);
+            var (taniOk, taniErr) = await DeleteTargetsAsync(
+                tanilar.Select(t => ("Condition", t.Id)).ToList(), baglam, ct);
+            ok += taniOk; err += taniErr;
+        }
 
         // -- En icteki halka: Muayine. EN SON silinir, cunku yukaridakilerin hepsi ona
         //    referans veriyor. (Patient BILEREK silinmez: baska protokollerde de kullaniliyor.)
-        hedefler.Add(("Encounter", protokolId));
-
-        return await DeleteTargetsAsync(hedefler, baglam ?? $"iptal protokol {protokolId}", ct);
+        var (encOk, encErr) = await DeleteTargetsAsync([("Encounter", protokolId)], baglam, ct);
+        return (ok + encOk, err + encErr);
     }
 
     // Tek bir islem iptal edildiginde: o isleme BAGLI raporlar once silinmeli, cunku
@@ -208,6 +233,146 @@ public class CancellationSyncService(
         hedefler.Add(("Procedure", islemId));
 
         return await DeleteTargetsAsync(hedefler, $"iptal işlem {islemId}", ct);
+    }
+
+
+    // TANI SILINEMIYOR (2026-09-30, kullanici sunucuda bildirdi: "tümünü sil denildiğinde
+    // tanı silinememektedir").
+    //
+    // Encounter ile Condition BIRBIRINE referans veriyor:
+    //     Encounter.diagnosis[].condition -> Condition/x   (bakanlik istegi, 2026-08-24)
+    //     Condition.encounter             -> Encounter/y   (profilde zorunlu)
+    //
+    // Sunucu referans butunlugunu zorluyor -- canli kayitlarda dogrulandi:
+    // "HTTP 409: There are other resources referencing this resource". Yani hangisini once
+    // silmeye kalkarsak kalkalim reddediliyor; bu bir SIRALAMA sorunu degil, cift yonlu bir
+    // halka. Dosyanin basindaki "distan iceriye sil" kurali tek yonlu zincirler icin dogru
+    // ama boyle bir halkayi sirayla cozmek MUMKUN DEGIL.
+    //
+    // Eski davranisin sonucu: tanilar HIC silinemiyor, Encounter siliniyor ve tanilar
+    // bakanlikta YETIM kaliyordu -- kullanici "sildim" sanarak. Silinmis bir protokolun
+    // tanisinin devlet sisteminde asili kalmasi, silmenin amacini tamamen bosa cikariyor.
+    //
+    // COZUM gonderimin simetrigi. Gonderirken: Encounter yazilir -> Condition'lar yazilir ->
+    // Encounter diagnosis ile GUNCELLENIR (EncounterSyncService.SyncDiagnosesAsync).
+    // Silerken ters yonde: once Encounter'daki diagnosis baglantisi KALDIRILIR, boylece
+    // Condition'i referans eden kimse kalmaz ve silinebilir; ardindan Encounter da gider.
+    //
+    // GOVDE BASTAN URETILMIYOR: canli kaynak GET edilip yalnizca ilgili diagnosis ogeleri
+    // cikariliyor. Eslestirme mantigi (bolum kodu, doktor, gelis tipi) gonderimden bu yana
+    // degismis olabilir -- bir SILME islemi Encounter'in baska alanlarini sessizce
+    // degistirmemeli.
+    //
+    // SECICI: yalnizca verilen Condition id'leri cikarilir. Tek bir tani silinirken
+    // digerlerinin Encounter baglantisi korunur.
+    public async Task<bool> EncounterTanilariniAyirAsync(
+        int protokolId, IReadOnlyCollection<string> silinecekConditionIdleri, CancellationToken ct = default)
+    {
+        if (silinecekConditionIdleri.Count == 0) return true;
+
+        var kayitlar = await syncLog.GetLatestByPusulaIdsAsync("Encounter", [protokolId], ct);
+        if (kayitlar.GetValueOrDefault(protokolId) is not { AzResourceId: not null } encEntry) return true;
+        // Encounter zaten silinmisse ya da hic basariyla yazilmamissa cozulecek bag yok.
+        if (encEntry.Status != SyncStatus.Success || encEntry.Operation == SyncOperation.Delete) return true;
+
+        var azEncounterId = encEntry.AzResourceId!;
+
+        var okuma = await eHealthClient.GetAsync("Encounter", azEncounterId, ct);
+        if (!okuma.Success || okuma.Body is null)
+        {
+            logger.LogWarning("Tani baglantisi cozulemedi: Encounter/{AzId} okunamadi (HTTP {Kod}).",
+                azEncounterId, okuma.StatusCode);
+            return false;
+        }
+
+        JsonObject? encounter;
+        try { encounter = JsonNode.Parse(okuma.Body) as JsonObject; }
+        catch (System.Text.Json.JsonException) { encounter = null; }
+        if (encounter is null)
+        {
+            logger.LogWarning("Tani baglantisi cozulemedi: Encounter/{AzId} yaniti ayristirilamadi.", azEncounterId);
+            return false;
+        }
+
+        var cikarilan = DiagnosisCikar(encounter, silinecekConditionIdleri);
+        if (cikarilan == 0) return true;
+
+        var sonuc = await eHealthClient.UpdateAsync("Encounter", azEncounterId, encounter, ct);
+
+        // Aktivite Akisi'nda gorunsun: bu, bakanlik kaydinda gercek bir degisiklik.
+        var kayit = new SyncLogEntry
+        {
+            ResourceType = "Encounter",
+            PusulaId = protokolId,
+            Status = sonuc.Success ? SyncStatus.Success : SyncStatus.Failed,
+            Operation = SyncOperation.Update,
+            AzResourceId = azEncounterId,
+            PatientFullName = encEntry.PatientFullName,
+            FathersName = encEntry.FathersName,
+            BirthDate = encEntry.BirthDate,
+            Gender = encEntry.Gender,
+            Fin = encEntry.Fin,
+            RecordOpenedAt = encEntry.RecordOpenedAt,
+            Message = sonuc.Success
+                ? $"{cikarilan} tanı bağlantısı kaldırıldı (silme öncesi çözme)"
+                : EHealthErrorFormatter.Describe(sonuc.StatusCode ?? 0, sonuc.Body),
+            RequestJson = encounter.ToJsonString(JsonDefaults.Options),
+            ResponseJson = sonuc.Body,
+        };
+        await syncLog.InsertAsync(kayit, ct);
+
+        if (!sonuc.Success)
+            logger.LogWarning("Tani baglantisi cozulemedi: Encounter/{AzId} guncellenemedi (HTTP {Kod}).",
+                azEncounterId, sonuc.StatusCode);
+
+        return sonuc.Success;
+    }
+
+
+    // Encounter govdesindeki diagnosis ogelerinden, verilen Condition id'lerine isaret
+    // edenleri CIKARIR; kac tane cikardigini doner. Govdeyi YERINDE degistirir.
+    //
+    // AYRI VE public: bir SILME kararinin dayandigi tek mantik parcasi bu. Ag cagrilarindan
+    // bagimsiz oldugu icin canli sisteme hic dokunmadan dogrulanabiliyor -- referansi
+    // yanlis eslestiren bir hata, silinmemesi gereken tanilari Encounter'dan koparirdi.
+    public static int DiagnosisCikar(JsonObject encounter, IReadOnlyCollection<string> silinecekConditionIdleri)
+    {
+        if (silinecekConditionIdleri.Count == 0) return 0;
+        if (encounter["diagnosis"] is not JsonArray diagnosis || diagnosis.Count == 0) return 0;
+
+        var hedefler = silinecekConditionIdleri.ToHashSet(StringComparer.OrdinalIgnoreCase);
+        var cikarilan = 0;
+        for (var i = diagnosis.Count - 1; i >= 0; i--)
+        {
+            // "Condition/01a0..." -> "01a0...". Mutlak URL gelse de (FHIR bunu da kabul
+            // eder) son parca yine id oldugu icin ayni kural calisiyor.
+            var referans = diagnosis[i]?["condition"]?["reference"]?.AsValue();
+            if (referans is null || !referans.TryGetValue<string>(out var yol) || yol is null) continue;
+            var conditionId = yol[(yol.LastIndexOf('/') + 1)..];
+            if (!hedefler.Contains(conditionId)) continue;
+            diagnosis.RemoveAt(i);
+            cikarilan++;
+        }
+
+        // diagnosis 0..* -- bos dizi birakmak yerine alani tamamen cikarmak daha temiz.
+        if (cikarilan > 0 && diagnosis.Count == 0) encounter.Remove("diagnosis");
+        return cikarilan;
+    }
+
+    // Belirli tanilarin (Pusula tani id'leri) Encounter baglantisini cozer -- cagiran taraf
+    // AZ id'lerini kendisi toplamak zorunda kalmasin diye SyncLog'dan buluyor.
+    public async Task<bool> TanilariEncounterdanCozAsync(
+        int protokolId, IReadOnlyCollection<int> taniIdleri, CancellationToken ct = default)
+    {
+        if (taniIdleri.Count == 0) return true;
+
+        var durumlar = await syncLog.GetLatestByPusulaIdsAsync("Condition", taniIdleri.ToList(), ct);
+        var azIdler = durumlar.Values
+            .Where(d => d is { AzResourceId: not null } && d.Operation != SyncOperation.Delete)
+            .Select(d => d.AzResourceId!)
+            .ToList();
+
+        return await EncounterTanilariniAyirAsync(protokolId, azIdler, ct);
     }
 
     private async Task<(int Ok, int Err)> DeleteTargetsAsync(

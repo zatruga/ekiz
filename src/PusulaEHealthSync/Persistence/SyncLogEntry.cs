@@ -72,6 +72,11 @@ public class SyncLogEntry
         "DiagnosticReport-Patoloji" => "DiagnosticReport",
         "Composition-Patoloji" => "Composition",
         "Observation-Patoloji" => "Observation",
+        // Vital bulgular da ayni kalibi kullaniyor: FHIR'de Observation, SyncLog'da ayri bir
+        // etiket (laboratuvarla PusulaId cakismasin diye -- vitalde PusulaId GenelMuayene.Id,
+        // labda LabaratuarSonucId). 2026-09-30'a kadar bu satir EKSIKTI: bir vital kaydi
+        // silinmeye kalkilsaydi istek /fhir/Observation-Vital/... adresine giderdi.
+        "Observation-Vital" => "Observation",
         _ => resourceType,
     };
 
