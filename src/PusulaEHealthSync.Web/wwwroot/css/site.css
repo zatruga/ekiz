@@ -1490,3 +1490,25 @@ a.ready-tile:hover { border-color: var(--warning); background: var(--warning-sof
   max-height: 320px;
   overflow-y: auto;
 }
+
+/* Panel alt parametreleri acildiginda en ustte duran aciklama -- KULLANICI SORUSU
+   (2026-09-30): alt satirlarin neden ayri gonderilmedigi ekranda hicbir yerde
+   yazmiyordu, kullanici eksiklik sandi. */
+.lab-panel-not {
+  margin: 0;
+  padding: 9px 14px 9px 34px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-faint);
+  background: var(--surface-hover);
+  border-bottom: 1px solid var(--border);
+}
+.lab-panel-not b { color: var(--text-muted); font-weight: 600; }
+.lab-panel-not code {
+  font-family: var(--font-heading);
+  font-size: 10.5px;
+  background: var(--surface);
+  border: 1px solid var(--border);
+  border-radius: 4px;
+  padding: 1px 5px;
+}

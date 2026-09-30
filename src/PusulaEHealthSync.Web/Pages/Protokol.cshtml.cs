@@ -120,6 +120,53 @@ public class ProtokolModel(
 
         public bool Gonderilebilir => !BasariylaGonderildi(Durum);
         public bool Silinebilir => SyncLogEntry.CanDelete(Durum);
+
+        // ALT PARAMETRE SATIRININ DURUMU -- KULLANICI SORUSU (2026-09-30, canli):
+        // "kreatinin testini gönderdim ama neden alt parametreleri gönderemedim". Ekranda
+        // grup basligi "Gönderildi" derken alt satirlar "Gönderilmedi" diyordu ve yanlarinda
+        // bir de Gönder butonu duruyordu. Kullanici o butona bastikca grup yeniden gidiyor
+        // ama alt satir DEGISMIYORDU -- cunku alt satirin durumu hicbir zaman okunmuyor,
+        // view'e sabit null geciliyordu (StatusBadge(null) => "Gönderilmedi").
+        //
+        // GERCEK: bakanligin 2026-09-16 istegi geregi panel TEK Observation olarak gidiyor,
+        // alt parametreler onun component[] dizisinde. Yani alt satirin AYRI bir e-Health
+        // kaydi YOK -- olmamasi gerekiyor. Rozet bu yuzden satirin kendi kaydini degil,
+        // "bu satir tetkikle birlikte gitti mi" sorusunu cevaplamali.
+        //
+        // Degeri ya da kodu olmayan satir component OLAMAZ (component.value[x] profilde
+        // 1..1): MapGroup onu sessizce disarida birakiyor. Ekran da ayni seyi soylemeli ki
+        // kullanici eksikligi orada gorsun, bakanlik tarafinda aramasin.
+        public (string CssClass, string Etiket, string Aciklama) SatirDurumu(LabResultRecord satir)
+        {
+            // Tek sonuclu (panelsiz) tetkikte satirin KENDISI Observation -- grubun durumu
+            // dogrudan satirin durumudur.
+            if (!Panelli)
+            {
+                var (tekClass, tekLabel) = AggregateBadge();
+                return (tekClass, tekLabel, "Bu tetkik tek bir Observation olarak gönderiliyor.");
+            }
+
+            if (string.IsNullOrWhiteSpace(satir.TetkikSonucu))
+                return ("neutral", "Değer yok",
+                    $"Bu satırın sonuç değeri yok -- panelin sipariş/toplayıcı satırı olabilir. "
+                    + $"Sonuç değeri olmayan bir satır component olarak gönderilemez (FHIR'de component.value zorunlu), "
+                    + $"bu yüzden \"{GroupName}\" gönderimine dahil edilmedi.");
+
+            if (string.IsNullOrWhiteSpace(satir.LoincKodu))
+                return ("neutral", "Kod yok",
+                    $"Bu alt parametrenin test kodu yok -- component olarak gönderilemez, "
+                    + $"\"{GroupName}\" gönderimine dahil edilmedi.");
+
+            var aciklama = $"Bu alt parametrenin ayrı bir e-Health kaydı yoktur -- \"{GroupName}\" "
+                         + "tetkikinin component dizisi içinde, onunla birlikte gider.";
+            return AggregateBadge() switch
+            {
+                ("success", _) => ("success", "Tetkikle gönderildi", aciklama),
+                ("danger", _) => ("danger", "Hatalı", aciklama),
+                ("warning", var l) => ("warning", l, aciklama),
+                _ => ("neutral", "Tetkikle gönderilecek", aciklama),
+            };
+        }
     }
     public List<LabGrupGorunum> LabGroups { get; set; } = [];
 
@@ -592,6 +639,10 @@ public class ProtokolModel(
     // kontrol ediliyor -- yoksa Muayine kendi kendini iyilestiriyor (EncounterSyncService
     // zaten FindExistingIdAsync ile canli arama yapip bulamazsa YENİ bir Encounter olusturur
     // ve cascade ile Tanı/İşlem'i de otomatik yeniden gonderir).
+    // ARTIK VIEW'DEN CAGRILMIYOR (2026-09-30): alt parametre satirlarindaki tekil
+    // Gonder/Sil butonlari kaldirildi -- alt parametrenin ayri bir e-Health kaydi yok,
+    // gonderim/silme grup (tetkik) seviyesinde. Handler yine de duruyor: elde eski bir
+    // baglanti/yer imi olan biri icin dogru davranisi (grup islemi) yapiyor, 404 vermiyor.
     public async Task<IActionResult> OnPostSilLabAsync(int id, long durumId, CancellationToken ct)
     {
         var entry = await syncLog.GetByIdAsync(durumId, ct);
@@ -613,6 +664,7 @@ public class ProtokolModel(
         return RedirectToPage("/Protokol", new { id });
     }
 
+    // ARTIK VIEW'DEN CAGRILMIYOR (2026-09-30) -- bkz. OnPostSilLabAsync ustundeki not.
     public async Task<IActionResult> OnPostGonderLabAsync(int id, int labId, CancellationToken ct)
     {
         Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
