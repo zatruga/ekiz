@@ -61,7 +61,7 @@ public class ProtokolModel(
     // duruma gore ozetleniyor) ama TUM Labs listesi uzerinden.
     public (string CssClass, string Label) LabsAggregateBadge()
     {
-        if (Labs.Count == 0) return ("neutral", "Gönderilmedi");
+        if (Labs.Count == 0) return ("neutral", VeriYokEtiketi);
         if (Labs.Any(x => x.Durum?.Status == SyncStatus.Failed)) return ("danger", "Hatalı");
         if (Labs.All(x => BasariylaGonderildi(x.Durum))) return ("success", "Gönderildi");
         if (Labs.Any(x => BasariylaGonderildi(x.Durum))) return ("warning", "Kısmen gönderildi");
@@ -132,7 +132,7 @@ public class ProtokolModel(
 
     public (string CssClass, string Label) RadiologyAggregateBadge()
     {
-        if (RadiologyReports.Count == 0) return ("neutral", "Gönderilmedi");
+        if (RadiologyReports.Count == 0) return ("neutral", VeriYokEtiketi);
         if (RadiologyReports.Any(x => x.Durum?.Status == SyncStatus.Failed)) return ("danger", "Hatalı");
         if (RadiologyReports.All(x => BasariylaGonderildi(x.Durum))) return ("success", "Gönderildi");
         if (RadiologyReports.Any(x => BasariylaGonderildi(x.Durum))) return ("warning", "Kısmen gönderildi");
@@ -150,7 +150,7 @@ public class ProtokolModel(
 
     public (string CssClass, string Label) PathologyAggregateBadge()
     {
-        if (PathologyReports.Count == 0) return ("neutral", "Gönderilmedi");
+        if (PathologyReports.Count == 0) return ("neutral", VeriYokEtiketi);
         if (PathologyReports.Any(x => x.Durum?.Status == SyncStatus.Failed)) return ("danger", "Hatalı");
         if (PathologyReports.All(x => BasariylaGonderildi(x.Durum))) return ("success", "Gönderildi");
         if (PathologyReports.Any(x => BasariylaGonderildi(x.Durum))) return ("warning", "Kısmen gönderildi");
@@ -182,6 +182,58 @@ public class ProtokolModel(
     public int OpenProtokolSendAfterDays { get; set; }
     public bool EpikrizSendEnabled { get; set; }
     public bool EpikrizOnlySigned { get; set; }
+
+    // ---- SATIR ROZETLERI -------------------------------------------------------------
+    // KULLANICI ISTEGI (2026-09-30): "protokol detay ekranında gönderilecek veri olmayan
+    // satırlarda gönderilmedi yazmasın, veri yok vs başka birşey yazsın."
+    //
+    // NEDEN ONEMLI: "Gönderilmedi" bir EKSIKLIK bildirir -- kullaniciya "burada yapilacak
+    // bir is var, gonder" der. Oysa protokolde hic laboratuvar yoksa, epikriz metni hic
+    // girilmemisse ya da protokol tipi Recete ise gonderilecek bir sey YOKTUR; satir
+    // zaten tamamdir. Ikisini ayni gri rozetle gostermek, ekrana bakan kisiyi olmayan bir
+    // isi kovalamaya itiyordu. Uc ayri durum artik uc ayri kelime:
+    //   "Veri yok"     -- Pusula'da gonderilecek icerik yok
+    //   "Gönderilmez"  -- protokol tipi Recete (bkz. EncounterMapper.ReceteProtokolTipiId)
+    //   "Kapalı"       -- Ayarlar'dan o kaynak turu kapatilmis
+    //
+    // ONCELIK SIRASI: bir GONDERIM KAYDI varsa her zaman o kazanir. Ornegin epikriz
+    // gonderildikten sonra Pusula'da metin silinirse satir "Veri yok" degil "Gönderildi"
+    // demeli -- kayit hala e-Health'te duruyor ve kullanicinin onu gorup silebilmesi
+    // gerekiyor (temizligi CancellationSyncService yapar).
+    public const string VeriYokEtiketi = "Veri yok";
+    public const string GonderilmezEtiketi = "Gönderilmez";
+    public const string KapaliEtiketi = "Kapalı";
+
+    public bool IsRecete => Protokol?.ProtokolTipiId == EncounterMapper.ReceteProtokolTipiId;
+
+    // Epikrizin GERCEKTEN gonderilecek bolumleri -- CompositionMapper.Bolumler ile AYNI
+    // liste (o metodun kendisi cagriliyor), yani onizleme ile gonderim asla ayrisamaz.
+    // RTF cozumlemesi ucuz degil ve view bu listeye birkac kez bakiyor; bir kez hesaplanip
+    // saklaniyor. GenelMuayene OnGet'te dolduruluyor, view calistiginda hazir.
+    private IReadOnlyList<CompositionMapper.EpikrizBolumu>? _epikrizBolumleri;
+    public IReadOnlyList<CompositionMapper.EpikrizBolumu> EpikrizBolumleri =>
+        _epikrizBolumleri ??= GenelMuayene is null ? [] : CompositionMapper.Bolumler(GenelMuayene);
+
+    public (string CssClass, string Label) MuayineBadge()
+    {
+        if (MuayineDurumKaydi is not null) return SyncLogEntry.StatusBadge(MuayineDurumKaydi);
+        return IsRecete ? ("neutral", GonderilmezEtiketi) : SyncLogEntry.StatusBadge(null);
+    }
+
+    public (string CssClass, string Label) EpikrizBadge()
+    {
+        if (EpikrizDurumKaydi is not null) return SyncLogEntry.StatusBadge(EpikrizDurumKaydi);
+        if (IsRecete) return ("neutral", GonderilmezEtiketi);
+        if (!EpikrizSendEnabled) return ("neutral", KapaliEtiketi);
+        return EpikrizBolumleri.Count == 0 ? ("neutral", VeriYokEtiketi) : SyncLogEntry.StatusBadge(null);
+    }
+
+    public (string CssClass, string Label) VitalBadge()
+    {
+        if (VitalDurumKaydi is not null) return SyncLogEntry.StatusBadge(VitalDurumKaydi);
+        if (IsRecete) return ("neutral", GonderilmezEtiketi);
+        return Vitaller.Count == 0 ? ("neutral", VeriYokEtiketi) : SyncLogEntry.StatusBadge(null);
+    }
 
     // Bir bolumun Pusula sorgusu zaman asimina ugrarsa SAYFANIN TAMAMI 500 ile olurdu
     // (sunucuda 2026-09-14'te yasandi: GetLabResultsByProtokolIdAsync -> "Execution

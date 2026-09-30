@@ -1443,3 +1443,50 @@ a.ready-tile:hover { border-color: var(--warning); background: var(--warning-sof
 .icbari-table-wrap { overflow-x: auto; }
 .icbari-table tr.clickable { cursor: pointer; }
 .icbari-table tr.clickable:hover td { background: var(--surface-hover); }
+
+/* Epikriz önizlemesi -- KULLANICI ISTEGI (2026-09-30): "epikrize tıklayınca da epikriz
+   ön görüntüsü yani epikriz bilgisi yazsın". Her bölüm e-Health'e giden bir
+   Composition.section karşılığı; başlık + LOINC kodu + düz metin.
+
+   pre-wrap ZORUNLU: epikriz metni RTF'ten çözülmüş satır sonları taşıyor (paragraflar,
+   madde listeleri). Normal HTML akışında hepsi tek bloğa yapışır ve hekimin yazdığı
+   yapı kaybolur -- ekranda okunmaz hale gelir. overflow-wrap ise tersi durumu kapatıyor:
+   boşluksuz uzun bir değer (ölçüm dizisi, dosya adı) paneli yatay kaydırmasın. */
+.epikriz-onizleme-not {
+  margin: 0;
+  padding: 11px 14px;
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-faint);
+  border-bottom: 1px solid var(--border);
+  background: var(--surface-hover);
+}
+.epikriz-bolum { padding: 12px 14px; border-bottom: 1px solid var(--border); }
+.epikriz-bolum:last-child { border-bottom: none; }
+.epikriz-bolum-head {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 6px;
+  flex-wrap: wrap;
+}
+.epikriz-bolum-baslik { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.epikriz-bolum-kod {
+  font-family: var(--font-heading);
+  font-size: 10.5px;
+  color: var(--text-faint);
+  background: var(--surface-hover);
+  padding: 2px 8px;
+  border-radius: 999px;
+  white-space: nowrap;
+}
+.epikriz-bolum-metin {
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  font-size: 12.5px;
+  line-height: 1.55;
+  color: var(--text-muted);
+  max-height: 320px;
+  overflow-y: auto;
+}

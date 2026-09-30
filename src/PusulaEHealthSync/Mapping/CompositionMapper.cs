@@ -67,44 +67,64 @@ public static class CompositionMapper
         [RecommendationsCode] = "Discharge instructions",
     };
 
-    public static MappingResult Map(
-        GenelMuayeneRecord m, ProtokolListItem p, string azPatientId, string azEncounterId, string azPractitionerId)
+    // Gonderilecek epikriz bolumu -- LOINC kodu, AZ dilindeki baslik ve DUZ METIN icerik.
+    // Metin zaten RTF'ten cozulmus halde gelir, yani hem FHIR govdesine hem de ekrana
+    // aynen yazilabilir.
+    public readonly record struct EpikrizBolumu(string LoincKodu, string Baslik, string Metin);
+
+    // KULLANICI ISTEGI (2026-09-30): "epikrize tıklayınca da epikriz ön görüntüsü yani
+    // epikriz bilgisi yazsın" -- Protokol Detay'daki onizleme paneli bu listeyi basiyor.
+    //
+    // NEDEN AYRI METOT: onizleme KENDI bagimsiz listesini kursaydi, buradaki bolum
+    // kurallari degistiginde (yeni alan eklenmesi, bir alanin cikarilmasi) ekran eskisini
+    // gostermeye devam ederdi -- yani kullaniciya "gonderilecek icerik bu" diye YANLIS
+    // bilgi verirdi. Map() de bu metodu kullaniyor; tek kaynak var, sapma mumkun degil.
+    //
+    // DUZELTME (ayni tarih): eski kod bir alanin DOLU olup olmadigina HAM RTF uzerinden
+    // bakiyor ama section icerigine DUZ METNI yaziyordu. Icerigi olmayan bir RTF govdesi
+    // (orn. yalnizca bicimlendirme/sablon) bu yuzden BOS metinli bir section uretebiliyordu.
+    // Artik hem karar hem icerik ayni duz metinden geliyor -- bos section hic olusmuyor.
+    public static List<EpikrizBolumu> Bolumler(GenelMuayeneRecord m)
     {
-        var epikrizPlain = RtfText.ToPlainText(m.Epikriz);
         // DUZELTME (2026-08-21, kullanici istegi): "kontrol et, hepsi ayrı ayrı kayıt
         // ediliyor" -- Sikayeti/Tani/TaburcuPlani disinda Hikayesi ve Bulgulari da AYRI
         // doluyor olabiliyor (canli ornekle dogrulandi), eskiden bunlar hic cekilmiyordu.
         // Artik hepsi kontrol ediliyor -- dolu olan HER biri kendi AZ bolumune ekleniyor,
         // Epikriz (Xəstəliyin gedişi) ise HER ZAMAN eklenen genel/butunlesik anlati.
-        var historyText = string.Join("\n\n", new[] { RtfText.ToPlainText(m.Hikayesi), RtfText.ToPlainText(m.Soygecmisi) }
+        //
+        // Hikayesi + Soygecmisi TEK bolumde (Anamnez) birlesiyor -- AZ IG'nin izin verdigi
+        // section kodlari arasinda ayri bir "aile oykusu" karsiligi yok.
+        var anamnez = string.Join("\n\n", new[] { RtfText.ToPlainText(m.Hikayesi), RtfText.ToPlainText(m.Soygecmisi) }
             .Where(s => !string.IsNullOrWhiteSpace(s)));
-        var hasStructuredContent = !string.IsNullOrWhiteSpace(m.Sikayeti)
-            || !string.IsNullOrWhiteSpace(historyText)
-            || !string.IsNullOrWhiteSpace(m.Bulgulari)
-            || !string.IsNullOrWhiteSpace(m.Tani)
-            || !string.IsNullOrWhiteSpace(m.TaburcuPlani);
 
-        if (string.IsNullOrWhiteSpace(epikrizPlain) && !hasStructuredContent)
+        (string Kod, string Baslik, string Metin)[] adaylar =
+        [
+            (TreatmentCode, "Xəstəliyin gedişi", RtfText.ToPlainText(m.Epikriz)),
+            (ComplaintCode, "Şikayət", RtfText.ToPlainText(m.Sikayeti)),
+            (HistoryCode, "Anamnez", anamnez),
+            (ExaminationCode, "Müayinə Bulguları", RtfText.ToPlainText(m.Bulgulari)),
+            (DiagnosisCode, "Diaqnoz", RtfText.ToPlainText(m.Tani)),
+            (RecommendationsCode, "Tövsiyələr", RtfText.ToPlainText(m.TaburcuPlani)),
+        ];
+
+        return adaylar
+            .Where(a => !string.IsNullOrWhiteSpace(a.Metin))
+            .Select(a => new EpikrizBolumu(a.Kod, a.Baslik, a.Metin))
+            .ToList();
+    }
+
+    public static MappingResult Map(
+        GenelMuayeneRecord m, ProtokolListItem p, string azPatientId, string azEncounterId, string azPractitionerId)
+    {
+        var bolumler = Bolumler(m);
+        if (bolumler.Count == 0)
             return new MappingResult.Skipped("Epikriz metni boş -- gönderilecek içerik yok");
 
+        // az-ds-atleast-one-section invariant'i kendiliginden saglaniyor: aday bolumlerin
+        // ALTISI da whitelist'teki LOINC kodlarindan, yani listede ne kaldiysa gecerli.
         var sections = new JsonArray();
-        if (!string.IsNullOrWhiteSpace(epikrizPlain))
-            sections.Add(BuildSection(TreatmentCode, "Xəstəliyin gedişi", epikrizPlain));
-        if (!string.IsNullOrWhiteSpace(m.Sikayeti))
-            sections.Add(BuildSection(ComplaintCode, "Şikayət", RtfText.ToPlainText(m.Sikayeti)));
-        if (!string.IsNullOrWhiteSpace(historyText))
-            sections.Add(BuildSection(HistoryCode, "Anamnez", historyText));
-        if (!string.IsNullOrWhiteSpace(m.Bulgulari))
-            sections.Add(BuildSection(ExaminationCode, "Müayinə Bulguları", RtfText.ToPlainText(m.Bulgulari)));
-        if (!string.IsNullOrWhiteSpace(m.Tani))
-            sections.Add(BuildSection(DiagnosisCode, "Diaqnoz", RtfText.ToPlainText(m.Tani)));
-        if (!string.IsNullOrWhiteSpace(m.TaburcuPlani))
-            sections.Add(BuildSection(RecommendationsCode, "Tövsiyələr", RtfText.ToPlainText(m.TaburcuPlani)));
-
-        // Epikriz bos ama yapisal alanlardan biri doluysa (nadir), invariant'i saglamak
-        // icin Tani/Sikayet zaten yukarida whitelisted kodlarla eklenmis oluyor -- ek islem
-        // gerekmiyor. Hicbiri whitelisted kodlardan degilse (teorik olarak imkansiz, cunku
-        // 4 kodun 3'u zaten whitelist'te) buraya dusmez.
+        foreach (var bolum in bolumler)
+            sections.Add(BuildSection(bolum.LoincKodu, bolum.Baslik, bolum.Metin));
 
         var compositionDate = ToAzInstant(m.EpikrizTamamlanmaTarihi ?? m.ModifiedDate ?? m.CreatedDate);
         var azCompositionTypeCode = p.GelisTipiId == "Y" ? HospitalRecordCode : AmbulatoryRecordCode;

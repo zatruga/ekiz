@@ -209,7 +209,7 @@ else
             <div class="rt-right">
                 @{
                     var encStatus = Model.MuayineDurumKaydi?.Status;
-                    var (encBadgeClass, encBadgeLabel) = SyncLogEntry.StatusBadge(Model.MuayineDurumKaydi);
+                    var (encBadgeClass, encBadgeLabel) = Model.MuayineBadge();
                 }
                 <span class="badge @encBadgeClass"><span class="badge-dot"></span>@encBadgeLabel</span>
                 @if (Model.MuayineDurumKaydi is not null)
@@ -393,9 +393,14 @@ else
             </div>
         </div>
 
-        <div class="checklist-item">
+        <!-- KULLANICI ISTEGI (2026-09-30): "acilan ekranda epikrize tiklayinca da epikriz
+             on goruntusu yani epikriz bilgisi yazsin". Muayine/Lab/Radyoloji/Patoloji
+             satirlariyla AYNI kalip -- satira tiklayinca sayfa altindaki ortak alanda
+             GONDERILECEK bolumler aciliyor (bkz. tab-panel-epikriz). Gonder/Sil/Detay
+             tiklamayi tetiklemesin diye stopPropagation. -->
+        <div class="checklist-item checklist-item--tab" data-tab="epikriz" onclick="pusulaShowTab('epikriz')">
             <div class="rt-info">
-                <span class="rt-name">Epikriz (Composition)</span>
+                <span class="rt-name">Epikriz (Composition) <span class="tab-chevron">&#9656;</span></span>
                 <span class="rt-desc">
                     @if (isRecete)
                     {
@@ -434,23 +439,32 @@ else
                             : Model.EpikrizDurumKaydi.Message;
                         <text> Son deneme: @AzTime.ToLocal(Model.EpikrizDurumKaydi.CreatedAtUtc).ToString("yyyy-MM-dd HH:mm") @(string.IsNullOrEmpty(displayMsg) ? "" : $"-- {displayMsg}")</text>
                     }
+                    @if (Model.EpikrizBolumleri.Count > 0)
+                    {
+                        <text> Gönderilecek @Model.EpikrizBolumleri.Count bölümün önizlemesi için bu satıra tıklayın.</text>
+                    }
                 </span>
             </div>
             <div class="rt-right">
                 @{
                     var epikrizStatus = Model.EpikrizDurumKaydi?.Status;
-                    var (epikrizBadgeClass, epikrizBadgeLabel) = SyncLogEntry.StatusBadge(Model.EpikrizDurumKaydi);
+                    var (epikrizBadgeClass, epikrizBadgeLabel) = Model.EpikrizBadge();
+                }
+                @if (Model.EpikrizBolumleri.Count > 0)
+                {
+                        <span class="count-chip" title="Gönderilecek epikriz bölümü sayısı">@Model.EpikrizBolumleri.Count</span>
+
                 }
                 <span class="badge @epikrizBadgeClass"><span class="badge-dot"></span>@epikrizBadgeLabel</span>
                 @if (Model.EpikrizDurumKaydi is not null)
                 {
-                    <a asp-page="/Detail" asp-route-id="@Model.EpikrizDurumKaydi.Id" asp-route-fromProtokol="@p.ProtokolId" class="btn btn-outline btn-sm">Detay</a>
+                    <a asp-page="/Detail" asp-route-id="@Model.EpikrizDurumKaydi.Id" asp-route-fromProtokol="@p.ProtokolId" class="btn btn-outline btn-sm" onclick="event.stopPropagation()">Detay</a>
                 }
                 @if (!isRecete)
                 {
                     <form method="post" asp-page-handler="GonderEpikriz" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                         <button type="submit" class="btn btn-primary btn-sm"
-                                onclick="return confirm('Epikriz e-Health\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
+                                onclick="event.stopPropagation(); return confirm('Epikriz e-Health\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
                             @(epikrizStatus is null ? "Gönder" : "Tekrar Gönder")
                         </button>
                     </form>
@@ -459,7 +473,7 @@ else
                 {
                     <form method="post" asp-page-handler="SilEpikriz" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                         <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                                onclick="return confirm('Epikriz kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                onclick="event.stopPropagation(); return confirm('Epikriz kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
                             Sil
                         </button>
                     </form>
@@ -502,7 +516,7 @@ else
             <div class="rt-right">
                 @{
                     var vitalStatus = Model.VitalDurumKaydi?.Status;
-                    var (vitalBadgeClass, vitalBadgeLabel) = SyncLogEntry.StatusBadge(Model.VitalDurumKaydi);
+                    var (vitalBadgeClass, vitalBadgeLabel) = Model.VitalBadge();
                 }
                 <span class="badge @vitalBadgeClass"><span class="badge-dot"></span>@vitalBadgeLabel</span>
                 @if (Model.VitalDurumKaydi is not null)
@@ -529,7 +543,8 @@ else
          olduğu sessionStorage'da tutuluyor (protokol id'sine göre) -- Gönder/Sil sonrası sayfa
          yenilendiğinde (RedirectToPage) kullanıcı kaldığı yerde kalsın diye. -->
     <div class="tab-detail-anchor" id="tab-detail-anchor">
-        <p id="tab-detail-empty" class="tab-detail-empty">Yukarıdan <b style="color:var(--text-muted);">Müayinə</b> veya <b style="color:var(--text-muted);">Laboratuvar</b> satırına tıklayın, listesi burada açılsın.</p>
+        <p id="tab-detail-empty" class="tab-detail-empty">Yukarıdan <b style="color:var(--text-muted);">Müayinə</b>, <b style="color:var(--text-muted);">Laboratuvar</b>, <b style="color:var(--text-muted);">Radyoloji</b>, <b style="color:var(--text-muted);">Patoloji</b> veya <b style="color:var(--text-muted);">Epikriz</b> satırına tıklayın, gönderilecek içerik burada açılsın.</p>
+
 
         @{
             var (muayineOzetClass, muayineOzetLabel, muayineOzetS, muayineOzetT) = Model.MuayineIcerikOzet();
@@ -1071,6 +1086,75 @@ else
                         await RenderPathologyRow(report, durum, p.ProtokolId);
                     }
                     </div>
+                }
+            </div>
+        </div>
+
+        @* KULLANICI ISTEGI (2026-09-30): "epikrize tıklayınca da epikriz ön görüntüsü yani
+           epikriz bilgisi yazsın". Buradaki bölümler CompositionMapper.Bolumler'den geliyor
+           -- yani gönderim anında FHIR Composition'ın section[] dizisine yazılacak olan TAM
+           liste, aynı sırayla. Ekranda ne görünüyorsa e-Health'e o gidiyor; ayrı bir
+           "önizleme mantığı" yok ki zamanla gerçekten gidenden ayrışsın. *@
+        @{
+            var (epPanelBadgeClass, epPanelBadgeLabel) = Model.EpikrizBadge();
+        }
+        <div class="side-card tab-panel-content" id="tab-panel-epikriz">
+            <div class="side-card-section">
+                <div class="side-card-head">
+                    <span class="rt-name">
+                        Epikriz (Composition) <span class="count">@Model.EpikrizBolumleri.Count bölüm</span>
+                        <span class="badge @epPanelBadgeClass" style="padding:3px 9px; font-size:11px;"><span class="badge-dot"></span>@epPanelBadgeLabel</span>
+                    </span>
+                    <div class="side-card-actions">
+                        @if (!isRecete && Model.EpikrizBolumleri.Count > 0)
+                        {
+                            <form method="post" asp-page-handler="GonderEpikriz" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                <button type="submit" class="btn btn-bulk btn-sm"
+                                        onclick="return confirm('Epikriz e-Health\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
+                                    @(Model.EpikrizDurumKaydi is null ? "Gönder" : "Tekrar Gönder")
+                                </button>
+                            </form>
+                        }
+                        @if (SyncLogEntry.CanDelete(Model.EpikrizDurumKaydi))
+                        {
+                            <form method="post" asp-page-handler="SilEpikriz" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
+                                        onclick="return confirm('Epikriz kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                    Sil
+                                </button>
+                            </form>
+                        }
+                    </div>
+                </div>
+                @if (Model.EpikrizBolumleri.Count == 0)
+                {
+                    <div class="side-card-empty">
+                        @if (Model.GenelMuayene is null)
+                        {
+                            <text>Bu protokol için Pusula'da muayene/epikriz kaydı bulunamadı -- gönderilecek içerik yok.</text>
+                        }
+                        else
+                        {
+                            <text>Epikriz alanlarının hiçbirinde metin yok -- gönderilecek içerik yok.</text>
+                        }
+                    </div>
+                }
+                else
+                {
+                    <p class="epikriz-onizleme-not">
+                        Aşağıdaki @Model.EpikrizBolumleri.Count bölüm, e-Health'e gönderilecek belgenin içeriğidir.
+                        Pusula'daki RTF biçimlendirmesi düz metne çevrilmiş haliyle gösteriliyor -- gönderilen de budur.
+                    </p>
+                    @foreach (var bolum in Model.EpikrizBolumleri)
+                    {
+                        <div class="epikriz-bolum">
+                            <div class="epikriz-bolum-head">
+                                <span class="epikriz-bolum-baslik">@bolum.Baslik</span>
+                                <span class="epikriz-bolum-kod" title="Bu bölümün FHIR section.code değeri">LOINC @bolum.LoincKodu</span>
+                            </div>
+                            <div class="epikriz-bolum-metin">@bolum.Metin</div>
+                        </div>
+                    }
                 }
             </div>
         </div>
