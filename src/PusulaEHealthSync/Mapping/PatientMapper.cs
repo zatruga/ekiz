@@ -103,7 +103,7 @@ public static class PatientMapper
         // FIN-bazli extension:father-fin var -- Pusula'da baba TC'si tutulmuyor, bu yuzden
         // hic gonderilmiyor). Bu nedenle baba adi sadece normal (az-patient) yolda zorunlu.
         if (!isNewborn && string.IsNullOrWhiteSpace(h.BabaAdi))
-            return new MappingResult.Skipped("Baba adi eksik (extension:fathersName zorunlu)");
+            return new MappingResult.Skipped("Pusula'da hastanın baba adı boş. TRƎS bu alanı zorunlu tutuyor -- hasta kaydına baba adı girilmeli.");
 
         var given = new JsonArray { h.Adi };
         // az-newborn-patient: Patient.name.given max=1 -- ikinci ad (Adi2) eklenmez.

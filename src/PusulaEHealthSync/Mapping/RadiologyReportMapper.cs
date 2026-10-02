@@ -32,7 +32,7 @@ public static class RadiologyReportMapper
     public static MappingResult Map(RadiologyReportRecord report, string azPatientId, string? azEncounterId, string? azProcedureId, string? azPractitionerId)
     {
         if (string.IsNullOrWhiteSpace(report.IcbariKodu))
-            return new MappingResult.Skipped("İcbari Sigorta Fiyat Listesi eşleşmesi bulunamadı -- DiagnosticReport.extension:procedure-code zorunlu alanı doldurulamıyor, bu rapor gönderilemiyor");
+            return new MappingResult.Skipped("Bu raporun İcbari Sigorta Fiyat Listesi'nde karşılığı bulunamadı. TRƎS her kayıtta hizmet kodu istiyor; eşleştirme yapılmadan gönderilemez.");
 
         if (string.IsNullOrWhiteSpace(azProcedureId))
             return new MappingResult.Skipped("İlişkili tetkik işlemi (Procedure) TRƏS'e henüz gönderilmedi -- DiagnosticReport.extension:related-procedure zorunlu alanı doldurulamıyor, bu rapor gönderilemiyor");

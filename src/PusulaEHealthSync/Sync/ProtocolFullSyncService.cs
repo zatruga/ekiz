@@ -41,6 +41,7 @@ public class ProtocolFullSyncService(
     SyncLogStore syncLog,
     SettingsStore settings,
     EHealthClient eHealthClient,
+    PatientSyncService patientSyncService,
     EncounterSyncService encounterSyncService,
     CompositionSyncService compositionSyncService,
     LabResultSyncService labResultSyncService,
@@ -67,7 +68,27 @@ public class ProtocolFullSyncService(
         if (protokol.ProtokolTipiId == EncounterMapper.ReceteProtokolTipiId)
             return Sonuc.Bos(SyncStatus.Skipped);
 
-        // 1) Hasta -> Muayine -> Tani -> Islem (cascade EncounterSyncService'te)
+        // 0) HASTA -- ACIKCA GONDERILIYOR (2026-10-02, kullanici bildirdi: "bu protokolde
+        //    hasta bilgi alanında tümünü gönder dedim, hasta gönderilmedi, hiç denemedi bile").
+        //
+        //    KOK NEDEN: bu zincir hastayi EncounterSyncService'in cascade'ine birakiyordu,
+        //    o da yalnizca hasta TRƏS'te YOKSA gonderiyor (FindExistingIdAsync null donerse).
+        //    Hasta TRƏS'te zaten varsa -- ki cogu zaman vardir -- bulunan AZ id dogrudan
+        //    kullaniliyor ve PatientSyncService HIC cagrilmiyordu. Sonucu iki kat kotu:
+        //      - SyncLog'a tek bir Patient kaydi bile yazilmiyor, dolayisiyla Protokol
+        //        Detay'daki Hasta satiri sonsuza kadar "Gönderilmedi" diyor;
+        //      - butonun kendi onay metni "Hasta, Müayinə, Tanı, ... gönderilecek" diyor,
+        //        yani ekran soyledigini yapmiyordu.
+        //
+        //    PatientSyncService zaten idempotent (varsa Update, yoksa Create), bu yuzden
+        //    acikca cagirmak guvenli. BEDELI: ayni hastanin birden cok protokolu tek turda
+        //    gonderilirse hasta birkac kez PUT ediliyor. Bakanligin "her seferinde
+        //    gondermeyin" uyarisi DOKTOR icindi (sabit, kucuk bir kume her Encounter'da
+        //    tekrar tekrar gidiyordu); hasta protokol basina bir kez gidiyor ve demografi
+        //    bilgisini guncel tutuyor -- kabul edilebilir bir takas.
+        await patientSyncService.SyncOneAsync(protokol.HastaId, liveMode: true, ct);
+
+        // 1) Muayine -> Tani -> Islem (cascade EncounterSyncService'te)
         var encounter = await encounterSyncService.SyncOneAsync(protokol.ProtokolId, liveMode: true, ct);
 
         // 2) Epikriz -- cascade'e DAHIL DEGIL, ayrica cagrilmali.

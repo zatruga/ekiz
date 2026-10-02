@@ -48,7 +48,7 @@ public static class PathologyReportMapper
     public static MappingResult Map(PathologyReportRecord report, string azPatientId, string? azEncounterId, string? azProcedureId, string? azPractitionerId, string? azCompositionId = null)
     {
         if (string.IsNullOrWhiteSpace(report.IcbariKodu))
-            return new MappingResult.Skipped("İcbari Sigorta Fiyat Listesi eşleşmesi bulunamadı -- DiagnosticReport.extension:procedure-code zorunlu alanı doldurulamıyor, bu rapor gönderilemiyor");
+            return new MappingResult.Skipped("Bu raporun İcbari Sigorta Fiyat Listesi'nde karşılığı bulunamadı. TRƎS her kayıtta hizmet kodu istiyor; eşleştirme yapılmadan gönderilemez.");
 
         if (string.IsNullOrWhiteSpace(azProcedureId))
             return new MappingResult.Skipped("İlişkili işlem (Procedure) TRƏS'e henüz gönderilmedi -- DiagnosticReport.extension:related-procedure zorunlu alanı doldurulamıyor, bu rapor gönderilemiyor");

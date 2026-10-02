@@ -640,6 +640,13 @@ else
                             <div class="side-row-main">
                                 <span class="side-row-code">@tani.Kodu</span>
                                 <span class="side-row-name">@(tani.Adi ?? "-")</span>
+                                @* KULLANICI ISTEGI (2026-10-02): "hatayi protokol detayda hatali olanin
+                                   altinda yazsak, neden hata alindigini". Sebep artik Kayit Detayi'na
+                                   gitmeden, hatanin yaninda duruyor. *@
+                                @if (durum is { Status: SyncStatus.Failed } or { Status: SyncStatus.Skipped })
+                                {
+                                    <div class="side-row-hata">@SyncLogEntry.FriendlyError(durum!.Message)</div>
+                                }
                             </div>
                             <div class="side-row-actions">
                                 <span class="badge @taniBadgeClass" style="padding:3px 9px; font-size:11px;"><span class="badge-dot"></span>@taniBadgeLabel</span>
@@ -722,6 +729,13 @@ else
                             <span class="date-col" title="@(islem.IslemTarihi?.ToString("dd.MM.yyyy HH:mm"))">@(islem.IslemTarihi?.ToString("dd.MM.yyyy") ?? "-")</span>
                             <div class="side-row-main">
                                 <span class="side-row-name">@(islem.HizmetAdi ?? "-")</span>
+                                @* KULLANICI ISTEGI (2026-10-02): "hatayi protokol detayda hatali olanin
+                                   altinda yazsak, neden hata alindigini". Sebep artik Kayit Detayi'na
+                                   gitmeden, hatanin yaninda duruyor. *@
+                                @if (durum is { Status: SyncStatus.Failed } or { Status: SyncStatus.Skipped })
+                                {
+                                    <div class="side-row-hata">@SyncLogEntry.FriendlyError(durum!.Message)</div>
+                                }
                             </div>
                             <div class="side-row-actions">
                                 <span class="badge @islemBadgeClass" style="padding:3px 9px; font-size:11px;"><span class="badge-dot"></span>@islemBadgeLabel</span>
@@ -799,6 +813,13 @@ else
                     <span class="date-col" title="@(radDate?.ToString("dd.MM.yyyy HH:mm"))">@(radDate?.ToString("dd.MM.yyyy") ?? "-")</span>
                     <div class="side-row-main">
                         <span class="side-row-name">@(report.HizmetAdi ?? "-")</span>
+                        @* KULLANICI ISTEGI (2026-10-02): "hatayi protokol detayda hatali olanin
+                           altinda yazsak, neden hata alindigini". Sebep artik Kayit Detayi'na
+                           gitmeden, hatanin yaninda duruyor. *@
+                        @if (durum is { Status: SyncStatus.Failed } or { Status: SyncStatus.Skipped })
+                        {
+                            <div class="side-row-hata">@SyncLogEntry.FriendlyError(durum!.Message)</div>
+                        }
                         <div style="color:var(--text-faint); font-size:11.5px; margin-top:2px;">
                             @{ var raporDuzMetin = PusulaEHealthSync.Mapping.RtfText.ToPlainText(report.Rapor); }
                             @(string.IsNullOrWhiteSpace(raporDuzMetin) ? "Rapor metni boş -- gönderilemez" : (raporDuzMetin.Length > 160 ? raporDuzMetin[..160] + "…" : raporDuzMetin))
@@ -842,6 +863,13 @@ else
                     <span class="date-col" title="@(patDate?.ToString("dd.MM.yyyy HH:mm"))">@(patDate?.ToString("dd.MM.yyyy") ?? "-")</span>
                     <div class="side-row-main">
                         <span class="side-row-name">@(report.HizmetAdi ?? "-")</span>
+                        @* KULLANICI ISTEGI (2026-10-02): "hatayi protokol detayda hatali olanin
+                           altinda yazsak, neden hata alindigini". Sebep artik Kayit Detayi'na
+                           gitmeden, hatanin yaninda duruyor. *@
+                        @if (durum is { Status: SyncStatus.Failed } or { Status: SyncStatus.Skipped })
+                        {
+                            <div class="side-row-hata">@SyncLogEntry.FriendlyError(durum!.Message)</div>
+                        }
                         <div style="color:var(--text-faint); font-size:11.5px; margin-top:2px;">
                             @{ var patRaporDuzMetin = PusulaEHealthSync.Mapping.HtmlText.ToPlainText(report.Document); }
                             @(string.IsNullOrWhiteSpace(patRaporDuzMetin) ? "Rapor metni boş -- gönderilemez" : (patRaporDuzMetin.Length > 160 ? patRaporDuzMetin[..160] + "…" : patRaporDuzMetin))
@@ -936,6 +964,13 @@ else
                             <summary class="lab-panel-summary">
                                 <span class="date-col" title="@(groupDate?.ToString("dd.MM.yyyy HH:mm"))">@(groupDate?.ToString("dd.MM.yyyy") ?? "-")</span>
                                 <span class="side-row-name">@group.GroupName</span>
+                                @* KULLANICI ISTEGI (2026-10-02): "hatayi protokol detayda hatali olanin
+                                   altinda yazsak, neden hata alindigini". Sebep artik Kayit Detayi'na
+                                   gitmeden, hatanin yaninda duruyor. *@
+                                @if (group.Durum is { Status: SyncStatus.Failed } or { Status: SyncStatus.Skipped })
+                                {
+                                    <div class="side-row-hata">@SyncLogEntry.FriendlyError(group.Durum!.Message)</div>
+                                }
                                 <span class="lab-panel-summary-actions">
                                     @if (group.Panelli)
                                     {

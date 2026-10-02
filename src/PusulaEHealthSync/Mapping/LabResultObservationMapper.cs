@@ -30,10 +30,10 @@ public static partial class LabResultObservationMapper
     public static MappingResult Map(LabResultRecord lab, string azPatientId, string? azEncounterId)
     {
         if (string.IsNullOrWhiteSpace(lab.LoincKodu))
-            return new MappingResult.Skipped("LOINC kodu eksik -- Observation.code için zorunlu, bu test sonucu gönderilemiyor");
+            return new MappingResult.Skipped("Bu tetkikin LOINC kodu yok. TRƎS her tetkiki uluslararası LOINC koduyla istiyor -- kod Lab LOINC Eşleştirme sayfasından verilebilir, verildiği anda gönderilebilir hale gelir.");
 
         if (string.IsNullOrWhiteSpace(lab.IcbariKodu))
-            return new MappingResult.Skipped("İcbari Sigorta Fiyat Listesi eşleşmesi bulunamadı -- Observation.extension:procedure-code zorunlu alanı doldurulamıyor, bu test sonucu gönderilemiyor");
+            return new MappingResult.Skipped("Bu tetkikin İcbari Sigorta Fiyat Listesi'nde karşılığı bulunamadı. TRƎS her kayıtta hizmet kodu istiyor; eşleştirme yapılmadan gönderilemez.");
 
         // KULLANICI ISTEGI (2026-08-29, canli hata -- "Hemogram" satirinin kendisi "Hatalı"
         // gorunuyordu): panelin KENDI satiri (orn. "Hemogram") genelde bir sipariş/toplayici
@@ -42,7 +42,7 @@ public static partial class LabResultObservationMapper
         // sunucu tarafinda reddediliyordu. Deger yoksa (component da hic uretmiyoruz) bu satir
         // gonderilecek gecerli bir Observation degildir -- Skipped, gercek bir hata degil.
         if (string.IsNullOrWhiteSpace(lab.TetkikSonucu))
-            return new MappingResult.Skipped("Bu satırın kendi bir sonuç değeri yok (panel/sipariş satırı olabilir) -- tek başına bir Observation olarak gönderilemez");
+            return new MappingResult.Skipped("Bu satırın bir sonuç değeri yok -- muhtemelen panelin sipariş satırı. TRƎS boş bir tetkik kaydını kabul etmiyor; sonuç girildiğinde gönderilebilir hale gelir.");
 
         var icbariKodu = lab.IcbariKodu.TrimEnd('.');
 

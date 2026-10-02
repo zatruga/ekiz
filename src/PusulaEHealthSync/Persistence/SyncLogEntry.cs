@@ -183,17 +183,72 @@ public class SyncLogEntry
         return string.Join(" ", friendly);
     }
 
+    // KULLANICI ISTEGI (2026-10-02): "hatanın tercümesi olmalı, Türkçe, anlaşılır bir dil
+    // olmalı; hiç bilmeyen bir kişi bunun ne olduğunu, hatanın neden kaynaklandığını
+    // anlamalı."
+    //
+    // Her cevirinin uc isi var: NE oldu, NEDEN oldu, NE YAPILMALI. Teknik terim (cardinality,
+    // constraint, reference) kullaniciya hicbir sey anlatmiyor -- karsiliklari yazildi.
+    //
+    // KALIPLAR TAHMIN DEGIL, OLCUM: yerel senkron gunlugundeki BASARISIZ kayitlarin tamami
+    // (21 farkli mesaj) gruplanip en sik gorulenden baslanarak karsilandi. Taninmayan bir
+    // mesaj gelirse ham metin yine gosteriliyor -- sessizce yutulmuyor.
     private static string InterpretSegment(string segment)
     {
-        var refMatch = System.Text.RegularExpressions.Regex.Match(segment, @"[Nn]on-existent reference:\s*(\w+)/");
+        var s = segment.Trim();
+
+        // -- Is kurali ihlalleri (sunucu "Business rules validation failed: <kural>" doner) --
+        var kural = System.Text.RegularExpressions.Regex.Match(
+            s, @"Business rules validation failed:\s*(.+)$", System.Text.RegularExpressions.RegexOptions.Singleline);
+        if (kural.Success)
+        {
+            var metin = kural.Groups[1].Value.Trim();
+
+            if (metin.Contains("Procedure date must not be before Encounter start", StringComparison.OrdinalIgnoreCase))
+                return "İşlemin yapıldığı tarih, müayinənin başlangıç tarihinden ÖNCE görünüyor. "
+                     + "TRƏS, protokol açılmadan önce yapılmış bir işlemi kabul etmiyor. "
+                     + "Pusula'da ya işlem tarihi ya da protokol açılış saati yanlış girilmiş olabilir -- "
+                     + "ikisi karşılaştırılıp düzeltilmeli.";
+
+            if (metin.Contains("must not be before", StringComparison.OrdinalIgnoreCase)
+                || metin.Contains("must not be after", StringComparison.OrdinalIgnoreCase))
+                return $"Tarih sırası TRƏS'in kabul ettiği aralığın dışında: {metin} "
+                     + "Pusula'daki tarihler kontrol edilmeli.";
+
+            return $"TRƏS'in bir iş kuralı bu kaydı reddetti: {metin}";
+        }
+
+        // -- Baglantili kayit TRƏS'te yok --
+        var refMatch = System.Text.RegularExpressions.Regex.Match(s, @"[Nn]on-existent reference:\s*(\w+)/");
         if (refMatch.Success)
         {
             var refType = ResourceTypeLabel(refMatch.Groups[1].Value);
-            return $"Bağlı olduğu {refType} kaydı TRƏS'te artık bulunamıyor (silinmiş ya da hiç gönderilmemiş olabilir) -- önce {refType} tekrar gönderilmeli.";
+            return $"Bağlı olduğu {refType} kaydı TRƏS'te bulunamıyor (silinmiş ya da hiç gönderilmemiş olabilir). "
+                 + $"Bu kayıt tek başına gönderilemez -- önce {refType} gönderilmeli.";
         }
 
+        // -- Laboratuvar: ne degeri ne bileseni var --
+        if (s.Contains("az-lab-value-or-component", StringComparison.OrdinalIgnoreCase))
+            return "Bu laboratuvar kaydının ne kendi sonuç değeri var ne de alt parametresi. "
+                 + "TRƏS boş bir tetkik kaydını kabul etmiyor. "
+                 + "Genellikle panelin sipariş/toplayıcı satırıdır; sonuç girilince gönderilebilir hale gelir.";
+
+        // -- Silinemiyor: baska kayitlar referans veriyor --
+        if (s.Contains("There are other resources referencing this resource", StringComparison.OrdinalIgnoreCase))
+            return "Bu kayıt silinemiyor çünkü TRƏS'te ona bağlı başka kayıtlar duruyor. "
+                 + "Silme işlemi dıştan içe doğru yapılmalı -- önce ona bağlı kayıtlar, sonra bu kayıt.";
+
+        // -- FIN bicimi --
+        if (s.Contains("az-practitioner-fin-format", StringComparison.OrdinalIgnoreCase))
+            return "Doktorun FIN numarası TRƏS'in beklediği biçimde değil (7 harf/rakam olmalı). "
+                 + "Pusula'daki doktor kaydındaki kimlik numarası düzeltilmeli.";
+        if (s.Contains("az-fin-format", StringComparison.OrdinalIgnoreCase))
+            return "Hastanın FIN numarası TRƏS'in beklediği biçimde değil (7 harf/rakam olmalı). "
+                 + "Pusula'daki hasta kaydındaki kimlik numarası düzeltilmeli.";
+
+        // -- Zorunlu alan / sayi uyusmazligi --
         var cardMatch = System.Text.RegularExpressions.Regex.Match(
-            segment, @"Instance count for '([^']+)' is (\d+), which is not within the specified cardinality of (\d+)\.\.(\*|\d+)");
+            s, @"Instance count for '([^']+)' is (\d+), which is not within the specified cardinality of (\d+)\.\.(\*|\d+)");
         if (cardMatch.Success)
         {
             var fieldPath = cardMatch.Groups[1].Value;
@@ -201,19 +256,50 @@ public class SyncLogEntry
             var min = int.Parse(cardMatch.Groups[3].Value);
             var fieldLabel = FriendlyFieldName(fieldPath);
             return actual < min
-                ? $"Zorunlu bir alan eksik: {fieldLabel}."
-                : $"'{fieldLabel}' alanında beklenenden fazla değer gönderilmiş.";
+                ? $"Zorunlu bir alan boş gönderildi: {fieldLabel}. "
+                  + "TRƏS bu alanı dolu istiyor; Pusula'daki ilgili bilgi eksik olabilir."
+                : $"'{fieldLabel}' alanında beklenenden fazla değer gönderilmiş -- TRƏS yalnızca bir tane kabul ediyor.";
         }
 
-        var (label, _) = ErrorCategory(segment);
+        // -- Desen uyusmazligi (orn. Practitioner.active) --
+        //    Satir basina SABITLENMEMELI: mesaj "HTTP 400: Practitioner.active[0]: ..." diye
+        //    geliyor, yani alan yolu basta degil. Ilk yazimda ^ vardi ve bu hata cevrilmeden
+        //    ham Ingilizce olarak ekranda kaliyordu (gercek kayitlarla test edilince goruldu).
+        var desen = System.Text.RegularExpressions.Regex.Match(
+            s, @"([\w\.]+(?:\[\d+\])?):\s*Value does not match pattern '([^']*)'");
+        if (desen.Success)
+            return $"'{FriendlyFieldName(desen.Groups[1].Value)}' alanı TRƏS'in beklediği değerle uyuşmuyor "
+                 + $"(beklenen: {desen.Groups[2].Value}). Pusula'daki kayıt ya da eşleştirme kontrol edilmeli.";
+
+        // -- Ham 404 govdesi (sunucu JSON dondurebiliyor) --
+        if (s.Contains("\"title\":\"Not Found\"") || s.Contains("\"status\":404"))
+            return "Kayıt TRƏS'te bulunamadı. Daha önce silinmiş ya da hiç oluşturulmamış olabilir -- "
+                 + "silme denemesiyse yapacak bir şey yok, gönderim denemesiyse tekrar gönderilmeli.";
+
+        // -- Aciklamasiz HTTP kodu: sunucu sebep bildirmedi --
+        var ciplak = System.Text.RegularExpressions.Regex.Match(s, @"^HTTP (\d{3})$");
+        if (ciplak.Success)
+        {
+            var kod = ciplak.Groups[1].Value;
+            return kod switch
+            {
+                "401" or "403" => "TRƏS kimlik doğrulaması reddetti -- Ayarlar sayfasındaki kullanıcı/parola bilgileri kontrol edilmeli.",
+                "404" => "Kayıt TRƏS'te bulunamadı (daha önce silinmiş olabilir).",
+                "409" => "TRƏS bu kaydı çakışma nedeniyle reddetti -- genellikle başka kayıtlar ona bağlı olduğu için.",
+                "500" or "502" or "503" => "TRƏS sunucusunda bir hata oluştu. Bizim gönderdiğimiz veride değil, karşı tarafta bir sorun var -- tekrar denenmeli.",
+                _ => $"TRƏS isteği HTTP {kod} ile reddetti ama bir açıklama döndürmedi. Kayıt detayındaki sunucu yanıtına bakılmalı.",
+            };
+        }
+
+        var (label, _) = ErrorCategory(s);
         return label switch
         {
-            "FIN formatı hatalı" => "TC Kimlik/FIN numarası AZ FIN biçimine uymuyor -- Pusula'daki hasta kaydı kontrol edilmeli.",
+            "FIN formatı hatalı" => "Kimlik/FIN numarası AZ FIN biçimine uymuyor -- Pusula'daki kayıt kontrol edilmeli.",
             "ICD tanı eksik/geçersiz" => "Protokolde geçerli bir ICD-10 tanı kodu yok -- Pusula'da tanı girilmeli.",
             "Zaman aşımı / bağlantı" => "TRƏS sunucusu zamanında yanıt vermedi -- bağlantı sorunu olabilir, tekrar denenmeli.",
             "TRƏS bağlantı ayarı eksik" => "Ayarlar sayfasında TRƏS bağlantı bilgileri eksik ya da hatalı.",
             "Referans bulunamadı" => "Bağlı bir kayıt TRƏS'te artık mevcut değil -- önce o kayıt tekrar gönderilmeli.",
-            _ => segment.Trim(),
+            _ => s,
         };
     }
 
@@ -222,9 +308,20 @@ public class SyncLogEntry
     // icin), sadece taniyamadigi bir alan icin ham yolu oldugu gibi doner.
     private static string FriendlyFieldName(string fieldPath)
     {
-        var lastSegment = fieldPath.Split('.')[^1].Split(':')[^1];
+        // "[0]" gibi dizi indisleri temizleniyor -- yoksa "active[0]" eslesemiyor ve
+        // kullaniciya "Practitioner.active[0]" gibi ham bir yol gosteriliyordu.
+        var lastSegment = System.Text.RegularExpressions.Regex
+            .Replace(fieldPath.Split('.')[^1].Split(':')[^1], @"\[\d+\]$", "");
         var label = lastSegment switch
         {
+            "active" => "kaydın aktiflik durumu",
+            "name" => "ad soyad",
+            "birthDate" => "doğum tarihi",
+            "gender" => "cinsiyet",
+            "performer" => "işlemi yapan",
+            "performed" => "işlem tarihi",
+            "performedDateTime" => "işlem tarihi",
+            "effectiveDateTime" => "sonuç tarihi",
             "unit" => "sonuç birimi",
             "system" => "kod sistemi",
             "code" => "kod",

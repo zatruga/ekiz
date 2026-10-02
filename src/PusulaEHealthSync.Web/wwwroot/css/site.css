@@ -1661,3 +1661,19 @@ a.ready-tile:hover { border-color: var(--warning); background: var(--warning-sof
 .alt-serit-bilgi { font-size: 12.5px; color: var(--text-muted); }
 .alt-serit-sil { border-color: var(--danger); color: var(--danger); }
 .alt-serit-sil:hover { background: var(--danger); color: #fff; }
+
+/* Hata sebebi, hatalı satırın hemen altında -- KULLANICI ISTEGI (2026-10-02): "hatayı
+   protokol detayda hatalı olanın altında yazsak, neden hata alındığını". Önceden sebebi
+   görmek için satırdaki (i) ikonuna basıp Kayıt Detayı sayfasına gitmek gerekiyordu;
+   yirmi hatalı işlemde bu yirmi ayrı sayfa demekti. */
+.side-row-hata {
+  margin-top: 5px;
+  padding: 6px 9px;
+  border-left: 3px solid var(--danger);
+  border-radius: 0 5px 5px 0;
+  background: var(--danger-soft, var(--surface-hover));
+  font-size: 11.5px;
+  line-height: 1.5;
+  color: var(--text-muted);
+  overflow-wrap: anywhere;
+}

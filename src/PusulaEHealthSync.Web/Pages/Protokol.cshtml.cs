@@ -93,7 +93,13 @@ public class ProtokolModel(
         // durumu, yesil (success) sayiliyor, gri (neutral) degil.
         if (total == 0) return ("success", "", 0, 0);
         var success = list.Count(BasariylaGonderildi);
-        if (list.Any(d => d?.Status == SyncStatus.Failed)) return ("danger", "hatalı", success, total);
+
+        // DUZELTME (2026-10-02): etiket "19/21 hatalı" diye basiliyordu ve bu "19 tanesi
+        // hatali" gibi okunuyordu -- oysa 19'u BASARILI, 2'si hataliydi. Sayinin neyi
+        // saydigi belirsiz kalinca ozet, duzeltmesi gereken kisiyi yanlis yone gonderiyor.
+        // Artik iki sayi da kendi kelimesiyle: "19/21 başarılı · 2 hatalı".
+        var hataliSayi = list.Count(d => d?.Status == SyncStatus.Failed);
+        if (hataliSayi > 0) return ("danger", $"başarılı · {hataliSayi} hatalı", success, total);
         if (success == total) return ("success", "başarılı", success, total);
         if (success == 0) return ("neutral", "gönderilmedi", success, total);
         return ("warning", "kısmi", success, total);
@@ -367,10 +373,16 @@ public class ProtokolModel(
             var hatalilar = hepsi.Where(k => k.Durum?.Status == SyncStatus.Failed).ToList();
             if (hatalilar.Count > 0)
             {
-                // Sebep: en sik gorulen hata kategorisi. Yirmi satirin on dokuzu ayni sebepten
-                // dusmusse kullaniciya yirmi mesaj degil TEK sebep gosterilmeli.
+                // Sebep: en sik gorulen hata. Yirmi satirin on dokuzu ayni sebepten dusmusse
+                // kullaniciya yirmi mesaj degil TEK sebep gosterilmeli.
+                //
+                // DUZELTME (2026-10-02): once ErrorCategory kullaniliyordu, ama o kaba bir
+                // siniflandirma -- taninmayan her hataya "Diğer" diyor. Ornegin "işlem tarihi
+                // müayinə başlangıcından önce" hatasi Yapilacaklar'da sadece "Diğer" olarak
+                // gorunuyordu, yani panel tam da anlatmasi gereken seyi anlatmiyordu.
+                // Artik ceviri metninin kendisi gosteriliyor.
                 var sebep = hatalilar
-                    .GroupBy(h => SyncLogEntry.ErrorCategory(h.Durum!.Message).Label)
+                    .GroupBy(h => SyncLogEntry.FriendlyError(h.Durum!.Message))
                     .OrderByDescending(g => g.Count())
                     .First().Key;
                 isler.Add(new YapilacakIs(
