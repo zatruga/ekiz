@@ -22,7 +22,7 @@ public class UpdateOrchestrator(IOptions<DeployOptions> optionsAccessor, ILogger
 {
     private readonly DeployOptions options = optionsAccessor.Value;
 
-    // appsettings.Production.json (gercek Pusula/e-Health kimlik bilgilerini icerir) bu
+    // appsettings.Production.json (gercek Pusula/TRƏS kimlik bilgilerini icerir) bu
     // otomasyonun HICBIR ASAMASINDA -- ne guncellemede ne geri almada -- yazilmaz/uzerine
     // yazilmaz. Bu, projenin "gercek sifreler asla otomatik islenmez" kuraliyla ayni ruhta.
     private static readonly string[] NeverOverwrite = ["appsettings.Production.json"];

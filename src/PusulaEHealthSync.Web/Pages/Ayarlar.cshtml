@@ -52,7 +52,7 @@
                 <div class="card card-pad settings-card span-2">
                     <p class="section-title">Ortam &middot; Sistem Adresleri</p>
                     <p class="card-desc">
-                        Sistem şu an hangi e-Health ortamına gönderim yapacak. Alanlar boş bırakılırsa Test ortamı için
+                        Sistem şu an hangi TRƏS ortamına gönderim yapacak. Alanlar boş bırakılırsa Test ortamı için
                         mevcut sunucu yapılandırması (appsettings/user-secrets) kullanılmaya devam eder -- burada bir şey
                         girmeden mevcut davranış bozulmaz.
                     </p>
@@ -123,7 +123,7 @@
                     <p class="section-title">Otomatik Gönderim</p>
                     <p class="card-desc">
                         Hangi kaynak tipleri arka planda otomatik gönderilsin ve ne sıklıkla çalışsın.
-                        <span class="field-hint">Açıldığında arka plan döngüsü bu ayarlara göre çalışır: her turda gönderim bekleyenler hesaplanır, parti boyutu kadarı canlı gönderilir, Pusula'da iptal edilenler e-Health'ten silinir. Açmadan önce <a asp-page="/BekleyenIsler">Bekleyen İşler</a> sayfasından ne kadar kayıt biriktiğine bakın.</span>
+                        <span class="field-hint">Açıldığında arka plan döngüsü bu ayarlara göre çalışır: her turda gönderim bekleyenler hesaplanır, parti boyutu kadarı canlı gönderilir, Pusula'da iptal edilenler TRƏS'ten silinir. Açmadan önce <a asp-page="/BekleyenIsler">Bekleyen İşler</a> sayfasından ne kadar kayıt biriktiğine bakın.</span>
                     </p>
                     <form method="post" asp-page-handler="Genel" style="display:flex; flex-direction:column; flex:1;">
                         <div class="toggle-row">
@@ -159,7 +159,7 @@
                 <div class="card card-pad settings-card">
                     <p class="section-title">Hata Sonrası Tekrar Deneme</p>
                     <p class="card-desc">
-                        Bir gönderim hatalı olduğunda (ör. e-Health geçici olarak yanıt vermiyorsa) sistem
+                        Bir gönderim hatalı olduğunda (ör. TRƏS geçici olarak yanıt vermiyorsa) sistem
                         ne kadar sürede ve kaç kez tekrar denesin.
                     </p>
                     <form method="post" asp-page-handler="Tekrar" style="display:flex; flex-direction:column; flex:1;">

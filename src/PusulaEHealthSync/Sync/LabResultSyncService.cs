@@ -8,7 +8,7 @@ namespace PusulaEHealthSync.Sync;
 // Tek bir laboratuvar test sonucunu (LabResultRecord) Observation olarak gonderir --
 // ProcedureSyncService ile ayni kalip. Procedure'in aksine Observation.encounter ZORUNLU
 // DEGIL (bkz. LabResultObservationMapper) -- Muayine henuz gonderilmemis olsa bile lab
-// sonucu gonderilebilir, sadece Hasta'nin (Patient) e-Health'te var olmasi yeterli.
+// sonucu gonderilebilir, sadece Hasta'nin (Patient) TRƏS'te var olmasi yeterli.
 public class LabResultSyncService(
     EHealthClient eHealthClient, SyncLogStore syncLog, LabTestLoincStore labTestLoincStore,
     ILogger<LabResultSyncService> logger)

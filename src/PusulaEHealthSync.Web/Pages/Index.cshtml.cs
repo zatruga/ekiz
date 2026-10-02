@@ -158,7 +158,7 @@ public class IndexModel(
         : EncounterMapper.ProtokolTipiDisplay.GetValueOrDefault(id.Value, id.Value.ToString());
 
     // Toplu "Seçilenleri Gönder" -- her protokol icin EncounterSyncService.SyncOneAsync
-    // canli (liveMode:true) cagrilir; hasta e-Health'te yoksa o da otomatik once
+    // canli (liveMode:true) cagrilir; hasta TRƏS'te yoksa o da otomatik once
     // gonderilir (bkz. EncounterSyncService). Filtre/sayfa durumu korunarak Index'e doner.
     // KARAR (2026-08-20, kullanici istegi -- canli testte 30 protokol art arda iki kez
     // gonderilince ortaya cikti): zaten BASARIYLA gonderilmis (AzResourceId dolu, en son
@@ -202,7 +202,7 @@ public class IndexModel(
         return RedirectToPage("/Index", new { From, To, Search, HastaDurumu, ProtokolDurumu, IcbariSadece, P });
     }
 
-    // Pusula'da State=0'a dusmus (iptal/silinmis) ama e-Health'te hala kayitli gorunen
+    // Pusula'da State=0'a dusmus (iptal/silinmis) ama TRƏS'te hala kayitli gorunen
     // Encounter'lari bulur (bkz. konusma, 2026-08-20: "gonderimi yapilan bir protokol
     // silinirse gonderimler de silinsin"). Otomatik/sessiz silmiyoruz -- kullaniciya
     // ayri bir uyari panelinde gosterip, tek onayla toplu silme sunuyoruz (mevcut Sil
@@ -234,7 +234,7 @@ public class IndexModel(
 
         BulkResultMessage = selectedLogIds.Count == 0
             ? "Hiçbir kayıt seçilmedi."
-            : $"{selectedLogIds.Count} iptal edilmiş protokolün e-Health kaydı silinmeye çalışıldı -- {ok} silindi, {failed} hata.";
+            : $"{selectedLogIds.Count} iptal edilmiş protokolün TRƏS kaydı silinmeye çalışıldı -- {ok} silindi, {failed} hata.";
 
         return RedirectToPage("/Index", new { From, To, Search, HastaDurumu, ProtokolDurumu, IcbariSadece, P });
     }

@@ -30,9 +30,9 @@ public class SyncLogEntry
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
     // KARAR/DUZELTME (2026-08-20): "Basarili" durumu Validate (sadece kontrol, hicbir sey
-    // kalici olarak KAYDEDILMEZ) ile Create/Update (gercekten e-Health'e YAZILIR) arasinda
+    // kalici olarak KAYDEDILMEZ) ile Create/Update (gercekten TRƏS'e YAZILIR) arasinda
     // ayrim yapmiyordu -- dashboard'da ikisi de yesil "Gönderildi" rozeti olarak gorunuyordu.
-    // Bu, kullaniciyi bir kaydin e-Health'te GERCEKTEN var oldugunu sanmaya yoneltiyordu
+    // Bu, kullaniciyi bir kaydin TRƏS'te GERCEKTEN var oldugunu sanmaya yoneltiyordu
     // (orn. Patient sadece dogrulanmisken Encounter "hasta bulunamadi" diye atlaniyor, kafa
     // karistiriyordu). Rozet metni artik Operation'a gore ayrisiyor.
     public static string SuccessLabel(SyncOperation? operation) => operation switch
@@ -65,7 +65,7 @@ public class SyncLogEntry
     // SyncLog.ResourceType HER ZAMAN gercek bir FHIR resourceType degildir -- "DiagnosticReport-Patoloji"
     // sadece BIZIM ic takip etiketimiz (Radyoloji ile ayni FHIR kaynagini -- DiagnosticReport --
     // paylastigi icin PusulaId cakismasini onlemek amaciyla ayristirildi, bkz. PathologyReportMapper.
-    // LocalUniqueId). e-Health API'sine GET/DELETE gibi gercek bir cagri yapilacaksa BURADAN
+    // LocalUniqueId). TRƏS API'sine GET/DELETE gibi gercek bir cagri yapilacaksa BURADAN
     // gecirilmeli -- aksi halde gecersiz bir resource type ile istek atilir.
     public static string FhirResourceType(string resourceType) => resourceType switch
     {
@@ -104,12 +104,12 @@ public class SyncLogEntry
     // Detayi, Aktivite Akisi) neredeyse ayni durum-rozeti mantigi tekrarlanmisin diye tek
     // yerden -- CSS sinifi + metin. Silme sonrasi en son kayit Status=Success,
     // Operation=Delete olur; bunu yesil "basarili" degil noturn "Silindi" olarak gostermek
-    // ONEMLI -- aksi halde silinmis bir kaydin hala e-Health'te varmis gibi gorunmesi riski var.
+    // ONEMLI -- aksi halde silinmis bir kaydin hala TRƏS'te varmis gibi gorunmesi riski var.
     // DUZELTME (2026-08-20, canli olayda bulundu): basarisiz bir SILME denemesi de
     // (orn. hala baska kayitlarca referans edildigi icin HTTP 409 ile reddedilen) diger
     // her turlu hata ile AYNI kirmizi "Hatalı" rozetini gosteriyordu -- kullaniciya
-    // "gonderim basarisiz/kayit e-Health'te yok" izlenimi veriyordu, oysa TAM TERSI: kayit
-    // hala e-Health'te GUVENDE, sadece silinemedi. Bu iki durum kokten farkli anlamlar
+    // "gonderim basarisiz/kayit TRƏS'te yok" izlenimi veriyordu, oysa TAM TERSI: kayit
+    // hala TRƏS'te GUVENDE, sadece silinemedi. Bu iki durum kokten farkli anlamlar
     // tasiyor, ayni rozetle gosterilmemeli.
     public static (string CssClass, string Label) StatusBadge(SyncLogEntry? entry)
     {
@@ -128,7 +128,7 @@ public class SyncLogEntry
 
     // "Sil" butonunu gostermek icin -- DUZELTME (2026-08-20): eskiden "Operation != Delete"
     // yeterli sanilmisti, ama BASARISIZ bir silme denemesinden sonra da Operation=Delete
-    // oluyor (kayit hala e-Health'te durmasina ragmen) -- bu da butonun yanlislikla
+    // oluyor (kayit hala TRƏS'te durmasina ragmen) -- bu da butonun yanlislikla
     // kaybolmasina yol aciyordu. Sadece GERCEKTEN silinmis (Success+Delete) kayitlarda
     // buton gizlenmeli.
     public static bool CanDelete(SyncLogEntry? entry) =>
@@ -149,11 +149,11 @@ public class SyncLogEntry
         if (m.Contains("ICD", StringComparison.OrdinalIgnoreCase) || m.Contains("tanı", StringComparison.OrdinalIgnoreCase))
             return ("ICD tanı eksik/geçersiz", "Protokolde tanı yok ya da AZ CodeSystem'de karşılığı bulunamadı");
         if (m.Contains("zaman aşımı", StringComparison.OrdinalIgnoreCase) || m.Contains("timeout", StringComparison.OrdinalIgnoreCase) || m.Contains("yanıt ver", StringComparison.OrdinalIgnoreCase))
-            return ("Zaman aşımı / bağlantı", "e-Health sunucusu süresi içinde yanıt vermedi");
-        if (m.Contains("e-Health", StringComparison.OrdinalIgnoreCase) && (m.Contains("adres", StringComparison.OrdinalIgnoreCase) || m.Contains("BaseUrl", StringComparison.OrdinalIgnoreCase) || m.Contains("kimlik", StringComparison.OrdinalIgnoreCase)))
-            return ("e-Health bağlantı ayarı eksik", "Ayarlar sayfasında Test/Canlı ortam bilgisi eksik ya da hatalı");
+            return ("Zaman aşımı / bağlantı", "TRƏS sunucusu süresi içinde yanıt vermedi");
+        if (m.Contains("TRƏS", StringComparison.OrdinalIgnoreCase) && (m.Contains("adres", StringComparison.OrdinalIgnoreCase) || m.Contains("BaseUrl", StringComparison.OrdinalIgnoreCase) || m.Contains("kimlik", StringComparison.OrdinalIgnoreCase)))
+            return ("TRƏS bağlantı ayarı eksik", "Ayarlar sayfasında Test/Canlı ortam bilgisi eksik ya da hatalı");
         if (m.Contains("409") || m.Contains("bulunamadı", StringComparison.OrdinalIgnoreCase) || m.Contains("referans", StringComparison.OrdinalIgnoreCase) || m.Contains("reference", StringComparison.OrdinalIgnoreCase))
-            return ("Referans bulunamadı", "Bağlı bir kayıt (Hasta/Müayinə) e-Health'te artık mevcut değil");
+            return ("Referans bulunamadı", "Bağlı bir kayıt (Hasta/Müayinə) TRƏS'te artık mevcut değil");
         return ("Diğer", "Yukarıdaki kategorilere girmeyen tekil hatalar");
     }
 
@@ -189,7 +189,7 @@ public class SyncLogEntry
         if (refMatch.Success)
         {
             var refType = ResourceTypeLabel(refMatch.Groups[1].Value);
-            return $"Bağlı olduğu {refType} kaydı e-Health'te artık bulunamıyor (silinmiş ya da hiç gönderilmemiş olabilir) -- önce {refType} tekrar gönderilmeli.";
+            return $"Bağlı olduğu {refType} kaydı TRƏS'te artık bulunamıyor (silinmiş ya da hiç gönderilmemiş olabilir) -- önce {refType} tekrar gönderilmeli.";
         }
 
         var cardMatch = System.Text.RegularExpressions.Regex.Match(
@@ -210,9 +210,9 @@ public class SyncLogEntry
         {
             "FIN formatı hatalı" => "TC Kimlik/FIN numarası AZ FIN biçimine uymuyor -- Pusula'daki hasta kaydı kontrol edilmeli.",
             "ICD tanı eksik/geçersiz" => "Protokolde geçerli bir ICD-10 tanı kodu yok -- Pusula'da tanı girilmeli.",
-            "Zaman aşımı / bağlantı" => "e-Health sunucusu zamanında yanıt vermedi -- bağlantı sorunu olabilir, tekrar denenmeli.",
-            "e-Health bağlantı ayarı eksik" => "Ayarlar sayfasında e-Health bağlantı bilgileri eksik ya da hatalı.",
-            "Referans bulunamadı" => "Bağlı bir kayıt e-Health'te artık mevcut değil -- önce o kayıt tekrar gönderilmeli.",
+            "Zaman aşımı / bağlantı" => "TRƏS sunucusu zamanında yanıt vermedi -- bağlantı sorunu olabilir, tekrar denenmeli.",
+            "TRƏS bağlantı ayarı eksik" => "Ayarlar sayfasında TRƏS bağlantı bilgileri eksik ya da hatalı.",
+            "Referans bulunamadı" => "Bağlı bir kayıt TRƏS'te artık mevcut değil -- önce o kayıt tekrar gönderilmeli.",
             _ => segment.Trim(),
         };
     }

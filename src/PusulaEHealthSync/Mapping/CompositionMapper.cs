@@ -24,7 +24,7 @@ public static class CompositionMapper
 
     // KOK NEDEN (2026-08-21, kullanici bildirdi: "epikriz gönderiyoruz ama bakanlığın
     // ekranlarında göremiyorum"): Composition.type SADECE LOINC (18842-5) icerdiginden,
-    // e-Health'in kendi belge sinifi CodeSystem'i (http://fhir.az/CodeSystem/composition-type
+    // TRƏS'in kendi belge sinifi CodeSystem'i (http://fhir.az/CodeSystem/composition-type
     // -- terminology API'den dogrulandi, 2026-08-21) hic doldurulmuyordu. AYNI kalip
     // EncounterMapper'daki hospital-departments/encounter-type sorunuyla ozdes: bakanlik
     // portali (vezandas ekranlari) belgeleri KENDI kodlariyla siniflandirip listeliyor,

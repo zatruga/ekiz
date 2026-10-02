@@ -27,7 +27,7 @@ public class LabResultRecord
     // 38.00-52.0 araliginda oldugu HALDE DisindaMi=true) bu yorum da dogrulanmiyor. Anlami
     // KESIN olarak cozulene kadar hicbir yerde (UI'da "Referans dışı" rozeti, FHIR
     // Observation.interpretation) KULLANILMIYOR -- yanlis "anormal" isareti hem hastaneye hem
-    // e-Health'e gitmesin diye. Ham deger yine de okunuyor, ileride cozulunce buradan acilir.
+    // TRƏS'e gitmesin diye. Ham deger yine de okunuyor, ileride cozulunce buradan acilir.
     public bool DisindaMi { get; set; }
     public string? LoincKodu { get; set; }
     public DateTime? TetkikSonucTarihi { get; set; }

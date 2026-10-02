@@ -16,7 +16,7 @@ namespace PusulaEHealthSync.Sync;
 // HER TURDA:
 //   1. Bekleyen isler yeniden hesaplanir (Bekleyen Isler sayfasi da bu sonucu gosterir)
 //   2. Gonderime UYGUN protokoller, parti boyutu kadar, EncounterSyncService'e verilir
-//   3. Iptal senkronu calisir (Pusula'da silinmis olanlar e-Health'ten de silinir)
+//   3. Iptal senkronu calisir (Pusula'da silinmis olanlar TRƏS'ten de silinir)
 //
 // NEDEN PROTOKOL BAZLI GONDERIM: bekleyenleri kayit bazinda biliyoruz ama gonderimi
 // protokol butununde yapiyoruz -- bagimlilik zinciri (Patient -> Encounter -> Procedure ->
@@ -135,7 +135,7 @@ public class AutoSyncWorker(
             }
         }
 
-        // 2) Iptal senkronu -- Pusula'da silinmis olanlari e-Health'ten de sil.
+        // 2) Iptal senkronu -- Pusula'da silinmis olanlari TRƏS'ten de sil.
         var iptal = await cancellationSync.RunAsync(scanDays: null, ct);
 
         logger.LogInformation(

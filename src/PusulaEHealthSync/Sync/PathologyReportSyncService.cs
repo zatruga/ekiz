@@ -6,7 +6,7 @@ using PusulaEHealthSync.Persistence;
 
 namespace PusulaEHealthSync.Sync;
 
-// Tek bir patoloji raporunu e-Health'e gonderir. azProcedureId ve azPractitionerId cagiran
+// Tek bir patoloji raporunu TRƏS'e gonderir. azProcedureId ve azPractitionerId cagiran
 // taraftan (EncounterSyncService / sayfalar) hazir gelir -- bu servis kendi basina
 // Procedure/Practitioner cascade'i YAPMAZ.
 //
@@ -115,7 +115,7 @@ public class PathologyReportSyncService(
         }
 
         if (azFindingIds.Count == 0)
-            return (null, $"DİKKAT: bu raporun {findings.Count} kodlanmış bulgusunun hiçbiri gönderilemedi -- rapor yalnızca serbest metin olarak gitti, ICD-O-3 bulgu bilgisi e-Health'te YOK. Ayrıntı için Aktivite akışında \"Patoloji Bulgusu\" kayıtlarına bakın.");
+            return (null, $"DİKKAT: bu raporun {findings.Count} kodlanmış bulgusunun hiçbiri gönderilemedi -- rapor yalnızca serbest metin olarak gitti, ICD-O-3 bulgu bilgisi TRƏS'te YOK. Ayrıntı için Aktivite akışında \"Patoloji Bulgusu\" kayıtlarına bakın.");
 
         var compositionMapping = PathologyCompositionMapper.Map(report, azFindingIds, azPatientId, azEncounterId, azPractitionerId);
         if (compositionMapping is MappingResult.Skipped compositionSkip)

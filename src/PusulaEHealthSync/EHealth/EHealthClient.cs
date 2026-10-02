@@ -93,7 +93,7 @@ public class EHealthClient
         return raw.Success ? EHealthResult.Ok(raw.Body) : EHealthResult.Fail(raw.StatusCode, raw.Body);
     }
 
-    // Bilinen bir AZ kaynak id'si icin e-Health'te SU AN ne var, dogrudan okur. "Gonderdigim
+    // Bilinen bir AZ kaynak id'si icin TRƏS'te SU AN ne var, dogrudan okur. "Gonderdigim
     // veri gercekten dogru mu/dogru yere mi gitti" kontrolu icin -- SendOnceAsync'teki
     // RequestJson/ResponseJson sadece o anki denemenin GONDERILEN/DONEN gövdesini tutar,
     // bu ise SORGU aninda bakanlikta GERCEKTE ne oldugunu gosterir (aradan baska bir
@@ -169,7 +169,7 @@ public class EHealthClient
     // token alma islemi EHealthTokenCache'te bir kilidin ICINDE yapiliyor -- dogru, cunku
     // es zamanli isteklerin ayni anda kimlik dogrulamasini engelliyor. Ama HttpClient'in
     // varsayilan zaman asimi 100 saniye; bakanlik ucu cevap vermezse kilit 100 saniye
-    // boyunca tutulur ve o sure boyunca SISTEMDEKI TUM e-Health istekleri sirada bekler.
+    // boyunca tutulur ve o sure boyunca SISTEMDEKI TUM TRƏS istekleri sirada bekler.
     // Kullaniciya bu "hicbir sey olmuyor, sonsuza kadar isleniyor" olarak gorunur.
     //
     // /auth/token kucuk bir POST -- saglikli bir sunucuda saniyeler surer. 30 saniye
@@ -182,7 +182,7 @@ public class EHealthClient
     private async Task<string> TokenAlAsync(EHealthEndpoint endpoint, CancellationToken ct)
     {
         if (string.IsNullOrWhiteSpace(endpoint.BaseUrl))
-            throw new InvalidOperationException("Aktif ortam (Test/Canlı) için e-Health adresi tanımlı değil -- Ayarlar sayfasından girin.");
+            throw new InvalidOperationException("Aktif ortam (Test/Canlı) için TRƏS adresi tanımlı değil -- Ayarlar sayfasından girin.");
 
         using var zamanAsimi = CancellationTokenSource.CreateLinkedTokenSource(ct);
         zamanAsimi.CancelAfter(TokenZamanAsimi);
@@ -205,11 +205,11 @@ public class EHealthClient
             // Zaman asimi -- cagiran iptal etmedi, ucta cevap yok. Sessizce beklemek yerine
             // net hata: kullanici "isleniyor" ekraninda kalmasin, sebebi gorsun.
             _logger.LogError(
-                "e-Health kimlik dogrulama {Saniye} saniyede cevap vermedi ({Adres}). "
+                "TRƏS kimlik dogrulama {Saniye} saniyede cevap vermedi ({Adres}). "
                 + "Ag/guvenlik duvari ya da ucun kendisi kontrol edilmeli.",
                 TokenZamanAsimi.TotalSeconds, endpoint.BaseUrl);
             throw new InvalidOperationException(
-                $"e-Health kimlik doğrulama {TokenZamanAsimi.TotalSeconds:0} saniyede yanıt vermedi "
+                $"TRƏS kimlik doğrulama {TokenZamanAsimi.TotalSeconds:0} saniyede yanıt vermedi "
                 + $"({endpoint.BaseUrl}). Sunucuya erişilemiyor olabilir.");
         }
 
@@ -218,7 +218,7 @@ public class EHealthClient
             var content = await response.Content.ReadAsStringAsync(ct);
             if (!response.IsSuccessStatusCode)
                 throw new InvalidOperationException(
-                    $"e-Health kimlik doğrulama başarısız (HTTP {(int)response.StatusCode} {endpoint.BaseUrl}): {content}");
+                    $"TRƏS kimlik doğrulama başarısız (HTTP {(int)response.StatusCode} {endpoint.BaseUrl}): {content}");
 
             var json = JsonNode.Parse(content)?.AsObject();
             return json?["payload"]?["sessionId"]?.GetValue<string>()

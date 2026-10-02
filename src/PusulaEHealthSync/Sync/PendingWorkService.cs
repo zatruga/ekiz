@@ -5,7 +5,7 @@ using PusulaEHealthSync.Persistence;
 
 namespace PusulaEHealthSync.Sync;
 
-// "Bekleyen Isler" -- Pusula'da HAZIR olup e-Health'e HENUZ GITMEMIS her sey.
+// "Bekleyen Isler" -- Pusula'da HAZIR olup TRƏS'e HENUZ GITMEMIS her sey.
 //
 // TASARIMIN OZU (2026-09-09, kullanici ile birlikte kararlastirildi):
 //

@@ -332,7 +332,7 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
     // Epikriz'deki KilitDurumuId=1 kuraliyla AYNI mantik: hala islemde olan sonuclar hic
     // donmez, C# tarafinda ayrica filtrelemeye gerek yok.
     //
-    // ICBARI KODU KOPRUSU (2026-08-29, canli hata -- e-Health sunucusu Observation.extension:
+    // ICBARI KODU KOPRUSU (2026-08-29, canli hata -- TRƏS sunucusu Observation.extension:
     // procedure-code'u 1..1 ZORUNLU olarak reddetti, bkz. docs/bakanlik-sorulari.md soru #2):
     // COMED view'i (bagli sunucu) Hasta.ProtokolIslem'e baglanan bir kolon DONDURMUYOR, ama
     // kullanicinin canli SELECT'iyle (2026-08-29) dogrulandi ki LIS.Test (YEREL tablo, Pusula'nin

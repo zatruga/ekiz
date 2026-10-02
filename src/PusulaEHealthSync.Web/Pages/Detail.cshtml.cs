@@ -93,7 +93,7 @@ public class DetailModel(
     // destekleniyor (Lab/DiagnosticReport mapper'i henuz yazilmadi -- veri kaynagi
     // netlesmedi, bkz. SettingsStore.LabOnlyVerifiedKey yorumu).
     // KARAR (2026-08-20): artik CANLI gonderim yapar (liveMode:true) -- Encounter icin
-    // hasta e-Health'te yoksa EncounterSyncService onu otomatik once canli gonderir.
+    // hasta TRƏS'te yoksa EncounterSyncService onu otomatik once canli gonderir.
     public async Task<IActionResult> OnPostResendAsync(long id)
     {
         var existing = await syncLog.GetByIdAsync(id);
@@ -275,14 +275,14 @@ public class DetailModel(
         }
 
         if (azPatientId is null)
-            return (null, null, null, "Hasta e-Health'te bulunamadı -- önce Hasta gönderilmeli.");
+            return (null, null, null, "Hasta TRƏS'te bulunamadı -- önce Hasta gönderilmeli.");
         if (cascadeEncounter && azEncounterId is null)
-            return (null, null, null, "Müayinə e-Health'e gönderilemedi -- önce onu Protokol Detay sayfasından gönderin.");
+            return (null, null, null, "Müayinə TRƏS'e gönderilemedi -- önce onu Protokol Detay sayfasından gönderin.");
 
         return (protokol, azPatientId, azEncounterId, null);
     }
 
-    // Yanlislikla gonderilmis bir kaydi e-Health'ten geri almak icin -- sadece gercekten
+    // Yanlislikla gonderilmis bir kaydi TRƏS'ten geri almak icin -- sadece gercekten
     // olusturulmus/guncellenmis (AzResourceId dolu) kayitlar silinebilir.
     public async Task<IActionResult> OnPostDeleteAsync(long id)
     {

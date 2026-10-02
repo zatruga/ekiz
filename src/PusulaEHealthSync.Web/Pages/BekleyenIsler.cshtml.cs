@@ -7,7 +7,7 @@ using PusulaEHealthSync.Sync;
 
 namespace PusulaEHealthSync.Web.Pages;
 
-// "Bekleyen Isler" -- Pusula'da hazir olup e-Health'e gitmemis her sey.
+// "Bekleyen Isler" -- Pusula'da hazir olup TRƏS'e gitmemis her sey.
 //
 // SALT-OKUNUR: bu sayfa HICBIR SEY GONDERMEZ. Amaci, otomatik gonderimi acmadan once
 // prod'da neyin biriktigini gorunur kilmak. Gonderim isteniyorsa protokol satirindan

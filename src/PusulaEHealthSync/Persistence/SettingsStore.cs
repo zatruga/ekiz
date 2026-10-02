@@ -177,7 +177,7 @@ public class SettingsStore
     // Bu tablo cok kucuk (birkac dusuna satir) ama INANILMAZ sik okunuyordu: her ayar
     // okumasi kendi SQLite baglantisini aciyordu ve cagiranlar tek seferde birden cok
     // anahtar istiyor:
-    //   - EHealthClient.ResolveEndpointAsync -> HER e-Health isteginde 5 okuma
+    //   - EHealthClient.ResolveEndpointAsync -> HER TRƏS isteginde 5 okuma
     //   - PusulaRepository.ConnectionStringAsync -> HER Pusula sorgusunda 3-4 okuma
     // Yani tek bir protokolun gonderimi yuzlerce gereksiz baglanti acip kapatiyordu.
     //

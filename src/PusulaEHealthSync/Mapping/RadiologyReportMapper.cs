@@ -35,7 +35,7 @@ public static class RadiologyReportMapper
             return new MappingResult.Skipped("İcbari Sigorta Fiyat Listesi eşleşmesi bulunamadı -- DiagnosticReport.extension:procedure-code zorunlu alanı doldurulamıyor, bu rapor gönderilemiyor");
 
         if (string.IsNullOrWhiteSpace(azProcedureId))
-            return new MappingResult.Skipped("İlişkili tetkik işlemi (Procedure) e-Health'e henüz gönderilmedi -- DiagnosticReport.extension:related-procedure zorunlu alanı doldurulamıyor, bu rapor gönderilemiyor");
+            return new MappingResult.Skipped("İlişkili tetkik işlemi (Procedure) TRƏS'e henüz gönderilmedi -- DiagnosticReport.extension:related-procedure zorunlu alanı doldurulamıyor, bu rapor gönderilemiyor");
 
         // DUZELTME (2026-08-31, canli hata -- "?" karakterleri): Rapor alani artik HAM RTF
         // tasiyor (bkz. RadiologyReportRecord/GetRadiologyReportsByProtokolIdAsync) -- Epikriz

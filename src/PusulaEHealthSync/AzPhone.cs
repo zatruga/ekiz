@@ -2,7 +2,7 @@ using System.Text;
 
 namespace PusulaEHealthSync;
 
-// Telefon numarasini AZ e-Health'in bekledigi tek bicime cevirir: +994XXXXXXXXX
+// Telefon numarasini AZ TRƏS'in bekledigi tek bicime cevirir: +994XXXXXXXXX
 //
 // BAKANLIK ISTEGI (2026-09-16): "Telefonların bazıları 9 haneli, bazıları başında 0
 // olacak şekilde gönderilmiş. Azerbaycan numarası olduğu doğrulanan telefonların +994

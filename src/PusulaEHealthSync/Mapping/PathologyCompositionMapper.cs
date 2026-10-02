@@ -43,7 +43,7 @@ public static class PathologyCompositionMapper
         if (azFindingIds.Count == 0)
             return new MappingResult.Skipped("Kodlanmış patoloji bulgusu yok -- Composition/Observation zinciri kurulmuyor, rapor yalnızca DiagnosticReport olarak gönderiliyor");
 
-        // author 1..* ZORUNLU. Raporu onaylayan hekim e-Health'e gonderilmemisse
+        // author 1..* ZORUNLU. Raporu onaylayan hekim TRƏS'e gonderilmemisse
         // Organization'a dusuluyor -- profil ikisine de izin veriyor, bu yuzden eksik
         // hekim yuzunden butun zinciri atlamak gereksiz olurdu.
         var author = string.IsNullOrWhiteSpace(azPractitionerId)

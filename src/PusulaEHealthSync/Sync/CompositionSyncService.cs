@@ -8,7 +8,7 @@ namespace PusulaEHealthSync.Sync;
 // Epikriz (Composition, profile: az-discharge-summary) senkronu -- EncounterSyncService ile
 // ayni kalip, ama bagimlilik zinciri bir kademe daha uzun: Composition.encounter (1..1) ve
 // Composition.author (1..* -- Encounter'in aksine OPSIYONEL DEGIL) zorunlu. Bu yuzden
-// Encounter VE Practitioner ikisi de e-Health'te yoksa (liveMode=true ise) burada otomatik
+// Encounter VE Practitioner ikisi de TRƏS'te yoksa (liveMode=true ise) burada otomatik
 // once gonderilir; Practitioner basarisiz olursa (Encounter'daki gibi "participant bos
 // birak" degil) Composition tumden SKIPPED olur -- author'suz gecerli bir Composition yok.
 public class CompositionSyncService(
@@ -39,7 +39,7 @@ public class CompositionSyncService(
         var hasta = await repository.GetHastaByIdAsync(protokol.HastaId, ct);
 
         // KULLANICI ISTEGI (2026-08-21): Reçete protokolleri hiç gönderilmesin. EncounterMapper.Map
-        // da ayni kontrolu yapiyor, ama Composition Encounter'i BULAMAZSA (yani e-Health'te YOKSA)
+        // da ayni kontrolu yapiyor, ama Composition Encounter'i BULAMAZSA (yani TRƏS'te YOKSA)
         // cascade ile ona ugrar -- Encounter zaten varsa (orn. bu kural eklenmeden ONCE gonderilmis
         // eski bir kayitsa) bu kontrole hic dokunmadan gecebilirdi. Composition'in kendisi de
         // Reçete protokollerde asla gonderilmemeli, bu yuzden burada AYRICA ve doğrudan kontrol
@@ -47,7 +47,7 @@ public class CompositionSyncService(
         if (protokol.ProtokolTipiId == EncounterMapper.ReceteProtokolTipiId)
         {
             var receteEntry = NewEntry(protokol, hasta, SyncStatus.Skipped);
-            receteEntry.Message = "Protokol tipi Reçete -- bu tür protokoller e-Health'e gönderilmez";
+            receteEntry.Message = "Protokol tipi Reçete -- bu tür protokoller TRƏS'e gönderilmez";
             await syncLog.InsertAsync(receteEntry, ct);
             return receteEntry;
         }
@@ -84,7 +84,7 @@ public class CompositionSyncService(
         var azEncounterId = await eHealthClient.FindExistingIdAsync("Encounter", protokolId.ToString(), ct);
         if (azEncounterId is null && liveMode)
         {
-            logger.LogInformation("hasta.protokol.Id={Id}: muayene e-Health'te yok, epikriz oncesi once otomatik gonderiliyor", protokolId);
+            logger.LogInformation("hasta.protokol.Id={Id}: muayene TRƏS'te yok, epikriz oncesi once otomatik gonderiliyor", protokolId);
             var encounterResult = await encounterSyncService.SyncOneAsync(protokolId, liveMode: true, ct);
             azEncounterId = encounterResult.Status == SyncStatus.Success
                 ? encounterResult.AzResourceId ?? await eHealthClient.FindExistingIdAsync("Encounter", protokolId.ToString(), ct)
@@ -101,7 +101,7 @@ public class CompositionSyncService(
         else if (azEncounterId is null)
         {
             var entry = NewEntry(protokol, hasta, SyncStatus.Skipped);
-            entry.Message = "Muayene e-Health'te bulunamadi -- once Müayinə gönderilmeli (canlı Create/Update ile)";
+            entry.Message = "Muayene TRƏS'te bulunamadi -- once Müayinə gönderilmeli (canlı Create/Update ile)";
             await syncLog.InsertAsync(entry, ct);
             return entry;
         }
@@ -112,7 +112,7 @@ public class CompositionSyncService(
             // Encounter az'da varsa Patient'in de olmasi garanti (Encounter cascade'i onu
             // zaten once gonderir) -- yine de teorik bir tutarsizlik ihtimaline karsi kontrol.
             var entry = NewEntry(protokol, hasta, SyncStatus.Skipped);
-            entry.Message = "Hasta e-Health'te bulunamadi (beklenmeyen durum -- Müayinə var ama Hasta yok)";
+            entry.Message = "Hasta TRƏS'te bulunamadi (beklenmeyen durum -- Müayinə var ama Hasta yok)";
             await syncLog.InsertAsync(entry, ct);
             return entry;
         }
@@ -131,7 +131,7 @@ public class CompositionSyncService(
         if (azPractitionerId is null)
         {
             var entry = NewEntry(protokol, hasta, SyncStatus.Skipped);
-            entry.Message = "Epikrizi yazan doktor e-Health'te gönderilemedi -- Composition.author zorunlu olduğu için gönderim yapılamıyor";
+            entry.Message = "Epikrizi yazan doktor TRƏS'te gönderilemedi -- Composition.author zorunlu olduğu için gönderim yapılamıyor";
             await syncLog.InsertAsync(entry, ct);
             return entry;
         }

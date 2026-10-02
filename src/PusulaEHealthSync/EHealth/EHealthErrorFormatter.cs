@@ -5,7 +5,7 @@ namespace PusulaEHealthSync.EHealth;
 // KULLANICI ISTEGI (2026-08-21, canli hatada bulundu -- composition-type $validate hatasi
 // dashboard'da sadece "HTTP 400" olarak gorunuyordu, gercek neden -- hangi alanin, neden
 // reddedildigi -- sadece ham ResponseJson'a inip bakarak anlasilabiliyordu): "tüm hatalarda
-// detaylı açıklama yazmalı". e-Health sunucusu basarisiz istekte TEK BIR govde formati
+// detaylı açıklama yazmalı". TRƏS sunucusu basarisiz istekte TEK BIR govde formati
 // kullanmiyor -- standart FHIR OperationOutcome (issue[].diagnostics duz string), .NET FHIR
 // API'nin kendi "value"-sarmali varyanti (issue[].details.text.value -- gorduk, 2026-08-21),
 // ya da basit {"error": "..."} govdesi (orn. auth hatalari) donebiliyor. Bu sinif hepsini

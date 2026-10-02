@@ -62,7 +62,7 @@ else
             <button type="button" class="btn btn-outline btn-sm" onclick="pusulaSelectNone()">Seçimi Temizle</button>
             <span class="bulk-count" id="bulkCount">0 seçili</span>
             <button type="submit" asp-page-handler="BulkGonder" class="btn btn-primary btn-sm" id="bulkGonderBtn" disabled
-                    onclick="return pusulaBulkConfirm(this, 'Seçilen doktorlar e-Health\'e CANLI olarak gönderilecek. Devam edilsin mi?')">
+                    onclick="return pusulaBulkConfirm(this, 'Seçilen doktorlar TRƏS\'e CANLI olarak gönderilecek. Devam edilsin mi?')">
                 Gönder
             </button>
         </div>
@@ -76,7 +76,7 @@ else
                         <th>Ad Soyad</th>
                         <th>FIN</th>
                         <th>Kullanım (180 gün)</th>
-                        <th>e-Health durumu</th>
+                        <th>TRƏS durumu</th>
                         <th>Bakanlık Kodu</th>
                         <th></th>
                     </tr>
@@ -112,13 +112,13 @@ else
                                         <a asp-page="/Detail" asp-route-id="@row.DurumKaydi.Id" class="btn btn-outline btn-sm">Detay</a>
                                     }
                                     <button type="submit" asp-page-handler="Gonder" asp-route-doktorId="@d.DoktorId" class="btn btn-primary btn-sm"
-                                            onclick="return pusulaBulkConfirm(this, 'Doktor bilgisi e-Health\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
+                                            onclick="return pusulaBulkConfirm(this, 'Doktor bilgisi TRƏS\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
                                         @(status is null ? "Gönder" : "Tekrar Gönder")
                                     </button>
                                     @if (SyncLogEntry.CanDelete(row.DurumKaydi))
                                     {
                                         <button type="submit" asp-page-handler="Sil" asp-route-doktorId="@d.DoktorId" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                                                onclick="return pusulaBulkConfirm(this, 'Doktor kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                                onclick="return pusulaBulkConfirm(this, 'Doktor kaydı TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
                                             Sil
                                         </button>
                                     }

@@ -191,11 +191,11 @@ public class SyncLogStore
         return result;
     }
 
-    // Protokol silinme mutabakati icin -- su an e-Health'te "canli" (basariyla
+    // Protokol silinme mutabakati icin -- su an TRƏS'te "canli" (basariyla
     // olusturulmus/guncellenmis, sonradan silinmemis) sayilan her Encounter'in EN SON
     // kaydini doner. Cagiran taraf (Index sayfasi) bunlarin PusulaId'lerini alip Pusula'daki
     // GUNCEL State'i kontrol eder -- State=0 (iptal/silinmis) cikanlar "gonderilmis ama
-    // Pusula'da silinmis, e-Health'ten de silinmeli" olarak isaretlenir.
+    // Pusula'da silinmis, TRƏS'ten de silinmeli" olarak isaretlenir.
     public async Task<List<SyncLogEntry>> GetActiveSentEncounterEntriesAsync(CancellationToken ct = default)
     {
         using var conn = new SqliteConnection(_connectionString);
@@ -223,7 +223,7 @@ public class SyncLogStore
         return result;
     }
 
-    // Bir kaynak tipinde SU AN e-Health'te CANLI sayilan PusulaId'ler -- yani en son
+    // Bir kaynak tipinde SU AN TRƏS'te CANLI sayilan PusulaId'ler -- yani en son
     // denemesi basarili olan ve sonradan silinmemis olanlar.
     //
     // NEDEN (2026-09-29): laboratuvar iptali Pusula taranarak bulunamiyor (kaynak view

@@ -10,7 +10,7 @@ namespace PusulaEHealthSync.Sync;
 //
 // KRITIK FARK: Encounter.subject, Patient'in AZ tarafindaki GERCEK FHIR id'sine referans
 // vermek zorunda (1..1). KARAR (2026-08-20, kullanici istegi): bu artik kullaniciya
-// sorulmuyor -- e-Health'te hasta bulunamazsa ve liveMode=true ise, Encounter'dan once
+// sorulmuyor -- TRƏS'te hasta bulunamazsa ve liveMode=true ise, Encounter'dan once
 // Patient OTOMATIK OLARAK canli gonderilir (PatientSyncService.SyncOneAsync liveMode:true).
 // Hasta gonderimi de basarisiz olursa (Skipped/Failed) Encounter da gonderilemez, tek
 // bir SyncLogEntry'de nedeniyle birlikte loglanir. liveMode=false (validate-only) durumunda
@@ -50,7 +50,7 @@ public class EncounterSyncService(
         var azPatientId = await eHealthClient.FindExistingIdAsync("Patient", protokol.HastaId.ToString(), ct);
         if (azPatientId is null && liveMode)
         {
-            logger.LogInformation("hasta.protokol.Id={Id}: hasta (HastaId={HastaId}) e-Health'te yok, once otomatik gonderiliyor", protokol.ProtokolId, protokol.HastaId);
+            logger.LogInformation("hasta.protokol.Id={Id}: hasta (HastaId={HastaId}) TRƏS'te yok, once otomatik gonderiliyor", protokol.ProtokolId, protokol.HastaId);
             var patientResult = await patientSyncService.SyncOneAsync(protokol.HastaId, liveMode: true, ct);
             azPatientId = patientResult.Status == SyncStatus.Success
                 ? patientResult.AzResourceId ?? await eHealthClient.FindExistingIdAsync("Patient", protokol.HastaId.ToString(), ct)
@@ -68,9 +68,9 @@ public class EncounterSyncService(
         else if (azPatientId is null)
         {
             var entry = NewEntry(protokol, hasta, SyncStatus.Skipped);
-            entry.Message = "Hasta e-Health'te bulunamadi -- once Patient gonderilmeli (canli Create/Update ile)";
+            entry.Message = "Hasta TRƏS'te bulunamadi -- once Patient gonderilmeli (canli Create/Update ile)";
             await syncLog.InsertAsync(entry, ct);
-            logger.LogWarning("ATLANDI hasta.protokol.Id={Id}: hasta (HastaId={HastaId}) e-Health'te bulunamadi", protokol.ProtokolId, protokol.HastaId);
+            logger.LogWarning("ATLANDI hasta.protokol.Id={Id}: hasta (HastaId={HastaId}) TRƏS'te bulunamadi", protokol.ProtokolId, protokol.HastaId);
             return entry;
         }
 
@@ -104,7 +104,7 @@ public class EncounterSyncService(
             // muayeneyi göndersin demiştik"): daha once BASARIYLA gonderilmis bir doktorun
             // kayitli AZ id'si KORUSUZ/SORGULANMADAN kullaniliyordu -- Patient/Encounter'daki
             // AYNI "stale cache" sorunu (bkz. Protokol.cshtml.cs GetGercekIdleriAsync'teki ayni
-            // gerekce): doktor kaydi e-Health tarafinda sonradan kaybolmus/silinmis olabilir,
+            // gerekce): doktor kaydi TRƏS tarafinda sonradan kaybolmus/silinmis olabilir,
             // biz hala eski id'yi gecerli sanip Encounter.participant'a referans veriyorduk --
             // "HTTP 409: Non-existent reference: Practitioner/..." ile Encounter'in KENDISI
             // basarisiz oluyordu. Artik kullanmadan once GET ile CANLI dogrulaniyor (hafif,

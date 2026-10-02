@@ -29,7 +29,7 @@ public partial class PusulaRepository
     // ise sorgunun seklini hic degistirmiyor.
     public static readonly DateTime SinirYok = new(9999, 1, 1);
 
-    // RECETE ISLEMI -- e-Health'e HIC gonderilmez (KULLANICI KARARI 2026-09-29:
+    // RECETE ISLEMI -- TRƏS'e HIC gonderilmez (KULLANICI KARARI 2026-09-29:
     // "recete islem hizmet kodu 30105, bu hizmet var ise gonderim yapilmamali").
     //
     // Ortak.Hizmet.Kodu='30105', Id=107223, adi "Recete islem". Tibbi bir prosedur
@@ -158,7 +158,7 @@ public partial class PusulaRepository
     // Radyoloji raporu, bagli oldugu islem iptal edilmeden de tek basina gecersiz
     // kilinabiliyor. RIS.TetkikIslem'de bunun UC ayri izi var ve ucu de canli veride dolu
     // (son 60 gun): OnayIptalTarihi 661, RaporYazildiIptalTarihi 640, IptalTarihi 0.
-    // Hicbiri taranmadigi icin bu raporlar e-Health'te asili kaliyordu.
+    // Hicbiri taranmadigi icin bu raporlar TRƏS'te asili kaliyordu.
     //
     // State <> 6 SART: onayi iptal edilip SONRADAN yeniden onaylanmis bir tetkik tekrar
     // State=6 olur ve gonderilmeye devam etmeli -- onu silmek gercek veriyi kaybetmek olurdu.

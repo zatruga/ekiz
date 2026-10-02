@@ -5,7 +5,7 @@ using PusulaEHealthSync.Persistence;
 
 namespace PusulaEHealthSync.Sync;
 
-// Bir protokolun BUTUN e-Health gonderimini tek yerde toplar: Hasta -> Muayine ->
+// Bir protokolun BUTUN TRƏS gonderimini tek yerde toplar: Hasta -> Muayine ->
 // Tani -> Islem (EncounterSyncService cascade'i) + Epikriz + Laboratuvar + Radyoloji
 // + Patoloji.
 //
@@ -62,7 +62,7 @@ public class ProtocolFullSyncService(
 
     public async Task<Sonuc> SyncAllAsync(ProtokolListItem protokol, CancellationToken ct = default)
     {
-        // Recete protokolleri e-Health'e hic gonderilmiyor (Protokol Detay'daki
+        // Recete protokolleri TRƏS'e hic gonderilmiyor (Protokol Detay'daki
         // butonlarin tamami da bu durumda gizli).
         if (protokol.ProtokolTipiId == EncounterMapper.ReceteProtokolTipiId)
             return Sonuc.Bos(SyncStatus.Skipped);

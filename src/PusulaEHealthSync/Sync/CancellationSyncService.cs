@@ -5,7 +5,7 @@ using PusulaEHealthSync.Persistence;
 
 namespace PusulaEHealthSync.Sync;
 
-// IPTAL SENKRONU (Is 3) -- Pusula'da iptal edilmis olan ama e-Health'e GONDERILMIS
+// IPTAL SENKRONU (Is 3) -- Pusula'da iptal edilmis olan ama TRƏS'e GONDERILMIS
 // kayitlari geri alir.
 //
 // DIGER SENKRONLARIN TERSI YONDE CALISIR: onlar "Pusula'da var, bizde yok" arar; bu
@@ -64,7 +64,7 @@ public class CancellationSyncService(
         // 3) IPTAL EDILMIS RADYOLOJI RAPORLARI (2026-09-29'da eklendi).
         //    Bir radyoloji raporu, bagli oldugu islem iptal edilmeden de tek basina
         //    gecersiz kilinabiliyor (onay iptali / rapor-yazildi iptali). Boyle bir
-        //    sorgu hic yoktu, yani bu raporlar e-Health'te asili kaliyordu.
+        //    sorgu hic yoktu, yani bu raporlar TRƏS'te asili kaliyordu.
         var iptalRadyoloji = await repository.GetCancelledRadiologyAsync(fromLocal, ct);
         foreach (var r in iptalRadyoloji)
         {
@@ -162,7 +162,7 @@ public class CancellationSyncService(
         return (silinen, hata);
     }
 
-    // Bir protokolun e-Health'teki HER kaydini distan iceriye siler. Cocuk kayitlarin
+    // Bir protokolun TRƏS'teki HER kaydini distan iceriye siler. Cocuk kayitlarin
     // PusulaId'leri SyncLog'da protokole bagli tutulmadigi icin (her tip kendi id uzayini
     // kullanir) once Pusula'dan yeniden okunur.
     // PUBLIC (2026-09-14): Protokol Detay'daki "Tümünü Sil" dugmesi de AYNI metodu

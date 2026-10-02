@@ -4,7 +4,7 @@ using PusulaEHealthSync.Persistence;
 
 namespace PusulaEHealthSync.Sync;
 
-// Yanlislikla (veya test amacli) gonderilmis bir kaydi e-Health'ten geri almak icin --
+// Yanlislikla (veya test amacli) gonderilmis bir kaydi TRƏS'ten geri almak icin --
 // kullanicinin acikca istedigi bir guvenlik agi (bkz. konusma: "yanlislikla gonderilen
 // verinin silinmesi var mi"). Sadece gercekten olusturulmus/guncellenmis (AzResourceId
 // dolu) kayitlar silinebilir -- sadece $validate edilmis bir kaydin silinecek bir seyi yok.
@@ -64,7 +64,7 @@ public class DeleteService(EHealthClient eHealthClient, PusulaRepository reposit
         if (source.AzResourceId is null)
         {
             var missing = CloneAsNew(source, SyncStatus.Failed);
-            missing.Message = "Silinecek bir e-Health kaydı yok (bu kayıt sadece doğrulanmış, hiç oluşturulmamış)";
+            missing.Message = "Silinecek bir TRƏS kaydı yok (bu kayıt sadece doğrulanmış, hiç oluşturulmamış)";
             await syncLog.InsertAsync(missing, ct);
             return missing;
         }
@@ -73,7 +73,7 @@ public class DeleteService(EHealthClient eHealthClient, PusulaRepository reposit
         var entry = CloneAsNew(source, result.Success ? SyncStatus.Success : SyncStatus.Failed);
         entry.AzResourceId = source.AzResourceId;
         entry.Message = result.Success
-            ? $"e-Health'ten silindi ({source.ResourceType}/{source.AzResourceId})"
+            ? $"TRƏS'ten silindi ({source.ResourceType}/{source.AzResourceId})"
             : EHealthErrorFormatter.Describe(result.StatusCode ?? 0, result.Body);
         entry.ResponseJson = result.Body;
         await syncLog.InsertAsync(entry, ct);

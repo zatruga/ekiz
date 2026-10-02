@@ -7,7 +7,7 @@ namespace PusulaEHealthSync.Sync;
 
 // PatientSyncService ile ayni kalip -- tek bir doktoru (IK.Personel) map edip gonderen ve
 // sonucu loglayan ortak mantik. EncounterSyncService bunu, Encounter.participant icin
-// hasta cascade'iyle AYNI mantikla (e-Health'te yoksa ve liveMode=true ise once bunu
+// hasta cascade'iyle AYNI mantikla (TRƏS'te yoksa ve liveMode=true ise once bunu
 // otomatik canli gonderir) cagirir.
 public class PractitionerSyncService(
     PusulaRepository repository,

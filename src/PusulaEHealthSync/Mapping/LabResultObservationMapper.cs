@@ -105,7 +105,7 @@ public static partial class LabResultObservationMapper
 
         // interpretation KASITLI OLARAK EKLENMIYOR -- lab.DisindaMi'nin gercek anlami canli
         // veride dogrulanamadi (bkz. LabResultRecord'daki not, 2026-08-29). Yanlis "anormal"
-        // isareti gercek bir sonuc yerine e-Health'e gitmesin diye anlam kesinlesene kadar
+        // isareti gercek bir sonuc yerine TRƏS'e gitmesin diye anlam kesinlesene kadar
         // bu alan hic gonderilmiyor -- profilde 0..1 (opsiyonel), atlamak gecerli.
 
         return new MappingResult.Success(observation);

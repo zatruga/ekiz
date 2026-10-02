@@ -1,6 +1,6 @@
 namespace PusulaEHealthSync.EHealth;
 
-// e-Health oturum token'ini TUM EHealthClient ornekleri arasinda paylasir.
+// TRƏS oturum token'ini TUM EHealthClient ornekleri arasinda paylasir.
 //
 // NEDEN GEREKTI (2026-09-28 incelemesi): token, EHealthClient'in kendi alanindaydi
 // (_sessionToken). EHealthClient ise AddHttpClient<EHealthClient>() ile kaydedildigi

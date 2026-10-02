@@ -51,7 +51,7 @@ else
         </div>
     </div>
 
-    <p class="section-title">e-Health gönderim durumu (Hasta)</p>
+    <p class="section-title">TRƏS gönderim durumu (Hasta)</p>
     <div class="checklist" style="margin-bottom:24px;">
         <div class="checklist-item">
             <div class="rt-info">
@@ -82,7 +82,7 @@ else
                 }
                 <form method="post" asp-page-handler="GonderHasta" asp-route-id="@h.Id" onsubmit="pusulaLockSubmit(this)">
                     <button type="submit" class="btn btn-primary btn-sm"
-                            onclick="return confirm('Hasta bilgisi e-Health\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
+                            onclick="return confirm('Hasta bilgisi TRƏS\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
                         @(status is null ? "Gönder" : "Tekrar Gönder")
                     </button>
                 </form>
@@ -90,7 +90,7 @@ else
                 {
                     <form method="post" asp-page-handler="SilHasta" asp-route-id="@h.Id" onsubmit="pusulaLockSubmit(this)">
                         <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                                onclick="return confirm('Hasta kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                onclick="return confirm('Hasta kaydı TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
                             Sil
                         </button>
                     </form>
@@ -122,12 +122,12 @@ else
                     <option value="Composition">Sadece Epikriz</option>
                 </select>
                 <button type="submit" asp-page-handler="BulkGonder" class="btn btn-primary btn-sm" id="bulkGonderBtn" disabled
-                        onclick="return pusulaBulkConfirm(this, 'Seçilen protokoller için seçtiğiniz kayıt türü e-Health\'e CANLI olarak gönderilecek. Devam edilsin mi?')">
+                        onclick="return pusulaBulkConfirm(this, 'Seçilen protokoller için seçtiğiniz kayıt türü TRƏS\'e CANLI olarak gönderilecek. Devam edilsin mi?')">
                     Gönder
                 </button>
                 <button type="submit" asp-page-handler="BulkSil" class="btn btn-outline btn-sm" id="bulkSilBtn" disabled
                         style="border-color:var(--danger); color:var(--danger);"
-                        onclick="return pusulaBulkConfirm(this, 'Seçilen protokoller için seçtiğiniz kayıt türü e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                        onclick="return pusulaBulkConfirm(this, 'Seçilen protokoller için seçtiğiniz kayıt türü TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
                     Sil
                 </button>
                 <span class="bulk-count" id="bulkCount">0 seçili</span>
@@ -144,7 +144,7 @@ else
                         <th>Tarih</th>
                         <th>Geliş Tipi</th>
                         <th>Protokol Tipi</th>
-                        <th>e-Health durumu</th>
+                        <th>TRƏS durumu</th>
                         <th></th>
                     </tr>
                 </thead>

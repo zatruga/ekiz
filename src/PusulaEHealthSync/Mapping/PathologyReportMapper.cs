@@ -51,7 +51,7 @@ public static class PathologyReportMapper
             return new MappingResult.Skipped("İcbari Sigorta Fiyat Listesi eşleşmesi bulunamadı -- DiagnosticReport.extension:procedure-code zorunlu alanı doldurulamıyor, bu rapor gönderilemiyor");
 
         if (string.IsNullOrWhiteSpace(azProcedureId))
-            return new MappingResult.Skipped("İlişkili işlem (Procedure) e-Health'e henüz gönderilmedi -- DiagnosticReport.extension:related-procedure zorunlu alanı doldurulamıyor, bu rapor gönderilemiyor");
+            return new MappingResult.Skipped("İlişkili işlem (Procedure) TRƏS'e henüz gönderilmedi -- DiagnosticReport.extension:related-procedure zorunlu alanı doldurulamıyor, bu rapor gönderilemiyor");
 
         var conclusion = HtmlText.ToPlainText(report.Document);
         if (string.IsNullOrWhiteSpace(conclusion))
@@ -166,7 +166,7 @@ public static class PathologyReportMapper
     private static string ToAzInstant(DateTime dt) => AzTime.ToAzInstant(dt);
 
     // ONEMLI: RIS.TetkikIslem.Id (Radyoloji) ile EMR.Pathology.Result.Id (Patoloji) BAGIMSIZ,
-    // ORTUSEN iki ID uzayi -- ayni sayisal degeri paylasabilirler. Ikisi de e-Health'e AYNI
+    // ORTUSEN iki ID uzayi -- ayni sayisal degeri paylasabilirler. Ikisi de TRƏS'e AYNI
     // resourceType (DiagnosticReport) olarak gittigi icin, ciplak Id'yi local-system-unique-id
     // olarak kullanmak FindExistingIdAsync'in YANLIS kaydi bulup uzerine yazmasina (bir
     // radyoloji raporunun patoloji raporuyla karismasina) yol acabilirdi -- bu yuzden burada

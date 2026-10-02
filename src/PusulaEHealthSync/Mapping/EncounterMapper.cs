@@ -9,7 +9,7 @@ namespace PusulaEHealthSync.Mapping;
 // (2026-08-20) kesinlesti, sabit deger olarak kullaniliyor -- tek hastane.
 //
 // subject (Patient) ve participant (Practitioner) referanslari bu sinifin disinda,
-// EncounterSyncService tarafinda e-Health'te arama yapilarak cozulur (local-system-unique-id
+// EncounterSyncService tarafinda TRƏS'te arama yapilarak cozulur (local-system-unique-id
 // ile) -- Map buraya sadece SONUCU (AZ FHIR id) parametre olarak alir, kendisi HTTP/DB
 // erisimi yapmaz (PatientMapper ile ayni saflik ilkesi).
 public static class EncounterMapper
@@ -219,7 +219,7 @@ public static class EncounterMapper
             return new MappingResult.Skipped("Protokol Pusula'da iptal/silinmiş (State=0) -- gönderilmez");
 
         if (p.ProtokolTipiId == ReceteProtokolTipiId)
-            return new MappingResult.Skipped("Protokol tipi Reçete -- bu tür protokoller e-Health'e gönderilmez");
+            return new MappingResult.Skipped("Protokol tipi Reçete -- bu tür protokoller TRƏS'e gönderilmez");
 
         if (p.AcilisTarihi is null)
             return new MappingResult.Skipped("AcilisTarihi (period.start) eksik");

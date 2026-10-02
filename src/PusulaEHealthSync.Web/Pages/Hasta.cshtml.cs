@@ -94,7 +94,7 @@ public class HastaModel(
 
         BulkResultMessage = distinctIds.Count == 0
             ? "Hiçbir protokol seçilmedi."
-            : $"{distinctIds.Count} protokol için silme denendi ({ResourceTypeLabel(resourceType)}) -- {ok} silindi, {failed} hata, {yok} zaten e-Health'te kayıtlı değildi.";
+            : $"{distinctIds.Count} protokol için silme denendi ({ResourceTypeLabel(resourceType)}) -- {ok} silindi, {failed} hata, {yok} zaten TRƏS'te kayıtlı değildi.";
         return RedirectToPage("/Hasta", new { id });
     }
 
