@@ -51,8 +51,18 @@ public class ProtokolModel(
     // laboratuvar önce". GetLabResultsByProtokolIdAsync sadece Status=6 (onaylanmis/kesinlesmis)
     // sonuclari donduruyor, procedure-code eslesmesi olmayanlar Skipped (bkz. LabResultObservationMapper).
     public List<(LabResultRecord Lab, SyncLogEntry? Durum)> Labs { get; set; } = [];
-    public bool LabsGonderilebilir => Labs.Any(l => !BasariylaGonderildi(l.Durum));
-    public bool LabsSilinebilir => Labs.Any(l => SyncLogEntry.CanDelete(l.Durum));
+    // DURUM ARTIK GRUPTA (2026-09-30 duzeltmesi). Bakanligin 2026-09-16 istegiyle panel TEK
+    // Observation olarak gitmeye baslayinca durum kaydi LabGroups'a tasindi ve Labs'in her
+    // satirina sabit null yazilir oldu (bkz. OnGet). Bu uc uye ise Labs'i okumaya devam
+    // ediyordu, yani:
+    //   - LabsAggregateBadge HER ZAMAN "Gonderilmedi" donuyordu (tum dallar null'a takiliyor),
+    //     ekranda "Laboratuvar 9/12 kismi" ile "Gonderilmedi" yan yana duruyordu;
+    //   - LabsSilinebilir HER ZAMAN false idi, yani laboratuvar satirinda "Tumunu Sil"
+    //     butonu hic cikmiyordu (radyolojide cikiyor olmasina ragmen).
+    // Ayni kok neden alt satir rozetlerinde de vardi (RenderLabRow); orasi duzeltildi,
+    // burasi gozden kacmisti.
+    public bool LabsGonderilebilir => LabGroups.Any(g => g.Gonderilebilir);
+    public bool LabsSilinebilir => LabGroups.Any(g => g.Silinebilir);
 
     // KULLANICI ISTEGI (2026-08-31): "sağ tarafta ... çok ucsuz bucaksız uzayıp gidiyor"
     // -- Tanı/İşlem/Laboratuvar artik sag sutunda degil, checklist satirina tiklayinca
@@ -61,10 +71,10 @@ public class ProtokolModel(
     // duruma gore ozetleniyor) ama TUM Labs listesi uzerinden.
     public (string CssClass, string Label) LabsAggregateBadge()
     {
-        if (Labs.Count == 0) return ("neutral", VeriYokEtiketi);
-        if (Labs.Any(x => x.Durum?.Status == SyncStatus.Failed)) return ("danger", "Hatalı");
-        if (Labs.All(x => BasariylaGonderildi(x.Durum))) return ("success", "Gönderildi");
-        if (Labs.Any(x => BasariylaGonderildi(x.Durum))) return ("warning", "Kısmen gönderildi");
+        if (LabGroups.Count == 0) return ("neutral", VeriYokEtiketi);
+        if (LabGroups.Any(g => g.Durum?.Status == SyncStatus.Failed)) return ("danger", "Hatalı");
+        if (LabGroups.All(g => BasariylaGonderildi(g.Durum))) return ("success", "Gönderildi");
+        if (LabGroups.Any(g => BasariylaGonderildi(g.Durum))) return ("warning", "Kısmen gönderildi");
         return ("neutral", "Gönderilmedi");
     }
 
@@ -129,7 +139,7 @@ public class ProtokolModel(
         // view'e sabit null geciliyordu (StatusBadge(null) => "Gönderilmedi").
         //
         // GERCEK: bakanligin 2026-09-16 istegi geregi panel TEK Observation olarak gidiyor,
-        // alt parametreler onun component[] dizisinde. Yani alt satirin AYRI bir e-Health
+        // alt parametreler onun component[] dizisinde. Yani alt satirin AYRI bir TRƏS
         // kaydi YOK -- olmamasi gerekiyor. Rozet bu yuzden satirin kendi kaydini degil,
         // "bu satir tetkikle birlikte gitti mi" sorusunu cevaplamali.
         //
@@ -157,7 +167,7 @@ public class ProtokolModel(
                     $"Bu alt parametrenin test kodu yok -- component olarak gönderilemez, "
                     + $"\"{GroupName}\" gönderimine dahil edilmedi.");
 
-            var aciklama = $"Bu alt parametrenin ayrı bir e-Health kaydı yoktur -- \"{GroupName}\" "
+            var aciklama = $"Bu alt parametrenin ayrı bir TRƏS kaydı yoktur -- \"{GroupName}\" "
                          + "tetkikinin component dizisi içinde, onunla birlikte gider.";
             return AggregateBadge() switch
             {
@@ -245,7 +255,7 @@ public class ProtokolModel(
     //
     // ONCELIK SIRASI: bir GONDERIM KAYDI varsa her zaman o kazanir. Ornegin epikriz
     // gonderildikten sonra Pusula'da metin silinirse satir "Veri yok" degil "Gönderildi"
-    // demeli -- kayit hala e-Health'te duruyor ve kullanicinin onu gorup silebilmesi
+    // demeli -- kayit hala TRƏS'te duruyor ve kullanicinin onu gorup silebilmesi
     // gerekiyor (temizligi CancellationSyncService yapar).
     public const string VeriYokEtiketi = "Veri yok";
     public const string GonderilmezEtiketi = "Gönderilmez";
@@ -260,6 +270,164 @@ public class ProtokolModel(
     private IReadOnlyList<CompositionMapper.EpikrizBolumu>? _epikrizBolumleri;
     public IReadOnlyList<CompositionMapper.EpikrizBolumu> EpikrizBolumleri =>
         _epikrizBolumleri ??= GenelMuayene is null ? [] : CompositionMapper.Bolumler(GenelMuayene);
+
+
+    // ================= SECENEK A: SATIR OZETI =================
+    // KULLANICI KARARI (2026-10-01, tasarim secenekleri uzerine): "seçenek A'yı sevdim".
+    //
+    // ESKI HALIN SORUNU: her satirin rozeti YALNIZCA kendi kaydina bakiyordu. Muayine
+    // satiri yesil "Gonderildi" derken yaninda "Islem 19/21 hatali" yaziyordu -- cunku
+    // Encounter kaydinin KENDISI gitmisti, altindaki 21 islem gitmemisti. Yesile bakan
+    // kisi protokolu tamam saniyordu. Bir rozet, altindaki her sey tamam degilken tamam
+    // diyemez; soyledigi anda ekran guvenilmez olur.
+    //
+    // ARTIK: her satirin rozeti KENDI kaydi + ALTINDAKI tum kayitlar uzerinden hesaplaniyor.
+    public record SatirDurum(string CssClass, string Etiket, int Giden, int Toplam);
+
+    // Tek kural, yedi satir. Oncelik: hata > hic gitmemis > kismi > tamam.
+    // Hata KIRMIZI, eksik AMBER: ikisi ayri sey. "19 tanesi reddedildi" ile "19 tanesi
+    // henuz denenmedi" ayni renge sahip olursa hangisine mudahale gerektigi kaybolur.
+    public static SatirDurum Topla(IEnumerable<SyncLogEntry?> durumlar, string bosEtiket = VeriYokEtiketi)
+    {
+        var liste = durumlar.ToList();
+        if (liste.Count == 0) return new SatirDurum("neutral", bosEtiket, 0, 0);
+
+        var giden = liste.Count(BasariylaGonderildi);
+        var toplam = liste.Count;
+        var etiket = toplam == 1 && giden == 1 ? "Gönderildi" : $"{giden} / {toplam} tamam";
+
+        if (liste.Any(d => d?.Status == SyncStatus.Failed)) return new SatirDurum("danger", etiket, giden, toplam);
+        if (giden == 0) return new SatirDurum("neutral", "Gönderilmedi", 0, toplam);
+        if (giden == toplam) return new SatirDurum("success", etiket, giden, toplam);
+        return new SatirDurum("warning", etiket, giden, toplam);
+    }
+
+    public SatirDurum HastaSatiri() => IsRecete
+        ? new SatirDurum("neutral", GonderilmezEtiketi, 0, 0)
+        : Topla([HastaDurumKaydi]);
+
+    // Tani ve Islem Muayine ile BIRLIKTE gidiyor (EncounterSyncService cascade'i), bu yuzden
+    // ayni rozette toplaniyorlar -- kullanici acisindan tek bir is.
+    public SatirDurum MuayineSatiri() => IsRecete
+        ? new SatirDurum("neutral", GonderilmezEtiketi, 0, 0)
+        : Topla([MuayineDurumKaydi, .. Tanilar.Select(t => t.Durum), .. Islemler.Select(i => i.Durum)]);
+
+    public SatirDurum LabSatiri() => Topla(LabGroups.Select(g => g.Durum));
+    public SatirDurum RadSatiri() => Topla(RadiologyReports.Select(r => r.Durum));
+    public SatirDurum PatSatiri() => Topla(PathologyReports.Select(r => r.Durum));
+
+    public SatirDurum EpikrizSatiri()
+    {
+        if (IsRecete) return new SatirDurum("neutral", GonderilmezEtiketi, 0, 0);
+        if (!EpikrizSendEnabled) return new SatirDurum("neutral", KapaliEtiketi, 0, 0);
+        if (EpikrizDurumKaydi is null && EpikrizBolumleri.Count == 0)
+            return new SatirDurum("neutral", VeriYokEtiketi, 0, 0);
+        return Topla([EpikrizDurumKaydi]);
+    }
+
+    public SatirDurum VitalSatiri()
+    {
+        if (IsRecete) return new SatirDurum("neutral", GonderilmezEtiketi, 0, 0);
+        if (VitalDurumKaydi is null && Vitaller.Count == 0)
+            return new SatirDurum("neutral", VeriYokEtiketi, 0, 0);
+        return Topla([VitalDurumKaydi]);
+    }
+
+    // ================= YAPILACAKLAR =================
+    // KULLANICI ISTEGI (2026-10-01): "Seçenek B'nin mantığını çok sevdim ... sağ tarafa
+    // Yapılacaklar diye sistem bize ne yapmamız gerektiğini söylesin."
+    //
+    // Ekran bugune kadar "burada ne var" anlatiyordu; onune oturan kisinin tek sorusu ise
+    // "bu protokolde benim yapmam gereken bir sey var mi". Bu liste o soruyu cevapliyor.
+    //
+    // IKI TUR IS, BILEREK AYRI: HATA (bakanlik reddetti -- genelde bir eslestirme eksik,
+    // tekrar denemek tek basina cozmez) ve BEKLEYEN (hic denenmemis -- Gonder yeter).
+    // Ayni listede ama ayri renkte ve ayri sira ile: once hata, sonra bekleyen.
+    public record YapilacakIs(
+        string Baslik,
+        string Sebep,
+        string Ornek,
+        bool Hata,
+        string? Handler,
+        string? BaglantiSayfa,
+        string? BaglantiAdi);
+
+    public List<YapilacakIs> Yapilacaklar()
+    {
+        var isler = new List<YapilacakIs>();
+        if (Protokol is null || IsRecete) return isler;
+
+        // Bir kumeyi (tani, islem, tetkik...) tek bir ise cevirir. Ad listesi kullaniciya
+        // "hangileri" sorusunu tiklamadan cevaplasin diye; uzunsa ilk ucu + kalan sayisi.
+        void Ekle(string tekil, string cogul, IEnumerable<(string Ad, SyncLogEntry? Durum)> kayitlar,
+                  string? handler, string? sayfa = null, string? baglantiAdi = null)
+        {
+            var hepsi = kayitlar.ToList();
+
+            var hatalilar = hepsi.Where(k => k.Durum?.Status == SyncStatus.Failed).ToList();
+            if (hatalilar.Count > 0)
+            {
+                // Sebep: en sik gorulen hata kategorisi. Yirmi satirin on dokuzu ayni sebepten
+                // dusmusse kullaniciya yirmi mesaj degil TEK sebep gosterilmeli.
+                var sebep = hatalilar
+                    .GroupBy(h => SyncLogEntry.ErrorCategory(h.Durum!.Message).Label)
+                    .OrderByDescending(g => g.Count())
+                    .First().Key;
+                isler.Add(new YapilacakIs(
+                    $"{hatalilar.Count} {(hatalilar.Count == 1 ? tekil : cogul)} gönderilemedi",
+                    sebep, Ornekle(hatalilar.Select(h => h.Ad)), true, handler, sayfa, baglantiAdi));
+            }
+
+            // Atlananlar (Skipped) HATA DEGIL: bilerek gonderilmedi, sebebi de bellidir
+            // (LOINC yok, Icbari eslesmesi yok). Ama kullanicinin bilmesi gereken bir is --
+            // cunku eksikligi giderirse gonderilebilir hale gelir.
+            var atlananlar = hepsi.Where(k => k.Durum?.Status == SyncStatus.Skipped).ToList();
+            if (atlananlar.Count > 0)
+            {
+                var sebep = atlananlar
+                    .GroupBy(a => SyncLogEntry.FriendlyError(a.Durum!.Message))
+                    .OrderByDescending(g => g.Count())
+                    .First().Key;
+                isler.Add(new YapilacakIs(
+                    $"{atlananlar.Count} {(atlananlar.Count == 1 ? tekil : cogul)} atlandı",
+                    sebep, Ornekle(atlananlar.Select(a => a.Ad)), true, handler, sayfa, baglantiAdi));
+            }
+
+            var bekleyenler = hepsi.Where(k => k.Durum is null).ToList();
+            if (bekleyenler.Count > 0)
+                isler.Add(new YapilacakIs(
+                    $"{bekleyenler.Count} {(bekleyenler.Count == 1 ? tekil : cogul)} henüz gönderilmedi",
+                    "Bu kayıtlar için hiç gönderim denemesi yapılmadı.",
+                    Ornekle(bekleyenler.Select(b => b.Ad)), false, handler, null, null));
+        }
+
+        Ekle("hasta kaydı", "hasta kaydı", [(Protokol.HastaAdiSoyadi ?? "Hasta", HastaDurumKaydi)], "GonderHasta");
+        Ekle("müayinə", "müayinə", [("Müayinə", MuayineDurumKaydi)], "GonderMuayine");
+        Ekle("tanı", "tanı", Tanilar.Select(t => (t.Tani.Kodu ?? "-", t.Durum)), "TumunuGonderTani");
+        Ekle("işlem", "işlem", Islemler.Select(i => (i.Islem.HizmetAdi ?? "-", i.Durum)),
+             "TumunuGonderIslem", "/HizmetEslestirme", "Hizmet Eşleştirme");
+        Ekle("tetkik", "tetkik", LabGroups.Select(g => (g.GroupName, g.Durum)),
+             "TumunuGonderLab", "/LabLoincEslestirme", "LOINC Eşleştirme");
+        Ekle("radyoloji raporu", "radyoloji raporu", RadiologyReports.Select(r => (r.Report.HizmetAdi ?? "-", r.Durum)), "TumunuGonderRadiology");
+        Ekle("patoloji raporu", "patoloji raporu", PathologyReports.Select(r => (r.Report.HizmetAdi ?? "-", r.Durum)), "TumunuGonderPathology");
+
+        if (EpikrizSendEnabled && EpikrizBolumleri.Count > 0)
+            Ekle("epikriz", "epikriz", [("Epikriz", EpikrizDurumKaydi)], "GonderEpikriz");
+        if (Vitaller.Count > 0)
+            Ekle("vital bulgu kaydı", "vital bulgu kaydı", [("Vital Bulgular", VitalDurumKaydi)], "GonderVital");
+
+        // Once hata, sonra bekleyen: mudahale gerektirenler uste.
+        return isler.OrderByDescending(i => i.Hata).ToList();
+    }
+
+    private static string Ornekle(IEnumerable<string> adlar)
+    {
+        var liste = adlar.Where(a => !string.IsNullOrWhiteSpace(a)).Distinct().ToList();
+        if (liste.Count == 0) return "";
+        return liste.Count <= 3
+            ? string.Join(" · ", liste)
+            : string.Join(" · ", liste.Take(3)) + $" · +{liste.Count - 3} daha";
+    }
 
     public (string CssClass, string Label) MuayineBadge()
     {
@@ -370,14 +538,14 @@ public class ProtokolModel(
 
     // KARAR (2026-08-20, kullanici istegi): panelden "Gonder" artik CANLI gonderim yapar
     // (liveMode:true) -- eskiden sadece $validate calisiyordu. Muayine gonderiminde hasta
-    // e-Health'te yoksa EncounterSyncService onu otomatik olarak once canli gonderir,
+    // TRƏS'te yoksa EncounterSyncService onu otomatik olarak once canli gonderir,
     // kullanicinin ayrica "once hastayi gonder" diye ugrasmasina gerek kalmaz.
-    // Master "Tümünü Gönder" -- KULLANICI ISTEGI (2026-08-27): "e-Health gönderim durumu
+    // Master "Tümünü Gönder" -- KULLANICI ISTEGI (2026-08-27): "TRƏS gönderim durumu
     // alanının yanına tümünü gönder butonu koyalım" -- baslik satirinda tek tikla butun
     // protokolu gonderen bir kisayol. EncounterSyncService.SyncOneAsync zaten Hasta ->
     // Muayine -> Tani -> Islem'i CASCADE olarak gonderiyor (bkz. o dosyadaki SyncOneAsync),
     // burada ayrica tek tek cagirmaya gerek yok -- sadece cascade'e DAHIL OLMAYAN Epikriz'i
-    // (Composition) ayrica gonderiyoruz. Reçete protokolleri e-Health'e hic gonderilmedigi
+    // (Composition) ayrica gonderiyoruz. Reçete protokolleri TRƏS'e hic gonderilmedigi
     // icin (sayfadaki diger butonlar gibi) bu durumda hicbir sey yapmiyor.
     // DUZELTME (2026-08-31, kullanici: "hasta bilgilerine yaptığımız tümünü gönder butonu lab
     // ve rad için gönderim yapmıyor"): Lab hicbir zaman Encounter cascade'inin parcasi degildi
@@ -440,7 +608,7 @@ public class ProtokolModel(
         return RedirectToPage("/Protokol", new { id });
     }
 
-    // Yanlislikla gonderilmis Hasta/Muayine kaydini e-Health'ten geri almak icin.
+    // Yanlislikla gonderilmis Hasta/Muayine kaydini TRƏS'ten geri almak icin.
     public async Task<IActionResult> OnPostSilHastaAsync(int id, CancellationToken ct)
     {
         Protokol = await pusulaRepository.GetProtokolByIdAsync(id, ct);
@@ -646,7 +814,7 @@ public class ProtokolModel(
     // referans ediliyor" ile reddedildi -- Encounter.diagnosis hala isaret ediyordu), sonra
     // "Tekrar Gönder" dedi ve "HTTP 409: Non-existent reference: Encounter/..." hatasi aldi.
     // Kok neden: bizim SyncLogStore'daki "en son basarili Encounter" kaydi ESKI/GECERSIZ --
-    // o Encounter e-Health sunucusunda ARTIK YOK (bizim tarafimizdan silinmedi, SyncLog'da
+    // o Encounter TRƏS sunucusunda ARTIK YOK (bizim tarafimizdan silinmedi, SyncLog'da
     // boyle bir Delete kaydi yok -- disaridan/sunucu tarafinda kaybolmus), ama biz hala o
     // ID'yi "gecerli" sanip Condition/Procedure'a referans olarak gonderiyorduk, sonsuza
     // kadar ayni 409'u alacak sekilde. Artik kullanmadan once GERCEKTEN var mi diye canli
@@ -654,7 +822,7 @@ public class ProtokolModel(
     // zaten FindExistingIdAsync ile canli arama yapip bulamazsa YENİ bir Encounter olusturur
     // ve cascade ile Tanı/İşlem'i de otomatik yeniden gonderir).
     // ARTIK VIEW'DEN CAGRILMIYOR (2026-09-30): alt parametre satirlarindaki tekil
-    // Gonder/Sil butonlari kaldirildi -- alt parametrenin ayri bir e-Health kaydi yok,
+    // Gonder/Sil butonlari kaldirildi -- alt parametrenin ayri bir TRƏS kaydi yok,
     // gonderim/silme grup (tetkik) seviyesinde. Handler yine de duruyor: elde eski bir
     // baglanti/yer imi olan biri icin dogru davranisi (grup islemi) yapiyor, 404 vermiyor.
     public async Task<IActionResult> OnPostSilLabAsync(int id, long durumId, CancellationToken ct)
@@ -767,13 +935,13 @@ public class ProtokolModel(
     // sadece referans eklenmiyor, yeni bir Encounter OLUSTURULMUYOR.
     //
     // DUZELTME (2026-08-31, protokol 50819013 -- kullanici: "tüm bilgileri yeniden
-    // göndermeme rağmen ... Bağlı olduğu Hasta kaydı e-Health'te artık bulunamıyor"):
+    // göndermeme rağmen ... Bağlı olduğu Hasta kaydı TRƏS'te artık bulunamıyor"):
     // azPatientId ESKIDEN SyncLog'daki en son BASARILI Patient gonderiminin AzResourceId'sini
     // KORU SORGULAMADAN kullaniyordu -- Muayine/Epikriz ayni anda basariyla gonderilebiliyordu
     // (canli kanit: bu protokolde ikisi de basarili) cunku EncounterSyncService (satir 48)
     // Patient'i HIC bizim SyncLog'umuzdan degil, DOGRUDAN CANLI eHealthClient.FindExistingIdAsync
-    // ile arıyor. SyncLog'daki kayitli id ile e-Health'teki GERCEK id farklilasabiliyor (orn.
-    // hasta e-Health tarafinda yeniden olusturulmus/id degismis) -- bu durumda Lab/Tani/Islem
+    // ile arıyor. SyncLog'daki kayitli id ile TRƏS'teki GERCEK id farklilasabiliyor (orn.
+    // hasta TRƏS tarafinda yeniden olusturulmus/id degismis) -- bu durumda Lab/Tani/Islem
     // hala ESKI/gecersiz id'yi gonderip "Non-existent reference: Patient/..." aliyordu. Artik
     // Encounter ile AYNI sekilde CANLI arama yapiyoruz -- cache'e guvenmiyoruz.
     private async Task<(string? AzPatientId, string? AzEncounterId)> GetIdleriLabIcinAsync(ProtokolListItem protokol, CancellationToken ct)

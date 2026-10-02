@@ -37,6 +37,17 @@ else
             <h1 class="page-title">@p.HastaAdiSoyadi</h1>
         </div>
         <div style="display:flex; gap:8px;">
+            @* KULLANICI ISTEGI (2026-10-01): "sağ tarafa Yapılacaklar diye sistem bize ne
+               yapmamız gerektiğini söylesin." Rakam, mudahale bekleyen is sayisi -- sifirsa
+               buton sakin durur, varsa kirmizi rozetle kendini gosterir. *@
+            @{ var yapilacakSayisi = Model.Yapilacaklar().Count; }
+            <button type="button" class="btn btn-outline btn-sm yapilacaklar-btn" onclick="pusulaShowTab('yapilacaklar')">
+                Yapılacaklar
+                @if (yapilacakSayisi > 0)
+                {
+                    <span class="yapilacaklar-sayi">@yapilacakSayisi</span>
+                }
+            </button>
             <a asp-page="/Hasta" asp-route-id="@p.HastaId" class="btn btn-outline btn-sm">Hasta Detay</a>
             <a asp-page="/Index" class="btn btn-outline btn-sm">&larr; Listeye dön</a>
         </div>
@@ -91,446 +102,447 @@ else
         </div>
         @if (!isRecete)
         {
-            @* "Tümünü Sil", "Tümünü Gönder"in tam karsiligi -- protokolun butun gonderimlerini
-               distan ice dogru geri alir. Hasta (Patient) bilerek kapsam disi: ayni hasta baska
-               protokollerde de kullaniliyor, buradan silmek onlari kirardi. *@
+            @* "Tümünü Sil" ARTIK BURADA DEGIL (2026-10-01 kullanici istegi): sayfanin en
+               altina, kendi seridine tasindi. Gerekce: silme gunde bir kez bile basilmayan,
+               geri alinamaz bir islem; her gun basilan "Tümünü Gönder"in yaninda esit
+               agirlikta durmasi hem dikkati bolüyor hem de yanlis tiklama riski yaratiyordu. *@
             <div style="margin-left:auto; align-self:center; display:flex; gap:8px;">
                 <form method="post" asp-page-handler="TumunuGonder" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                     <button type="submit" class="btn btn-bulk btn-sm"
-                            onclick="return confirm('Bu protokol için Hasta, Müayinə, Tanı, İşlem, Epikriz, Vital Bulgular, Laboratuvar, Radyoloji ve Patoloji e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                            onclick="return confirm('Bu protokol için Hasta, Müayinə, Tanı, İşlem, Epikriz, Vital Bulgular, Laboratuvar, Radyoloji ve Patoloji TRƏS\'e CANLI olarak gönderilecek. Emin misiniz?')">
                         Tümünü Gönder
-                    </button>
-                </form>
-                <form method="post" asp-page-handler="TumunuSil" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                    <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                            onclick="return confirm('Bu protokolün e-Health\'e gönderilmiş TÜM kayıtları silinecek: Patoloji, Radyoloji, Laboratuvar, Vital Bulgular, Epikriz, İşlem, Tanı ve Müayinə.\n\nHasta (Patient) SİLİNMEZ -- aynı hasta başka protokollerde de kullanılıyor.\n\nEmin misiniz?')">
-                        Tümünü Sil
                     </button>
                 </form>
             </div>
         }
     </div>
 
-    <p class="section-title">e-Health gönderim durumu</p>
+    @* ============ SECENEK A: SADE LISTE (2026-10-01 kullanici karari) ============
+       Her satirda TEK rozet, TEK sayi, TEK birincil buton. Ikincil islemler (Detay, Sil,
+       Tekrar Gonder) satirin sonundaki ⋯ menusunde.
+
+       NEDEN: eskiden satir basina uc buton vardi ve hepsi ayni gorsel agirliktaydi -- her
+       gun basilan Gonder ile ayda bir basilan Sil esit yer kapliyordu. Ekranda 12 buton
+       olunca hicbiri one cikmiyor. Sil'i menuye almak ayni zamanda yanlislikla silme
+       riskini de dusuruyor.
+
+       Rozet artik ALT AGACI sayiyor (bkz. ProtokolModel.Topla): Muayine satiri, altindaki
+       21 islemden 19'u gitmediyse yesil "Gonderildi" diyemez.
+
+       ⋯ menusu native <details>/<summary> -- JS gerekmiyor, klavyeyle de acilir. Satirin
+       kendisi tiklanabilir oldugu icin summary'de stopPropagation var. *@
+    <p class="section-title">TRƏS gönderim durumu</p>
     <div class="checklist">
+
+        @{
+            var hastaSatir = Model.HastaSatiri();
+        }
         <div class="checklist-item">
+            <span class="rt-stripe rt-stripe--@hastaSatir.CssClass"></span>
             <div class="rt-info">
-                <span class="rt-name">Hasta (Patient)</span>
+                <span class="rt-name">Hasta <span class="rt-fhir">Patient</span></span>
                 <span class="rt-desc">
                     @if (Model.HastaDurumKaydi is null)
                     {
-                        <text>Bu hasta için henüz bir gönderim denemesi yapılmadı.</text>
+                        <text>Henüz gönderim denemesi yapılmadı.</text>
                     }
                     else
                     {
-                        var displayMsg = Model.HastaDurumKaydi.Message is null ? ""
+                        var hastaMsj = Model.HastaDurumKaydi.Message is null ? ""
                             : Model.HastaDurumKaydi.Status == SyncStatus.Failed ? SyncLogEntry.FriendlyError(Model.HastaDurumKaydi.Message)
                             : Model.HastaDurumKaydi.Message;
-                        <text>Son deneme: @AzTime.ToLocal(Model.HastaDurumKaydi.CreatedAtUtc).ToString("yyyy-MM-dd HH:mm") @(string.IsNullOrEmpty(displayMsg) ? "" : $"-- {displayMsg}")</text>
+                        <text>Son deneme @AzTime.ToLocal(Model.HastaDurumKaydi.CreatedAtUtc).ToString("dd.MM.yyyy HH:mm")@(string.IsNullOrEmpty(hastaMsj) ? "." : $" — {hastaMsj}")</text>
                     }
                 </span>
             </div>
             <div class="rt-right">
-                @{
-                    var status = Model.HastaDurumKaydi?.Status;
-                    var (hastaBadgeClass, hastaBadgeLabel) = SyncLogEntry.StatusBadge(Model.HastaDurumKaydi);
-                }
-                <span class="badge @hastaBadgeClass"><span class="badge-dot"></span>@hastaBadgeLabel</span>
-                @if (Model.HastaDurumKaydi is not null)
+                <span class="badge @hastaSatir.CssClass"><span class="badge-dot"></span>@hastaSatir.Etiket</span>
+                @if (!PusulaEHealthSync.Web.Pages.ProtokolModel.BasariylaGonderildi(Model.HastaDurumKaydi))
                 {
-                    <a asp-page="/Detail" asp-route-id="@Model.HastaDurumKaydi.Id" asp-route-fromProtokol="@p.ProtokolId" class="btn btn-outline btn-sm">Detay</a>
-                }
-                <form method="post" asp-page-handler="GonderHasta" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                    <button type="submit" class="btn btn-primary btn-sm"
-                            onclick="return confirm('Hasta bilgisi e-Health\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
-                        @(status is null ? "Gönder" : "Tekrar Gönder")
-                    </button>
-                </form>
-                @if (SyncLogEntry.CanDelete(Model.HastaDurumKaydi))
-                {
-                    <form method="post" asp-page-handler="SilHasta" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                        <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                                onclick="return confirm('Hasta kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
-                            Sil
+                    <form method="post" asp-page-handler="GonderHasta" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                        <button type="submit" class="btn btn-primary btn-sm"
+                                onclick="return confirm('Hasta bilgisi TRƏS\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
+                            @(Model.HastaDurumKaydi is null ? "Gönder" : "Tekrar Dene")
                         </button>
                     </form>
                 }
+                <details class="rt-menu">
+                    <summary class="rt-menu-btn" title="Diğer işlemler" aria-label="Hasta için diğer işlemler">&#8943;</summary>
+                    <div class="rt-menu-pop">
+                        @if (Model.HastaDurumKaydi is not null)
+                        {
+                            <a asp-page="/Detail" asp-route-id="@Model.HastaDurumKaydi.Id" asp-route-fromProtokol="@p.ProtokolId" class="rt-menu-item">Kayıt detayı</a>
+                            @if (PusulaEHealthSync.Web.Pages.ProtokolModel.BasariylaGonderildi(Model.HastaDurumKaydi))
+                            {
+                                <form method="post" asp-page-handler="GonderHasta" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                    <button type="submit" class="rt-menu-item"
+                                            onclick="return confirm('Hasta bilgisi TRƏS\'e yeniden gönderilecek. Emin misiniz?')">Tekrar gönder</button>
+                                </form>
+                            }
+                        }
+                        @if (SyncLogEntry.CanDelete(Model.HastaDurumKaydi))
+                        {
+                            <form method="post" asp-page-handler="SilHasta" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                <button type="submit" class="rt-menu-item rt-menu-item--danger"
+                                        onclick="return confirm('Hasta kaydı TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">TRƏS'ten sil</button>
+                            </form>
+                        }
+                        @if (Model.HastaDurumKaydi is null)
+                        {
+                            <span class="rt-menu-bos">Henüz kayıt yok</span>
+                        }
+                    </div>
+                </details>
             </div>
         </div>
 
-        <!-- KULLANICI ISTEGI (2026-08-31): "işlem procedürü muayeninin altına alalım ...
-             açılır kapanır şekilde". Tanı/İşlem artık ayrı bir sağ sütunda değil -- bu satıra
-             tıklayınca sayfa altındaki ortak alanda gösteriliyor (bkz. pusulaShowTab).
-             Gönder/Sil/Detay hâlâ tıklamayı tetiklemesin diye stopPropagation kullanıyor
-             (lab panel gruplarındaki AYNI teknik). -->
         @{
-            var (taniRowOzetClass, taniRowOzetLabel, taniRowOzetS, taniRowOzetT) = Model.TanilarOzet();
-            var (islemRowOzetClass, islemRowOzetLabel, islemRowOzetS, islemRowOzetT) = Model.IslemlerOzet();
+            var muayineSatir = Model.MuayineSatiri();
         }
         <div class="checklist-item checklist-item--tab" data-tab="muayine" onclick="pusulaShowTab('muayine')">
+            <span class="rt-stripe rt-stripe--@muayineSatir.CssClass"></span>
             <div class="rt-info">
-                <span class="rt-name">Müayinə (Encounter) <span class="tab-chevron">&#9656;</span></span>
+                <span class="rt-name">Müayinə <span class="rt-fhir">Encounter</span> <span class="tab-chevron">&#9656;</span></span>
                 <span class="rt-desc">
                     @if (isRecete)
                     {
-                        <text>Protokol tipi Reçete -- bu tür protokoller e-Health'e gönderilmez.</text>
-                    }
-                    else if (p.KapanisTarihi is null)
-                    {
-                        <text>
-                            Protokol açık.
-                            @if (Model.MuayineGonderimeUygun)
-                            {
-                                <text>Açılışın üzerinden @Model.OpenProtokolSendAfterDays günden fazla geçtiği için (bkz. Ayarlar) kapanmadan da gönderilebilir.</text>
-                            }
-                            else
-                            {
-                                <text>Kapanana kadar (veya açılıştan @Model.OpenProtokolSendAfterDays gün sonrasına kadar, bkz. Ayarlar) beklemesi öneriliyor.</text>
-                            }
-                        </text>
-                    }
-                    @if (Model.MuayineDurumKaydi is null)
-                    {
-                        <text> Bu protokol için henüz bir gönderim denemesi yapılmadı. Hasta e-Health'te henüz yoksa "Gönder" onu da otomatik olarak önce gönderir. Tanı ve İşlem, Müayinə ile birlikte otomatik gönderilir -- listelerini görmek için bu satıra tıklayın.</text>
+                        <text>Protokol tipi Reçete — bu tür protokoller TRƏS'e gönderilmez.</text>
                     }
                     else
                     {
-                        var displayMsg = Model.MuayineDurumKaydi.Message is null ? ""
-                            : Model.MuayineDurumKaydi.Status == SyncStatus.Failed ? SyncLogEntry.FriendlyError(Model.MuayineDurumKaydi.Message)
-                            : Model.MuayineDurumKaydi.Message;
-                        <text> Son deneme: @AzTime.ToLocal(Model.MuayineDurumKaydi.CreatedAtUtc).ToString("yyyy-MM-dd HH:mm") @(string.IsNullOrEmpty(displayMsg) ? "" : $"-- {displayMsg}") Tanı ve İşlem listesi için bu satıra tıklayın.</text>
+                        <text>@Model.Tanilar.Count tanı, @Model.Islemler.Count işlem — listesi için tıklayın.</text>
+                        @if (p.KapanisTarihi is null && !Model.MuayineGonderimeUygun)
+                        {
+                            <text> Protokol açık; kapanana kadar beklemesi öneriliyor.</text>
+                        }
                     }
                 </span>
             </div>
-            <div class="checklist-item-summary">
-                <span class="line @taniRowOzetClass">Tanı @taniRowOzetS/@taniRowOzetT @taniRowOzetLabel</span>
-                <span class="line @islemRowOzetClass">İşlem @islemRowOzetS/@islemRowOzetT @islemRowOzetLabel</span>
-            </div>
             <div class="rt-right">
-                @{
-                    var encStatus = Model.MuayineDurumKaydi?.Status;
-                    var (encBadgeClass, encBadgeLabel) = Model.MuayineBadge();
-                }
-                <span class="badge @encBadgeClass"><span class="badge-dot"></span>@encBadgeLabel</span>
-                @if (Model.MuayineDurumKaydi is not null)
-                {
-                    <a asp-page="/Detail" asp-route-id="@Model.MuayineDurumKaydi.Id" asp-route-fromProtokol="@p.ProtokolId" class="btn btn-outline btn-sm" onclick="event.stopPropagation()">Detay</a>
-                }
-                @if (!isRecete)
+                <span class="badge @muayineSatir.CssClass"><span class="badge-dot"></span>@muayineSatir.Etiket</span>
+                @if (!isRecete && muayineSatir.Giden < muayineSatir.Toplam)
                 {
                     <form method="post" asp-page-handler="GonderMuayine" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                        <button type="submit" class="btn btn-primary btn-sm" onclick="event.stopPropagation(); return confirm('Hasta gerekiyorsa önce o, ardından Müayinə e-Health\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
-                            @(encStatus is null ? "Gönder" : "Tekrar Gönder")
+                        <button type="submit" class="btn btn-primary btn-sm" onclick="event.stopPropagation(); return confirm('Müayinə, tanılar ve işlemler TRƏS\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
+                            @(Model.MuayineDurumKaydi is null ? "Gönder" : "Tekrar Dene")
                         </button>
                     </form>
                 }
-                @if (SyncLogEntry.CanDelete(Model.MuayineDurumKaydi))
-                {
-                    <form method="post" asp-page-handler="SilMuayine" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                        <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                                onclick="event.stopPropagation(); return confirm('Müayinə kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
-                            Sil
-                        </button>
-                    </form>
+                @{
+                    // Menu BOS acilmasin: hicbir sey gonderilmemis bir protokolde Muayine
+                    // menusundeki her ogenin kosulu false olup bos beyaz bir kutu aciliyordu
+                    // (canli ekranda goruldu). Ayni kalip Hasta/Epikriz/Lab satirlarinda zaten
+                    // vardi, burada eksikti.
+                    var muayineMenuDolu = Model.MuayineDurumKaydi is not null
+                        || Model.TanilarSilinebilir || Model.IslemlerSilinebilir;
                 }
+                <details class="rt-menu" onclick="event.stopPropagation()">
+                    <summary class="rt-menu-btn" title="Diğer işlemler" aria-label="Müayinə için diğer işlemler">&#8943;</summary>
+                    <div class="rt-menu-pop">
+                        @if (!muayineMenuDolu)
+                        {
+                            <span class="rt-menu-bos">Henüz kayıt yok</span>
+                        }
+                        @if (Model.MuayineDurumKaydi is not null)
+                        {
+                            <a asp-page="/Detail" asp-route-id="@Model.MuayineDurumKaydi.Id" asp-route-fromProtokol="@p.ProtokolId" class="rt-menu-item">Kayıt detayı</a>
+                        }
+                        @if (!isRecete && muayineSatir.Giden == muayineSatir.Toplam && muayineSatir.Toplam > 0)
+                        {
+                            <form method="post" asp-page-handler="GonderMuayine" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                <button type="submit" class="rt-menu-item" onclick="return confirm('Müayinə TRƏS\'e yeniden gönderilecek. Emin misiniz?')">Tekrar gönder</button>
+                            </form>
+                        }
+                        @if (Model.TanilarSilinebilir)
+                        {
+                            <form method="post" asp-page-handler="TumunuSilTani" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                <button type="submit" class="rt-menu-item rt-menu-item--danger"
+                                        onclick="return confirm('Gönderilmiş TÜM tanı kayıtları TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">Tanıları sil</button>
+                            </form>
+                        }
+                        @if (Model.IslemlerSilinebilir)
+                        {
+                            <form method="post" asp-page-handler="TumunuSilIslem" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                <button type="submit" class="rt-menu-item rt-menu-item--danger"
+                                        onclick="return confirm('Gönderilmiş TÜM işlem kayıtları TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">İşlemleri sil</button>
+                            </form>
+                        }
+                        @if (SyncLogEntry.CanDelete(Model.MuayineDurumKaydi))
+                        {
+                            <form method="post" asp-page-handler="SilMuayine" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                <button type="submit" class="rt-menu-item rt-menu-item--danger"
+                                        onclick="return confirm('Müayinə kaydı TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">Müayinə'yi sil</button>
+                            </form>
+                        }
+                    </div>
+                </details>
             </div>
         </div>
 
-        <!-- KULLANICI ISTEGI (2026-08-31): "laboratuarıda laboratuar alanına" -- eskiden
-             burada ayrı, pasif bir "Laboratuvar (DiagnosticReport) - Hazır değil" satırı
-             vardı, gerçek çalışan Tetkik listesi ise sağ sütundaydı (aynı isim iki farklı
-             yerde, kafa karıştırıyordu). Artık TEK satır -- gerçek durumu gösteriyor, tıklanınca
-             sayfa altında listeleniyor. DiagnosticReport (rapor gruplama kaynağı) kasıtlı
-             olarak hâlâ yazılmadı (IG zorunlu kılmıyor) ama bu satırın ADI artık gerçek
-             Observation gönderimini temsil ediyor. -->
         @{
-            var (labAggClass, labAggLabel) = Model.LabsAggregateBadge();
-            var (labRowOzetClass, labRowOzetLabel, labRowOzetS, labRowOzetT) = Model.LabsOzet();
+            var labSatir = Model.LabSatiri();
         }
         <div class="checklist-item checklist-item--tab" data-tab="lab" onclick="pusulaShowTab('lab')">
+            <span class="rt-stripe rt-stripe--@labSatir.CssClass"></span>
             <div class="rt-info">
-                <span class="rt-name">Laboratuvar (Tetkik) <span class="tab-chevron">&#9656;</span></span>
+                <span class="rt-name">Laboratuvar <span class="rt-fhir">Observation</span> <span class="tab-chevron">&#9656;</span></span>
                 <span class="rt-desc">
-                    @if (Model.Labs.Count == 0)
+                    @if (Model.LabGroups.Count == 0)
                     {
-                        <text>Bu protokol için onaylanmış (kesinleşmiş) laboratuvar sonucu bulunamadı.</text>
+                        <text>Onaylanmış laboratuvar sonucu bulunamadı.</text>
                     }
                     else
                     {
-                        <text>@Model.Labs.Count sonuç -- listesi için bu satıra tıklayın.</text>
+                        <text>@Model.LabGroups.Count tetkik, @Model.Labs.Count satır — listesi için tıklayın.</text>
                     }
                 </span>
             </div>
-            @if (labRowOzetT > 0)
-            {
-                <div class="checklist-item-summary">
-                    <span class="line @labRowOzetClass">Laboratuvar @labRowOzetS/@labRowOzetT @labRowOzetLabel</span>
-                </div>
-            }
             <div class="rt-right">
-                @if (Model.Labs.Count > 0)
-                {
-                    <span class="count-chip">@Model.Labs.Count</span>
-                }
-                <span class="badge @labAggClass"><span class="badge-dot"></span>@labAggLabel</span>
+                <span class="badge @labSatir.CssClass"><span class="badge-dot"></span>@labSatir.Etiket</span>
                 @if (Model.LabsGonderilebilir)
                 {
                     <form method="post" asp-page-handler="TumunuGonderLab" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                        <button type="submit" class="btn btn-bulk btn-sm" onclick="event.stopPropagation(); return confirm('Henüz gönderilmemiş/hatalı tüm laboratuvar sonuçları e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
-                            Tümünü Gönder
+                        <button type="submit" class="btn btn-primary btn-sm" onclick="event.stopPropagation(); return confirm('Henüz gönderilmemiş/hatalı tüm laboratuvar sonuçları TRƏS\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                            @(labSatir.Giden == 0 ? "Gönder" : "Eksikleri Gönder")
                         </button>
                     </form>
                 }
-                @if (Model.LabsSilinebilir)
+                @if (Model.LabGroups.Count > 0)
                 {
-                    <form method="post" asp-page-handler="TumunuSilLab" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                        <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                                onclick="event.stopPropagation(); return confirm('Gönderilmiş TÜM laboratuvar kayıtları e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
-                            Tümünü Sil
-                        </button>
-                    </form>
+                    <details class="rt-menu" onclick="event.stopPropagation()">
+                        <summary class="rt-menu-btn" title="Diğer işlemler" aria-label="Laboratuvar için diğer işlemler">&#8943;</summary>
+                        <div class="rt-menu-pop">
+                            @if (Model.LabsSilinebilir)
+                            {
+                                <form method="post" asp-page-handler="TumunuSilLab" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                    <button type="submit" class="rt-menu-item rt-menu-item--danger"
+                                            onclick="return confirm('Gönderilmiş TÜM laboratuvar kayıtları TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">Tümünü TRƏS'ten sil</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="rt-menu-bos">Silinecek kayıt yok</span>
+                            }
+                        </div>
+                    </details>
                 }
             </div>
         </div>
 
         @{
-            var (radAggClass, radAggLabel) = Model.RadiologyAggregateBadge();
-            var (radRowOzetClass, radRowOzetLabel, radRowOzetS, radRowOzetT) = Model.RadiologyOzet();
+            var radSatir = Model.RadSatiri();
         }
         <div class="checklist-item checklist-item--tab" data-tab="radiology" onclick="pusulaShowTab('radiology')">
+            <span class="rt-stripe rt-stripe--@radSatir.CssClass"></span>
             <div class="rt-info">
-                <span class="rt-name">Radyoloji (DiagnosticReport) <span class="tab-chevron">&#9656;</span></span>
+                <span class="rt-name">Radyoloji <span class="rt-fhir">DiagnosticReport</span> <span class="tab-chevron">&#9656;</span></span>
                 <span class="rt-desc">
                     @if (Model.RadiologyReports.Count == 0)
                     {
-                        <text>Bu protokol için onaylanmış (raporlanmış) radyoloji tetkiki bulunamadı.</text>
+                        <text>Onaylanmış radyoloji raporu bulunamadı.</text>
                     }
                     else
                     {
-                        <text>@Model.RadiologyReports.Count rapor -- listesi için bu satıra tıklayın.</text>
+                        <text>@Model.RadiologyReports.Count rapor — listesi için tıklayın.</text>
                     }
                 </span>
             </div>
-            @if (radRowOzetT > 0)
-            {
-                <div class="checklist-item-summary">
-                    <span class="line @radRowOzetClass">Radyoloji @radRowOzetS/@radRowOzetT @radRowOzetLabel</span>
-                </div>
-            }
             <div class="rt-right">
-                @if (Model.RadiologyReports.Count > 0)
-                {
-                    <span class="count-chip">@Model.RadiologyReports.Count</span>
-                }
-                <span class="badge @radAggClass"><span class="badge-dot"></span>@radAggLabel</span>
+                <span class="badge @radSatir.CssClass"><span class="badge-dot"></span>@radSatir.Etiket</span>
                 @if (Model.RadiologyGonderilebilir)
                 {
                     <form method="post" asp-page-handler="TumunuGonderRadiology" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                        <button type="submit" class="btn btn-bulk btn-sm" onclick="event.stopPropagation(); return confirm('Henüz gönderilmemiş/hatalı tüm radyoloji raporları e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
-                            Tümünü Gönder
+                        <button type="submit" class="btn btn-primary btn-sm" onclick="event.stopPropagation(); return confirm('Henüz gönderilmemiş/hatalı tüm radyoloji raporları TRƏS\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                            @(radSatir.Giden == 0 ? "Gönder" : "Eksikleri Gönder")
                         </button>
                     </form>
                 }
-                @if (Model.RadiologySilinebilir)
+                @if (Model.RadiologyReports.Count > 0)
                 {
-                    <form method="post" asp-page-handler="TumunuSilRadiology" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                        <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                                onclick="event.stopPropagation(); return confirm('Gönderilmiş TÜM radyoloji kayıtları e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
-                            Tümünü Sil
-                        </button>
-                    </form>
+                    <details class="rt-menu" onclick="event.stopPropagation()">
+                        <summary class="rt-menu-btn" title="Diğer işlemler" aria-label="Radyoloji için diğer işlemler">&#8943;</summary>
+                        <div class="rt-menu-pop">
+                            @if (Model.RadiologySilinebilir)
+                            {
+                                <form method="post" asp-page-handler="TumunuSilRadiology" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                    <button type="submit" class="rt-menu-item rt-menu-item--danger"
+                                            onclick="return confirm('Gönderilmiş TÜM radyoloji kayıtları TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">Tümünü TRƏS'ten sil</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="rt-menu-bos">Silinecek kayıt yok</span>
+                            }
+                        </div>
+                    </details>
                 }
             </div>
         </div>
 
         @{
-            var (patAggClass, patAggLabel) = Model.PathologyAggregateBadge();
-            var (patRowOzetClass, patRowOzetLabel, patRowOzetS, patRowOzetT) = Model.PathologyOzet();
+            var patSatir = Model.PatSatiri();
         }
         <div class="checklist-item checklist-item--tab" data-tab="pathology" onclick="pusulaShowTab('pathology')">
+            <span class="rt-stripe rt-stripe--@patSatir.CssClass"></span>
             <div class="rt-info">
-                <span class="rt-name">Patoloji (DiagnosticReport) <span class="tab-chevron">&#9656;</span></span>
+                <span class="rt-name">Patoloji <span class="rt-fhir">DiagnosticReport</span> <span class="tab-chevron">&#9656;</span></span>
                 <span class="rt-desc">
                     @if (Model.PathologyReports.Count == 0)
                     {
-                        <text>Bu protokol için onaylanmış (raporlanmış) patoloji sonucu bulunamadı.</text>
+                        <text>Onaylanmış patoloji raporu bulunamadı.</text>
                     }
                     else
                     {
-                        <text>@Model.PathologyReports.Count rapor -- listesi için bu satıra tıklayın.</text>
+                        <text>@Model.PathologyReports.Count rapor — listesi için tıklayın.</text>
                     }
                 </span>
             </div>
-            @if (patRowOzetT > 0)
-            {
-                <div class="checklist-item-summary">
-                    <span class="line @patRowOzetClass">Patoloji @patRowOzetS/@patRowOzetT @patRowOzetLabel</span>
-                </div>
-            }
             <div class="rt-right">
-                @if (Model.PathologyReports.Count > 0)
-                {
-                    <span class="count-chip">@Model.PathologyReports.Count</span>
-                }
-                <span class="badge @patAggClass"><span class="badge-dot"></span>@patAggLabel</span>
+                <span class="badge @patSatir.CssClass"><span class="badge-dot"></span>@patSatir.Etiket</span>
                 @if (Model.PathologyGonderilebilir)
                 {
                     <form method="post" asp-page-handler="TumunuGonderPathology" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                        <button type="submit" class="btn btn-bulk btn-sm" onclick="event.stopPropagation(); return confirm('Henüz gönderilmemiş/hatalı tüm patoloji raporları e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
-                            Tümünü Gönder
+                        <button type="submit" class="btn btn-primary btn-sm" onclick="event.stopPropagation(); return confirm('Henüz gönderilmemiş/hatalı tüm patoloji raporları TRƏS\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                            @(patSatir.Giden == 0 ? "Gönder" : "Eksikleri Gönder")
                         </button>
                     </form>
                 }
-                @if (Model.PathologySilinebilir)
+                @if (Model.PathologyReports.Count > 0)
                 {
-                    <form method="post" asp-page-handler="TumunuSilPathology" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                        <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                                onclick="event.stopPropagation(); return confirm('Gönderilmiş TÜM patoloji kayıtları e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
-                            Tümünü Sil
-                        </button>
-                    </form>
+                    <details class="rt-menu" onclick="event.stopPropagation()">
+                        <summary class="rt-menu-btn" title="Diğer işlemler" aria-label="Patoloji için diğer işlemler">&#8943;</summary>
+                        <div class="rt-menu-pop">
+                            @if (Model.PathologySilinebilir)
+                            {
+                                <form method="post" asp-page-handler="TumunuSilPathology" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                    <button type="submit" class="rt-menu-item rt-menu-item--danger"
+                                            onclick="return confirm('Gönderilmiş TÜM patoloji kayıtları TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">Tümünü TRƏS'ten sil</button>
+                                </form>
+                            }
+                            else
+                            {
+                                <span class="rt-menu-bos">Silinecek kayıt yok</span>
+                            }
+                        </div>
+                    </details>
                 }
             </div>
         </div>
 
-        <!-- KULLANICI ISTEGI (2026-09-30): "acilan ekranda epikrize tiklayinca da epikriz
-             on goruntusu yani epikriz bilgisi yazsin". Muayine/Lab/Radyoloji/Patoloji
-             satirlariyla AYNI kalip -- satira tiklayinca sayfa altindaki ortak alanda
-             GONDERILECEK bolumler aciliyor (bkz. tab-panel-epikriz). Gonder/Sil/Detay
-             tiklamayi tetiklemesin diye stopPropagation. -->
+        @{
+            var epikrizSatir = Model.EpikrizSatiri();
+        }
         <div class="checklist-item checklist-item--tab" data-tab="epikriz" onclick="pusulaShowTab('epikriz')">
+            <span class="rt-stripe rt-stripe--@epikrizSatir.CssClass"></span>
             <div class="rt-info">
-                <span class="rt-name">Epikriz (Composition) <span class="tab-chevron">&#9656;</span></span>
+                <span class="rt-name">Epikriz <span class="rt-fhir">Composition</span> <span class="tab-chevron">&#9656;</span></span>
                 <span class="rt-desc">
                     @if (isRecete)
                     {
-                        <text>Protokol tipi Reçete -- bu tür protokoller e-Health'e gönderilmez.</text>
+                        <text>Protokol tipi Reçete — bu tür protokoller TRƏS'e gönderilmez.</text>
                     }
                     else if (!Model.EpikrizSendEnabled)
                     {
                         <text>Epikriz gönderimi Ayarlar sayfasından kapatılmış.</text>
                     }
-                    else if (Model.GenelMuayene is null)
+                    else if (Model.EpikrizBolumleri.Count == 0)
                     {
-                        <text>Bu protokol için muayene/epikriz kaydı bulunamadı.</text>
-                    }
-                    else if (!Model.GenelMuayene.HasEpikrizText)
-                    {
-                        <text>Pusula'da bu protokol için henüz epikriz metni girilmemiş.</text>
+                        <text>Pusula'da epikriz metni girilmemiş.</text>
                     }
                     else
                     {
-                        <text>
-                            Pusula durumu: @(Model.GenelMuayene.IsLocked ? "Kilitli (tamamlanmış)" : "Kilitli değil (henüz tamamlanmamış)")
-                            @if (Model.EpikrizOnlySigned && !Model.GenelMuayene.IsLocked)
-                            {
-                                <text>-- Ayarlar'daki kurala göre kilitlenmeden gönderilmez.</text>
-                            }
-                        </text>
-                    }
-                    @if (Model.EpikrizDurumKaydi is null)
-                    {
-                        <text> Bu protokol için henüz bir gönderim denemesi yapılmadı. Hasta/Müayinə e-Health'te henüz yoksa "Gönder" onları da otomatik önce gönderir.</text>
-                    }
-                    else
-                    {
-                        var displayMsg = Model.EpikrizDurumKaydi.Message is null ? ""
-                            : Model.EpikrizDurumKaydi.Status == SyncStatus.Failed ? SyncLogEntry.FriendlyError(Model.EpikrizDurumKaydi.Message)
-                            : Model.EpikrizDurumKaydi.Message;
-                        <text> Son deneme: @AzTime.ToLocal(Model.EpikrizDurumKaydi.CreatedAtUtc).ToString("yyyy-MM-dd HH:mm") @(string.IsNullOrEmpty(displayMsg) ? "" : $"-- {displayMsg}")</text>
-                    }
-                    @if (Model.EpikrizBolumleri.Count > 0)
-                    {
-                        <text> Gönderilecek @Model.EpikrizBolumleri.Count bölümün önizlemesi için bu satıra tıklayın.</text>
+                        <text>@Model.EpikrizBolumleri.Count bölüm — önizleme için tıklayın.</text>
+                        @if (!Model.GenelMuayene!.IsLocked)
+                        {
+                            <text> Pusula'da henüz kilitlenmemiş.</text>
+                        }
                     }
                 </span>
             </div>
             <div class="rt-right">
-                @{
-                    var epikrizStatus = Model.EpikrizDurumKaydi?.Status;
-                    var (epikrizBadgeClass, epikrizBadgeLabel) = Model.EpikrizBadge();
-                }
-                @if (Model.EpikrizBolumleri.Count > 0)
-                {
-                        <span class="count-chip" title="Gönderilecek epikriz bölümü sayısı">@Model.EpikrizBolumleri.Count</span>
-
-                }
-                <span class="badge @epikrizBadgeClass"><span class="badge-dot"></span>@epikrizBadgeLabel</span>
-                @if (Model.EpikrizDurumKaydi is not null)
-                {
-                    <a asp-page="/Detail" asp-route-id="@Model.EpikrizDurumKaydi.Id" asp-route-fromProtokol="@p.ProtokolId" class="btn btn-outline btn-sm" onclick="event.stopPropagation()">Detay</a>
-                }
-                @if (!isRecete)
+                <span class="badge @epikrizSatir.CssClass"><span class="badge-dot"></span>@epikrizSatir.Etiket</span>
+                @if (!isRecete && Model.EpikrizSendEnabled && Model.EpikrizBolumleri.Count > 0
+                     && !PusulaEHealthSync.Web.Pages.ProtokolModel.BasariylaGonderildi(Model.EpikrizDurumKaydi))
                 {
                     <form method="post" asp-page-handler="GonderEpikriz" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                         <button type="submit" class="btn btn-primary btn-sm"
-                                onclick="event.stopPropagation(); return confirm('Epikriz e-Health\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
-                            @(epikrizStatus is null ? "Gönder" : "Tekrar Gönder")
+                                onclick="event.stopPropagation(); return confirm('Epikriz TRƏS\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
+                            @(Model.EpikrizDurumKaydi is null ? "Gönder" : "Tekrar Dene")
                         </button>
                     </form>
                 }
-                @if (SyncLogEntry.CanDelete(Model.EpikrizDurumKaydi))
-                {
-                    <form method="post" asp-page-handler="SilEpikriz" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
-                        <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                                onclick="event.stopPropagation(); return confirm('Epikriz kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
-                            Sil
-                        </button>
-                    </form>
-                }
+                <details class="rt-menu" onclick="event.stopPropagation()">
+                    <summary class="rt-menu-btn" title="Diğer işlemler" aria-label="Epikriz için diğer işlemler">&#8943;</summary>
+                    <div class="rt-menu-pop">
+                        @if (Model.EpikrizDurumKaydi is not null)
+                        {
+                            <a asp-page="/Detail" asp-route-id="@Model.EpikrizDurumKaydi.Id" asp-route-fromProtokol="@p.ProtokolId" class="rt-menu-item">Kayıt detayı</a>
+                        }
+                        @if (!isRecete && Model.EpikrizBolumleri.Count > 0
+                             && PusulaEHealthSync.Web.Pages.ProtokolModel.BasariylaGonderildi(Model.EpikrizDurumKaydi))
+                        {
+                            <form method="post" asp-page-handler="GonderEpikriz" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                <button type="submit" class="rt-menu-item" onclick="return confirm('Epikriz TRƏS\'e yeniden gönderilecek. Emin misiniz?')">Tekrar gönder</button>
+                            </form>
+                        }
+                        @if (SyncLogEntry.CanDelete(Model.EpikrizDurumKaydi))
+                        {
+                            <form method="post" asp-page-handler="SilEpikriz" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                <button type="submit" class="rt-menu-item rt-menu-item--danger"
+                                        onclick="return confirm('Epikriz kaydı TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">TRƏS'ten sil</button>
+                            </form>
+                        }
+                        @if (Model.EpikrizDurumKaydi is null)
+                        {
+                            <span class="rt-menu-bos">Henüz kayıt yok</span>
+                        }
+                    </div>
+                </details>
             </div>
         </div>
+
+        @{
+            var vitalSatir = Model.VitalSatiri();
+        }
         <div class="checklist-item">
+            <span class="rt-stripe rt-stripe--@vitalSatir.CssClass"></span>
             <div class="rt-info">
-                <span class="rt-name">Vital Bulgular (az-observation)</span>
+                <span class="rt-name">Vital Bulgular <span class="rt-fhir">Observation</span></span>
                 <span class="rt-desc">
                     @if (isRecete)
                     {
-                        <text>Protokol tipi Reçete -- bu tür protokoller e-Health'e gönderilmez.</text>
-                    }
-                    else if (Model.GenelMuayene is null)
-                    {
-                        <text>Bu protokol için muayene kaydı bulunamadı.</text>
+                        <text>Protokol tipi Reçete — bu tür protokoller TRƏS'e gönderilmez.</text>
                     }
                     else if (Model.Vitaller.Count == 0)
                     {
-                        <text>Epikrizin Bulgular alanında ölçüm bulunamadı -- gönderilecek vital bulgu yok.</text>
+                        <text>Epikrizin Bulgular alanında ölçüm bulunamadı.</text>
                     }
                     else
                     {
                         <text>@string.Join(" · ", Model.Vitaller.Select(v => VitalSignsMapper.Ozet(v.Tur, v.Deger)))</text>
                     }
-                    @if (Model.VitalDurumKaydi is null)
-                    {
-                        <text> Bu protokol için henüz bir gönderim denemesi yapılmadı.</text>
-                    }
-                    else
-                    {
-                        var vitalMsg = Model.VitalDurumKaydi.Message is null ? ""
-                            : Model.VitalDurumKaydi.Status == SyncStatus.Failed ? SyncLogEntry.FriendlyError(Model.VitalDurumKaydi.Message)
-                            : Model.VitalDurumKaydi.Message;
-                        <text> Son deneme: @AzTime.ToLocal(Model.VitalDurumKaydi.CreatedAtUtc).ToString("yyyy-MM-dd HH:mm") @(string.IsNullOrEmpty(vitalMsg) ? "" : $"-- {vitalMsg}")</text>
-                    }
                 </span>
             </div>
             <div class="rt-right">
-                @{
-                    var vitalStatus = Model.VitalDurumKaydi?.Status;
-                    var (vitalBadgeClass, vitalBadgeLabel) = Model.VitalBadge();
-                }
-                <span class="badge @vitalBadgeClass"><span class="badge-dot"></span>@vitalBadgeLabel</span>
-                @if (Model.VitalDurumKaydi is not null)
-                {
-                    <a asp-page="/Detail" asp-route-id="@Model.VitalDurumKaydi.Id" asp-route-fromProtokol="@p.ProtokolId" class="btn btn-outline btn-sm">Detay</a>
-                }
-                @if (!isRecete && Model.Vitaller.Count > 0)
+                <span class="badge @vitalSatir.CssClass"><span class="badge-dot"></span>@vitalSatir.Etiket</span>
+                @if (!isRecete && Model.Vitaller.Count > 0
+                     && !PusulaEHealthSync.Web.Pages.ProtokolModel.BasariylaGonderildi(Model.VitalDurumKaydi))
                 {
                     <form method="post" asp-page-handler="GonderVital" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                         <button type="submit" class="btn btn-primary btn-sm"
-                                onclick="return confirm('Vital bulgular e-Health\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
-                            @(vitalStatus is null ? "Gönder" : "Tekrar Gönder")
+                                onclick="return confirm('Vital bulgular TRƏS\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
+                            @(Model.VitalDurumKaydi is null ? "Gönder" : "Tekrar Dene")
                         </button>
                     </form>
+                }
+                @if (Model.VitalDurumKaydi is not null)
+                {
+                    <details class="rt-menu">
+                        <summary class="rt-menu-btn" title="Diğer işlemler" aria-label="Vital bulgular için diğer işlemler">&#8943;</summary>
+                        <div class="rt-menu-pop">
+                            <a asp-page="/Detail" asp-route-id="@Model.VitalDurumKaydi.Id" asp-route-fromProtokol="@p.ProtokolId" class="rt-menu-item">Kayıt detayı</a>
+                        </div>
+                    </details>
                 }
             </div>
         </div>
@@ -543,7 +555,7 @@ else
          olduğu sessionStorage'da tutuluyor (protokol id'sine göre) -- Gönder/Sil sonrası sayfa
          yenilendiğinde (RedirectToPage) kullanıcı kaldığı yerde kalsın diye. -->
     <div class="tab-detail-anchor" id="tab-detail-anchor">
-        <p id="tab-detail-empty" class="tab-detail-empty">Yukarıdan <b style="color:var(--text-muted);">Müayinə</b>, <b style="color:var(--text-muted);">Laboratuvar</b>, <b style="color:var(--text-muted);">Radyoloji</b>, <b style="color:var(--text-muted);">Patoloji</b> veya <b style="color:var(--text-muted);">Epikriz</b> satırına tıklayın, gönderilecek içerik burada açılsın.</p>
+        <p id="tab-detail-empty" class="tab-detail-empty">Yukarıdan <b style="color:var(--text-muted);">Müayinə</b>, <b style="color:var(--text-muted);">Laboratuvar</b>, <b style="color:var(--text-muted);">Radyoloji</b>, <b style="color:var(--text-muted);">Patoloji</b> veya <b style="color:var(--text-muted);">Epikriz</b> satırına tıklayın, gönderilecek içerik burada açılsın. Ne yapmanız gerektiğini görmek için yukarıdaki <b style="color:var(--text-muted);">Yapılacaklar</b> düğmesine basın.</p>
 
 
         @{
@@ -599,7 +611,7 @@ else
                         {
                             <form method="post" asp-page-handler="TumunuGonderTani" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                                 <button type="submit" class="btn btn-bulk btn-sm"
-                                        onclick="return confirm('Henüz gönderilmemiş/hatalı tüm tanılar e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                                        onclick="return confirm('Henüz gönderilmemiş/hatalı tüm tanılar TRƏS\'e CANLI olarak gönderilecek. Emin misiniz?')">
                                     Tümünü Gönder
                                 </button>
                             </form>
@@ -608,7 +620,7 @@ else
                         {
                             <form method="post" asp-page-handler="TumunuSilTani" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                                 <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                                        onclick="return confirm('Gönderilmiş TÜM tanı kayıtları e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                        onclick="return confirm('Gönderilmiş TÜM tanı kayıtları TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
                                     Tümünü Sil
                                 </button>
                             </form>
@@ -641,7 +653,7 @@ else
                                 {
                                     <form method="post" asp-page-handler="GonderTani" asp-route-id="@p.ProtokolId" asp-route-taniId="@tani.Id" onsubmit="pusulaLockSubmit(this)">
                                         <button type="submit" class="icon-btn-gonder" title="@(durum is null ? "Gönder" : "Tekrar Gönder")"
-                                                onclick="return confirm('Bu tanı e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                                                onclick="return confirm('Bu tanı TRƏS\'e CANLI olarak gönderilecek. Emin misiniz?')">
                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
                                         </button>
                                     </form>
@@ -650,7 +662,7 @@ else
                                 {
                                     <form method="post" asp-page-handler="SilTani" asp-route-id="@p.ProtokolId" asp-route-durumId="@durum!.Id" onsubmit="pusulaLockSubmit(this)">
                                         <button type="submit" class="icon-btn-sil" title="Sil"
-                                                onclick="return confirm('Bu tanı kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                                onclick="return confirm('Bu tanı kaydı TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                                         </button>
                                     </form>
@@ -675,7 +687,7 @@ else
                         {
                             <form method="post" asp-page-handler="TumunuGonderIslem" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                                 <button type="submit" class="btn btn-bulk btn-sm"
-                                        onclick="return confirm('Henüz gönderilmemiş/hatalı tüm işlemler e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                                        onclick="return confirm('Henüz gönderilmemiş/hatalı tüm işlemler TRƏS\'e CANLI olarak gönderilecek. Emin misiniz?')">
                                     Tümünü Gönder
                                 </button>
                             </form>
@@ -684,7 +696,7 @@ else
                         {
                             <form method="post" asp-page-handler="TumunuSilIslem" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                                 <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                                        onclick="return confirm('Gönderilmiş TÜM işlem kayıtları e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                        onclick="return confirm('Gönderilmiş TÜM işlem kayıtları TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
                                     Tümünü Sil
                                 </button>
                             </form>
@@ -723,7 +735,7 @@ else
                                 {
                                     <form method="post" asp-page-handler="GonderIslem" asp-route-id="@p.ProtokolId" asp-route-islemId="@islem.Id" onsubmit="pusulaLockSubmit(this)">
                                         <button type="submit" class="icon-btn-gonder" title="@(durum is null ? "Gönder" : "Tekrar Gönder")"
-                                                onclick="return confirm('Bu işlem e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                                                onclick="return confirm('Bu işlem TRƏS\'e CANLI olarak gönderilecek. Emin misiniz?')">
                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
                                         </button>
                                     </form>
@@ -732,7 +744,7 @@ else
                                 {
                                     <form method="post" asp-page-handler="SilIslem" asp-route-id="@p.ProtokolId" asp-route-durumId="@durum!.Id" onsubmit="pusulaLockSubmit(this)">
                                         <button type="submit" class="icon-btn-sil" title="Sil"
-                                                onclick="return confirm('Bu işlem kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                                onclick="return confirm('Bu işlem kaydı TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
                                             <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                                         </button>
                                     </form>
@@ -751,7 +763,7 @@ else
                basilinca grup yeniden gidiyor ama satir asla degismiyordu. Sebep: buraya durum
                olarak HER ZAMAN null geciliyordu.
 
-               Alt parametrenin ayri bir e-Health kaydi YOK (bakanlik istegi 2026-09-16: panel
+               Alt parametrenin ayri bir TRƏS kaydi YOK (bakanlik istegi 2026-09-16: panel
                tek Observation, alt parametreler component[] icinde). Bu yuzden satirda artik
                ne Gönder ne Sil ne Detay var -- bunlar grup basliginda, kaydin gercekten
                bulundugu yerde duruyor. Satirdaki rozet "bu satir tetkikle birlikte gitti mi"
@@ -804,7 +816,7 @@ else
                         {
                             <form method="post" asp-page-handler="GonderRadiology" asp-route-id="@protokolId" asp-route-tetkikIslemId="@report.TetkikIslemId" onsubmit="pusulaLockSubmit(this)">
                                 <button type="submit" class="icon-btn-gonder" title="@(durum is null ? "Gönder" : "Tekrar Gönder")"
-                                        onclick="return confirm('Bu radyoloji raporu e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                                        onclick="return confirm('Bu radyoloji raporu TRƏS\'e CANLI olarak gönderilecek. Emin misiniz?')">
                                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
                                 </button>
                             </form>
@@ -813,7 +825,7 @@ else
                         {
                             <form method="post" asp-page-handler="SilRadiology" asp-route-id="@protokolId" asp-route-durumId="@durum!.Id" onsubmit="pusulaLockSubmit(this)">
                                 <button type="submit" class="icon-btn-sil" title="Sil"
-                                        onclick="return confirm('Bu radyoloji kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                        onclick="return confirm('Bu radyoloji kaydı TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
                                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                                 </button>
                             </form>
@@ -847,7 +859,7 @@ else
                         {
                             <form method="post" asp-page-handler="GonderPathology" asp-route-id="@protokolId" asp-route-resultId="@report.ResultId" onsubmit="pusulaLockSubmit(this)">
                                 <button type="submit" class="icon-btn-gonder" title="@(durum is null ? "Gönder" : "Tekrar Gönder")"
-                                        onclick="return confirm('Bu patoloji raporu e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                                        onclick="return confirm('Bu patoloji raporu TRƏS\'e CANLI olarak gönderilecek. Emin misiniz?')">
                                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
                                 </button>
                             </form>
@@ -856,7 +868,7 @@ else
                         {
                             <form method="post" asp-page-handler="SilPathology" asp-route-id="@protokolId" asp-route-durumId="@durum!.Id" onsubmit="pusulaLockSubmit(this)">
                                 <button type="submit" class="icon-btn-sil" title="Sil"
-                                        onclick="return confirm('Bu patoloji kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                        onclick="return confirm('Bu patoloji kaydı TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
                                     <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                                 </button>
                             </form>
@@ -884,7 +896,7 @@ else
                         {
                             <form method="post" asp-page-handler="TumunuGonderLab" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                                 <button type="submit" class="btn btn-bulk btn-sm"
-                                        onclick="return confirm('Henüz gönderilmemiş/hatalı tüm laboratuvar sonuçları e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                                        onclick="return confirm('Henüz gönderilmemiş/hatalı tüm laboratuvar sonuçları TRƏS\'e CANLI olarak gönderilecek. Emin misiniz?')">
                                     Tümünü Gönder
                                 </button>
                             </form>
@@ -893,7 +905,7 @@ else
                         {
                             <form method="post" asp-page-handler="TumunuSilLab" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                                 <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                                        onclick="return confirm('Gönderilmiş TÜM laboratuvar kayıtları e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                        onclick="return confirm('Gönderilmiş TÜM laboratuvar kayıtları TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
                                     Tümünü Sil
                                 </button>
                             </form>
@@ -917,7 +929,7 @@ else
                         @* BAKANLIK ISTEGI (2026-09-16) sonrasi: panel TEK Observation olarak
                            gidiyor, alt parametreler onun component[] dizisinde. Bu yuzden
                            durum rozeti ve Gonder/Sil aksiyonlari SADECE grup basliginda --
-                           alt satirlarin ayri bir e-Health kaydi artik yok. *@
+                           alt satirlarin ayri bir TRƏS kaydi artik yok. *@
                         var groupDate = group.Satirlar.Select(x => x.TetkikSonucOnayTarihi ?? x.TetkikSonucTarihi).FirstOrDefault();
                         var (groupBadgeClass, groupBadgeLabel) = group.AggregateBadge();
                         <details class="lab-panel-group" data-sort-date="@(groupDate?.ToString("yyyy-MM-ddTHH:mm:ss"))">
@@ -940,7 +952,7 @@ else
                                     {
                                         <form method="post" asp-page-handler="GonderLabGrubu" asp-route-id="@p.ProtokolId" asp-route-grupAdi="@group.GroupName" onsubmit="pusulaLockSubmit(this)">
                                             <button type="submit" class="icon-btn-gonder" title="Bu tetkiki gönder"
-                                                    onclick="event.stopPropagation(); return confirm('Bu tetkik (alt parametreleriyle birlikte tek kayıt olarak) e-Health\'e CANLI gönderilecek. Emin misiniz?')">
+                                                    onclick="event.stopPropagation(); return confirm('Bu tetkik (alt parametreleriyle birlikte tek kayıt olarak) TRƏS\'e CANLI gönderilecek. Emin misiniz?')">
                                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg>
                                             </button>
                                         </form>
@@ -949,7 +961,7 @@ else
                                     {
                                         <form method="post" asp-page-handler="SilLabGrubu" asp-route-id="@p.ProtokolId" asp-route-grupAdi="@group.GroupName" onsubmit="pusulaLockSubmit(this)">
                                             <button type="submit" class="icon-btn-sil" title="Sil"
-                                                    onclick="event.stopPropagation(); return confirm('Bu tetkikin e-Health kaydı KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                                    onclick="event.stopPropagation(); return confirm('Bu tetkikin TRƏS kaydı KALICI olarak SİLİNECEK. Emin misiniz?')">
                                                 <svg width="13" height="13" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><polyline points="3 6 5 6 21 6"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
                                             </button>
                                         </form>
@@ -963,7 +975,7 @@ else
                             @if (group.Panelli)
                             {
                                 <p class="lab-panel-not">
-                                    Alt parametrelerin ayrı bir e-Health kaydı yoktur.
+                                    Alt parametrelerin ayrı bir TRƏS kaydı yoktur.
                                     Hepsi <b>@group.GroupName</b> tetkikinin <code>component</code> dizisi içinde,
                                     tek kayıt olarak gönderilir (Bakanlık isteği, 16.09.2026).
                                     Gönder/Sil işlemleri bu yüzden yukarıdaki tetkik satırındadır.
@@ -998,7 +1010,7 @@ else
                         {
                             <form method="post" asp-page-handler="TumunuGonderRadiology" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                                 <button type="submit" class="btn btn-bulk btn-sm"
-                                        onclick="return confirm('Henüz gönderilmemiş/hatalı tüm radyoloji raporları e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                                        onclick="return confirm('Henüz gönderilmemiş/hatalı tüm radyoloji raporları TRƏS\'e CANLI olarak gönderilecek. Emin misiniz?')">
                                     Tümünü Gönder
                                 </button>
                             </form>
@@ -1007,7 +1019,7 @@ else
                         {
                             <form method="post" asp-page-handler="TumunuSilRadiology" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                                 <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                                        onclick="return confirm('Gönderilmiş TÜM radyoloji kayıtları e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                        onclick="return confirm('Gönderilmiş TÜM radyoloji kayıtları TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
                                     Tümünü Sil
                                 </button>
                             </form>
@@ -1053,7 +1065,7 @@ else
                         {
                             <form method="post" asp-page-handler="TumunuGonderPathology" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                                 <button type="submit" class="btn btn-bulk btn-sm"
-                                        onclick="return confirm('Henüz gönderilmemiş/hatalı tüm patoloji raporları e-Health\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                                        onclick="return confirm('Henüz gönderilmemiş/hatalı tüm patoloji raporları TRƏS\'e CANLI olarak gönderilecek. Emin misiniz?')">
                                     Tümünü Gönder
                                 </button>
                             </form>
@@ -1062,7 +1074,7 @@ else
                         {
                             <form method="post" asp-page-handler="TumunuSilPathology" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                                 <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                                        onclick="return confirm('Gönderilmiş TÜM patoloji kayıtları e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                        onclick="return confirm('Gönderilmiş TÜM patoloji kayıtları TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
                                     Tümünü Sil
                                 </button>
                             </form>
@@ -1093,7 +1105,7 @@ else
         @* KULLANICI ISTEGI (2026-09-30): "epikrize tıklayınca da epikriz ön görüntüsü yani
            epikriz bilgisi yazsın". Buradaki bölümler CompositionMapper.Bolumler'den geliyor
            -- yani gönderim anında FHIR Composition'ın section[] dizisine yazılacak olan TAM
-           liste, aynı sırayla. Ekranda ne görünüyorsa e-Health'e o gidiyor; ayrı bir
+           liste, aynı sırayla. Ekranda ne görünüyorsa TRƏS'e o gidiyor; ayrı bir
            "önizleme mantığı" yok ki zamanla gerçekten gidenden ayrışsın. *@
         @{
             var (epPanelBadgeClass, epPanelBadgeLabel) = Model.EpikrizBadge();
@@ -1110,7 +1122,7 @@ else
                         {
                             <form method="post" asp-page-handler="GonderEpikriz" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                                 <button type="submit" class="btn btn-bulk btn-sm"
-                                        onclick="return confirm('Epikriz e-Health\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
+                                        onclick="return confirm('Epikriz TRƏS\'e CANLI olarak (kalıcı) gönderilecek. Emin misiniz?')">
                                     @(Model.EpikrizDurumKaydi is null ? "Gönder" : "Tekrar Gönder")
                                 </button>
                             </form>
@@ -1119,7 +1131,7 @@ else
                         {
                             <form method="post" asp-page-handler="SilEpikriz" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
                                 <button type="submit" class="btn btn-outline btn-sm" style="border-color:var(--danger); color:var(--danger);"
-                                        onclick="return confirm('Epikriz kaydı e-Health\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
+                                        onclick="return confirm('Epikriz kaydı TRƏS\'ten KALICI olarak SİLİNECEK. Emin misiniz?')">
                                     Sil
                                 </button>
                             </form>
@@ -1142,7 +1154,7 @@ else
                 else
                 {
                     <p class="epikriz-onizleme-not">
-                        Aşağıdaki @Model.EpikrizBolumleri.Count bölüm, e-Health'e gönderilecek belgenin içeriğidir.
+                        Aşağıdaki @Model.EpikrizBolumleri.Count bölüm, TRƏS'e gönderilecek belgenin içeriğidir.
                         Pusula'daki RTF biçimlendirmesi düz metne çevrilmiş haliyle gösteriliyor -- gönderilen de budur.
                     </p>
                     @foreach (var bolum in Model.EpikrizBolumleri)
@@ -1158,7 +1170,106 @@ else
                 }
             </div>
         </div>
+
+        @* ============ YAPILACAKLAR PANELI (2026-10-01) ============
+           KULLANICI ISTEGI: "Seçenek B'nin mantığını çok sevdim ... sağ tarafa Yapılacaklar
+           diye sistem bize ne yapmamız gerektiğini söylesin."
+
+           Liste ProtokolModel.Yapilacaklar()'tan geliyor. Her kart uc seyi birden soyluyor:
+           NE oldu (baslik), NEDEN (sebep -- hata mesajlarindan en sik gorulen kategori) ve
+           HANGILERI (ornekler). Eskiden bunlarin ucu de ayri yerlerdeydi: sayi satirda,
+           sebep Kayit Detayi'nda, hangileri ise acilir panelde tek tek bakilarak bulunuyordu. *@
+        @{
+            var yapilacakListesi = Model.Yapilacaklar();
+        }
+        <div class="side-card tab-panel-content" id="tab-panel-yapilacaklar">
+            <div class="side-card-section">
+                <div class="side-card-head">
+                    <span class="rt-name">
+                        Yapılacaklar
+                        @if (yapilacakListesi.Count > 0)
+                        {
+                            <span class="count">@yapilacakListesi.Count madde</span>
+                        }
+                    </span>
+                </div>
+
+                @if (yapilacakListesi.Count == 0)
+                {
+                    <div class="yapilacak-temiz">
+                        <strong>Bu protokolde yapılacak bir şey yok.</strong>
+                        Gönderilebilecek her kayıt TRƏS'e gitmiş durumda.
+                    </div>
+                }
+                else
+                {
+                    @foreach (var fis in yapilacakListesi)
+                    {
+                        <div class="yapilacak @(fis.Hata ? "yapilacak--hata" : "yapilacak--bekleyen")">
+                            <div class="yapilacak-govde">
+                                <div class="yapilacak-baslik">@fis.Baslik</div>
+                                <div class="yapilacak-sebep">@fis.Sebep</div>
+                                @if (!string.IsNullOrEmpty(fis.Ornek))
+                                {
+                                    <div class="yapilacak-ornek">@fis.Ornek</div>
+                                }
+                            </div>
+                            <div class="yapilacak-aksiyon">
+                                @if (fis.Handler is not null)
+                                {
+                                    <form method="post" asp-page-handler="@fis.Handler" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                                        <button type="submit" class="btn btn-primary btn-sm"
+                                                onclick="return confirm('Bu kayıtlar TRƏS\'e CANLI olarak gönderilecek. Emin misiniz?')">
+                                            @(fis.Hata ? "Tekrar Dene" : "Gönder")
+                                        </button>
+                                    </form>
+                                }
+                                @if (fis.BaglantiSayfa is not null)
+                                {
+                                    <a asp-page="@fis.BaglantiSayfa" class="btn btn-outline btn-sm">@fis.BaglantiAdi</a>
+                                }
+                            </div>
+                        </div>
+                    }
+                }
+            </div>
+        </div>
     </div>
+
+    @* ============ ALT SERIT (2026-10-01 kullanici istegi) ============
+       "diğer seçeneklerde olan altta protokolü TRƏS'ten sil butonu koyalım."
+
+       Silme buraya tasindi, cunku geri alinamaz: TRƏS devlet kayit sistemi ve silinen kayit
+       geri gelmiyor. Sayfanin en altinda, kendi seridinde, tek basina duruyor -- kullanici
+       oraya ancak bilerek iner. Ust seritte "Tümünü Gönder"in yaninda dururken ikisi esit
+       agirliktaydi; biri gunluk is, digeri son care. *@
+    @if (!isRecete)
+    {
+        <div class="alt-serit">
+            <div class="alt-serit-bilgi">
+                @{
+                    var sonIslem = new[] { Model.HastaDurumKaydi, Model.MuayineDurumKaydi, Model.EpikrizDurumKaydi, Model.VitalDurumKaydi }
+                        .Where(d => d is not null)
+                        .OrderByDescending(d => d!.CreatedAtUtc)
+                        .FirstOrDefault();
+                }
+                @if (sonIslem is not null)
+                {
+                    <text>Son gönderim: @AzTime.ToLocal(sonIslem.CreatedAtUtc).ToString("dd.MM.yyyy HH:mm")</text>
+                }
+                else
+                {
+                    <text>Bu protokolden TRƏS'e henüz hiçbir kayıt gönderilmedi.</text>
+                }
+            </div>
+            <form method="post" asp-page-handler="TumunuSil" asp-route-id="@p.ProtokolId" onsubmit="pusulaLockSubmit(this)">
+                <button type="submit" class="btn btn-outline btn-sm alt-serit-sil"
+                        onclick="return confirm('Bu protokolün TRƏS\'e gönderilmiş TÜM kayıtları silinecek: Patoloji, Radyoloji, Laboratuvar, Vital Bulgular, Epikriz, İşlem, Tanı ve Müayinə.\n\nHasta (Patient) SİLİNMEZ -- aynı hasta başka protokollerde de kullanılıyor.\n\nBu işlem geri alınamaz. Emin misiniz?')">
+                    Protokolü TRƏS'ten sil
+                </button>
+            </form>
+        </div>
+    }
 }
 
 @section Scripts {
