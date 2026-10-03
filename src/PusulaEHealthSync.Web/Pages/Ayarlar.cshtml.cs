@@ -12,7 +12,7 @@ namespace PusulaEHealthSync.Web.Pages;
 // her formda). Epikriz kurallari YAZILDI (2026-08-20, bkz. CompositionSyncService/
 // SettingsStore.EpikrizSendEnabledKey). Lab hala "hazir degil" placeholder -- mapper
 // yazilmadan bu alanin kaydedilmesinin bir anlami yok, bu yuzden formsuz.
-public class AyarlarModel(SettingsStore settings) : PageModel
+public class AyarlarModel(SettingsStore settings, ILogger<AyarlarModel> logger) : PageModel
 {
     public bool Saved { get; set; }
     public string? SavedSection { get; set; }
@@ -232,13 +232,63 @@ public class AyarlarModel(SettingsStore settings) : PageModel
             await settings.SetStringAsync(key, submittedValue, ct);
     }
 
+
+    // ---- OTOMATIK GONDERIM DURUMU (2026-10-03) --------------------------------------
+    // KULLANICI ISTEGI: "ayarlar kısmında otomatik gönderimde altına otomatik gönderimi
+    // başlat seçeneği olmalı."
+    //
+    // Baslat/Durdur AYRI BIR FORM: ayar kaydetmekten farkli bir is. Eskiden anahtar, araliк
+    // ve parti kutulariyla ayni "Kaydet" dugmesine bagliydi -- yani canli veri yazan bir
+    // donguyu baslatmak, bir sayiyi degistirmekle ayni jestti. Artik kendi dugmesi, kendi
+    // onayi ve ortam uyarisi var.
+    public bool OtomatikCalisiyor { get; private set; }
+    public string Ortam { get; private set; } = "Test";
+    public DateTime? SonTurUtc { get; private set; }
+    public string? SonTurOzet { get; private set; }
+
+    [BindProperty]
+    [Range(0, 30)]
+    public int MinProtokolYasiGun { get; set; }
+    [BindProperty]
+    [Range(0, 23)]
+    public int TakilanDenemeSaati { get; set; }
+    [BindProperty]
+    [Range(1, 1000)]
+    public int TakilanPartiBoyutu { get; set; }
+
+    // Dongunun KENDISINI acip kapatir -- ayar kaydetmez. Onay metni ortami ve parti
+    // boyutunu acikca yaziyor (bkz. Ayarlar.cshtml).
+    //
+    // IKI AYRI HANDLER, tek handler + "baslat" parametresi DEGIL: handler parametresi form
+    // alanindan baglanmazsa sessizce varsayilan degere (false) duser, yani "Başlat"
+    // dugmesi hicbir sey yapmaz ya da tam tersini yapar -- ekranda hicbir belirti olmadan.
+    // Canli veri yazan bir donguyu acip kapatan kontrolde bu belirsizlige yer yok.
+    public Task<IActionResult> OnPostBaslatAsync(CancellationToken ct) => OtomatikAyarlaAsync(true, ct);
+    public Task<IActionResult> OnPostDurdurAsync(CancellationToken ct) => OtomatikAyarlaAsync(false, ct);
+
+    private async Task<IActionResult> OtomatikAyarlaAsync(bool acik, CancellationToken ct)
+    {
+        await settings.SetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, acik, ct);
+        logger.LogWarning("Otomatik gonderim {Durum} (Ayarlar sayfasindan).", acik ? "BASLATILDI" : "DURDURULDU");
+        return await SavedAsync("genel", ct);
+    }
+
     public async Task<IActionResult> OnPostGenelAsync(CancellationToken ct)
     {
         if (!ModelState.IsValid) { await LoadAsync(ct, skipGenel: true); return Page(); }
-        await settings.SetBoolAsync(SettingsStore.AutoSendPatientEnabledKey, AutoSendPatientEnabled, ct);
-        await settings.SetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, AutoSendEncounterEnabled, ct);
+        // AutoSend.Patient.Enabled ARTIK YAZILMIYOR (2026-10-03): o kutu kaydediliyordu ama
+        // HICBIR SEY okumuyordu -- hasta zaten protokol zincirinin parcasi olarak gidiyor.
+        // Arkasinda calisan bir sey olmayan bir anahtar, kullaniciya yanlis bir kontrol
+        // duygusu veriyordu; kutu ekrandan da kaldirildi.
+        //
+        // Dongunun acma/kapama anahtari da burada DEGIL: kendi dugmesi ve onayi var
+        // (bkz. OnPostOtomatikAsync). Canli veri yazan bir donguyu baslatmak, bir sayiyi
+        // degistirmekle ayni jest olmamali.
         await settings.SetIntAsync(SettingsStore.AutoSendIntervalMinutesKey, AutoSendIntervalMinutes, ct);
         await settings.SetIntAsync(SettingsStore.AutoSendBatchSizeKey, AutoSendBatchSize, ct);
+        await settings.SetIntAsync(SettingsStore.MinProtokolYasiGunKey, MinProtokolYasiGun, ct);
+        await settings.SetIntAsync(SettingsStore.StuckRetryHourKey, TakilanDenemeSaati, ct);
+        await settings.SetIntAsync(SettingsStore.StuckRetryBatchSizeKey, TakilanPartiBoyutu, ct);
         return await SavedAsync("genel", ct);
     }
 
@@ -339,10 +389,24 @@ public class AyarlarModel(SettingsStore settings) : PageModel
 
         if (!skipGenel)
         {
-            AutoSendPatientEnabled = await settings.GetBoolAsync(SettingsStore.AutoSendPatientEnabledKey, false, ct);
             AutoSendEncounterEnabled = await settings.GetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, false, ct);
             AutoSendIntervalMinutes = await settings.GetIntAsync(SettingsStore.AutoSendIntervalMinutesKey, SettingsStore.AutoSendIntervalMinutesDefault, ct);
             AutoSendBatchSize = await settings.GetIntAsync(SettingsStore.AutoSendBatchSizeKey, SettingsStore.AutoSendBatchSizeDefault, ct);
+            MinProtokolYasiGun = await settings.GetIntAsync(SettingsStore.MinProtokolYasiGunKey, SettingsStore.MinProtokolYasiGunDefault, ct);
+            TakilanDenemeSaati = await settings.GetIntAsync(SettingsStore.StuckRetryHourKey, SettingsStore.StuckRetryHourDefault, ct);
+            TakilanPartiBoyutu = await settings.GetIntAsync(SettingsStore.StuckRetryBatchSizeKey, SettingsStore.StuckRetryBatchSizeDefault, ct);
+        }
+
+        // Durum kutusu HER ZAMAN okunur (skipGenel olsa bile) -- kaydetme sonrasi sayfa
+        // yeniden cizilirken durumun kaybolmamasi icin.
+        {
+            OtomatikCalisiyor = await settings.GetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, false, ct);
+            Ortam = await settings.GetStringAsync(SettingsStore.EHealthEnvironmentKey, SettingsStore.EHealthEnvironmentDefault, ct);
+            SonTurOzet = await settings.GetStringAsync(SettingsStore.AutoSendLastRunOzetKey, "", ct);
+            var sonMetin = await settings.GetStringAsync(SettingsStore.AutoSendLastRunUtcKey, "", ct);
+            if (DateTime.TryParse(sonMetin, System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.RoundtripKind, out var son))
+                SonTurUtc = son;
         }
 
         if (!skipTekrar)

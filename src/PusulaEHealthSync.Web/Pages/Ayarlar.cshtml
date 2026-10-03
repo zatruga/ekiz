@@ -121,24 +121,107 @@
             <div class="settings-grid">
                 <div class="card card-pad settings-card span-2">
                     <p class="section-title">Otomatik Gönderim</p>
-                    <p class="card-desc">
-                        Hangi kaynak tipleri arka planda otomatik gönderilsin ve ne sıklıkla çalışsın.
-                        <span class="field-hint">Açıldığında arka plan döngüsü bu ayarlara göre çalışır: her turda gönderim bekleyenler hesaplanır, parti boyutu kadarı canlı gönderilir, Pusula'da iptal edilenler TRƏS'ten silinir. Açmadan önce <a asp-page="/BekleyenIsler">Bekleyen İşler</a> sayfasından ne kadar kayıt biriktiğine bakın.</span>
+
+                    @* ==== DURUM KUTUSU + BAŞLAT/DURDUR (2026-10-03) ====
+                       KULLANICI ISTEGI: "ayarlar kısmında otomatik gönderimde altına otomatik
+                       gönderimi başlat seçeneği olmalı."
+
+                       Başlat/Durdur AYRI BİR FORM: döngüyü çalıştırmak, bir sayıyı değiştirmekle
+                       aynı jest olmamalı. Onay metni ortamı ve parti boyutunu açıkça yazıyor --
+                       canlı ortamda çalıştırılan bir döngünün ne yapacağı tahmine bırakılamaz.
+
+                       Durum kutusu SON TUR bilgisini gösteriyor: "açık" yazan bir anahtar
+                       döngünün gerçekten çalıştığını kanıtlamaz. Bu projede tam bu tuzak bir kez
+                       yaşandı -- Ayarlar'daki otomatik gönderim anahtarlarını bir ay boyunca
+                       hiçbir şey okumuyordu ve ekranda her şey normal görünüyordu. *@
+                    <div class="oto-durum @(Model.OtomatikCalisiyor ? "oto-durum--acik" : "")">
+                        <div class="oto-durum-ust">
+                            <span class="oto-durum-rozet">
+                                <span class="badge-dot"></span>
+                                @(Model.OtomatikCalisiyor ? "Çalışıyor" : "Durduruldu")
+                            </span>
+                            @if (Model.Ortam == "Live")
+                            {
+                                <span class="badge danger"><span class="badge-dot"></span>CANLI ortam</span>
+                            }
+                            else
+                            {
+                                <span class="badge neutral"><span class="badge-dot"></span>Test / Sandbox</span>
+                            }
+                            @if (Model.OtomatikCalisiyor)
+                            {
+                                <span class="oto-durum-bilgi">Her @Model.AutoSendIntervalMinutes dakikada bir, en fazla @Model.AutoSendBatchSize protokol</span>
+                            }
+                        </div>
+
+                        <div class="oto-durum-son">
+                            @if (Model.SonTurUtc is null)
+                            {
+                                <text>Henüz hiç tur çalışmadı.</text>
+                            }
+                            else
+                            {
+                                <text>Son tur: <strong>@AzTime.ToLocal(Model.SonTurUtc.Value).ToString("dd.MM.yyyy HH:mm")</strong></text>
+                                @if (!string.IsNullOrWhiteSpace(Model.SonTurOzet))
+                                {
+                                    <text> &mdash; @Model.SonTurOzet</text>
+                                }
+                            }
+                        </div>
+
+                        @* Başlat ve Durdur AYRI handler: tek handler + gizli "baslat" alanı
+                           kullansaydık ve o alan bağlanmazsa düğme sessizce yanlış çalışırdı. *@
+                        <form method="post" asp-page-handler="@(Model.OtomatikCalisiyor ? "Durdur" : "Baslat")" onsubmit="pusulaLockSubmit(this)">
+                            @if (Model.OtomatikCalisiyor)
+                            {
+                                <button type="submit" class="btn btn-outline" style="border-color:var(--danger); color:var(--danger);"
+                                        onclick="return confirm('Otomatik gönderim DURDURULACAK. Bekleyen kayıtlar birikmeye devam eder; elle gönderim etkilenmez.\n\nEmin misiniz?')">
+                                    Otomatik Gönderimi Durdur
+                                </button>
+                            }
+                            else
+                            {
+                                <button type="submit" class="btn btn-bulk"
+                                        onclick="return confirm('@(Model.Ortam == "Live" ? "DİKKAT: CANLI ORTAM.\\n\\n" : "")Otomatik gönderim BAŞLATILACAK.\n\nHer @Model.AutoSendIntervalMinutes dakikada bir, en fazla @Model.AutoSendBatchSize protokol @(Model.Ortam == "Live" ? "CANLI" : "Test/Sandbox") ortamına gönderilecek. Kapanalı @Model.MinProtokolYasiGun günden az olan protokoller gönderilmez.\n\nEmin misiniz?')">
+                                    Otomatik Gönderimi Başlat
+                                </button>
+                            }
+                        </form>
+                    </div>
+
+                    <p class="card-desc" style="margin-top:14px;">
+                        Döngü her turda: gönderim bekleyen protokolleri hesaplar, parti boyutu kadarını gönderir,
+                        Pusula'da iptal edilmişleri TRƏS'ten siler.
+                        <span class="field-hint">Takılan kayıtlar (LOINC kodu olmayan tetkik, sonuç değeri olmayan satır gibi
+                        mevcut veriyle gönderilemeyecek olanlar) bu turda denenmez &mdash; onların günde bir kez çalışan
+                        kendi turu var.</span>
                     </p>
+
                     <form method="post" asp-page-handler="Genel" style="display:flex; flex-direction:column; flex:1;">
-                        <div class="toggle-row">
-                            <input type="checkbox" id="autoPatient" asp-for="AutoSendPatientEnabled" />
-                            <label for="autoPatient">Hasta (Patient) kayıtlarını otomatik gönder</label>
-                        </div>
-                        <div class="toggle-row">
-                            <input type="checkbox" id="autoEncounter" asp-for="AutoSendEncounterEnabled" />
-                            <label for="autoEncounter">Protokol (Encounter) kayıtlarını otomatik gönder</label>
-                        </div>
                         <div class="field-row-2">
                             <div class="field"><label for="autoInterval">Kaç dakikada bir çalışsın?</label>
                                 <input type="number" id="autoInterval" asp-for="AutoSendIntervalMinutes" min="5" max="1440" /></div>
-                            <div class="field"><label for="autoBatch">Bir seferde en fazla kaç kayıt?</label>
+                            <div class="field"><label for="autoBatch">Bir turda en fazla kaç protokol?</label>
                                 <input type="number" id="autoBatch" asp-for="AutoSendBatchSize" min="1" max="500" /></div>
+                        </div>
+                        <div class="field-row-2">
+                            <div class="field">
+                                <label for="minYas">Kapandıktan kaç gün sonra gönderilsin?</label>
+                                <input type="number" id="minYas" asp-for="MinProtokolYasiGun" min="0" max="30" />
+                                <span class="field-hint">1 = aynı gün gönderilmez. Protokol kapandığı gün geciken sonuç düşebilir, epikriz düzeltilebilir.</span>
+                            </div>
+                            <div class="field">
+                                <label for="takilanSaat">Takılanlar hangi saatte denensin?</label>
+                                <input type="number" id="takilanSaat" asp-for="TakilanDenemeSaati" min="0" max="23" />
+                                <span class="field-hint">Günde bir kez. Eksik giderilmişse (LOINC kodu verilmiş, sonuç girilmiş) kayıt kendiliğinden gider.</span>
+                            </div>
+                        </div>
+                        <div class="field-row-2">
+                            <div class="field">
+                                <label for="takilanParti">Takılanlar turunda en fazla kaç protokol?</label>
+                                <input type="number" id="takilanParti" asp-for="TakilanPartiBoyutu" min="1" max="1000" />
+                                <span class="field-hint">En uzun süredir denenmeyenden başlar, her gece sıra diğerlerine geçer.</span>
+                            </div>
                         </div>
                         <div class="card-actions">
                             <button type="submit" class="btn btn-primary">Kaydet</button>

@@ -55,6 +55,14 @@ public class SettingsStore
     public const string AutoSendBatchSizeKey = "AutoSend.BatchSize";
     public const int AutoSendBatchSizeDefault = 50;
 
+    // SON TURUN IZI. Ayarlar sayfasindaki durum kutusu bunlari gosteriyor -- "acik" yazan
+    // bir anahtar, dongunun GERCEKTEN calistigini kanitlamaz. Son tur saati ve ozeti
+    // olmadan, acik ama sessizce olmus bir dongu ile saglikli bir dongu ekranda ayni
+    // gorunur. (Bu projede tam bu tuzak bir kez yasandi: Ayarlar'da duran otomatik
+    // gonderim anahtarlarini 2026-08'den 2026-09'a kadar HICBIR SEY okumuyordu.)
+    public const string AutoSendLastRunUtcKey = "AutoSend.LastRunUtc";
+    public const string AutoSendLastRunOzetKey = "AutoSend.LastRunOzet";
+
     // -- Bekleyen is taramasi araligi -----------------------------------------------------
     // KULLANICI ISTEGI (2026-09-28): "bu tarama tum data degil, Ayarlar kismina alan
     // ekleyelim; orada girilen tarihten itibaren datayi al; bir de son 1 ay / son 3 ay

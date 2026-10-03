@@ -1677,3 +1677,32 @@ a.ready-tile:hover { border-color: var(--warning); background: var(--warning-sof
   color: var(--text-muted);
   overflow-wrap: anywhere;
 }
+
+/* Otomatik gönderim durum kutusu -- KULLANICI ISTEGI (2026-10-03): Ayarlar'da açık bir
+   "başlat" kontrolü. Kutu, döngünün o anki halini ve SON TURUNU birlikte gösteriyor:
+   "açık" yazan bir anahtar, döngünün gerçekten çalıştığını kanıtlamaz. */
+.oto-durum {
+  padding: 16px 18px;
+  border: 1px solid var(--border);
+  border-left: 4px solid var(--border);
+  border-radius: var(--radius-lg);
+  background: var(--surface-hover);
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+.oto-durum--acik { border-left-color: var(--success); background: var(--success-soft, var(--surface-hover)); }
+.oto-durum-ust { display: flex; align-items: center; gap: 10px; flex-wrap: wrap; }
+.oto-durum-rozet {
+  display: inline-flex;
+  align-items: center;
+  gap: 7px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text-muted);
+}
+.oto-durum--acik .oto-durum-rozet { color: var(--success); }
+.oto-durum-rozet .badge-dot { width: 9px; height: 9px; }
+.oto-durum-bilgi { font-size: 12.5px; color: var(--text-muted); }
+.oto-durum-son { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
+.oto-durum form { margin: 0; }

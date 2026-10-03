@@ -59,6 +59,17 @@ public class AutoSyncWorker(
             {
                 // Tek bir turdaki hata donguyu OLDURMEMELI -- loglanip bir sonraki tura gecilir.
                 logger.LogError(ex, "Otomatik gonderim turu hata ile sonlandi.");
+
+                // Hata da bir izdir: Ayarlar'daki durum kutusu "son tur hata verdi" diyebilsin.
+                // Yazilmasaydi, surekli patlayan bir dongu ekranda hic calismamis gibi gorunurdu.
+                try
+                {
+                    using var izScope = services.CreateScope();
+                    var izSettings = izScope.ServiceProvider.GetRequiredService<SettingsStore>();
+                    await izSettings.SetStringAsync(SettingsStore.AutoSendLastRunUtcKey, DateTime.UtcNow.ToString("O"), stoppingToken);
+                    await izSettings.SetStringAsync(SettingsStore.AutoSendLastRunOzetKey, $"HATA: {ex.Message}", stoppingToken);
+                }
+                catch (Exception) { /* iz birakilamadiysa dongu yine de devam etmeli */ }
             }
 
             try { await Task.Delay(TimeSpan.FromMinutes(Math.Max(1, intervalMinutes)), stoppingToken); }
@@ -153,6 +164,14 @@ public class AutoSyncWorker(
         // 3) Iptal senkronu -- Pusula'da silinmis olanlari TRƏS'ten de sil.
         var iptal = await cancellationSync.RunAsync(scanDays: null, ct);
 
+        // SON TURUN IZINI BIRAK. Ayarlar sayfasindaki durum kutusu bunu gosteriyor: "acik"
+        // yazan bir anahtar dongunun gercekten calistigini kanitlamaz, son tur saati
+        // kanitlar. Hata halinde de yaziliyor (asagidaki catch), yoksa olmus bir dongu
+        // ekranda saglikli gorunurdu.
+        var ozet = $"{basarili} basarili, {basarisiz} basarisiz · {uygun.Count} protokol denendi "
+                 + $"· {iptal.Silinen} iptal kaydi silindi";
+        await settings.SetStringAsync(SettingsStore.AutoSendLastRunUtcKey, DateTime.UtcNow.ToString("O"), ct);
+        await settings.SetStringAsync(SettingsStore.AutoSendLastRunOzetKey, ozet, ct);
         logger.LogInformation(
             "Otomatik gonderim turu bitti: {Basarili} basarili, {Basarisiz} basarisiz. " +
             "Iptal senkronu: {IptalProtokol} protokol / {IptalIslem} islem / {IptalRadyoloji} radyoloji "
