@@ -64,6 +64,19 @@ else
                 <text>-- Ayarlar sayfasından açabilirsiniz</text>
             }
         </span>
+        <span>
+            @* Otomatik gönderim CANLI ortama yazarken bunun ekranda tahmine bırakılmaması
+               gerekiyor -- rozet hem kelimeyle hem renkle söylüyor. *@
+            Ortam:
+            @if (Model.Ortam == "Live")
+            {
+                <span class="badge danger"><span class="badge-dot"></span>CANLI</span>
+            }
+            else
+            {
+                <span class="badge neutral"><span class="badge-dot"></span>Test / Sandbox</span>
+            }
+        </span>
     </div>
 
     <div class="stat-grid">

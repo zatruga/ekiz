@@ -85,9 +85,21 @@ public class AutoSyncWorker(
         var pending = await pendingWork.RefreshIncrementalAsync(Math.Max(batchSize, 200), ct);
 
         var uygun = pending.Protokoller.Where(p => p.Eligible).Take(batchSize).ToList();
+
+        // HANGI ORTAMA YAZIYORUZ (KULLANICI ISTEGI 2026-10-03: "otomatik gönderimde sistem
+        // sandbox seçili ise sandbox gönderim yapsın, ya da canlı seçili ise canlı").
+        //
+        // Davranis zaten dogruydu: EHealthClient.ResolveEndpointAsync ortami HER ISTEKTE
+        // ayarlardan okuyor ve sabit kodlanmis adres yok, yani dongu hangi ortam seciliyse
+        // oraya gidiyor. Eksik olan GORUNURLUKTU -- loga bakan kisi turun test mi canli mi
+        // yazdigini anlayamiyordu. Canliya yazan bir dongude bu bilinmezlik kabul edilemez.
+        var ortam = await settings.GetStringAsync(
+            SettingsStore.EHealthEnvironmentKey, SettingsStore.EHealthEnvironmentDefault, ct);
         logger.LogInformation(
-            "Otomatik gonderim turu: {Toplam} protokolde bekleyen is var, bu turda {Bu} tanesi gonderiliyor (parti boyutu {Parti}).",
-            pending.ToplamProtokolSayisi, uygun.Count, batchSize);
+            "Otomatik gonderim turu [{Ortam}]: {Toplam} protokolde bekleyen is var, bu turda {Bu} tanesi gonderiliyor "
+            + "(parti boyutu {Parti}). Ayrica {Takilan} protokol takilanlar listesinde -- onlar bu turda denenmiyor.",
+            ortam == "Live" ? "CANLI" : "TEST/SANDBOX",
+            pending.ToplamProtokolSayisi, uygun.Count, batchSize, pending.ToplamTakilanProtokolSayisi);
 
         int basarili = 0, basarisiz = 0;
 

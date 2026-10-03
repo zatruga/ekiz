@@ -307,6 +307,8 @@ public class PendingWorkService(
             bekleyen.Concat(takilan).Select(p => p.ProtokolId).Distinct().ToList(), ct);
         var openAfterDays = await settings.GetIntAsync(
             SettingsStore.OpenProtokolSendAfterDaysKey, SettingsStore.OpenProtokolSendAfterDaysDefault, ct);
+        var minYas = await settings.GetIntAsync(
+            SettingsStore.MinProtokolYasiGunKey, SettingsStore.MinProtokolYasiGunDefault, ct);
 
         List<PendingProtocol> Grupla(List<PendingCandidate> kume)
         {
@@ -321,7 +323,7 @@ public class PendingWorkService(
                 // hicbir zaman yapilmayacak is ekranda birikiyordu.
                 if (protokol.ProtokolTipiId == EncounterMapper.ReceteProtokolTipiId) continue;
 
-                var (eligible, reason) = IsEligible(protokol, openAfterDays);
+                var (eligible, reason) = IsEligible(protokol, openAfterDays, minYas);
                 var items = group
                     .Select(c => new PendingItem(
                         c.ResourceType, c.Baslik, c.PusulaId, c.SonuclanmaTarihi, c.Aciklama,
@@ -428,8 +430,34 @@ public class PendingWorkService(
     }
 
     // Protokol gonderime uygun mu? Yatan ve ayaktan icin FARKLI kural (kullanici karari
-    // 2026-09-09).
-    private static (bool Eligible, string? Reason) IsEligible(ProtokolListItem p, int openAfterDays)
+    // 2026-09-09), ustune AYNI GUN GONDERME kurali (kullanici karari 2026-10-03).
+    private static (bool Eligible, string? Reason) IsEligible(ProtokolListItem p, int openAfterDays, int minAgeDays)
+    {
+        var (uygunlukAni, redSebebi) = UygunlukAni(p, openAfterDays);
+        if (uygunlukAni is null) return (false, redSebebi);
+
+        // AYNI GUN GONDERILMEZ (KULLANICI KARARI 2026-10-03: "gönderim yaparken 1 gün
+        // öncesini göndersin, hiç aynı gün göndermeyelim").
+        //
+        // NEDEN: protokol kapandigi gun kayit hala hareketli -- geciken laboratuvar sonucu
+        // dusebilir, hekim epikrizi duzeltebilir, yanlis girilen bir islem silinebilir. O
+        // anda gonderirsek bakanliga yarim bir tablo gider, sonra her degisiklik icin
+        // guncelleme/iptal gondermek zorunda kaliriz. Bir gun beklemek kaydi oturtuyor.
+        //
+        // OLCUT GUN FARKI, 24 SAAT DEGIL: "1 gün öncesi" takvim gunu demek. 23:50'de kapanan
+        // bir protokol ertesi gun 00:10'da degil, ertesi gun boyunca gonderilebilir olmali --
+        // saat farkiyla ugrasmak kullanicinin kafasindaki kurali bozardi.
+        var gunFarki = (DateTime.Today - uygunlukAni.Value.Date).Days;
+        if (gunFarki < minAgeDays)
+            return (false, minAgeDays == 1
+                ? "Bugün kapandı -- aynı gün gönderilmiyor, yarın gönderilecek"
+                : $"Kapanalı {gunFarki} gün oldu -- en az {minAgeDays} gün beklenmesi gerekiyor");
+
+        return (true, null);
+    }
+
+    // Protokolun gonderime uygun hale geldigi AN. null ise henuz uygun degil (sebebiyle).
+    private static (DateTime? An, string? Sebep) UygunlukAni(ProtokolListItem p, int openAfterDays)
     {
         // YATAN (Y): olcut TABURCU (kullanici karari 2026-09-14). Yatis haftalar surebilir ve
         // epizot bitmeden gondermek yanlis olur -- bu yuzden ayaktandaki gun esigi kisayolu
@@ -439,30 +467,30 @@ public class PendingWorkService(
         // KLINIK taburcu ani, ikincisi IDARI kapanis (faturalama). Canli veride %89'unda ayni
         // gun, ama 471 protokolde (%9) idari kapanis 1-7 gun sonra -- yedege dusseydik o
         // kayitlar bir haftaya kadar gec giderdi. Yedek yine de duruyor cunku 180 gunluk
-        // olcumde 2 protokolde tersi de gorulduy: biri dolu digeri bos olabiliyor.
+        // olcumde 2 protokolde tersi de goruldu: biri dolu digeri bos olabiliyor.
         if (p.GelisTipiId == "Y")
         {
             var taburcu = p.TaburcuTarihi ?? p.KapanisTarihi;
-            if (taburcu is not null) return (true, null);
-            if (p.AcilisTarihi is null) return (false, "Açılış tarihi yok");
+            if (taburcu is not null) return (taburcu, null);
+            if (p.AcilisTarihi is null) return (null, "Açılış tarihi yok");
 
             // Veri girisi hatasiyla hic kapanmayan/taburcu edilmeyen protokoller sonsuza dek
             // beklemesin diye tavan.
             var yatanAcik = (DateTime.Now - p.AcilisTarihi.Value).TotalDays;
             return yatanAcik >= YatanMaxOpenDays
-                ? (true, null)
-                : (false, $"Hasta hâlâ yatıyor (taburcu bekleniyor, {(int)yatanAcik} gündür açık)");
+                ? (p.AcilisTarihi.Value.AddDays(YatanMaxOpenDays), null)
+                : (null, $"Hasta hâlâ yatıyor (taburcu bekleniyor, {(int)yatanAcik} gündür açık)");
         }
 
         // AYAKTAN / GUNUBIRLIK: olcut protokolun kapanisi. Kapanmayan protokol orani yuksek
         // oldugundan (canli veride ayaktanin ~%20'si hic kapanmiyor) gun esigi kurali gecerli.
-        if (p.KapanisTarihi is not null) return (true, null);
-        if (p.AcilisTarihi is null) return (false, "Açılış tarihi yok");
+        if (p.KapanisTarihi is not null) return (p.KapanisTarihi, null);
+        if (p.AcilisTarihi is null) return (null, "Açılış tarihi yok");
 
         var acik = (DateTime.Now - p.AcilisTarihi.Value).TotalDays;
         return acik >= openAfterDays
-            ? (true, null)
-            : (false, $"Protokol açık ({(int)acik} gündür) -- kapanması ya da {openAfterDays} gün beklenmesi gerekiyor");
+            ? (p.AcilisTarihi.Value.AddDays(openAfterDays), null)
+            : (null, $"Protokol açık ({(int)acik} gündür) -- kapanması ya da {openAfterDays} gün beklenmesi gerekiyor");
     }
 }
 

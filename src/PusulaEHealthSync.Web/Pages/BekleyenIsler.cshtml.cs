@@ -24,6 +24,12 @@ public class BekleyenIslerModel(PendingWorkService pendingWork, SettingsStore se
     public DateTime? SonHesaplamaUtc { get; private set; }
     public bool OtomatikGonderimAcik { get; private set; }
 
+    // KULLANICI ISTEGI (2026-10-03): "otomatik gönderimde sistem sandbox seçili ise sandbox
+    // gönderim yapsın, ya da canlı seçili ise canlı". Davranis zaten boyleydi (EHealthClient
+    // ortami her istekte ayarlardan okuyor) ama EKRANDA hicbir yerde yazmiyordu -- otomatik
+    // gonderimi acan kisinin nereye yazdigini tahmin etmesi gerekiyordu.
+    public string Ortam { get; private set; } = "Test";
+
     // TARIH ARALIGI (KULLANICI ISTEGI 2026-09-29): "bekleyen islere 2 tarih secimi
     // koyalim, baslangic tarihi ve bitme tarihi, bu iki tarih arasini hesaplasin."
     //
@@ -47,6 +53,7 @@ public class BekleyenIslerModel(PendingWorkService pendingWork, SettingsStore se
     public async Task OnGetAsync(CancellationToken ct)
     {
         OtomatikGonderimAcik = await settings.GetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, false, ct);
+        Ortam = await settings.GetStringAsync(SettingsStore.EHealthEnvironmentKey, SettingsStore.EHealthEnvironmentDefault, ct);
         await AralikHesaplaAsync(ct);
         Sonuc = pendingWork.SonSonuc;
         SonHesaplamaUtc = pendingWork.SonHesaplamaUtc;

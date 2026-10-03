@@ -12,6 +12,14 @@ public class SettingsStore
     public const string OpenProtokolSendAfterDaysKey = "OpenProtokolSendAfterDays";
     public const int OpenProtokolSendAfterDaysDefault = 7;
 
+    // AYNI GUN GONDERILMEZ (KULLANICI KARARI 2026-10-03: "gönderim yaparken 1 gün öncesini
+    // göndersin, hiç aynı gün göndermeyelim"). Protokol kapandigi gun kayit hala hareketli:
+    // geciken laboratuvar sonucu dusebilir, hekim epikrizi duzeltebilir. Bir gun beklemek
+    // kaydi oturtuyor ve sonradan guncelleme/iptal gonderme ihtiyacini azaltiyor.
+    // Olcut takvim gunu farki -- 24 saat degil (bkz. PendingWorkService.IsEligible).
+    public const string MinProtokolYasiGunKey = "Send.MinProtokolYasiGun";
+    public const int MinProtokolYasiGunDefault = 1;
+
     // -- Kaynak veritabani baglantisi -----------------------------------------------------
     // KULLANICI ISTEGI (2026-08-28): tek bir "connection string" alani yerine ayri Sunucu/
     // Veritabani/Kullanici/Sifre alanlari -- kullanicinin ADO.NET sozdizimi bilmesine gerek
