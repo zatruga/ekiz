@@ -135,7 +135,10 @@ public class AutoSyncWorker(
             }
         }
 
-        // 2) Iptal senkronu -- Pusula'da silinmis olanlari TRƏS'ten de sil.
+        // 2) TAKILANLAR -- gunde bir kez, kendi turunda (bkz. TakilanlariDeneAsync).
+        await TakilanlariDeneAsync(sp, settings, ct);
+
+        // 3) Iptal senkronu -- Pusula'da silinmis olanlari TRƏS'ten de sil.
         var iptal = await cancellationSync.RunAsync(scanDays: null, ct);
 
         logger.LogInformation(
@@ -145,4 +148,78 @@ public class AutoSyncWorker(
             basarili, basarisiz,
             iptal.IptalProtokol, iptal.IptalIslem, iptal.IptalRadyoloji, iptal.Silinen, iptal.Hata);
     }
+
+    // TAKILANLARIN GUNDE BIR KEZLIK DENEMESI (KULLANICI KARARI 2026-10-03: "onlar için
+    // ayrıca deneme yapsın").
+    //
+    // Takilan kalem = mevcut Pusula verisiyle gonderilemeyecek olan (LOINC kodu yok, sonuc
+    // degeri bos, Icbari eslesmesi yok) ya da ust uste basarisiz olmus kalem. Saatlik tur
+    // bunlara HIC dokunmuyor -- dokunsaydi, liste en eskiden basladigi icin parti
+    // kontenjaninin tamamini kalici olarak isgal ederlerdi.
+    //
+    // Yine de buraya bir deneme gerekiyor: eksik giderilebilir. Birisi LOINC Eslestirme
+    // sayfasindan kod verdiginde ya da laboratuvar sonucu girdiginde kaydin kendiliginden
+    // gitmesi lazim; aksi halde kullanicinin her birini elle bulup gondermesi gerekirdi.
+    //
+    // GUNDE BIR KEZ ve GECE: hem bakanlik sunucusuna gereksiz yuk binmesin hem de gunduz
+    // saatlerindeki asil gonderimin kontenjanini yemesin.
+    private async Task TakilanlariDeneAsync(IServiceProvider sp, SettingsStore settings, CancellationToken ct)
+    {
+        var saat = await settings.GetIntAsync(
+            SettingsStore.StuckRetryHourKey, SettingsStore.StuckRetryHourDefault, ct);
+        var simdi = DateTime.Now;   // sunucu zaten Baki saatinde
+        if (simdi.Hour != saat) return;
+
+        // Ayni gun ikinci kez calismasin (tur araligi 60 dk'dan kisaysa saat ayni kalir).
+        var sonMetin = await settings.GetStringAsync(SettingsStore.StuckRetryLastRunKey, "", ct);
+        if (DateTime.TryParse(sonMetin, System.Globalization.CultureInfo.InvariantCulture,
+                System.Globalization.DateTimeStyles.RoundtripKind, out var son)
+            && son.Date == simdi.Date)
+            return;
+
+        var pendingWork = sp.GetRequiredService<PendingWorkService>();
+        var protocolFullSync = sp.GetRequiredService<ProtocolFullSyncService>();
+        var parti = await settings.GetIntAsync(
+            SettingsStore.StuckRetryBatchSizeKey, SettingsStore.StuckRetryBatchSizeDefault, ct);
+
+        // TAM tarama: takilan kalemler tanimi geregi eskidir, artimli pencere onlari
+        // gormezdi.
+        var sonuc = await pendingWork.RefreshAsync(maxProtocols: Math.Max(parti, 200), ct: ct);
+
+        // SIRALAMA: EN UZUN SUREDIR DENENMEYEN once. Takilan listesi parti boyutundan buyuk
+        // olabilir (olculdu: 30 gunde 4.289 protokol). Ana listedeki gibi "en eski kayit
+        // once" deseydik, ayni ilk 100 protokol her gece yeniden denenir, geri kalani HIC
+        // denenmezdi -- yani duzeltilmesi ana listeden cikarilan tuzagin aynisini bu listenin
+        // icinde kurmus olurduk. Denemeden SONRA SyncLog zaman damgasi guncellendigi icin bu
+        // siralama kendiliginden donuyor: her gece sira baskalarina geliyor.
+        var hedefler = sonuc.TakilanProtokoller
+            .Where(p => p.Eligible)
+            .OrderBy(p => p.Items.Max(i => i.SonDeneme?.CreatedAtUtc ?? DateTime.MinValue))
+            .Take(parti)
+            .ToList();
+
+        logger.LogInformation(
+            "Takilanlar turu: {Toplam} takilan protokolden {Bu} tanesi yeniden deneniyor.",
+            sonuc.ToplamTakilanProtokolSayisi, hedefler.Count);
+
+        int duzelen = 0;
+        foreach (var p in hedefler)
+        {
+            if (ct.IsCancellationRequested) break;
+            try
+            {
+                var tam = await protocolFullSync.SyncAllAsync(p.Protokol, ct);
+                if (tam.EncounterStatus == SyncStatus.Success) duzelen++;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Takilanlar turu: protokol {Id} yine gonderilemedi.", p.Protokol.ProtokolId);
+            }
+        }
+
+        await settings.SetStringAsync(SettingsStore.StuckRetryLastRunKey, simdi.ToString("O"), ct);
+        logger.LogInformation("Takilanlar turu bitti: {Duzelen}/{Deneme} protokol gonderildi.",
+            duzelen, hedefler.Count);
+    }
+
 }

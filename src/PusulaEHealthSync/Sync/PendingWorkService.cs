@@ -260,108 +260,171 @@ public class PendingWorkService(
                 SonuclanmaTarihi = DateTime.MinValue,
             });
 
-        if (candidates.Count == 0)
-            return new PendingWorkResult([], new Dictionary<string, int>(), 0, null);
+        if (candidates.Count == 0) return PendingWorkResult.Bos;
 
         // 3) SyncLog'da ne var? Kaynak tipi bazinda toplu okuma.
         var sentLookup = new Dictionary<(string, int), SyncLogEntry>();
         foreach (var group in candidates.GroupBy(c => c.ResourceType))
         {
             var ids = group.Select(c => c.PusulaId).Distinct().ToList();
-            // govdeleriGetir: false -- burada yalnizca DURUM'a bakiliyor (IsPending), gonderilen
-            // FHIR govdesi hic kullanilmiyor. Tarama 54.000'i askin id ile calistigi icin bu iki
+            // govdeleriGetir: false -- burada yalnizca DURUM'a bakiliyor, gonderilen FHIR
+            // govdesi hic kullanilmiyor. Tarama 54.000'i askin id ile calistigi icin bu iki
             // kolonu okumamak ciddi bellek/G-C tasarrufu (bkz. SyncLogStore).
             var sent = await syncLog.GetLatestByPusulaIdsAsync(group.Key, ids, ct, govdeleriGetir: false);
             foreach (var kv in sent) sentLookup[(group.Key, kv.Key)] = kv.Value;
         }
 
-        // 4) Fark: gonderilmemis (ya da epikrizde: gonderildikten SONRA degismis) olanlar.
-        var pending = candidates.Where(c => IsPending(c, sentLookup)).ToList();
-        if (pending.Count == 0)
-            return new PendingWorkResult([], new Dictionary<string, int>(), 0, null);
+        // 3b) Ust uste kac kez basarisiz olmuslar? SADECE son durumu basarisiz olanlar icin --
+        //     iliskili alt sorguyu 54.000 id'nin hepsi icin calistirmak gereksiz, basarisiz
+        //     alt kume ise kucuk (bkz. SyncLogStore.GetArdisikBasarisizSayilariAsync).
+        var ardisikBasarisiz = new Dictionary<(string, int), int>();
+        foreach (var group in sentLookup
+                     .Where(kv => kv.Value.Status is not SyncStatus.Success and not SyncStatus.Skipped)
+                     .GroupBy(kv => kv.Key.Item1))
+        {
+            var ids = group.Select(kv => kv.Key.Item2).Distinct().ToList();
+            var sayilar = await syncLog.GetArdisikBasarisizSayilariAsync(group.Key, ids, ct);
+            foreach (var kv in sayilar) ardisikBasarisiz[(group.Key, kv.Key)] = kv.Value;
+        }
 
-        // 5) Protokol bilgisi + uygunluk kurallari.
+        // 4) IKI AYRI KUME. KULLANICI KARARI (2026-10-03): "bekleyenleri ayrı bir listeye
+        //    alalım ... bizim ana gönderim listesine sayıları hiç karışmasın."
+        var bekleyen = new List<PendingCandidate>();
+        var takilan = new List<PendingCandidate>();
+        foreach (var c in candidates)
+        {
+            switch (Siniflandir(c, sentLookup, ardisikBasarisiz))
+            {
+                case KalemDurumu.Bekliyor: bekleyen.Add(c); break;
+                case KalemDurumu.Takildi: takilan.Add(c); break;
+            }
+        }
+        if (bekleyen.Count == 0 && takilan.Count == 0) return PendingWorkResult.Bos;
+
+        // 5) Protokol bilgisi + uygunluk kurallari. Iki kume de ayni protokol tablosundan
+        //    besleniyor, bu yuzden tek okuma.
         var protokoller = await repository.GetProtokollerByIdsAsync(
-            pending.Select(p => p.ProtokolId).Distinct().ToList(), ct);
+            bekleyen.Concat(takilan).Select(p => p.ProtokolId).Distinct().ToList(), ct);
         var openAfterDays = await settings.GetIntAsync(
             SettingsStore.OpenProtokolSendAfterDaysKey, SettingsStore.OpenProtokolSendAfterDaysDefault, ct);
 
-        var gruplar = new List<PendingProtocol>();
-        foreach (var group in pending.GroupBy(p => p.ProtokolId))
+        List<PendingProtocol> Grupla(List<PendingCandidate> kume)
         {
-            if (!protokoller.TryGetValue(group.Key, out var protokol)) continue;
-            if (protokol.State == 0) continue;   // iptal edilmis protokol -- Is 3'un konusu
+            var sonuc = new List<PendingProtocol>();
+            foreach (var group in kume.GroupBy(p => p.ProtokolId))
+            {
+                if (!protokoller.TryGetValue(group.Key, out var protokol)) continue;
+                if (protokol.State == 0) continue;   // iptal edilmis protokol -- Is 3'un konusu
 
-            // RECETE PROTOKOLLERI HIC GONDERILMIYOR (2026-09-29, kullanici sordu:
-            // "bekleyen islere recete islem vs almiyoruz dimi?" -- aliyorduk).
-            //
-            // Recete, gonderim tarafinda uc ayri yerde atlaniyor (EncounterMapper,
-            // CompositionSyncService, ProtocolFullSyncService) ama TARAMA tarafinda
-            // filtrelenmiyordu. Sonucu iki turlu:
-            //   1. Ekranda hicbir zaman yapilmayacak is gorunuyordu -- sayfanin amaci
-            //      "neyin biriktigini gormek", yanlis birikim gostermek onu bozar.
-            //   2. Daha sinsisi: recete asla gonderilemedigi icin SONSUZA KADAR bekliyor
-            //      kaliyor. AutoSyncWorker en eski bekleyenden basladigindan bunlar
-            //      kalici olarak listenin tepesine yerlesip her turda parti kontenjani
-            //      isgal ederdi (SyncAllAsync onlari aninda Skipped dondurur).
-            // Canli veride su an 2 kayit -- kucuk, ama birikimli ve kendiliginden
-            // temizlenmeyen bir sizinti.
-            if (protokol.ProtokolTipiId == EncounterMapper.ReceteProtokolTipiId) continue;
+                // RECETE PROTOKOLLERI HIC GONDERILMIYOR (2026-09-29): gonderim tarafinda uc
+                // ayri yerde atlaniyor ama tarama tarafinda filtrelenmiyordu, dolayisiyla
+                // hicbir zaman yapilmayacak is ekranda birikiyordu.
+                if (protokol.ProtokolTipiId == EncounterMapper.ReceteProtokolTipiId) continue;
 
-            var (eligible, reason) = IsEligible(protokol, openAfterDays);
-            var items = group
-                .Select(c => new PendingItem(
-                    c.ResourceType, c.Baslik, c.PusulaId, c.SonuclanmaTarihi, c.Aciklama,
-                    sentLookup.GetValueOrDefault((c.ResourceType, c.PusulaId))))
-                .OrderBy(i => i.SonuclanmaTarihi)
-                .ToList();
+                var (eligible, reason) = IsEligible(protokol, openAfterDays);
+                var items = group
+                    .Select(c => new PendingItem(
+                        c.ResourceType, c.Baslik, c.PusulaId, c.SonuclanmaTarihi, c.Aciklama,
+                        sentLookup.GetValueOrDefault((c.ResourceType, c.PusulaId))))
+                    .OrderBy(i => i.SonuclanmaTarihi)
+                    .ToList();
 
-            gruplar.Add(new PendingProtocol(protokol, items, eligible, reason));
+                sonuc.Add(new PendingProtocol(protokol, items, eligible, reason));
+            }
+            return sonuc;
         }
 
-        // Ozet sayimlar TUM bekleyenler uzerinden (ekranda kirpilan liste degil).
+        var gruplar = Grupla(bekleyen);
+        var takilanGruplar = Grupla(takilan);
+
+        // Ozet sayimlar TUM bekleyenler uzerinden (ekranda kirpilan liste degil) -- ve
+        // yalnizca ANA kume uzerinden: takilanlarin sayisi buraya karismaz.
         var ozet = gruplar
             .SelectMany(g => g.Items)
             .GroupBy(i => i.Baslik)
             .ToDictionary(g => g.Key, g => g.Count());
 
-        var toplamProtokol = gruplar.Count;
+        var takilanOzet = takilanGruplar
+            .SelectMany(g => g.Items)
+            .GroupBy(i => i.Baslik)
+            .ToDictionary(g => g.Key, g => g.Count());
 
         // En eski bekleyen once -- en uzun sure takilı kalanlar gorunur olsun.
-        var kirpilmis = gruplar
-            .OrderBy(g => g.Items.Min(i => i.SonuclanmaTarihi == DateTime.MinValue ? DateTime.MaxValue : i.SonuclanmaTarihi))
-            .Take(maxProtocols)
+        static List<PendingProtocol> Kirp(List<PendingProtocol> g, int n) => g
+            .OrderBy(x => x.Items.Min(i => i.SonuclanmaTarihi == DateTime.MinValue ? DateTime.MaxValue : i.SonuclanmaTarihi))
+            .Take(n)
             .ToList();
 
-        // EN ESKI BEKLEYEN -- KIRPILMAMIS kumeden. Artimli tarama penceresini bu belirliyor
-        // (bkz. RefreshIncrementalAsync); kirpilmis listeden hesaplansaydi, ekrana sigmayan
-        // eski bir kalem pencerenin disinda kalir ve bir daha hic gonderilmezdi.
+        // EN ESKI BEKLEYEN -- KIRPILMAMIS kumeden. Artimli tarama penceresinin alt sinirini
+        // bu belirliyor (bkz. RefreshIncrementalAsync); kirpilmis listeden hesaplansaydi,
+        // ekrana sigmayan eski bir kalem pencerenin disinda kalir ve bir daha hic
+        // gonderilmezdi.
+        //
+        // TAKILANLAR DA SAYILIYOR: pencerenin alt siniri onlari da kapsamali, yoksa gunluk
+        // takilan taramasi kendi kayitlarini goremez hale gelir.
         DateTime? enEski = null;
-        foreach (var g in gruplar)
+        foreach (var g in gruplar.Concat(takilanGruplar))
             foreach (var i in g.Items)
                 if (i.SonuclanmaTarihi != DateTime.MinValue && (enEski is null || i.SonuclanmaTarihi < enEski))
                     enEski = i.SonuclanmaTarihi;
 
-        return new PendingWorkResult(kirpilmis, ozet, toplamProtokol, enEski);
+        return new PendingWorkResult(
+            Kirp(gruplar, maxProtocols), ozet, gruplar.Count,
+            enEski,
+            Kirp(takilanGruplar, maxProtocols), takilanOzet, takilanGruplar.Count);
     }
 
-    // Bir kalem hala bekliyor mu?
-    private static bool IsPending(PendingCandidate c, Dictionary<(string, int), SyncLogEntry> sent)
+    // Bir kalemin durumu. KULLANICI KARARI (2026-10-03): "bekleyenleri ayrı bir listeye
+    // alalım, onlar için ayrıca deneme yapsın, bizim ana gönderim listesine sayıları hiç
+    // karışmasın."
+    public enum KalemDurumu
+    {
+        Tamam,      // basariyla gonderilmis, yapacak bir sey yok
+        Bekliyor,   // hic denenmemis ya da GECICI olarak basarisiz -- ana listede
+        Takildi,    // mevcut veriyle gonderilemez ya da ust uste basarisiz -- ayri listede
+    }
+
+    // Ust uste bu kadar basarisizliktan sonra kalem "takildi" sayilir.
+    //
+    // NEDEN 3: bir ag kesintisi ya da bakanlik sunucusunun gecici hatasi tek turda gecer,
+    // en kotu birkac tur surer. Ust uste ucuncu basarisizliktan sonra sebebin veride
+    // oldugunu varsaymak makul -- ve yanilsak bile kayit kaybolmuyor, gunluk takilan
+    // taramasinda yeniden deneniyor.
+    public const int TakilmaEsigi = 3;
+
+    // ATLANAN (Skipped) DOGRUDAN TAKILDI SAYILIR: Skipped, mapper'in "bu veriyle
+    // gonderilemez" karari demektir (LOINC kodu yok, Icbari eslesmesi yok, sonuc degeri
+    // bos). Bir sonraki turda ayni veriyle ayni sonuc cikar. Olculdu (30 gun): boyle bir
+    // kalem 4.289 protokolde var -- protokollerin %21'i. Ana listede birakilsalardi, liste
+    // en eskiden basladigi icin parti kontenjaninin tamamini kalici olarak isgal
+    // ederlerdi ve hicbir yeni protokol gonderilemezdi.
+    private static KalemDurumu Siniflandir(
+        PendingCandidate c,
+        Dictionary<(string, int), SyncLogEntry> sent,
+        Dictionary<(string, int), int> ardisikBasarisiz)
     {
         if (!sent.TryGetValue((c.ResourceType, c.PusulaId), out var last))
-            return true;                                    // hic denenmemis
+            return KalemDurumu.Bekliyor;                     // hic denenmemis
+
+        if (last.Status == SyncStatus.Skipped)
+            return KalemDurumu.Takildi;
 
         if (last.Status != SyncStatus.Success)
-            return true;                                    // denenmis ama basarisiz/atlanmis
+        {
+            var deneme = ardisikBasarisiz.GetValueOrDefault((c.ResourceType, c.PusulaId), 1);
+            return deneme >= TakilmaEsigi ? KalemDurumu.Takildi : KalemDurumu.Bekliyor;
+        }
 
         // EPIKRIZ OZEL DURUMU (kullanici notu 2026-09-09: "epikrizde silinme yok, degisme
         // var"): basariyla gonderilmis olsa bile doktor metni sonradan duzeltmis olabilir.
         // Pusula YEREL saat tutar, SyncLog UTC -- karsilastirmadan once cevrilmeli, yoksa
         // 4 saatlik kayma olur (bkz. AzTime).
         if (c.ResourceType == "Composition" && c.SonuclanmaTarihi != DateTime.MinValue)
-            return AzTime.ToUtc(c.SonuclanmaTarihi) > last.CreatedAtUtc;
+            return AzTime.ToUtc(c.SonuclanmaTarihi) > last.CreatedAtUtc
+                ? KalemDurumu.Bekliyor
+                : KalemDurumu.Tamam;
 
-        return false;
+        return KalemDurumu.Tamam;
     }
 
     // Protokol gonderime uygun mu? Yatan ve ayaktan icin FARKLI kural (kullanici karari
@@ -417,10 +480,25 @@ public record PendingProtocol(
     bool Eligible,
     string? NotEligibleReason);
 
+// Taramanin sonucu IKI AYRI KUME tasir (KULLANICI KARARI 2026-10-03). Protokoller/
+// OzetSayimlar/ToplamProtokolSayisi yalnizca GONDERILEBILIR olanlari sayar; mevcut veriyle
+// gonderilemeyecek kalemler Takilan* alanlarinda ve ana sayilara HIC karismiyor.
+//
+// Neden ayri: otomatik dongu en eskiden basladigi icin, gonderilemeyen kalemler ana listede
+// kalsaydi parti kontenjaninin tamamini kalici olarak isgal eder ve hicbir yeni protokol
+// gonderilemezdi. Ekranda da "4.289 bekleyen is" gibi hicbir zaman azalmayacak bir sayi
+// gorunurdu -- sayfanin amaci neyin biriktigini gostermek, yanlis birikim onu bozar.
 public record PendingWorkResult(
     List<PendingProtocol> Protokoller,
     Dictionary<string, int> OzetSayimlar,
     int ToplamProtokolSayisi,
     // Kirpilmamis kumedeki en eski bekleyen kalemin tarihi. Artimli tarama penceresinin
     // alt sinirini bu belirler -- null ise bekleyen is yok demektir.
-    DateTime? EnEskiBekleyenTarih);
+    DateTime? EnEskiBekleyenTarih,
+    List<PendingProtocol> TakilanProtokoller,
+    Dictionary<string, int> TakilanOzetSayimlar,
+    int ToplamTakilanProtokolSayisi)
+{
+    public static PendingWorkResult Bos => new([], new Dictionary<string, int>(), 0, null,
+                                               [], new Dictionary<string, int>(), 0);
+}

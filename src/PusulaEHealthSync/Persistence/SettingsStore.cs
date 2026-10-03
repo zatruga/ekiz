@@ -88,6 +88,16 @@ public class SettingsStore
     public const int PendingScanFullSweepHourDefault = 3;               // gece 03:00
     public const string PendingScanLastFullSweepKey = "PendingScan.LastFullSweep";
 
+    // TAKILANLARIN AYRI DENEMESI (KULLANICI KARARI 2026-10-03: "onlar için ayrıca deneme
+    // yapsın"). Mevcut veriyle gonderilemeyen kalemler ana turda hic denenmiyor; gunde bir
+    // kez, ayri bir turda deneniyor. Boylece eksik giderilince (LOINC kodu verilince, sonuc
+    // girilince) kayit kendiliginden gidiyor, ama saatlik dongu onlarla ugrasmiyor.
+    public const string StuckRetryHourKey = "AutoSend.StuckRetryHour";
+    public const int StuckRetryHourDefault = 4;                          // gece 04:00
+    public const string StuckRetryLastRunKey = "AutoSend.StuckRetryLastRun";
+    public const string StuckRetryBatchSizeKey = "AutoSend.StuckRetryBatchSize";
+    public const int StuckRetryBatchSizeDefault = 100;
+
     // Saat kaymasi ve gec commit olan islemler icin guvenlik payi: isaretin biraz
     // GERISINDEN baslanir. Fazladan birkac yuz satir okumak, bir kaydi kacirmaktan iyidir.
     public const int PendingScanOverlapMinutes = 120;

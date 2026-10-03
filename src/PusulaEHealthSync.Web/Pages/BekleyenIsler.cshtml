@@ -1,5 +1,6 @@
 @page
 @model PusulaEHealthSync.Web.Pages.BekleyenIslerModel
+@using PusulaEHealthSync.Persistence
 @{
     ViewData["Title"] = "Bekleyen İşler";
 }
@@ -131,6 +132,87 @@ else
                             <span class="badge neutral"><span class="badge-dot"></span>Henüz uygun değil</span>
                             <div class="text-muted">@p.NotEligibleReason</div>
                         }
+                    </td>
+                </tr>
+            }
+            </tbody>
+        </table>
+        </div>
+    }
+
+    @* ============ TAKILANLAR (2026-10-03) ============
+       KULLANICI KARARI: "bekleyenleri ayrı bir listeye alalım. onlar için ayrıca deneme
+       yapsın. bizim ana gönderim listesine sayıları hiç karışmasın."
+
+       Buradakiler MEVCUT VERIYLE gonderilemeyen kalemler: LOINC kodu olmayan tetkik,
+       sonuc degeri bos panel satiri, Icbari eslesmesi olmayan hizmet, ya da ust uste
+       basarisiz olmus kayit. Yukaridaki sayilara KARISMIYORLAR -- karissalardi "bekleyen
+       is" sayisi hicbir zaman azalmayan, anlamsiz bir rakam olurdu (olculdu: 30 gunde
+       4.289 protokol).
+
+       Otomatik dongu bunlari saatlik turda HIC denemiyor; gunde bir kez, gece kendi
+       turunda deniyor (bkz. AutoSyncWorker.TakilanlariDeneAsync). Yani eksik giderilince
+       kayit kendiliginden gider, elle is gerekmez. *@
+    @if (Model.Sonuc.ToplamTakilanProtokolSayisi > 0)
+    {
+        <p class="section-title" style="margin-top:28px">Takılanlar</p>
+        <div class="alert alert-warning" style="margin-bottom:12px">
+            <strong>@Model.Sonuc.ToplamTakilanProtokolSayisi protokolde</strong>, mevcut Pusula verisiyle
+            gönderilemeyecek kalem var. Yukarıdaki sayılara dahil <strong>değiller</strong>.
+            Otomatik gönderim bunları saatlik turda denemez; günde bir kez, gece yeniden dener —
+            eksik giderildiğinde kayıt kendiliğinden gider.
+        </div>
+
+        <div class="stat-grid">
+            @foreach (var kv in Model.Sonuc.TakilanOzetSayimlar.OrderByDescending(k => k.Value))
+            {
+                <div class="stat-card">
+                    <div class="stat-label">@kv.Key</div>
+                    <div class="stat-value">@kv.Value</div>
+                </div>
+            }
+        </div>
+
+        <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Protokol</th>
+                    <th>Hasta</th>
+                    <th>Takılan kalemler</th>
+                    <th>Sebep</th>
+                </tr>
+            </thead>
+            <tbody>
+            @foreach (var p in Model.Sonuc.TakilanProtokoller)
+            {
+                <tr>
+                    <td class="mono">
+                        <a asp-page="/Protokol" asp-route-id="@p.Protokol.ProtokolId">@p.Protokol.ProtokolId</a>
+                        <div class="text-muted">@(p.Protokol.AcilisTarihi?.ToString("dd.MM.yyyy") ?? "-")</div>
+                    </td>
+                    <td>
+                        @p.Protokol.HastaAdi @p.Protokol.HastaSoyadi
+                        <div class="text-muted mono">@p.Protokol.Fin</div>
+                    </td>
+                    <td>
+                        @foreach (var grup in p.Items.GroupBy(i => i.Baslik).OrderByDescending(g => g.Count()))
+                        {
+                            <span class="badge neutral">@grup.Key @(grup.Count() > 1 ? $"({grup.Count()})" : "")</span>
+                        }
+                    </td>
+                    <td>
+                        @* En sik gorulen sebep: yirmi kalem ayni eksikten takildiysa yirmi
+                           satir degil tek cumle gosterilmeli. *@
+                        @{
+                            var sebep = p.Items
+                                .Where(i => i.SonDeneme?.Message is not null)
+                                .GroupBy(i => SyncLogEntry.FriendlyError(i.SonDeneme!.Message))
+                                .OrderByDescending(g => g.Count())
+                                .Select(g => g.Key)
+                                .FirstOrDefault();
+                        }
+                        <div class="text-muted">@(sebep ?? "Sebep kayıtlı değil.")</div>
                     </td>
                 </tr>
             }

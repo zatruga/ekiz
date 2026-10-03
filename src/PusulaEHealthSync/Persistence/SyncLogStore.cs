@@ -191,6 +191,60 @@ public class SyncLogStore
         return result;
     }
 
+
+    // ARDISIK BASARISIZ DENEME SAYISI -- her PusulaId icin, EN SON BASARILI gonderimden
+    // SONRA kac deneme yapildigi.
+    //
+    // NEDEN GEREKLI (2026-10-03): otomatik gonderim acilmadan once "gecici hata" ile
+    // "kalici hata" ayrilmali. Ikisi de SyncLog'da ayni gorunur (Status != Success) ama
+    // davranislari zit: ag kesintisi bir sonraki turda kendiliginden duzelir, LOINC kodu
+    // olmayan bir tetkik ise HICBIR zaman duzelmez. Ayirt edilmezse ikinci grup her saat
+    // yeniden denenir, en eskiden basladigi icin parti kontenjaninin tamamini isgal eder
+    // ve hicbir yeni protokol gonderilemez. (Olculdu: 30 gunde 4.289 protokolde boyle bir
+    // kalem var -- protokollerin %21'i.)
+    //
+    // "ARDISIK" onemli: eskiden 3 kez basarisiz olup SONRA basarili olmus bir kayit temiz
+    // sayilmali. Bu yuzden toplam basarisiz sayisi degil, son basaridan sonraki sayim
+    // aliniyor.
+    //
+    // CAGRI SEKLI: yalnizca SON DURUMU basarisiz olan id'ler icin cagrilmali (bkz.
+    // PendingWorkService). Tarama 54.000 id ile calisiyor; iliskili alt sorguyu hepsi icin
+    // calistirmak gereksiz, basarisiz alt kume ise kucuk.
+    public async Task<Dictionary<int, int>> GetArdisikBasarisizSayilariAsync(
+        string resourceType, IReadOnlyCollection<int> pusulaIds, CancellationToken ct = default)
+    {
+        var result = new Dictionary<int, int>();
+        if (pusulaIds.Count == 0) return result;
+
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+
+        foreach (var chunk in pusulaIds.Distinct().Chunk(900))
+        {
+            using var cmd = conn.CreateCommand();
+            var placeholders = chunk.Select((_, i) => $"$id{i}").ToList();
+            cmd.CommandText = $@"
+                SELECT PusulaId, COUNT(*)
+                FROM SyncLog s
+                WHERE s.ResourceType = $resourceType
+                  AND s.PusulaId IN ({string.Join(",", placeholders)})
+                  AND s.Id > COALESCE((
+                        SELECT MAX(b.Id) FROM SyncLog b
+                        WHERE b.ResourceType = s.ResourceType
+                          AND b.PusulaId = s.PusulaId
+                          AND b.Status = 'Success'), 0)
+                GROUP BY PusulaId";
+            cmd.Parameters.AddWithValue("$resourceType", resourceType);
+            for (var i = 0; i < chunk.Length; i++)
+                cmd.Parameters.AddWithValue($"$id{i}", chunk[i]);
+
+            using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+                result[reader.GetInt32(0)] = reader.GetInt32(1);
+        }
+        return result;
+    }
+
     // Protokol silinme mutabakati icin -- su an TRƏS'te "canli" (basariyla
     // olusturulmus/guncellenmis, sonradan silinmemis) sayilan her Encounter'in EN SON
     // kaydini doner. Cagiran taraf (Index sayfasi) bunlarin PusulaId'lerini alip Pusula'daki
