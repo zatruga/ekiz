@@ -1,6 +1,7 @@
 using Microsoft.Extensions.DependencyInjection;
 using Microsoft.Extensions.Hosting;
 using PusulaEHealthSync.Persistence;
+using PusulaEHealthSync.Reporting;
 
 namespace PusulaEHealthSync.Sync;
 
@@ -53,6 +54,17 @@ public class AutoSyncWorker(
                     await RunOnceAsync(scope.ServiceProvider, settings, stoppingToken);
                 else
                     logger.LogDebug("Otomatik gonderim kapali -- tur atlandi.");
+
+                // GUN SONU RAPORU -- ANAHTARIN DISINDA, BILEREK (2026-10-05).
+                //
+                // RunOnceAsync icine konulamazdi cunku o metot yalnizca otomatik gonderim
+                // ACIKKEN cagriliyor. Rapor orada olsaydi, dongu kapandigi ya da coktugu
+                // gun hic mail gelmezdi -- yani tam ihtiyac duyuldugu anda sessizlesirdi.
+                //
+                // Raporun isi "gonderim nasil gitti" degil, "GONDERIM OLDU MU" sorusuna
+                // cevap vermek. Bu yuzden "hic gonderim yapilmadi" da raporlanabilir bir
+                // sonuc (bkz. GunSonuRaporu.HicDenenmedi).
+                await GunSonuRaporuDeneAsync(scope.ServiceProvider, settings, stoppingToken);
             }
             catch (OperationCanceledException) { return; }
             catch (Exception ex)
@@ -197,6 +209,79 @@ public class AutoSyncWorker(
             + "tarandi, {Silinen} kayit silindi, {Hata} hata.",
             basarili, basarisiz,
             iptal.IptalProtokol, iptal.IptalIslem, iptal.IptalRadyoloji, iptal.Silinen, iptal.Hata);
+    }
+
+
+    // GUN SONU RAPORU (KULLANICI ISTEGI 2026-10-05): "gece o gun gonderdigi tum gonderimleri
+    // kontrol edip gonderilmeyenleri gondermeye calisip, eger gonderilmez ise bir rapor
+    // hazirlayip ilgili kisilere mail olarak iletelim."
+    //
+    // GONDERILMEYENLERI YENIDEN DENEME ISI BURADA DEGIL: onu zaten iki mekanizma yapiyor --
+    // saatlik tur (durum bazli oldugu icin gonderilmeyen kalem listede kalir ve her turda
+    // yeniden denenir) ve TakilanlariDeneAsync (gece, veri eksigi olanlar icin). Buraya
+    // ucuncu bir deneme eklemek ayni kaydi ayni gece ucuncu kez gondermek olurdu.
+    //
+    // Eksik olan RAPORDU: bir sey kalici olarak gonderilemediginde kimse haberdar olmuyordu.
+    // Ekrana bakmayi gerektiren bir bilgi, bakilmayan bir bilgidir.
+    //
+    // RAPORLANAN GUN DUNDUR (kullanici tarifi: "bu gun ayin 5, gelen mail 4 icin"): rapor
+    // saati varsayilan 07:00 oldugu icin o an BUGUN henuz yarim; dun ise kapanmis bir gun.
+    private async Task GunSonuRaporuDeneAsync(
+        IServiceProvider sp, SettingsStore settings, CancellationToken ct)
+    {
+        try
+        {
+            // Mail kapaliysa raporu HESAPLAMIYORUZ bile -- hesap Pusula'ya protokol cozum
+            // sorgulari atiyor, karsiliginda hicbir yere gitmeyecek bir rapor uretmek icin.
+            if (!await settings.GetBoolAsync(SettingsStore.MailEnabledKey, false, ct)) return;
+
+            var saat = await settings.GetIntAsync(
+                SettingsStore.MailSendHourKey, SettingsStore.MailSendHourDefault, ct);
+            var simdi = DateTime.Now;   // sunucu Baki saatinde
+            if (simdi.Hour != saat) return;
+
+            // Ayni gun ikinci kez gitmesin (tur araligi 60 dk'dan kisaysa saat ayni kalir).
+            var sonHam = await settings.GetStringAsync(SettingsStore.GunSonuLastRunKey, "", ct);
+            if (DateOnly.TryParseExact(sonHam, "yyyy-MM-dd",
+                    System.Globalization.CultureInfo.InvariantCulture,
+                    System.Globalization.DateTimeStyles.None, out var son)
+                && son >= DateOnly.FromDateTime(simdi))
+                return;
+
+            var raporServisi = sp.GetRequiredService<GunSonuRaporService>();
+            var mail = sp.GetRequiredService<MailSender>();
+
+            var gun = DateOnly.FromDateTime(simdi.AddDays(-1));
+            var rapor = await raporServisi.OlusturAsync(gun, ct);
+
+            var sonuc = await mail.GonderAsync(
+                GunSonuMailHtml.Konu(rapor), GunSonuMailHtml.Govde(rapor), ct);
+
+            // ISARET YALNIZCA BASARILI GONDERIMDEN SONRA ILERLER: SMTP gecici olarak
+            // yanit vermediyse bir sonraki tur (bir saat sonra) yeniden dener. Isareti
+            // kosulsuz yazsaydik, tek bir SMTP hatasi o gunun raporunu tamamen yakardi.
+            if (sonuc.Basarili)
+            {
+                await settings.SetStringAsync(SettingsStore.GunSonuLastRunKey,
+                    simdi.ToString("yyyy-MM-dd", System.Globalization.CultureInfo.InvariantCulture), ct);
+                logger.LogInformation(
+                    "Gun sonu raporu gonderildi ({Gun}): {Denenen} protokol denendi, {Basarili} basarili, "
+                    + "{Hatali} hatali. {Mesaj}",
+                    gun, rapor.DenenenProtokol, rapor.BasariliProtokol, rapor.HataliProtokol, sonuc.Mesaj);
+            }
+            else
+            {
+                logger.LogWarning(
+                    "Gun sonu raporu ({Gun}) GONDERILEMEDI: {Mesaj} -- bir sonraki turda yeniden denenecek.",
+                    gun, sonuc.Mesaj);
+            }
+        }
+        catch (OperationCanceledException) { throw; }
+        catch (Exception ex)
+        {
+            // Rapor DONGUYU OLDURMEMELI: gonderim isi rapordan onemli.
+            logger.LogError(ex, "Gun sonu raporu hazirlanirken hata olustu.");
+        }
     }
 
     // TAKILANLARIN GUNDE BIR KEZLIK DENEMESI (KULLANICI KARARI 2026-10-03: "onlar için

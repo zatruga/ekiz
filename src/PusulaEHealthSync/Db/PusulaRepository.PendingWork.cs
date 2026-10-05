@@ -164,11 +164,24 @@ public partial class PusulaRepository
     // State=6 olur ve gonderilmeye devam etmeli -- onu silmek gercek veriyi kaybetmek olurdu.
     public async Task<List<PendingCandidate>> GetCancelledRadiologyAsync(DateTime fromLocal, CancellationToken ct = default)
     {
+        // PROTOKOL BAGI JOIN ILE (2026-10-05'te DUZELTILDI): bu sorgu eklendiginde
+        // "rti.ProtokolId" yaziliyordu ama RIS.TetkikIslem'de BOYLE BIR KOLON YOK --
+        // tablonun protokole bakan tek kolonu ProtokolIslemId (olculdu: Id,
+        // ProtokolDefterNo, ProtokolIslemId). Sorgu her cagrilista SQL 207 (gecersiz kolon)
+        // atiyordu ve CancellationSyncService bu adimi korumasiz cagirdigi icin istisna
+        // yukari cikiyor, TUM iptal senkronu dusuyordu -- 4. adim olan ters kontrol de
+        // dahil. Yani otomatik gonderim acilsaydi her tur gonderimden sonra hata ile
+        // bitecekti. 2026-09-29'dan beri hic calismamis.
+        //
+        // Join KAYIPSIZ (olculdu): 388.288 tetkikin hepsinde ProtokolIslemId dolu ve
+        // Hasta.ProtokolIslem'de karsiligi var -- INNER JOIN kayit dusurmez.
+        // GetCompletedRadiologyAsync da zaten ayni join'i kullaniyor.
         const string sql = @"
-            SELECT rti.ProtokolId, rti.Id,
+            SELECT pi.ProtokolId, rti.Id,
                    ISNULL(rti.IptalTarihi, ISNULL(rti.OnayIptalTarihi, rti.RaporYazildiIptalTarihi)),
                    'İptal edilen radyoloji raporu'
             FROM RIS.TetkikIslem rti
+            INNER JOIN Hasta.ProtokolIslem pi ON pi.Id = rti.ProtokolIslemId
             WHERE rti.State <> 6
               AND (rti.IptalTarihi >= @From
                 OR rti.OnayIptalTarihi >= @From

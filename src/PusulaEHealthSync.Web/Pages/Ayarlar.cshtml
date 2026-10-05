@@ -428,16 +428,19 @@
         <section class="settings-panel" id="panel-mail">
             <div class="settings-grid">
                 <div class="card card-pad settings-card span-2">
-                    <p class="section-title">Günlük E-posta Raporu</p>
+                    <p class="section-title">Gün Sonu Maili</p>
                     <p class="card-desc">
-                        Her gün belirlenen saatte, o günün gönderim özetini (başarılı/hatalı sayıları + hatalı kayıt
-                        listesi) aşağıdaki alıcılara e-posta ile gönderir. Relay sunucu adresi kurum IT'sinden alınan
-                        <span class="mono">mail.mlpcare.com</span> olarak önceden dolduruldu.
+                        Her sabah belirlenen saatte <strong>bir önceki günün</strong> gönderim bilançosunu aşağıdaki
+                        alıcılara e-posta ile gönderir: kaç protokol denendi, kaçı başarılı, kaçı hatalı, ve
+                        gönderilemeyen kayıtların Türkçe sebebiyle listesi.
+                        <span class="field-hint">Sorun olmayan günlerde de gelir &mdash; mail gelmediği gün sistemin
+                        çalışmadığı anlaşılır. Raporda hasta adı ve FİN bilgisi bilinçli olarak yer almaz, yalnızca
+                        protokol numarası yazar.</span>
                     </p>
                     <form method="post" asp-page-handler="Mail" style="display:flex; flex-direction:column; flex:1;">
                         <div class="toggle-row">
                             <input type="checkbox" id="mailEnabled" asp-for="MailEnabled" />
-                            <label for="mailEnabled">Günlük özet e-postasını gönder</label>
+                            <label for="mailEnabled">Gün sonu mailini gönder</label>
                         </div>
 
                         <div class="field-row-2">
@@ -464,7 +467,9 @@
                             <div class="field"><label for="mailFrom">Gönderen adres (From)</label>
                                 <input type="email" id="mailFrom" asp-for="MailFromAddress" /></div>
                             <div class="field"><label for="mailHour">Gönderim saati (0-23)</label>
-                                <input type="number" id="mailHour" asp-for="MailSendHour" min="0" max="23" /></div>
+                                <input type="number" id="mailHour" asp-for="MailSendHour" min="0" max="23" />
+                                <span class="field-hint">Bu saatte dünün raporu gider. 7 = sabah işe gelindiğinde
+                                gelen kutusunda hazır.</span></div>
                         </div>
 
                         <div class="field">
@@ -480,6 +485,43 @@
                             }
                         </div>
                     </form>
+
+                    @* ==== ON IZLEME + TEST GONDERIMI (2026-10-05) ====
+                       SMTP yapilandirmasinin dogru olup olmadigini sabah 07:00'de ogrenmek
+                       kotu bir tasarim: yanlissa o gunun raporu kaybedilmis olur ve kimse
+                       fark etmez. Iki ayri dugme cunku iki ayri soruya cevap veriyorlar:
+                         "Rapor nasil gorunuyor?"  -> On izleme (mail GONDERMEZ)
+                         "SMTP calisiyor mu?"      -> Test maili (gercek gonderim)
+                       Test maili AYRI BIR FORM: ustteki formla ayni Kaydet dugmesine
+                       baglansaydi, bir ayari degistirip kaydetmek istedigimizde mail de
+                       giderdi. *@
+                    <div style="margin-top:18px; padding-top:16px; border-top:1px solid var(--border);">
+                        <p class="card-desc" style="margin-bottom:10px;">
+                            <strong>Göndermeden önce kontrol edin.</strong> Ön izleme raporu tarayıcıda açar, mail
+                            göndermez. Test maili, kayıtlı alıcılara gerçek bir mail atar &mdash; SMTP ayarlarının
+                            çalıştığını kanıtlamanın tek yolu.
+                        </p>
+                        <div class="card-actions">
+                            <a class="btn btn-outline" asp-page="/GunSonuRaporu" target="_blank" rel="noopener">
+                                Dünün raporunu ön izle
+                            </a>
+                            <form method="post" asp-page-handler="TestMaili" style="display:inline;"
+                                  onsubmit="pusulaLockSubmit(this)">
+                                <button type="submit" class="btn btn-outline"
+                                        onclick="return confirm('Kayıtlı alıcılara GERÇEK bir test maili gönderilecek.
+
+İçerik dünün gün sonu raporu olacak.
+
+Emin misiniz?')">
+                                    Test maili gönder
+                                </button>
+                            </form>
+                            @if (Model.MailTestSonucu is { } ts)
+                            {
+                                <span class="rchip @(Model.MailTestBasarili ? "success" : "danger")">@ts</span>
+                            }
+                        </div>
+                    </div>
                 </div>
             </div>
         </section>

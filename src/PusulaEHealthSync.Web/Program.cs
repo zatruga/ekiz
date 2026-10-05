@@ -75,6 +75,11 @@ builder.Services.AddSingleton<ProtocolFullSyncService>();
 builder.Services.AddSingleton<PendingWorkService>();
 builder.Services.AddSingleton<CancellationSyncService>();
 
+// Gun sonu raporu + e-posta gonderici (2026-10-05). MailSender Ayarlar'daki Mail.*
+// alanlarini okuyor -- o alanlar 2026-08'den beri duruyordu ama hicbir sey gondermiyordu.
+builder.Services.AddSingleton<PusulaEHealthSync.Reporting.GunSonuRaporService>();
+builder.Services.AddSingleton<PusulaEHealthSync.Reporting.MailSender>();
+
 // Saatlik otomatik gonderim. VARSAYILAN KAPALI -- Ayarlar'daki "Otomatik gonderim"
 // acilmadan tek kayit bile gondermez (bkz. AutoSyncWorker).
 builder.Services.AddHostedService<AutoSyncWorker>();

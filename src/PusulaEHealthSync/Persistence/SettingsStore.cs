@@ -177,6 +177,14 @@ public class SettingsStore
     public const int MailSendHourDefault = 7;
     public const string MailRecipientsKey = "Mail.Recipients";
 
+    // GUN SONU RAPORU (2026-10-05). Alici listesi BILEREK Mail.Recipients ile AYNI
+    // (kullanici karari: "mevcut alicilari kullan") -- ikinci bir liste tutmak, iki
+    // listenin zamanla birbirinden ayrismasi demekti.
+    //
+    // Gunde bir kez gonderilsin diye son gonderim gunu tutuluyor; dongu Mail.SendHour
+    // saatinde her turda uyandigi icin bu isaret olmadan ayni rapor saatte bir giderdi.
+    public const string GunSonuLastRunKey = "Mail.GunSonuLastRun";
+
     private readonly string _connectionString;
 
     public SettingsStore(string dbPath)

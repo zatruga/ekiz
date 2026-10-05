@@ -3,6 +3,7 @@ using System.Globalization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using PusulaEHealthSync.Persistence;
+using PusulaEHealthSync.Reporting;
 using PusulaEHealthSync.Sync;
 
 namespace PusulaEHealthSync.Web.Pages;
@@ -12,7 +13,11 @@ namespace PusulaEHealthSync.Web.Pages;
 // her formda). Epikriz kurallari YAZILDI (2026-08-20, bkz. CompositionSyncService/
 // SettingsStore.EpikrizSendEnabledKey). Lab hala "hazir degil" placeholder -- mapper
 // yazilmadan bu alanin kaydedilmesinin bir anlami yok, bu yuzden formsuz.
-public class AyarlarModel(SettingsStore settings, ILogger<AyarlarModel> logger) : PageModel
+public class AyarlarModel(
+    SettingsStore settings,
+    GunSonuRaporService gunSonuRapor,
+    MailSender mailSender,
+    ILogger<AyarlarModel> logger) : PageModel
 {
     public bool Saved { get; set; }
     public string? SavedSection { get; set; }
@@ -327,6 +332,42 @@ public class AyarlarModel(SettingsStore settings, ILogger<AyarlarModel> logger) 
         await settings.SetIntAsync(SettingsStore.MailSendHourKey, MailSendHour, ct);
         await settings.SetStringAsync(SettingsStore.MailRecipientsKey, Clean(MailRecipients), ct);
         return await SavedAsync("mail", ct);
+    }
+
+    // ---- GUN SONU MAILI TEST GONDERIMI (2026-10-05) ---------------------------------
+    // NEDEN GEREKLI: SMTP yapilandirmasi yanlissa bunu sabah 07:00'de, rapor gitmedigi
+    // icin ogrenirdik -- ve kimse fark etmezdi, cunku "mail gelmedi" ile "sorun yok"
+    // birbirinden ayirt edilemez. Test dugmesi bu belirsizligi aninda cozuyor.
+    //
+    // AYRI HANDLER, AYRI FORM: ustteki Kaydet'e baglansaydi bir ayari degistirmek
+    // istedigimizde mail de giderdi. Ayni gerekce otomatik gonderim Baslat/Durdur
+    // dugmelerinde de uygulandi.
+    public string? MailTestSonucu { get; private set; }
+    public bool MailTestBasarili { get; private set; }
+
+    public async Task<IActionResult> OnPostTestMailiAsync(CancellationToken ct)
+    {
+        try
+        {
+            // Icerik GERCEK rapor, uydurma bir ornek degil: SMTP'nin calistigini
+            // kanitlamanin yani sira raporun kendi bicimi de gorulmus olsun.
+            var rapor = await gunSonuRapor.OlusturAsync(DateOnly.FromDateTime(DateTime.Now.AddDays(-1)), ct);
+            var sonuc = await mailSender.GonderAsync(
+                "[TEST] " + GunSonuMailHtml.Konu(rapor), GunSonuMailHtml.Govde(rapor), ct);
+
+            MailTestBasarili = sonuc.Basarili;
+            MailTestSonucu = sonuc.Mesaj;
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "Gun sonu maili test gonderimi basarisiz.");
+            MailTestBasarili = false;
+            MailTestSonucu = "Hata: " + ex.Message;
+        }
+
+        await LoadAsync(ct);
+        SavedSection = "mail";
+        return Page();
     }
 
     // Bos birakilan (opsiyonel) alanlar icin -- ASP.NET Core model binding, formda bos

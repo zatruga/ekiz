@@ -1,0 +1,62 @@
+@page
+@model PusulaEHealthSync.Web.Pages.GunSonuRaporuModel
+@{
+    ViewData["Title"] = "Gün Sonu Raporu";
+    ViewData["Genis"] = true;   // rapor 680px sabit genislikte, cevresinde nefes payi kalsin
+}
+
+<p class="breadcrumb"><a asp-page="/Ayarlar">Ayarlar</a> / Gün Sonu Raporu Ön İzleme</p>
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Gün Sonu Raporu</h1>
+        <p class="page-subtitle">
+            Alıcılara gidecek e-postanın birebir aynısı &mdash; bu sayfa mail göndermez
+        </p>
+    </div>
+    <form method="get" class="filter-bar" style="margin:0; gap:10px; align-items:flex-end;">
+        <div class="field" style="margin:0;">
+            <label for="gun">Rapor günü</label>
+            <input type="date" id="gun" name="Gun" value="@Model.GosterilenGun.ToString("yyyy-MM-dd")" />
+        </div>
+        <button type="submit" class="btn btn-primary">Göster</button>
+    </form>
+</div>
+
+@* OUTLOOK UYARISI -- GERCEK BIR TUZAK, SUSLEME DEGIL.
+   Bu sayfa HTML'i tarayici motoruyla ciziyor; Outlook ise Word'un motoruyla ciziyor ve
+   border-radius, bazi padding ve margin degerlerini yoksayiyor. Yani ekranda kusursuz
+   gorunen bir rapor Outlook'ta farkli durabilir. Kullanici bunu bilmezse "ekranda
+   duzgundu" diye guvenir ve hatayi hic gormez. *@
+<div class="card card-pad" style="margin-bottom:16px; border-left:3px solid var(--warning);">
+    <p class="card-desc" style="margin:0;">
+        Aşağıdaki görüntü tarayıcıya ait. Outlook e-postaları Word'ün çizim motoruyla
+        gösterdiği için köşe yuvarlaklıkları ve bazı boşluklar orada farklı durabilir
+        &mdash; içerik ve sayılar aynıdır. Gerçek görünümü kontrol etmek için
+        <a asp-page="/Ayarlar">Ayarlar &rarr; Gün Sonu Maili</a> bölümündeki
+        <strong>Test maili gönder</strong> düğmesini kullanın.
+    </p>
+</div>
+
+@* IFRAME, DOGRUDAN GOMME DEGIL: e-posta govdesi tam bir HTML belgesi (kendi <body>'si ve
+   zemin rengi var). Sayfaya dogrudan basilsaydi hem gecersiz HTML olurdu hem de mailin
+   stilleri uygulamanin stilleriyle carpisirdi. srcdoc izolasyon sagliyor. *@
+<iframe id="raporCerceve" title="Gün sonu raporu ön izlemesi"
+        srcdoc="@Model.Html"
+        style="width:100%; height:900px; border:1px solid var(--border); border-radius:10px;
+               background:#F5F7FA;"></iframe>
+
+<script>
+    // Cerceveyi icerigine gore buyut -- rapordaki hatali kayit tablosu 300 satira kadar
+    // cikabiliyor, sabit yukseklikte ic ice iki kaydirma cubugu olurdu.
+    (function () {
+        var f = document.getElementById('raporCerceve');
+        function boyutla() {
+            try {
+                var h = f.contentDocument.body.scrollHeight;
+                if (h > 200) f.style.height = (h + 40) + 'px';
+            } catch (e) { /* srcdoc ayni kaynak, normalde buraya girilmez */ }
+        }
+        f.addEventListener('load', boyutla);
+        boyutla();
+    })();
+</script>

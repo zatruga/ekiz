@@ -448,6 +448,49 @@ public class SyncLogStore
         return result;
     }
 
+    // BIR YEREL GUNUN TUM KAYITLARI -- ORTAMA KISITLI (2026-10-05, gun sonu raporu icin).
+    //
+    // NEDEN AYRI BIR METOT: QueryAsync, GetStatusCountsAsync ve GetDailyTrendAsync ortam
+    // filtresi UYGULAMIYOR ve bu bilincli -- onlar GECMIS/EKRAN sorgulari, Aktivite
+    // Akisi'nda her iki ortamin kaydini gormek dogru. Ama gun sonu raporu bir OLCUM:
+    // "dun 412 kayit gonderildi" cumlesi canli ortamdayken sandbox denemelerini sayarsa
+    // dogrudan yalan olur. Mevcut sorgulari degistirmek Aktivite ekranini da degistirirdi,
+    // bu yuzden rapora kendi sorgusu yazildi.
+    //
+    // GUN SINIRI YEREL: Baki saatiyle 00:00-24:00. UTC'ye gore gruplamak gece nobetinde
+    // (00:00-04:00) yapilan gonderimleri bir onceki gune dusururdu -- bu hata bu projede
+    // gunluk trend grafiginde bir kez yasandi (bkz. AzTime).
+    public async Task<List<SyncLogEntry>> GetGunKayitlariAsync(
+        DateOnly gunYerel, CancellationToken ct = default)
+    {
+        var baslangicUtc = AzTime.ToUtc(gunYerel.ToDateTime(TimeOnly.MinValue));
+        var bitisUtc = AzTime.ToUtc(gunYerel.AddDays(1).ToDateTime(TimeOnly.MinValue));
+        var ortam = await OrtamAsync(ct);
+
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+        using var cmd = conn.CreateCommand();
+        // RequestJson/ResponseJson OKUNMUYOR: rapor yalnizca durum ve mesaja bakiyor,
+        // govdeler bir gunde yuz binlerce satirda ciddi bellek demek (ayni gerekce
+        // GetLatestByPusulaIdsAsync'teki govdeleriGetir:false icin de gecerli).
+        cmd.CommandText = @"
+            SELECT Id, ResourceType, PusulaId, Status, Operation, AzResourceId, Message,
+                   NULL, NULL, PatientFullName, FathersName, BirthDate, Gender, Fin,
+                   RecordOpenedAt, CreatedAtUtc, Ortam
+            FROM SyncLog
+            WHERE CreatedAtUtc >= $from AND CreatedAtUtc < $to
+              AND Ortam = $ortam
+            ORDER BY Id";
+        cmd.Parameters.AddWithValue("$from", baslangicUtc.ToString("O"));
+        cmd.Parameters.AddWithValue("$to", bitisUtc.ToString("O"));
+        cmd.Parameters.AddWithValue("$ortam", ortam);
+
+        var sonuc = new List<SyncLogEntry>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct)) sonuc.Add(ReadEntry(reader));
+        return sonuc;
+    }
+
     private static SyncLogEntry ReadEntry(SqliteDataReader reader) => new()
     {
         Id = reader.GetInt64(0),
