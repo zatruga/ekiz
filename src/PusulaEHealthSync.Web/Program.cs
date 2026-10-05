@@ -27,12 +27,15 @@ builder.Services.AddHttpClient<EHealthClient>();
 builder.Services.AddSingleton(sp =>
 {
     var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SyncLogOptions>>().Value;
-    return new SyncLogStore(options.DbPath);
+    return new SettingsStore(options.DbPath);
 });
+// SyncLogStore SettingsStore'u ALIYOR (2026-10-05): her kaydin hangi ortama (Test/Live)
+// gittigini damgalamasi ve "gonderilmis mi" sorgularini o ortama kisitlamasi icin.
+// Kayit sirasi onemli -- SettingsStore once kurulmali.
 builder.Services.AddSingleton(sp =>
 {
     var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SyncLogOptions>>().Value;
-    return new SettingsStore(options.DbPath);
+    return new SyncLogStore(options.DbPath, sp.GetRequiredService<SettingsStore>());
 });
 builder.Services.AddSingleton(sp =>
 {

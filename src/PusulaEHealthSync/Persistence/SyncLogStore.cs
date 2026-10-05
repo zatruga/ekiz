@@ -8,15 +8,45 @@ public record DailyTrendPoint(DateOnly Day, int Success, int Failed);
 // SQLite'a yazar/okur. Baslangicta secildi (bkz. konusma) -- kurulum gerektirmeyen tek
 // dosya, ileride web dashboard'un da okuyacagi tablo. Ihtiyac buyurse SQL Server'a
 // tasinabilir, sema kucuk oldugu icin maliyeti dusuk.
+// ORTAM AYRIMI (2026-10-05, kullanici sordu: "canlıda devreye aldığımızda tekrar
+// gönderebilecek miyiz? canlıdaki id ile sandboxtaki id farklı, çakışma olacak mı?").
+//
+// SORUN: SyncLog, bir denemenin HANGI ORTAMA gittigini hic kaydetmiyordu. Sonuclari,
+// sandbox'tan canliya gecildigi anda:
+//   1. HICBIR SEY GONDERILMEZDI. Sandbox'a basariyla gitmis her kayit "Success" oldugu
+//      icin tarama onu "tamam" sayar; canliya gecince de ayni kayitlara bakip "yapacak is
+//      yok" derdi. 125.694 basarili sandbox gonderimi, canli ortami bos birakirdi.
+//   2. Ekran yalan soylerdi: Protokol Detay'daki yesil "Gönderildi" rozetleri yalnizca
+//      sandbox'ta var olan kayitlari gosterirdi.
+//   3. SILME YANLIS HEDEFE GIDERDI: saklanan AzResourceId sandbox sunucusunun verdigi id.
+//      Canlida o id yok; silme/guncelleme 404 alirdi.
+// Id'ler CAKISMAZ (iki ayri sunucu, iki ayri id uzayi) ama saklanan id, yanlis sunucuyu
+// isaret eden gecersiz bir isaretciye donusurdu.
+//
+// COZUM: her kayit hangi ortama gittigini tasiyor ve "gonderilmis mi" sorusunu soran her
+// sorgu KENDILIGINDEN o ortama kisitlaniyor.
+//
+// NEDEN FILTRE BURADA, CAGRI YERLERINDE DEGIL: 69 cagri yeri var (11 dosya). Her birine
+// elle "AND Ortam = ..." eklemek, bir tanesinin unutulmasi demekti -- ve unutulan yer
+// sessizce yanlis cevap verirdi. Store kendi kendini kisitlayinca unutulacak bir yer
+// kalmiyor.
 public class SyncLogStore
 {
     private readonly string _connectionString;
+    private readonly SettingsStore? _settings;
 
-    public SyncLogStore(string dbPath)
+    public SyncLogStore(string dbPath, SettingsStore? settings = null)
     {
         _connectionString = SqliteDb.ConnectionString(dbPath);
+        _settings = settings;
         EnsureSchema();
     }
+
+    // Su an hangi ortamdayiz? settings verilmemisse (kucuk arac/test kullanimlari) Test.
+    private async Task<string> OrtamAsync(CancellationToken ct)
+        => _settings is null
+            ? SettingsStore.EHealthEnvironmentDefault
+            : await _settings.GetStringAsync(SettingsStore.EHealthEnvironmentKey, SettingsStore.EHealthEnvironmentDefault, ct);
 
     private void EnsureSchema()
     {
@@ -50,6 +80,21 @@ public class SyncLogStore
             CREATE INDEX IF NOT EXISTS IX_SyncLog_CreatedAtUtc ON SyncLog(CreatedAtUtc);
         ";
         cmd.ExecuteNonQuery();
+
+        // ORTAM SUTUNU -- sonradan eklendi (2026-10-05), mevcut kurulumlarda ALTER gerekiyor.
+        // Var olan satirlarin tamami sandbox'a gitmisti: bugune kadar canli ortam hic
+        // kullanilmadi, dolayisiyla geriye donuk doldurma "Test" olarak guvenli.
+        using var sutunCmd = conn.CreateCommand();
+        sutunCmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('SyncLog') WHERE name = 'Ortam'";
+        if (Convert.ToInt64(sutunCmd.ExecuteScalar()) == 0)
+        {
+            using var alterCmd = conn.CreateCommand();
+            alterCmd.CommandText = @"
+                ALTER TABLE SyncLog ADD COLUMN Ortam TEXT NULL;
+                UPDATE SyncLog SET Ortam = 'Test' WHERE Ortam IS NULL;
+                CREATE INDEX IF NOT EXISTS IX_SyncLog_Ortam ON SyncLog(Ortam, ResourceType, PusulaId);";
+            alterCmd.ExecuteNonQuery();
+        }
     }
 
     public async Task InsertAsync(SyncLogEntry entry, CancellationToken ct = default)
@@ -60,10 +105,10 @@ public class SyncLogStore
         cmd.CommandText = @"
             INSERT INTO SyncLog
                 (ResourceType, PusulaId, Status, Operation, AzResourceId, Message, RequestJson, ResponseJson,
-                 PatientFullName, FathersName, BirthDate, Gender, Fin, RecordOpenedAt, CreatedAtUtc)
+                 PatientFullName, FathersName, BirthDate, Gender, Fin, RecordOpenedAt, CreatedAtUtc, Ortam)
             VALUES
                 ($resourceType, $pusulaId, $status, $operation, $azId, $message, $request, $response,
-                 $fullName, $fathersName, $birthDate, $gender, $fin, $recordOpenedAt, $createdAt);
+                 $fullName, $fathersName, $birthDate, $gender, $fin, $recordOpenedAt, $createdAt, $ortam);
             SELECT last_insert_rowid();";
         cmd.Parameters.AddWithValue("$resourceType", entry.ResourceType);
         cmd.Parameters.AddWithValue("$pusulaId", entry.PusulaId);
@@ -80,12 +125,17 @@ public class SyncLogStore
         cmd.Parameters.AddWithValue("$fin", (object?)entry.Fin ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$recordOpenedAt", (object?)entry.RecordOpenedAt?.ToString("O") ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$createdAt", entry.CreatedAtUtc.ToString("O"));
+        // Kayit, O ANKI ortam damgasiyla yaziliyor. Cagiran taraflarin bunu dusunmesi
+        // gerekmiyor -- 60'tan fazla cagri yeri var, biri unutulsaydi o kayit ortamsiz
+        // kalir ve hicbir sorguya takilmazdi.
+        entry.Ortam ??= await OrtamAsync(ct);
+        cmd.Parameters.AddWithValue("$ortam", entry.Ortam);
         var newId = (long)(await cmd.ExecuteScalarAsync(ct))!;
         entry.Id = newId;
     }
 
     private const string SelectColumns = @"Id, ResourceType, PusulaId, Status, Operation, AzResourceId, Message,
-            RequestJson, ResponseJson, PatientFullName, FathersName, BirthDate, Gender, Fin, RecordOpenedAt, CreatedAtUtc";
+            RequestJson, ResponseJson, PatientFullName, FathersName, BirthDate, Gender, Fin, RecordOpenedAt, CreatedAtUtc, Ortam";
 
     // fromUtc/toUtcExclusive -- KULLANICI ISTEGI (2026-08-25): "aktivite akisinda tarihe
     // gore listeleme olsun". CreatedAtUtc ISO 8601 metin olarak saklaniyor -- bu formatta
@@ -138,7 +188,7 @@ public class SyncLogStore
     // Ayni kolon sirasi, ama iki agir kolon (gonderilen/donen FHIR govdesi) yerine NULL.
     // Boylece ReadEntry'nin indeksleri degismeden ayni kod iki sorguyu da okuyabiliyor.
     private const string SelectColumnsGovdesiz = @"Id, ResourceType, PusulaId, Status, Operation, AzResourceId, Message,
-            NULL, NULL, PatientFullName, FathersName, BirthDate, Gender, Fin, RecordOpenedAt, CreatedAtUtc";
+            NULL, NULL, PatientFullName, FathersName, BirthDate, Gender, Fin, RecordOpenedAt, CreatedAtUtc, Ortam";
 
     // govdeleriGetir=false: RequestJson/ResponseJson okunmaz (null gelir). Yalnizca DURUM
     // bilgisine bakan, buyuk id listeleriyle calisan cagiranlar icindir -- bkz.
@@ -148,6 +198,7 @@ public class SyncLogStore
         string resourceType, IReadOnlyCollection<int> pusulaIds, CancellationToken ct = default,
         bool govdeleriGetir = true)
     {
+        var ortam = await OrtamAsync(ct);
         var result = new Dictionary<int, SyncLogEntry>();
         if (pusulaIds.Count == 0) return result;
 
@@ -175,9 +226,11 @@ public class SyncLogStore
                 SELECT {kolonlar}, MAX(Id)
                 FROM SyncLog
                 WHERE ResourceType = $resourceType
+                  AND Ortam = $ortam
                   AND PusulaId IN ({string.Join(",", placeholders)})
                 GROUP BY PusulaId";
             cmd.Parameters.AddWithValue("$resourceType", resourceType);
+            cmd.Parameters.AddWithValue("$ortam", ortam);
             for (var i = 0; i < chunk.Length; i++)
                 cmd.Parameters.AddWithValue($"$id{i}", chunk[i]);
 
@@ -213,6 +266,7 @@ public class SyncLogStore
     public async Task<Dictionary<int, int>> GetArdisikBasarisizSayilariAsync(
         string resourceType, IReadOnlyCollection<int> pusulaIds, CancellationToken ct = default)
     {
+        var ortam = await OrtamAsync(ct);
         var result = new Dictionary<int, int>();
         if (pusulaIds.Count == 0) return result;
 
@@ -227,14 +281,17 @@ public class SyncLogStore
                 SELECT PusulaId, COUNT(*)
                 FROM SyncLog s
                 WHERE s.ResourceType = $resourceType
+                  AND s.Ortam = $ortam
                   AND s.PusulaId IN ({string.Join(",", placeholders)})
                   AND s.Id > COALESCE((
                         SELECT MAX(b.Id) FROM SyncLog b
                         WHERE b.ResourceType = s.ResourceType
+                          AND b.Ortam = s.Ortam
                           AND b.PusulaId = s.PusulaId
                           AND b.Status = 'Success'), 0)
                 GROUP BY PusulaId";
             cmd.Parameters.AddWithValue("$resourceType", resourceType);
+            cmd.Parameters.AddWithValue("$ortam", ortam);
             for (var i = 0; i < chunk.Length; i++)
                 cmd.Parameters.AddWithValue($"$id{i}", chunk[i]);
 
@@ -252,6 +309,7 @@ public class SyncLogStore
     // Pusula'da silinmis, TRƏS'ten de silinmeli" olarak isaretlenir.
     public async Task<List<SyncLogEntry>> GetActiveSentEncounterEntriesAsync(CancellationToken ct = default)
     {
+        var ortam = await OrtamAsync(ct);
         using var conn = new SqliteConnection(_connectionString);
         await conn.OpenAsync(ct);
         using var cmd = conn.CreateCommand();
@@ -264,13 +322,15 @@ public class SyncLogStore
             SELECT {SelectColumnsGovdesiz}
             FROM SyncLog
             WHERE ResourceType = 'Encounter'
+              AND Ortam = $ortam
               AND AzResourceId IS NOT NULL
               AND (Operation IS NULL OR Operation <> 'Delete')
               AND Id IN (
-                  SELECT MAX(Id) FROM SyncLog WHERE ResourceType = 'Encounter' GROUP BY PusulaId
+                  SELECT MAX(Id) FROM SyncLog WHERE ResourceType = 'Encounter' AND Ortam = $ortam GROUP BY PusulaId
               )";
 
         var result = new List<SyncLogEntry>();
+        cmd.Parameters.AddWithValue("$ortam", ortam);
         using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
             result.Add(ReadEntry(reader));
@@ -285,6 +345,7 @@ public class SyncLogStore
     // duruyor mu?" Bu metot o sorunun SOL tarafini verir.
     public async Task<List<int>> GetLiveSentIdsAsync(string resourceType, CancellationToken ct = default)
     {
+        var ortam = await OrtamAsync(ct);
         using var conn = new SqliteConnection(_connectionString);
         await conn.OpenAsync(ct);
         using var cmd = conn.CreateCommand();
@@ -294,11 +355,13 @@ public class SyncLogStore
             SELECT PusulaId, Status, Operation, AzResourceId, MAX(Id)
             FROM SyncLog
             WHERE ResourceType = $resourceType
+              AND Ortam = $ortam
             GROUP BY PusulaId
             HAVING Status = 'Success'
                AND AzResourceId IS NOT NULL
                AND (Operation IS NULL OR Operation <> 'Delete')";
         cmd.Parameters.AddWithValue("$resourceType", resourceType);
+        cmd.Parameters.AddWithValue("$ortam", ortam);
 
         var result = new List<int>();
         using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -417,5 +480,8 @@ public class SyncLogStore
             reader.GetString(14), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind),
         CreatedAtUtc = DateTime.Parse(
             reader.GetString(15), CultureInfo.InvariantCulture, DateTimeStyles.RoundtripKind).ToUniversalTime(),
+        // Eski kayitlarda NULL olabilir (sutun 2026-10-05'te eklendi); o satirlarin tamami
+        // sandbox'a gitmisti, bu yuzden varsayilan Test.
+        Ortam = reader.FieldCount > 16 && !reader.IsDBNull(16) ? reader.GetString(16) : "Test",
     };
 }

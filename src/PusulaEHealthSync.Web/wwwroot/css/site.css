@@ -120,6 +120,14 @@ h1, h2, h3, .font-heading {
   min-height: 100vh;
 }
 
+/* GRID OGELERININ TASMA KORUMASI (2026-10-05). Grid ogelerinin varsayilan min-width
+   degeri "auto", yani icerigiden kucuk olamazlar. Genislik sinirini kaldirdigimizda
+   14 sutunlu Aktivite tablosu sag sutunu 1fr'in otesine itip SAYFANIN tamamini yana
+   kaydirdi (1366px'te olculdu: sutun 1865px). min-width:0 ile sutun kendi payinda
+   kaliyor ve tasma, olmasi gereken yerde -- .table-wrap'in kendi overflow-x'inde --
+   olusuyor. Ayni koruma main.content'te de var; asil tasan BU sutundu. */
+.app-shell > * { min-width: 0; }
+
 @media (max-width: 900px) {
   .app-shell { grid-template-columns: 1fr; }
   .sidebar { display: none; }
@@ -268,6 +276,12 @@ main.content {
   padding: 32px 40px 72px;
   max-width: var(--content-max);
   width: 100%;
+  /* FLEX TASMA KORUMASI: main, yan menuyle ayni flex satirinda. Flex ogelerinin
+     varsayilan min-width degeri "auto", yani ICERIGINDEN kucuk olamiyorlar -- 14 sutunlu
+     tablo main'i ekrandan genis yapip SAYFANIN tamamini yana kaydiriyordu (1366px'te
+     olculdu: icerik 1865px, sayfa tasiyor). min-width:0 ile main kendi payinda kaliyor
+     ve tasma, olmasi gereken yerde -- .table-wrap'in kendi overflow-x'inde -- olusuyor. */
+  min-width: 0;
 }
 
 /* mobile topbar fallback (sidebar hidden) */
@@ -1706,3 +1720,22 @@ a.ready-tile:hover { border-color: var(--warning); background: var(--warning-sof
 .oto-durum-bilgi { font-size: 12.5px; color: var(--text-muted); }
 .oto-durum-son { font-size: 12.5px; color: var(--text-muted); line-height: 1.5; }
 .oto-durum form { margin: 0; }
+
+/* GENİŞ İÇERİK -- KULLANICI ISTEGI (2026-10-05): "sağ taraf boş olmasına rağmen tablo
+   sıkışık, ekrana ve çözünürlüğe göre uyum sağlayan bir yapı olsun."
+
+   Varsayılan 1680px sınırı düz metin için doğru (çok uzun satırlar okunmaz), ama asıl
+   içeriği 14 sütunlu bir tablo olan sayfada yanlış: 2560px ekranda sağda ~685px boş
+   dururken mesaj sütunu kelime başına bir satıra düşüyordu. Bu sayfalar sınırdan muaf. */
+/* SECICI OZGULLUGU: kural "main.content" (element+sinif) tarafindan eziliyordu, cunku
+   tek sinifli bir seciciden daha ozgul. Ilk yazimda sinif uygulandigi halde genislik
+   degismemisti -- tarayicida olculup goruldu. */
+main.content.content--genis { max-width: none; }
+
+/* Mesaj sütunu artık ekranla birlikte büyüyor. Sabit 420px, geniş ekranda gereksiz yere
+   dar; viewport'a bağlı üst sınır hem dar hem geniş ekranda makul kalıyor. Alt sınır,
+   dar ekranda sütunun okunamayacak kadar incelmesini engelliyor. */
+.cell-wide { white-space: normal; max-width: clamp(320px, 34vw, 720px); }
+
+/* Veri tablolarında rakamlar hizalı okunsun. */
+.table-wrap table { font-variant-numeric: tabular-nums; }

@@ -109,7 +109,17 @@
                         <button type="submit" class="btn btn-outline btn-sm">Çıkış</button>
                     </form>
                 </div>
-                <main class="content">
+                @* GENIS MOD (KULLANICI ISTEGI 2026-10-05): "sağ taraf boş olmasına rağmen
+                   tablo sıkışık, ekrana ve çözünürlüğe göre uyum sağlayan bir yapı olsun."
+
+                   Icerik genisligi 1680px ile sinirliydi. 2560px'lik bir ekranda bu, sagda
+                   ~685px bos alan birakirken 14 sutunlu Aktivite tablosunu sikistiriyordu --
+                   mesaj sutunu kelime basina bir satira duser hale gelmisti.
+
+                   Sinir TAMAMEN kaldirilmadi: duz metin sayfalarinda cok uzun satirlar
+                   okumayi zorlastirir. Bunun yerine, asil icerigi genis bir veri tablosu
+                   olan sayfalar ViewData["Genis"] ile sinirdan muaf tutuluyor. *@
+                <main class="content @(ViewData["Genis"] is true ? "content--genis" : "")">
                     @RenderBody()
                 </main>
             </div>

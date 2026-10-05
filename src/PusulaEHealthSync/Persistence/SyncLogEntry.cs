@@ -29,6 +29,12 @@ public class SyncLogEntry
     public string? ResponseJson { get; set; }                 // sunucudan donen ham yanit
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
 
+    // Bu deneme HANGI ORTAMA gitti: "Test" (sandbox) ya da "Live". 2026-10-05'te eklendi.
+    // Sandbox'a gonderilmis bir kaydin canli ortamda "gonderilmis" sayilmasi, canliya
+    // gecildiginde hicbir seyin gonderilmemesi demekti (bkz. SyncLogStore basindaki not).
+    // null = eski kayit; okunurken "Test" varsayiliyor.
+    public string? Ortam { get; set; }
+
     // KARAR/DUZELTME (2026-08-20): "Basarili" durumu Validate (sadece kontrol, hicbir sey
     // kalici olarak KAYDEDILMEZ) ile Create/Update (gercekten TRƏS'e YAZILIR) arasinda
     // ayrim yapmiyordu -- dashboard'da ikisi de yesil "Gönderildi" rozeti olarak gorunuyordu.
