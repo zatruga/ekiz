@@ -29,6 +29,7 @@ public class LabResultSyncService(
             var skipEntry = NewEntry(lab, protokol, SyncStatus.Skipped);
             skipEntry.Message = skip.Reason;
             await syncLog.InsertAsync(skipEntry, ct);
+            await UyeKayitlariniYazAsync(grup, protokol, skipEntry, ct);
             return skipEntry;
         }
 
@@ -46,6 +47,7 @@ public class LabResultSyncService(
             entry.RequestJson = requestJson;
             entry.ResponseJson = validateResult.Body;
             await syncLog.InsertAsync(entry, ct);
+            await UyeKayitlariniYazAsync(grup, protokol, entry, ct);
             return entry;
         }
 
@@ -69,11 +71,59 @@ public class LabResultSyncService(
         writeEntry.RequestJson = observation.ToJsonString(JsonDefaults.Options);
         writeEntry.ResponseJson = writeResult.Body;
         await syncLog.InsertAsync(writeEntry, ct);
+        await UyeKayitlariniYazAsync(grup, protokol, writeEntry, ct);
 
         if (!writeResult.Success)
             logger.LogWarning("Lab sonucu gonderilemedi (ProtokolId={ProtokolId}, Grup=\"{Grup}\", AnahtarId={Id}): {Message}", protokol.ProtokolId, grup.Ad, grup.AnahtarId, writeEntry.Message);
 
         return writeEntry;
+    }
+
+    // GRUBUN DIGER SATIRLARINA DA KAYIT YAZ (2026-10-05).
+    //
+    // NEDEN: tarama ile gonderim FARKLI ANAHTAR kullaniyordu ve bu, otomatik gonderimin
+    // bakanlik sunucusunu bos yere doven bir donguye girmesine yol aciyordu.
+    //
+    //   Tarama  (GetCompletedLabResultsAsync) -> her laboratuvar SATIRI icin bir aday
+    //                                            (LabaratuarSonucId basina bir kalem)
+    //   Gonderim(LabGroupBuilder)             -> satirlar panele gore GRUPLANIR, tek
+    //                                            Observation gider, SyncLog'a yalnizca
+    //                                            grubun ANAHTAR satiri yazilirdi
+    //
+    // 51 satirlik bir protokolde 8 kayit olusuyordu; kalan 43 satir icin SyncLog'da hicbir
+    // iz yoktu, dolayisiyla PendingWorkService.Siniflandir onlari sonsuza kadar "Bekliyor"
+    // sayiyordu. Protokol listeden hic dusmuyor, her turda yeniden isleniyor ve zincirin
+    // TAMAMI (hasta + muayine + tanilar + islemler + epikriz) yeniden PUT ediliyordu.
+    // Olculdu (son 3 gun, 60 protokol): protokollerin %65'i etkilenmis, aday satirlarin
+    // %74'u kalici olarak "Bekliyor". Canlida tek gunde 57.737 gonderim denemesi, hepsi
+    // Update, bu yuzden olusmustu.
+    //
+    // Hata, panel gonderimi (bakanlik istegi 2026-09-16) eklenirken dogdu: gonderim birimi
+    // SATIRDAN GRUBA gecti, tarama satirda kaldi.
+    //
+    // AZ KAYNAK ID BILEREK BOS: silme hedefleri (CancellationSyncService.DeleteTargetsAsync)
+    // ve ters kontrol (SyncLogStore.GetLiveSentIdsAsync) ikisi de "AzResourceId IS NOT NULL"
+    // filtreliyor. Uye satirlari boylece taramaya "gonderildim" derken silme tarafina
+    // GORUNMEZ kaliyor -- yoksa ayni Observation grubun her satiri icin bir kez daha
+    // silinmeye calisilir, ilki disindaki her deneme 404 uretirdi.
+    //
+    // DURUM ANA KAYITTAN KOPYALANIYOR: grup basarisizsa uyeler de basarisiz sayilmali,
+    // yoksa ardisik hata sayaci ve takilma esigi satir basina farkli sonuc verirdi.
+    private async Task UyeKayitlariniYazAsync(
+        LabGroupBuilder.LabGrup grup, ProtokolListItem protokol, SyncLogEntry ana, CancellationToken ct)
+    {
+        foreach (var satir in grup.TumSatirlar)
+        {
+            if (satir.LabaratuarSonucId == grup.AnahtarId) continue;
+
+            var uye = NewEntry(satir, protokol, ana.Status);
+            uye.Operation = ana.Operation;
+            uye.AzResourceId = null;   // bilerek -- yukaridaki gerekce
+            uye.Message = ana.Status == SyncStatus.Success
+                ? $"\"{grup.Ad}\" paneli içinde gönderildi (panel kaydı: {grup.AnahtarId})"
+                : $"\"{grup.Ad}\" paneliyle birlikte gönderilemedi: {ana.Message}";
+            await syncLog.InsertAsync(uye, ct);
+        }
     }
 
     private static SyncLogEntry NewEntry(LabResultRecord lab, ProtokolListItem protokol, SyncStatus status) => new()
