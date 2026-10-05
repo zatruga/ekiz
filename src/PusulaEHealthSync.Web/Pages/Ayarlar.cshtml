@@ -182,7 +182,7 @@
                             else
                             {
                                 <button type="submit" class="btn btn-bulk"
-                                        onclick="return confirm('@(Model.Ortam == "Live" ? "DİKKAT: CANLI ORTAM.\\n\\n" : "")Otomatik gönderim BAŞLATILACAK.\n\nHer @Model.AutoSendIntervalMinutes dakikada bir, en fazla @Model.AutoSendBatchSize protokol @(Model.Ortam == "Live" ? "CANLI" : "Test/Sandbox") ortamına gönderilecek. Kapanalı @Model.MinProtokolYasiGun günden az olan protokoller gönderilmez.\n\nEmin misiniz?')">
+                                        onclick="return confirm('@(Model.Ortam == "Live" ? "DİKKAT: CANLI ORTAM.\\n\\n" : "")Otomatik gönderim BAŞLATILACAK.\n\n1) Her @Model.AutoSendIntervalMinutes dakikada bir, en fazla @Model.AutoSendBatchSize protokol @(Model.Ortam == "Live" ? "CANLI" : "Test/Sandbox") ortamına GÖNDERİLECEK. Kapanalı @Model.MinProtokolYasiGun günden az olan protokoller gönderilmez.\n\n2) Aynı turda iptal senkronu da çalışır: Pusula tarafında silinmiş veya iptal edilmiş kayıtlar TRƏS üzerinden SİLİNİR. Uzun süredir çalışmadıysa ilk turda toplu silme olabilir.\n\n3) Her gece saat @Model.TakilanDenemeSaati civarında takılan kayıtlar bir kez daha denenir.\n\nEmin misiniz?')">
                                     Otomatik Gönderimi Başlat
                                 </button>
                             }

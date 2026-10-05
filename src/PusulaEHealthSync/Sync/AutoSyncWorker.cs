@@ -131,6 +131,25 @@ public class AutoSyncWorker(
         foreach (var p in uygun)
         {
             if (ct.IsCancellationRequested) break;
+
+            // "DURDUR" TUR ICINDE DE GECERLI (2026-10-05). Anahtar eskiden yalnizca tur
+            // BASINDA okunuyordu: kullanici Ayarlar'dan Durdur'a bastiginda icinde bulunulan
+            // tur sonuna kadar gonderime devam ediyordu. Buyuk protokollerle bir tur bir
+            // saati bulabildigi icin bu, "durdurdum" denildikten sonra bir saat daha canli
+            // veri yazmak demekti. Devlet kayit sistemine yazan bir dongude Durdur, DURDUR
+            // anlamina gelmeli.
+            //
+            // Okuma ucuz: SettingsStore 3 sn'lik anlik goruntu onbellegi tutuyor, yani bu
+            // kontrol protokol basina bir SQLite sorgusu degil.
+            if (!await settings.GetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, false, ct))
+            {
+                logger.LogWarning(
+                    "Otomatik gonderim tur ortasinda DURDURULDU. {Gonderilen}/{Toplam} protokol gonderilmisti; "
+                    + "kalanlar bir sonraki acilista yeniden siraya girer.",
+                    basarili + basarisiz, uygun.Count);
+                break;
+            }
+
             try
             {
                 // Otomatik dongu de TAM zinciri gondermeli -- eskiden yalnizca Encounter
@@ -237,6 +256,12 @@ public class AutoSyncWorker(
         foreach (var p in hedefler)
         {
             if (ct.IsCancellationRequested) break;
+            // Gece turu da Durdur'a uymali -- ayni gerekce (bkz. RunOnceAsync).
+            if (!await settings.GetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, false, ct))
+            {
+                logger.LogWarning("Takilanlar turu ortasinda durduruldu ({Deneme} protokolden sonra).", duzelen);
+                break;
+            }
             try
             {
                 var tam = await protocolFullSync.SyncAllAsync(p.Protokol, ct);
