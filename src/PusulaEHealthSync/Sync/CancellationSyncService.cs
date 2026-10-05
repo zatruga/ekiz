@@ -34,18 +34,46 @@ public class CancellationSyncService(
 {
     // Pencere bekleyen is taramasiyla AYNI kaynaktan geliyor (Ayarlar) -- ikisi ayri
     // cozulurse "gonderilecekler" ile "iptal edilecekler" farkli araliklara bakardi.
+    // devamEdilsinMi: her silme oncesi sorulan "devam edeyim mi" kapisi (KULLANICI KARARI
+    // 2026-10-05: "durdur tum gonderim ve silmeler icin gecerli olsun").
+    //
+    // NEDEN GEREKLI: "Durdur" eskiden yalnizca GONDERIM dongusunu kesiyordu; tur ortasinda
+    // durdurulsa bile hemen ardindan gelen iptal senkronu calismaya devam ediyor ve
+    // bakanlik sisteminden KALICI kayit siliyordu. Gonderim idempotent (yanlissa tekrar
+    // gonderilir), silme degil -- asimetri tam da yanlis tarafta duruyordu.
+    //
+    // NEDEN PARAMETRE, SERVISIN KENDI AYARI OKUMASI DEGIL: DeleteProtocolChainAsync'i
+    // Protokol Detay'daki "Tumunu Sil" dugmesi de cagiriyor. Servis otomatik gonderim
+    // anahtarina kendisi baksaydi, elle silme de o anahtar kapaliyken calismaz hale
+    // gelirdi. Kapiyi cagiran koyar.
     public async Task<CancellationRunResult> RunAsync(
-        int? scanDays = null, CancellationToken ct = default)
+        int? scanDays = null, CancellationToken ct = default,
+        Func<CancellationToken, Task<bool>>? devamEdilsinMi = null)
     {
         var fromLocal = scanDays is { } gun && gun > 0
             ? DateTime.Now.Date.AddDays(-gun)
             : await PendingWorkService.TaramaBaslangiciAsync(settings, ct);
         int silinen = 0, hata = 0;
+        var durduruldu = false;
+
+        async Task<bool> Devam()
+        {
+            if (durduruldu) return false;
+            if (devamEdilsinMi is null) return true;
+            if (await devamEdilsinMi(ct)) return true;
+            durduruldu = true;
+            logger.LogWarning(
+                "Iptal senkronu DURDURULDU. O ana kadar {Silinen} kayit silinmisti; kalanlar "
+                + "bir sonraki turda yeniden taranir -- tarama durum bazli, kayit kaybolmaz.",
+                silinen);
+            return false;
+        }
 
         // 1) IPTAL EDILMIS PROTOKOLLER -- butun zincir gecersiz.
         var iptalProtokoller = await repository.GetCancelledProtokollerAsync(fromLocal, ct);
         foreach (var p in iptalProtokoller)
         {
+            if (!await Devam()) break;
             var (ok, err) = await DeleteProtocolChainAsync(p.ProtokolId, ct: ct);
             silinen += ok; hata += err;
         }
@@ -56,6 +84,7 @@ public class CancellationSyncService(
         var iptalIslemler = await repository.GetCancelledProceduresAsync(fromLocal, ct);
         foreach (var i in iptalIslemler)
         {
+            if (!await Devam()) break;
             if (iptalProtokolIdSet.Contains(i.ProtokolId)) continue;
             var (ok, err) = await DeleteProcedureWithDependentsAsync(i.ProtokolId, i.PusulaId, ct);
             silinen += ok; hata += err;
@@ -68,14 +97,18 @@ public class CancellationSyncService(
         var iptalRadyoloji = await repository.GetCancelledRadiologyAsync(fromLocal, ct);
         foreach (var r in iptalRadyoloji)
         {
+            if (!await Devam()) break;
             if (iptalProtokolIdSet.Contains(r.ProtokolId)) continue;
             var (ok, err) = await DeleteTargetsAsync([("DiagnosticReport", r.PusulaId)], "iptal radyoloji", ct);
             silinen += ok; hata += err;
         }
 
         // 4) TERS YONLU KONTROL -- "gonderdiklerim Pusula'da hala gecerli mi?"
-        var (tersSilinen, tersHata) = await TersKontrolAsync(ct);
-        silinen += tersSilinen; hata += tersHata;
+        if (await Devam())
+        {
+            var (tersSilinen, tersHata) = await TersKontrolAsync(ct, Devam);
+            silinen += tersSilinen; hata += tersHata;
+        }
 
         return new CancellationRunResult(
             iptalProtokoller.Count, iptalIslemler.Count, iptalRadyoloji.Count, silinen, hata);
@@ -111,12 +144,14 @@ public class CancellationSyncService(
     private const double KayipOraniEsigi = 0.20;   // %20
     private const int KayipTabani = 20;            // bu sayinin altinda oran kapisi islemez
 
-    private async Task<(int Silinen, int Hata)> TersKontrolAsync(CancellationToken ct)
+    private async Task<(int Silinen, int Hata)> TersKontrolAsync(
+        CancellationToken ct, Func<Task<bool>>? devam = null)
     {
         int silinen = 0, hata = 0;
 
         foreach (var resourceType in TersKontrolSirasi)
         {
+            if (devam is not null && !await devam()) break;
             var gonderilmis = await syncLog.GetLiveSentIdsAsync(resourceType, ct);
             if (gonderilmis.Count == 0) continue;
 
@@ -150,6 +185,9 @@ public class CancellationSyncService(
 
             foreach (var id in kayip)
             {
+                // Ters kontrol tek turda yuzlerce silme yapabiliyor -- Durdur burada da
+                // gecerli olmali, yoksa "durdurdum" dedikten sonra silme surerdi.
+                if (devam is not null && !await devam()) break;
                 var (ok, err) = await DeleteTargetsAsync([(resourceType, id)], "ters kontrol", ct);
                 silinen += ok; hata += err;
             }

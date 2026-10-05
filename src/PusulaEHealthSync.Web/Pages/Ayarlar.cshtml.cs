@@ -257,9 +257,11 @@ public class AyarlarModel(
     [BindProperty]
     [Range(0, 23)]
     public int TakilanDenemeSaati { get; set; }
+    // SAYI DEGIL SURE (2026-10-05): takilanlar turu artik "kac protokol" ile degil "kac
+    // dakika" ile siniriliyor -- gerekce SettingsStore.StuckRetryMaxMinutesKey'de.
     [BindProperty]
-    [Range(1, 1000)]
-    public int TakilanPartiBoyutu { get; set; }
+    [Range(5, 300)]
+    public int TakilanSureDakika { get; set; }
 
     // Dongunun KENDISINI acip kapatir -- ayar kaydetmez. Onay metni ortami ve parti
     // boyutunu acikca yaziyor (bkz. Ayarlar.cshtml).
@@ -293,7 +295,7 @@ public class AyarlarModel(
         await settings.SetIntAsync(SettingsStore.AutoSendBatchSizeKey, AutoSendBatchSize, ct);
         await settings.SetIntAsync(SettingsStore.MinProtokolYasiGunKey, MinProtokolYasiGun, ct);
         await settings.SetIntAsync(SettingsStore.StuckRetryHourKey, TakilanDenemeSaati, ct);
-        await settings.SetIntAsync(SettingsStore.StuckRetryBatchSizeKey, TakilanPartiBoyutu, ct);
+        await settings.SetIntAsync(SettingsStore.StuckRetryMaxMinutesKey, TakilanSureDakika, ct);
         return await SavedAsync("genel", ct);
     }
 
@@ -435,7 +437,7 @@ public class AyarlarModel(
             AutoSendBatchSize = await settings.GetIntAsync(SettingsStore.AutoSendBatchSizeKey, SettingsStore.AutoSendBatchSizeDefault, ct);
             MinProtokolYasiGun = await settings.GetIntAsync(SettingsStore.MinProtokolYasiGunKey, SettingsStore.MinProtokolYasiGunDefault, ct);
             TakilanDenemeSaati = await settings.GetIntAsync(SettingsStore.StuckRetryHourKey, SettingsStore.StuckRetryHourDefault, ct);
-            TakilanPartiBoyutu = await settings.GetIntAsync(SettingsStore.StuckRetryBatchSizeKey, SettingsStore.StuckRetryBatchSizeDefault, ct);
+            TakilanSureDakika = await settings.GetIntAsync(SettingsStore.StuckRetryMaxMinutesKey, SettingsStore.StuckRetryMaxMinutesDefault, ct);
         }
 
         // Durum kutusu HER ZAMAN okunur (skipGenel olsa bile) -- kaydetme sonrasi sayfa

@@ -289,11 +289,15 @@ public class PendingWorkService(
 
         // 4) IKI AYRI KUME. KULLANICI KARARI (2026-10-03): "bekleyenleri ayrı bir listeye
         //    alalım ... bizim ana gönderim listesine sayıları hiç karışmasın."
+        // Ayarlar'daki "En fazla kac kez dene?" -- 2026-10-05'e kadar okunmuyordu.
+        var takilmaEsigi = Math.Max(1, await settings.GetIntAsync(
+            SettingsStore.RetryMaxAttemptsKey, TakilmaEsigiVarsayilan, ct));
+
         var bekleyen = new List<PendingCandidate>();
         var takilan = new List<PendingCandidate>();
         foreach (var c in candidates)
         {
-            switch (Siniflandir(c, sentLookup, ardisikBasarisiz))
+            switch (Siniflandir(c, sentLookup, ardisikBasarisiz, takilmaEsigi))
             {
                 case KalemDurumu.Bekliyor: bekleyen.Add(c); break;
                 case KalemDurumu.Takildi: takilan.Add(c); break;
@@ -309,6 +313,19 @@ public class PendingWorkService(
             SettingsStore.OpenProtokolSendAfterDaysKey, SettingsStore.OpenProtokolSendAfterDaysDefault, ct);
         var minYas = await settings.GetIntAsync(
             SettingsStore.MinProtokolYasiGunKey, SettingsStore.MinProtokolYasiGunDefault, ct);
+
+        // SOGUMA SURESI -- Ayarlar'daki "Kac dakika sonra tekrar dene?" (2026-10-05'te
+        // gercekten baglandi; o alan da okunmuyordu).
+        //
+        // NEDEN PROTOKOL SEVIYESINDE, KALEM SEVIYESINDE DEGIL: gonderim birimi protokol.
+        // Tek bir kalemi "sogumada" diye atlayip protokolu yine gondermek hicbir sey
+        // kazandirmaz -- zincir zaten bastan calisir. Kural o yuzden sudur: protokolun
+        // BEKLEYEN kalemlerinin TAMAMI yakin zamanda denenip basarisiz olmussa, protokol
+        // bu tur atlanir. Hic denenmemis tek bir kalem varsa protokol gider -- cunku o
+        // kalem icin beklemenin anlami yok.
+        var sogumaDakika = Math.Max(0, await settings.GetIntAsync(
+            SettingsStore.RetryIntervalMinutesKey, SettingsStore.RetryIntervalMinutesDefault, ct));
+        var simdiUtc = DateTime.UtcNow;
 
         List<PendingProtocol> Grupla(List<PendingCandidate> kume)
         {
@@ -330,6 +347,16 @@ public class PendingWorkService(
                         sentLookup.GetValueOrDefault((c.ResourceType, c.PusulaId))))
                     .OrderBy(i => i.SonuclanmaTarihi)
                     .ToList();
+
+                // SOGUMA: hepsi az once denenip basarisiz olduysa bu tur atla.
+                if (eligible && sogumaDakika > 0 && items.Count > 0
+                    && items.All(i => i.SonDeneme is { Status: SyncStatus.Failed } sd
+                                      && (simdiUtc - sd.CreatedAtUtc).TotalMinutes < sogumaDakika))
+                {
+                    var gecen = (int)(simdiUtc - items.Max(i => i.SonDeneme!.CreatedAtUtc)).TotalMinutes;
+                    eligible = false;
+                    reason = $"Az önce denendi ({gecen} dk) -- {sogumaDakika} dakika dolmadan tekrar denenmiyor";
+                }
 
                 sonuc.Add(new PendingProtocol(protokol, items, eligible, reason));
             }
@@ -388,11 +415,15 @@ public class PendingWorkService(
 
     // Ust uste bu kadar basarisizliktan sonra kalem "takildi" sayilir.
     //
-    // NEDEN 3: bir ag kesintisi ya da bakanlik sunucusunun gecici hatasi tek turda gecer,
-    // en kotu birkac tur surer. Ust uste ucuncu basarisizliktan sonra sebebin veride
-    // oldugunu varsaymak makul -- ve yanilsak bile kayit kaybolmuyor, gunluk takilan
-    // taramasinda yeniden deneniyor.
-    public const int TakilmaEsigi = 3;
+    // ARTIK AYARDAN GELIYOR (KULLANICI KARARI 2026-10-05: "deneme panelinde ne yaziyorsa o
+    // kadar denesin, sonrasinda takilanlar listesinde takip edelim"). Ayarlar'daki "Hata
+    // Sonrasi Tekrar Deneme -> En fazla kac kez dene?" alani tam olarak bu esik; o alan
+    // 2026-08'den beri kaydediliyor ama hicbir sey tarafindan OKUNMUYORDU.
+    //
+    // Bu sabit yalnizca VARSAYILAN. Neden 5 degil 3 degil ayardan: bir ag kesintisi ya da
+    // bakanligin gecici hatasi birkac turda gecer; esigin uzerinde sebebin veride oldugunu
+    // varsaymak makul. Yanilsak bile kayit kaybolmuyor -- takilanlar turunda yine deneniyor.
+    public const int TakilmaEsigiVarsayilan = 3;
 
     // ATLANAN (Skipped) DOGRUDAN TAKILDI SAYILIR: Skipped, mapper'in "bu veriyle
     // gonderilemez" karari demektir (LOINC kodu yok, Icbari eslesmesi yok, sonuc degeri
@@ -403,7 +434,8 @@ public class PendingWorkService(
     private static KalemDurumu Siniflandir(
         PendingCandidate c,
         Dictionary<(string, int), SyncLogEntry> sent,
-        Dictionary<(string, int), int> ardisikBasarisiz)
+        Dictionary<(string, int), int> ardisikBasarisiz,
+        int takilmaEsigi)
     {
         if (!sent.TryGetValue((c.ResourceType, c.PusulaId), out var last))
             return KalemDurumu.Bekliyor;                     // hic denenmemis
@@ -414,7 +446,7 @@ public class PendingWorkService(
         if (last.Status != SyncStatus.Success)
         {
             var deneme = ardisikBasarisiz.GetValueOrDefault((c.ResourceType, c.PusulaId), 1);
-            return deneme >= TakilmaEsigi ? KalemDurumu.Takildi : KalemDurumu.Bekliyor;
+            return deneme >= takilmaEsigi ? KalemDurumu.Takildi : KalemDurumu.Bekliyor;
         }
 
         // EPIKRIZ OZEL DURUMU (kullanici notu 2026-09-09: "epikrizde silinme yok, degisme

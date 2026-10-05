@@ -111,14 +111,32 @@ public class SettingsStore
     public const string StuckRetryHourKey = "AutoSend.StuckRetryHour";
     public const int StuckRetryHourDefault = 4;                          // gece 04:00
     public const string StuckRetryLastRunKey = "AutoSend.StuckRetryLastRun";
+    // ARTIK KULLANILMIYOR (2026-10-05): takilanlar turu SAYIYLA degil SUREYLE siniriyor.
+    // Anahtar duruyor cunku sunucudaki veritabaninda kayitli bir degeri olabilir; okuyan
+    // kimse yok. Yeni kurulumlarda hic yazilmaz.
     public const string StuckRetryBatchSizeKey = "AutoSend.StuckRetryBatchSize";
     public const int StuckRetryBatchSizeDefault = 100;
+
+    // TAKILANLAR TURUNUN SURE BUTCESI (2026-10-05, kullanici sorusu uzerine).
+    //
+    // Sayi yerine sure cunku takilan listesi 4.289 protokol ve her biri tam zincir demek:
+    // sinirsiz birakmak ~12 saatlik bir gece turu, 10'a cekmek ise bir kayda 429 gecede
+    // bir sira gelmesi demekti. Sure butcesi kendini ayarliyor -- hizli protokoller varsa
+    // cogu biter, yavassa azi, ama tur gune tasmaz.
+    public const string StuckRetryMaxMinutesKey = "AutoSend.StuckRetryMaxMinutes";
+    public const int StuckRetryMaxMinutesDefault = 45;
 
     // Saat kaymasi ve gec commit olan islemler icin guvenlik payi: isaretin biraz
     // GERISINDEN baslanir. Fazladan birkac yuz satir okumak, bir kaydi kacirmaktan iyidir.
     public const int PendingScanOverlapMinutes = 120;
 
     // -- Hata sonrasi tekrar deneme -------------------------------------------------------
+    // ---- HATA SONRASI TEKRAR DENEME --------------------------------------------------
+    // 2026-10-05'E KADAR BU IKI AYAR HICBIR SEY TARAFINDAN OKUNMUYORDU: Ayarlar sayfasi
+    // kaydediyor ve geri okuyordu, ama hicbir servis bakmiyordu. Ekranda calisiyor
+    // gorunen, arkasinda hicbir sey olmayan bir panel -- bu projede ayni tuzagin ikinci
+    // ornegi (ilki otomatik gonderim anahtarlari). Artik ikisi de gercekten uygulaniyor,
+    // bkz. PendingWorkService.
     public const string RetryIntervalMinutesKey = "Retry.IntervalMinutes";
     public const int RetryIntervalMinutesDefault = 30;
     public const string RetryMaxAttemptsKey = "Retry.MaxAttempts";

@@ -193,7 +193,21 @@ public class AutoSyncWorker(
         await TakilanlariDeneAsync(sp, settings, ct);
 
         // 3) Iptal senkronu -- Pusula'da silinmis olanlari TRƏS'ten de sil.
-        var iptal = await cancellationSync.RunAsync(scanDays: null, ct);
+        //
+        // DURDUR BURAYA DA GECIYOR (KULLANICI KARARI 2026-10-05: "durdur tum gonderim ve
+        // silmeler icin gecerli olsun").
+        //
+        // Eskiden yalnizca ustteki gonderim dongusu kesiliyordu; tur ortasinda Durdur'a
+        // basilsa bile bu satir calisiyor ve bakanlik sisteminden KALICI kayit siliyordu.
+        // Gonderim idempotent -- yanlissa tekrar gonderilir; silme degil. Asimetri tam da
+        // yanlis taraftaydi.
+        //
+        // Kapi HER SILMEDEN ONCE soruluyor (bkz. CancellationSyncService.RunAsync), yani
+        // tur ortasinda durdurma da geciyor. Ayarlar okumasi ucuz: SettingsStore 3 sn'lik
+        // anlik goruntu onbellegi tutuyor.
+        var iptal = await cancellationSync.RunAsync(
+            scanDays: null, ct,
+            devamEdilsinMi: c => settings.GetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, false, c));
 
         // SON TURUN IZINI BIRAK. Ayarlar sayfasindaki durum kutusu bunu gosteriyor: "acik"
         // yazan bir anahtar dongunun gercekten calistigini kanitlamaz, son tur saati
@@ -238,7 +252,13 @@ public class AutoSyncWorker(
             var saat = await settings.GetIntAsync(
                 SettingsStore.MailSendHourKey, SettingsStore.MailSendHourDefault, ct);
             var simdi = DateTime.Now;   // sunucu Baki saatinde
-            if (simdi.Hour != saat) return;
+
+            // ">= saat", "== saat" DEGIL (2026-10-05 duzeltmesi). Esitlik kontrolu, o saatte
+            // denk gelen tur gecikirse raporu O GUN TAMAMEN atliyordu: 06:50'de baslayip 70
+            // dakika suren bir tur kontrole 08:00'de varir, "saat 7 degil" deyip gecer ve
+            // ertesi sabaha kadar rapor gelmez. ">=" ile ilk firsatta gonderilir --
+            // "bugun gonderildi mi" isareti zaten mukerrer gonderimi engelliyor.
+            if (simdi.Hour < saat) return;
 
             // Ayni gun ikinci kez gitmesin (tur araligi 60 dk'dan kisaysa saat ayni kalir).
             var sonHam = await settings.GetStringAsync(SettingsStore.GunSonuLastRunKey, "", ct);
@@ -303,7 +323,13 @@ public class AutoSyncWorker(
         var saat = await settings.GetIntAsync(
             SettingsStore.StuckRetryHourKey, SettingsStore.StuckRetryHourDefault, ct);
         var simdi = DateTime.Now;   // sunucu zaten Baki saatinde
-        if (simdi.Hour != saat) return;
+
+        // ">= saat", "== saat" DEGIL (2026-10-05 duzeltmesi). Saat kontrolu ana gonderim
+        // partisi BITTIKTEN SONRA yapiliyor; 03:30'da baslayip 1,5 saat suren bir tur
+        // buraya 05:00'te varir ve esitlik kontrolu "saat 4 degil" deyip o geceyi tamamen
+        // atlardi. Yani tam da is yogun oldugu -- dolayisiyla takilanin cok oldugu --
+        // gecelerde takilanlar hic denenmezdi. ">=" ile gecikse de ayni gece calisir.
+        if (simdi.Hour < saat) return;
 
         // Ayni gun ikinci kez calismasin (tur araligi 60 dk'dan kisaysa saat ayni kalir).
         var sonMetin = await settings.GetStringAsync(SettingsStore.StuckRetryLastRunKey, "", ct);
@@ -314,12 +340,30 @@ public class AutoSyncWorker(
 
         var pendingWork = sp.GetRequiredService<PendingWorkService>();
         var protocolFullSync = sp.GetRequiredService<ProtocolFullSyncService>();
-        var parti = await settings.GetIntAsync(
-            SettingsStore.StuckRetryBatchSizeKey, SettingsStore.StuckRetryBatchSizeDefault, ct);
+        // SINIR SAYI DEGIL SURE (KULLANICI SORUSU 2026-10-05: "100 denilen nedir, bence 10,
+        // sinirlama yapmazsak ne olur?").
+        //
+        // Olculen gercek: takilan listesi 4.289 protokol ve her biri TAM ZINCIR demek
+        // (hasta + muayine + tani + islem + epikriz + lab + rapor = onlarca HTTP cagrisi).
+        //   Sinir yoksa : ~10 sn/protokol ile ~12 SAAT. Gece turu mesaiye tasar, saatlik
+        //                 turlarla cakisir, ustelik bu protokollerin cogu kalici olarak
+        //                 gonderilemez (LOINC kodu yok) -- yuk buyuk olcude bosa gider.
+        //   10 olursa   : 4.289/10 = 429 gece, yani ~14 ay. Bugun verilen bir LOINC kodu
+        //                 bir yil sonra denenir; rapor "duzeltin" dese bile anlamsiz olur.
+        //
+        // Dolayisiyla dogru sinir SAYI DEGIL SURE. Sure butcesi kendini ayarliyor: hizli
+        // protokoller varsa cogu biter, yavassa azi -- ama tur hicbir zaman gune tasmaz.
+        // 45 dk ile ~270 protokol/gece, tam tur ~16 gece.
+        var sureDakika = await settings.GetIntAsync(
+            SettingsStore.StuckRetryMaxMinutesKey, SettingsStore.StuckRetryMaxMinutesDefault, ct);
+        var sonTarih = DateTime.UtcNow.AddMinutes(Math.Max(1, sureDakika));
 
         // TAM tarama: takilan kalemler tanimi geregi eskidir, artimli pencere onlari
         // gormezdi.
-        var sonuc = await pendingWork.RefreshAsync(maxProtocols: Math.Max(parti, 200), ct: ct);
+        // maxProtocols genis: artik sayiyla degil sureyle siniriyoruz, bu yuzden listenin
+        // kirpilmasi butceyi fiilen daraltmasin. Kirpma yalnizca bellekte siralama/alma --
+        // ag cagrisi yok, bedeli ihmal edilebilir.
+        var sonuc = await pendingWork.RefreshAsync(maxProtocols: 2000, ct: ct);
 
         // SIRALAMA: EN UZUN SUREDIR DENENMEYEN once. Takilan listesi parti boyutundan buyuk
         // olabilir (olculdu: 30 gunde 4.289 protokol). Ana listedeki gibi "en eski kayit
@@ -330,23 +374,37 @@ public class AutoSyncWorker(
         var hedefler = sonuc.TakilanProtokoller
             .Where(p => p.Eligible)
             .OrderBy(p => p.Items.Max(i => i.SonDeneme?.CreatedAtUtc ?? DateTime.MinValue))
-            .Take(parti)
             .ToList();
 
         logger.LogInformation(
-            "Takilanlar turu: {Toplam} takilan protokolden {Bu} tanesi yeniden deneniyor.",
-            sonuc.ToplamTakilanProtokolSayisi, hedefler.Count);
+            "Takilanlar turu basliyor: {Toplam} takilan protokol, sure butcesi {Dakika} dakika. "
+            + "En uzun suredir denenmeyenden baslaniyor.",
+            sonuc.ToplamTakilanProtokolSayisi, sureDakika);
 
-        int duzelen = 0;
+        int duzelen = 0, denenen = 0;
+        var durduruldu = false;
         foreach (var p in hedefler)
         {
-            if (ct.IsCancellationRequested) break;
+            if (ct.IsCancellationRequested) { durduruldu = true; break; }
+
+            // SURE BUTCESI DOLDU MU? Normal bitis -- kalanlar yarin gece, sira onlara gelir.
+            if (DateTime.UtcNow >= sonTarih)
+            {
+                logger.LogInformation(
+                    "Takilanlar turu sure butcesini doldurdu ({Dakika} dk): {Denenen}/{Toplam} protokol "
+                    + "denendi, kalanlar bir sonraki gece denenecek.",
+                    sureDakika, denenen, hedefler.Count);
+                break;
+            }
+
             // Gece turu da Durdur'a uymali -- ayni gerekce (bkz. RunOnceAsync).
             if (!await settings.GetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, false, ct))
             {
-                logger.LogWarning("Takilanlar turu ortasinda durduruldu ({Deneme} protokolden sonra).", duzelen);
+                logger.LogWarning("Takilanlar turu ortasinda DURDURULDU ({Denenen} protokolden sonra).", denenen);
+                durduruldu = true;
                 break;
             }
+            denenen++;
             try
             {
                 var tam = await protocolFullSync.SyncAllAsync(p.Protokol, ct);
@@ -358,9 +416,18 @@ public class AutoSyncWorker(
             }
         }
 
-        await settings.SetStringAsync(SettingsStore.StuckRetryLastRunKey, simdi.ToString("O"), ct);
-        logger.LogInformation("Takilanlar turu bitti: {Duzelen}/{Deneme} protokol gonderildi.",
-            duzelen, hedefler.Count);
+        // GUN ISARETI YALNIZCA DURDURULMADIYSA (2026-10-05 duzeltmesi). Eskiden kosulsuz
+        // yaziliyordu: 04:00'te Durdur'a basip 04:30'da yeniden baslatan biri, o gece
+        // takilanlarin hic denenmedigini fark etmezdi -- gun "yapildi" damgasini yemis
+        // olurdu. Sure butcesinin dolmasi NORMAL bitistir, o damgalanir.
+        if (!durduruldu)
+            await settings.SetStringAsync(SettingsStore.StuckRetryLastRunKey, simdi.ToString("O"), ct);
+
+        logger.LogInformation(
+            "Takilanlar turu bitti: {Denenen} protokol denendi, {Duzelen} tanesi artik gonderildi. "
+            + "{Durum}",
+            denenen, duzelen,
+            durduruldu ? "DURDURULDU -- gun isareti konmadi, ayni gece yeniden denenebilir." : "");
     }
 
 }

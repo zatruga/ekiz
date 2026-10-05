@@ -175,7 +175,7 @@
                             @if (Model.OtomatikCalisiyor)
                             {
                                 <button type="submit" class="btn btn-outline" style="border-color:var(--danger); color:var(--danger);"
-                                        onclick="return confirm('Otomatik gönderim DURDURULACAK. Bekleyen kayıtlar birikmeye devam eder; elle gönderim etkilenmez.\n\nEmin misiniz?')">
+                                        onclick="return confirm('Otomatik gönderim DURDURULACAK.\n\nTur ortasındaysa hem gönderim hem de TRƏS\'ten silme işlemi hemen durur. Bekleyen kayıtlar birikmeye devam eder; elle gönderim etkilenmez.\n\nEmin misiniz?')">
                                     Otomatik Gönderimi Durdur
                                 </button>
                             }
@@ -218,9 +218,12 @@
                         </div>
                         <div class="field-row-2">
                             <div class="field">
-                                <label for="takilanParti">Takılanlar turunda en fazla kaç protokol?</label>
-                                <input type="number" id="takilanParti" asp-for="TakilanPartiBoyutu" min="1" max="1000" />
-                                <span class="field-hint">En uzun süredir denenmeyenden başlar, her gece sıra diğerlerine geçer.</span>
+                                <label for="takilanSure">Takılanlar turu en fazla kaç dakika sürsün?</label>
+                                <input type="number" id="takilanSure" asp-for="TakilanSureDakika" min="5" max="300" />
+                                <span class="field-hint">En uzun süredir denenmeyenden başlar, süre dolunca durur; ertesi gece
+                                sıra kalanlara geçer. <strong>Sayı yerine süre</strong> çünkü takılan listesi binlerce protokol
+                                olabiliyor ve her biri tam zincir gönderimi demek &mdash; süre, turun mesai saatine taşmasını
+                                engelleyen tek güvenilir sınır.</span>
                             </div>
                         </div>
                         <div class="card-actions">
@@ -244,13 +247,19 @@
                     <p class="card-desc">
                         Bir gönderim hatalı olduğunda (ör. TRƏS geçici olarak yanıt vermiyorsa) sistem
                         ne kadar sürede ve kaç kez tekrar denesin.
+                        <span class="field-hint">Deneme hakkı dolan kayıt kaybolmaz &mdash;
+                        <strong>Takılanlar</strong> listesine geçer ve orada her gece bir kez daha denenir.
+                        Eksik giderildiğinde (LOINC kodu verildi, sonuç girildi) kendiliğinden gönderilir.</span>
                     </p>
                     <form method="post" asp-page-handler="Tekrar" style="display:flex; flex-direction:column; flex:1;">
                         <div class="field-row-2">
                             <div class="field"><label for="retryInterval">Kaç dakika sonra tekrar dene?</label>
-                                <input type="number" id="retryInterval" asp-for="RetryIntervalMinutes" min="1" max="1440" /></div>
+                                <input type="number" id="retryInterval" asp-for="RetryIntervalMinutes" min="1" max="1440" />
+                                <span class="field-hint">Az önce denenip hata almış bir protokol bu süre dolmadan
+                                tekrar denenmez. Otomatik gönderim aralığından kısa bir değer fark yaratmaz.</span></div>
                             <div class="field"><label for="retryMax">En fazla kaç kez dene?</label>
-                                <input type="number" id="retryMax" asp-for="RetryMaxAttempts" min="1" max="50" /></div>
+                                <input type="number" id="retryMax" asp-for="RetryMaxAttempts" min="1" max="50" />
+                                <span class="field-hint">Üst üste bu kadar hata alan kayıt Takılanlar listesine geçer.</span></div>
                         </div>
                         <div class="card-actions">
                             <button type="submit" class="btn btn-primary">Kaydet</button>
