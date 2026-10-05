@@ -86,14 +86,48 @@ public class ProtocolFullSyncService(
         //    gondermeyin" uyarisi DOKTOR icindi (sabit, kucuk bir kume her Encounter'da
         //    tekrar tekrar gidiyordu); hasta protokol basina bir kez gidiyor ve demografi
         //    bilgisini guncel tutuyor -- kabul edilebilir bir takas.
-        await patientSyncService.SyncOneAsync(protokol.HastaId, liveMode: true, ct);
+        //
+        //    YALNIZCA ZATEN VARSA (2026-10-05): eskiden kosulsuz cagriliyordu ve hasta
+        //    TRƏS'te YOKSA ayni gonderim bir de asagidaki Encounter cascade'i tarafindan
+        //    yapiliyordu -- cunku o da "hasta yoksa once hastayi gonder" diyor. Hasta
+        //    gonderilemeyen bir kayitsa (orn. FIN bicimi hatali) ayni hata ayni saniyede
+        //    IKI kez uretiliyordu. Canli gunlukte ucer ucer tekrarlanan "Hastanin FIN
+        //    numarasi TRƏS'in bekledigi bicimde degil" satirlarinin kaynagi buydu.
+        //
+        //    Hasta YOKSA cascade zaten olusturuyor, yani "hic denenmedi" sorunu geri
+        //    gelmiyor: her iki durumda da tam olarak BIR deneme ve BIR SyncLog kaydi olur.
+        var azHastaVarMi = await eHealthClient.FindExistingIdAsync(
+            "Patient", protokol.HastaId.ToString(), ct);
+        if (azHastaVarMi is not null)
+            await patientSyncService.SyncOneAsync(protokol.HastaId, liveMode: true, ct);
 
         // 1) Muayine -> Tani -> Islem (cascade EncounterSyncService'te)
         var encounter = await encounterSyncService.SyncOneAsync(protokol.ProtokolId, liveMode: true, ct);
 
         // 2) Epikriz -- cascade'e DAHIL DEGIL, ayrica cagrilmali.
-        var epikriz = await compositionSyncService.SyncOneAsync(protokol.ProtokolId, liveMode: true, ct);
-        var epikrizSayi = epikriz.Status == SyncStatus.Success ? 1 : 0;
+        //
+        //    MUAYINE BASARISIZSA CAGRILMIYOR (2026-10-05). Composition.encounter (1..1)
+        //    zorunlu; muayine gonderilemediyse epikriz de gonderilemez. Ama
+        //    CompositionSyncService bunu kendisi fark edip EncounterSyncService'i BASTAN
+        //    calistiriyor -- o da hasta yoksa hastayi yeniden gondermeye kalkiyor. Yani az
+        //    once basarisiz olan zincirin TAMAMI ikinci kez kosuluyor ve ayni hatalar
+        //    gunluge yeniden yaziliyordu (ucuncu tekrarin kaynagi buydu).
+        //
+        //    OLCUT DURUM DEGIL, AZ ID'SI: EncounterSyncService tani baglama adimi varsa
+        //    ONUN kaydini donduruyor (`if (diagnosisEntry is not null) return diagnosisEntry`).
+        //    Yani Muayine basariyla olusup yalnizca tani baglama Update'i hata verirse donen
+        //    durum Failed olur -- oysa kullanilabilir bir Encounter VARDIR ve epikriz
+        //    gonderilebilir. Status'e baksaydik epikrizi haksiz yere atlardik.
+        //
+        //    AzResourceId tam olarak "sunucuda kullanilabilir bir Encounter var mi" sorusunu
+        //    yanitliyor: yazma basarili olduysa da, tani bagligi basarisiz olduysa da dolu;
+        //    atlanan (hasta yok / mapping Skipped) kayitlarda bos.
+        var epikrizSayi = 0;
+        if (encounter.AzResourceId is not null)
+        {
+            var epikriz = await compositionSyncService.SyncOneAsync(protokol.ProtokolId, liveMode: true, ct);
+            epikrizSayi = epikriz.Status == SyncStatus.Success ? 1 : 0;
+        }
 
         // 3) Laboratuvar / Radyoloji / Patoloji -- hepsi Hasta'nin AZ id'sine ihtiyac
         //    duyuyor, o yuzden Muayine gonderildikten SONRA.
