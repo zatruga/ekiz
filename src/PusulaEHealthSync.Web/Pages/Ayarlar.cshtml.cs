@@ -254,6 +254,10 @@ public class AyarlarModel(
     [BindProperty]
     [Range(0, 30)]
     public int MinProtokolYasiGun { get; set; }
+
+    // Gonderim taban tarihi -- bos = taban yok (bkz. SettingsStore.SendFloorDateKey).
+    [BindProperty]
+    public string? SendFloorDate { get; set; }
     [BindProperty]
     [Range(0, 23)]
     public int TakilanDenemeSaati { get; set; }
@@ -294,6 +298,7 @@ public class AyarlarModel(
         await settings.SetIntAsync(SettingsStore.AutoSendIntervalMinutesKey, AutoSendIntervalMinutes, ct);
         await settings.SetIntAsync(SettingsStore.AutoSendBatchSizeKey, AutoSendBatchSize, ct);
         await settings.SetIntAsync(SettingsStore.MinProtokolYasiGunKey, MinProtokolYasiGun, ct);
+        await settings.SetStringAsync(SettingsStore.SendFloorDateKey, Clean(SendFloorDate), ct);
         await settings.SetIntAsync(SettingsStore.StuckRetryHourKey, TakilanDenemeSaati, ct);
         await settings.SetIntAsync(SettingsStore.StuckRetryMaxMinutesKey, TakilanSureDakika, ct);
         return await SavedAsync("genel", ct);
@@ -436,6 +441,7 @@ public class AyarlarModel(
             AutoSendIntervalMinutes = await settings.GetIntAsync(SettingsStore.AutoSendIntervalMinutesKey, SettingsStore.AutoSendIntervalMinutesDefault, ct);
             AutoSendBatchSize = await settings.GetIntAsync(SettingsStore.AutoSendBatchSizeKey, SettingsStore.AutoSendBatchSizeDefault, ct);
             MinProtokolYasiGun = await settings.GetIntAsync(SettingsStore.MinProtokolYasiGunKey, SettingsStore.MinProtokolYasiGunDefault, ct);
+            SendFloorDate = await settings.GetStringAsync(SettingsStore.SendFloorDateKey, "", ct);
             TakilanDenemeSaati = await settings.GetIntAsync(SettingsStore.StuckRetryHourKey, SettingsStore.StuckRetryHourDefault, ct);
             TakilanSureDakika = await settings.GetIntAsync(SettingsStore.StuckRetryMaxMinutesKey, SettingsStore.StuckRetryMaxMinutesDefault, ct);
         }

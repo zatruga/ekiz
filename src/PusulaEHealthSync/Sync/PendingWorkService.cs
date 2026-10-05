@@ -327,6 +327,11 @@ public class PendingWorkService(
             SettingsStore.RetryIntervalMinutesKey, SettingsStore.RetryIntervalMinutesDefault, ct));
         var simdiUtc = DateTime.UtcNow;
 
+        // GONDERIM TABAN TARIHI (kullanici karari 2026-10-05). Bos ise taban yok.
+        var tabanHam = await settings.GetStringAsync(SettingsStore.SendFloorDateKey, "", ct);
+        DateOnly? tabanTarih = DateOnly.TryParseExact(tabanHam, "yyyy-MM-dd",
+            CultureInfo.InvariantCulture, DateTimeStyles.None, out var t) ? t : null;
+
         List<PendingProtocol> Grupla(List<PendingCandidate> kume)
         {
             var sonuc = new List<PendingProtocol>();
@@ -339,6 +344,19 @@ public class PendingWorkService(
                 // ayri yerde atlaniyor ama tarama tarafinda filtrelenmiyordu, dolayisiyla
                 // hicbir zaman yapilmayacak is ekranda birikiyordu.
                 if (protokol.ProtokolTipiId == EncounterMapper.ReceteProtokolTipiId) continue;
+
+                // TABAN TARIHTEN ONCEKILER LISTEYE HIC GIRMEZ.
+                //
+                // "Uygun degil" olarak isaretlemek yanlis olurdu: o protokoller listede
+                // kalir, sayilari sisirir ve HICBIR ZAMAN uygun hale gelmez -- yani ekranda
+                // hic yapilmayacak is birikir. Recete protokolleriyle ayni gerekce, ayni
+                // cozum (iki satir yukarida).
+                //
+                // Olcut protokolun GONDERIME UYGUN HALE GELDIGI AN (ayaktanda kapanis,
+                // yatanda taburcu) -- acilis degil. Eylul'de acilip Ekim'de taburcu olan
+                // bir yatis gonderilmeli; taban onu elemez.
+                if (tabanTarih is { } taban && UygunlukAni(protokol, openAfterDays).An is { } an
+                    && DateOnly.FromDateTime(an.Date) < taban) continue;
 
                 var (eligible, reason) = IsEligible(protokol, openAfterDays, minYas);
                 var items = group

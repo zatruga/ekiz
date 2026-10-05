@@ -1739,3 +1739,56 @@ main.content.content--genis { max-width: none; }
 
 /* Veri tablolarında rakamlar hizalı okunsun. */
 .table-wrap table { font-variant-numeric: tabular-nums; }
+
+/* ==== AKTIVITE AKISI -- PROTOKOLE GORE GRUPLAMA (2026-10-05) ====
+   Kullanici istegi: "tek tek tum islemler icin tek tek satir yapmasin, protokole gore
+   gruplayip yapsin, protokol bilgisi vs gosterilsin."
+
+   Her grup bir kart; baslikta protokolun DEGISMEYEN bilgisi (hasta, FIN, bolum, tarih),
+   icerideki tabloda yalnizca SATIRA OZGU olan. Demografi her satirda tekrarlandigi icin
+   tablo eskiden 1650px genisligindeydi ve yatay kaydirma gerektiriyordu. */
+.akis-grup { margin-bottom: 14px; overflow: hidden; }
+
+.akis-grup-bas {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 16px;
+  flex-wrap: wrap;
+  padding: 12px 16px;
+  border-bottom: 1px solid var(--border);
+  background: var(--bg);
+}
+
+.akis-grup-kimlik { display: flex; align-items: center; gap: 12px; min-width: 0; }
+
+.akis-grup-no {
+  font-family: Consolas, "SF Mono", Menlo, monospace;
+  font-size: 15px;
+  font-weight: 700;
+  color: var(--primary);
+  text-decoration: none;
+  white-space: nowrap;
+}
+.akis-grup-no:hover { text-decoration: underline; }
+.akis-grup-no--yok { color: var(--text-faint); font-weight: 600; font-size: 13px; }
+
+.akis-grup-metin { min-width: 0; }
+.akis-grup-hasta { font-size: 14px; font-weight: 600; color: var(--text); }
+.akis-grup-fin { font-size: 12px; font-weight: 400; color: var(--text-muted); margin-left: 8px; }
+
+/* Alt satirdaki bilgiler nokta ile ayriliyor -- ayirici CSS'te, cunku hangi alanlarin
+   dolu oldugu protokole gore degisiyor ve bos alan icin ayirici kalmamali. */
+.akis-grup-alt { font-size: 12px; color: var(--text-muted); margin-top: 2px; }
+.akis-grup-alt > span + span::before { content: " · "; color: var(--text-faint); }
+
+.akis-grup-sayim { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
+.akis-grup-saat { font-size: 12px; }
+
+/* Grup tablosu kartin icinde -- kendi kenarligi yok, kart zaten cerceveliyor. */
+.akis-grup-tablo { border: 0; border-radius: 0; }
+.akis-grup-tablo table { min-width: 720px; }
+
+@media (max-width: 720px) {
+  .akis-grup-bas { flex-direction: column; gap: 8px; }
+}

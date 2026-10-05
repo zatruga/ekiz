@@ -100,63 +100,132 @@
 }
 else
 {
-    <div class="table-wrap">
-        <table style="min-width:1650px;" class="sticky-last-col">
-            <thead>
-                <tr>
-                    <th>Zaman</th>
-                    <th>Tür</th>
-                    <th>Ad Soyad</th>
-                    <th>FIN No</th>
-                    <th>Ata adı</th>
-                    <th>Doğum tarihi</th>
-                    <th>Cinsiyet</th>
-                    <th>Kayıt açılma tarihi</th>
-                    <th>Pusula Id</th>
-                    <th>Durum</th>
-                    <th>AZ kaynak Id</th>
-                    <th>İşlem</th>
-                    <th>Mesaj</th>
-                    <th></th>
-                </tr>
-            </thead>
-            <tbody>
-                @foreach (var e in Model.Entries)
-                {
-                    <tr>
-                        <td class="mono text-muted">@AzTime.ToLocal(e.CreatedAtUtc).ToString("yyyy-MM-dd HH:mm:ss")</td>
-                        <td><span class="badge @SyncLogEntry.ResourceTypeCssClass(e.ResourceType)">@SyncLogEntry.ResourceTypeLabel(e.ResourceType)</span></td>
-                        <td>@(string.IsNullOrWhiteSpace(e.PatientFullName) ? "-" : e.PatientFullName)</td>
-                        <td class="mono">@(e.Fin ?? "-")</td>
-                        <td class="text-muted">@(e.FathersName ?? "-")</td>
-                        <td class="mono text-muted">@(e.BirthDate?.ToString("yyyy-MM-dd") ?? "-")</td>
-                        <td class="text-muted">@GenderLabel(e.Gender)</td>
-                        <td class="mono text-muted">@(e.RecordOpenedAt?.ToString("yyyy-MM-dd") ?? "-")</td>
-                        <td class="mono">@e.PusulaId</td>
-                        <td>
-                            @{
-                                var (aBadgeClass, aBadgeLabel) = SyncLogEntry.StatusBadge(e);
-                            }
-                            <span class="badge @aBadgeClass"><span class="badge-dot"></span>@aBadgeLabel</span>
-                        </td>
-                        <td class="mono text-muted">@(e.AzResourceId ?? "-")</td>
-                        <td class="text-muted">@(e.Operation?.ToString() ?? "-")</td>
-                        <td class="cell-wide text-muted">
-                            @if (e.Status == SyncStatus.Failed && e.Message is not null)
+    @* ==== PROTOKOLE GORE GRUPLAMA (KULLANICI ISTEGI 2026-10-05) ====
+       "tek tek tum islemler ve gonderimler icin tek tek satir yapmasin, protokole gore
+       gruplayip yapsin, protokol bilgisi vs gosterilsin."
+
+       Tek bir protokolun gonderimi onlarca satir uretiyor (bir hemogram paneli 50 satira
+       kadar cikabiliyor); duz listede neyin hangi hastaya ait oldugu kayboluyordu.
+
+       Hasta demografisi (ad, FIN, bolum, tarihler) artik GRUP BASLIGINDA, satirlarda
+       degil -- protokol icinde sabit olan bir bilgiyi her satirda tekrarlamak tablonun
+       1650px genisliginin asil sebebiydi. Satira ozgu kalan bilgi iceride duruyor.
+
+       SAYFALAMA SATIR BAZLI KALDI: QueryAsync satir sayfaliyor, bu yuzden bir protokolun
+       kayitlari nadiren iki sayfaya bolunebilir. Protokol bazli sayfalama, sayfa basina
+       kac satir cekilecegini onceden bilememek demekti; sayfa boyutu 25'ten 60'a
+       cikarilarak bolunme pratikte seyreltildi. *@
+    @foreach (var grup in Model.Gruplar)
+    {
+        <div class="card akis-grup">
+            <div class="akis-grup-bas">
+                <div class="akis-grup-kimlik">
+                    @if (grup.ProtokolId is { } pid)
+                    {
+                        <a asp-page="/Protokol" asp-route-id="@pid" class="akis-grup-no" title="Protokol detayını aç">
+                            @pid.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                        </a>
+                    }
+                    else
+                    {
+                        <span class="akis-grup-no akis-grup-no--yok" title="Hasta ve doktor kayıtları bir protokole ait değildir">
+                            Protokolsüz
+                        </span>
+                    }
+
+                    <div class="akis-grup-metin">
+                        <div class="akis-grup-hasta">
+                            @(string.IsNullOrWhiteSpace(grup.HastaAdi) ? "—" : grup.HastaAdi)
+                            @if (!string.IsNullOrWhiteSpace(grup.Fin))
                             {
-                                <span title="@e.Message">@SyncLogEntry.FriendlyError(e.Message)</span>
+                                <span class="mono akis-grup-fin">@grup.Fin</span>
+                            }
+                        </div>
+                        <div class="akis-grup-alt">
+                            @if (grup.Protokol is { } pr)
+                            {
+                                @if (!string.IsNullOrWhiteSpace(pr.BolumAdi)) { <span>@pr.BolumAdi</span> }
+                                @if (!string.IsNullOrWhiteSpace(pr.DoktorAdiSoyadi)) { <span>@pr.DoktorAdiSoyadi</span> }
+                                <span>@(pr.GelisTipiId == "Y" ? "Yatan" : pr.GelisTipiId == "G" ? "Günübirlik" : "Ayaktan")</span>
+                                @if (pr.AcilisTarihi is { } ac)
+                                {
+                                    <span class="mono">@ac.ToString("dd.MM.yyyy")@(pr.KapanisTarihi is { } kp ? " – " + kp.ToString("dd.MM.yyyy") : " – açık")</span>
+                                }
+                            }
+                            else if (grup.ProtokolId is not null)
+                            {
+                                <span class="text-faint">Protokol bilgisi okunamadı</span>
                             }
                             else
                             {
-                                @(e.Message ?? "-")
+                                <span class="text-faint">Hasta / doktor kayıtları — protokole bağlı değil</span>
                             }
-                        </td>
-                        <td><a asp-page="/Detail" asp-route-id="@e.Id" class="btn btn-outline btn-sm">Detay</a></td>
-                    </tr>
-                }
-            </tbody>
-        </table>
-    </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="akis-grup-sayim">
+                    @if (grup.Basarili > 0)
+                    {
+                        <span class="badge success" title="@grup.Basarili kayıt gönderildi"><span class="badge-dot"></span>@grup.Basarili</span>
+                    }
+                    @if (grup.Hatali > 0)
+                    {
+                        <span class="badge danger" title="@grup.Hatali kayıt hata aldı"><span class="badge-dot"></span>@grup.Hatali</span>
+                    }
+                    @if (grup.Atlanan > 0)
+                    {
+                        <span class="badge warning" title="@grup.Atlanan kayıt eksik veri yüzünden gönderilemedi"><span class="badge-dot"></span>@grup.Atlanan</span>
+                    }
+                    <span class="mono text-muted akis-grup-saat">@grup.SonZamanYerel.ToString("dd.MM.yyyy HH:mm:ss")</span>
+                </div>
+            </div>
+
+            <div class="table-wrap akis-grup-tablo">
+                <table>
+                    <thead>
+                        <tr>
+                            <th style="width:92px;">Saat</th>
+                            <th style="width:150px;">Tür</th>
+                            <th style="width:110px;">Pusula Id</th>
+                            <th style="width:130px;">Durum</th>
+                            <th style="width:80px;">İşlem</th>
+                            <th>Mesaj</th>
+                            <th style="width:72px;"></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                        @foreach (var e in grup.Kayitlar)
+                        {
+                            <tr>
+                                <td class="mono text-muted">@AzTime.ToLocal(e.CreatedAtUtc).ToString("HH:mm:ss")</td>
+                                <td><span class="badge @SyncLogEntry.ResourceTypeCssClass(e.ResourceType)">@SyncLogEntry.ResourceTypeLabel(e.ResourceType)</span></td>
+                                <td class="mono">@e.PusulaId.ToString(System.Globalization.CultureInfo.InvariantCulture)</td>
+                                <td>
+                                    @{
+                                        var (aBadgeClass, aBadgeLabel) = SyncLogEntry.StatusBadge(e);
+                                    }
+                                    <span class="badge @aBadgeClass"><span class="badge-dot"></span>@aBadgeLabel</span>
+                                </td>
+                                <td class="text-muted">@(e.Operation?.ToString() ?? "-")</td>
+                                <td class="cell-wide text-muted">
+                                    @if (e.Status == SyncStatus.Failed && e.Message is not null)
+                                    {
+                                        <span title="@e.Message">@SyncLogEntry.FriendlyError(e.Message)</span>
+                                    }
+                                    else
+                                    {
+                                        @(e.Message ?? "-")
+                                    }
+                                </td>
+                                <td><a asp-page="/Detail" asp-route-id="@e.Id" class="btn btn-outline btn-sm">Detay</a></td>
+                            </tr>
+                        }
+                    </tbody>
+                </table>
+            </div>
+        </div>
+    }
 
     <div class="pagination">
         @if (Model.PageNumber > 1)
@@ -170,13 +239,4 @@ else
     </div>
 }
 
-@functions {
-    string GenderLabel(string? code) => code switch
-    {
-        "E" => "Erkek",
-        "K" => "Kadın",
-        "D" => "Diğer",
-        null => "-",
-        _ => code
-    };
-}
+

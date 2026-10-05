@@ -17,6 +17,20 @@ public class SettingsStore
     // geciken laboratuvar sonucu dusebilir, hekim epikrizi duzeltebilir. Bir gun beklemek
     // kaydi oturtuyor ve sonradan guncelleme/iptal gonderme ihtiyacini azaltiyor.
     // Olcut takvim gunu farki -- 24 saat degil (bkz. PendingWorkService.IsEligible).
+    // GONDERIM TABAN TARIHI (KULLANICI KARARI 2026-10-05: "otomatik gonderim 01.10.2026
+    // tarihinden once gonderim yapmasin").
+    //
+    // Bu tarihten ONCE kapanan/taburcu olan protokoller otomatik gonderimde HIC ele
+    // alinmaz. Gecmise donuk bir temizlik kurali: sistem devreye girmeden onceki aylarin
+    // arsivi bakanliga gitmesin.
+    //
+    // Bos birakilirsa taban yok. Bicim: yyyy-MM-dd.
+    //
+    // ELLE GONDERIMI ETKILEMEZ: kural PendingWorkService'te, yani otomatik donguyu ve
+    // Bekleyen Isler ekranini kapsiyor. Protokol Listesi'nden bir protokolu bilerek
+    // secip gondermek hala mumkun -- taban bir POLITIKA, yasak degil.
+    public const string SendFloorDateKey = "Send.BaslangicTarihi";
+
     public const string MinProtokolYasiGunKey = "Send.MinProtokolYasiGun";
     public const int MinProtokolYasiGunDefault = 1;
 
