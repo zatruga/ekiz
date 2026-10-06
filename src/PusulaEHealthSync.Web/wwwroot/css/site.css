@@ -1820,3 +1820,12 @@ details.akis-grup[open] > summary .akis-grup-ok { transform: rotate(90deg); }
 @media (prefers-reduced-motion: reduce) {
   .akis-grup-ok { transition: none; }
 }
+
+/* Kimlik blogu mumkun oldugunca SOLDA dursun, sayim rozetleri saga itilsin.
+   space-between tek basina yetmiyordu: kimlik icerigi dar oldugunda bos alan iki
+   yana dagiliyordu. margin-right:auto bosluğun tamamini saga topluyor. */
+.akis-grup-kimlik { margin-right: auto; }
+
+/* Protokol numarasi sabit genislikte -- gruplar alt alta dizildiginde hasta adlari
+   ayni hizadan baslasin. "Protokolsüz" etiketi de bu genislige sigiyor. */
+.akis-grup-no { min-width: 84px; display: inline-block; }

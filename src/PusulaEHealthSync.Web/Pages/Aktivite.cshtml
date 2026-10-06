@@ -136,8 +136,11 @@ else
            yine acik gelirdi. *@
         <details class="card akis-grup" open="@(grup.Hatali > 0 || grup.Atlanan > 0)">
             <summary class="akis-grup-bas">
-                <span class="akis-grup-ok" aria-hidden="true"></span>
+                @* Ok KIMLIK BLOGUNUN ICINDE: dogrudan summary'nin cocugu oldugunda
+                   justify-content:space-between UC ogeyi dagitiyor ve kimlik ORTAYA
+                   itiliyordu. Ici boslukta yuzen basliklar bu yuzden olusmustu. *@
                 <div class="akis-grup-kimlik">
+                    <span class="akis-grup-ok" aria-hidden="true"></span>
                     @if (grup.ProtokolId is { } pid)
                     {
                         @* stopPropagation: baglanti <summary> icinde oldugu icin tiklama
@@ -220,7 +223,10 @@ else
                             <th style="width:92px;">Saat</th>
                             <th style="width:150px;">Tür</th>
                             <th style="width:110px;">Pusula Id</th>
-                            <th>Gönderim içeriği</th>
+                            @* Genislik payi verilmezse bu sutun MESAJ sutunuyla yarisiyor
+                               ve kisa degerler bile ("Nevrologiya · Ayaktan") iki satira
+                               sariyordu. *@
+                            <th style="width:26%;">Gönderim içeriği</th>
                             <th style="width:130px;">Durum</th>
                             <th style="width:80px;">İşlem</th>
                             <th>Mesaj</th>
