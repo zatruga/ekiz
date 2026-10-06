@@ -352,11 +352,24 @@ public class PendingWorkService(
                 // hic yapilmayacak is birikir. Recete protokolleriyle ayni gerekce, ayni
                 // cozum (iki satir yukarida).
                 //
-                // Olcut protokolun GONDERIME UYGUN HALE GELDIGI AN (ayaktanda kapanis,
-                // yatanda taburcu) -- acilis degil. Eylul'de acilip Ekim'de taburcu olan
-                // bir yatis gonderilmeli; taban onu elemez.
-                if (tabanTarih is { } taban && UygunlukAni(protokol, openAfterDays).An is { } an
-                    && DateOnly.FromDateTime(an.Date) < taban) continue;
+                // OLCUT ACILIS TARIHI (KULLANICI DUZELTMESI 2026-10-06: "devreye alim
+                // tarihi 01.10.2026; bu tarih oncesindeki HICBIR kaydi gondermekle sorumlu
+                // degilim").
+                //
+                // Ilk halde olcut uygunluk ani (kapanis/taburcu) idi ve "Eylul'de acilip
+                // Ekim'de taburcu olan yatis gonderilir" diye yazilmisti -- kullanici tam
+                // bu ornegi reddetti. Taban bir DEVREYE ALIM cizgisi: protokol devreye
+                // alimdan once BASLADIYSA o epizot eski donemin isi, kapanisi sonraya
+                // sarksa bile kapsam disi.
+                //
+                // BEDELI BILINCLI: devreye alim gununu asan uzun yatislar (orn. 25.09'da
+                // yatan, 20.10'da taburcu olan hasta) hic gonderilmez. Kullanici kararina
+                // gore bu dogru -- yatis devreye alimdan once basladi.
+                //
+                // AcilisTarihi bos olan protokoller BURADA elenmiyor; IsEligible onlari
+                // zaten "Açılış tarihi yok" sebebiyle reddediyor.
+                if (tabanTarih is { } taban && protokol.AcilisTarihi is { } acilis
+                    && DateOnly.FromDateTime(acilis.Date) < taban) continue;
 
                 var (eligible, reason) = IsEligible(protokol, openAfterDays, minYas);
                 var items = group

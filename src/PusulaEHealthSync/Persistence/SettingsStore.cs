@@ -17,12 +17,13 @@ public class SettingsStore
     // geciken laboratuvar sonucu dusebilir, hekim epikrizi duzeltebilir. Bir gun beklemek
     // kaydi oturtuyor ve sonradan guncelleme/iptal gonderme ihtiyacini azaltiyor.
     // Olcut takvim gunu farki -- 24 saat degil (bkz. PendingWorkService.IsEligible).
-    // GONDERIM TABAN TARIHI (KULLANICI KARARI 2026-10-05: "otomatik gonderim 01.10.2026
-    // tarihinden once gonderim yapmasin").
+    // DEVREYE ALIM TARIHI (KULLANICI KARARI 2026-10-05, 2026-10-06'da netlestirildi:
+    // "devreye alim tarihi 01.10.2026; bu tarih oncesindeki HICBIR kaydi gondermekle
+    // sorumlu degilim").
     //
-    // Bu tarihten ONCE kapanan/taburcu olan protokoller otomatik gonderimde HIC ele
-    // alinmaz. Gecmise donuk bir temizlik kurali: sistem devreye girmeden onceki aylarin
-    // arsivi bakanliga gitmesin.
+    // Bu tarihten ONCE ACILAN protokoller otomatik gonderimde HIC ele alinmaz -- kapanisi
+    // sonraya sarksa bile. Olcut kapanis degil ACILIS: taban bir devreye alim cizgisi,
+    // protokol o cizginin oncesinde basladiysa epizot eski donemin isi.
     //
     // Bos birakilirsa taban yok. Bicim: yyyy-MM-dd.
     //

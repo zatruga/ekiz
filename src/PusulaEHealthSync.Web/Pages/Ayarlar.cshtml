@@ -218,13 +218,15 @@
                         </div>
                         <div class="field-row-2">
                             <div class="field">
-                                <label for="floorDate">Şu tarihten önce kapanan protokoller gönderilmesin</label>
+                                <label for="floorDate">Devreye alım tarihi &mdash; bundan önce açılan protokoller gönderilmesin</label>
                                 <input type="date" id="floorDate" asp-for="SendFloorDate" />
                                 <span class="field-hint">Boş bırakılırsa sınır yok. Sistem devreye girmeden önceki
-                                arşivin bakanlığa gitmesini engeller. <strong>Elle gönderimi etkilemez</strong> &mdash;
-                                Protokol Listesi'nden eski bir protokolü bilerek seçip gönderebilirsiniz.
-                                Ölçüt protokolün kapanışı (yatanda taburcu); Eylül'de açılıp Ekim'de taburcu olan
-                                bir yatış gönderilir.</span>
+                                arşivin bakanlığa gitmesini engeller.
+                                <strong>Ölçüt protokolün açılışı</strong> &mdash; kapanışı bu tarihten sonraya sarksa
+                                bile gönderilmez, çünkü epizot devreye alımdan önce başlamıştır. Devreye alım gününü
+                                aşan uzun yatışlar da bu nedenle kapsam dışında kalır.
+                                <strong>Elle gönderimi etkilemez</strong>: Protokol Listesi'nden eski bir protokolü
+                                bilerek seçip gönderebilirsiniz.</span>
                             </div>
                             <div class="field">
                                 <label for="takilanSure">Takılanlar turu en fazla kaç dakika sürsün?</label>
