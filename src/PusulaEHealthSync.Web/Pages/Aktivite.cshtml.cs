@@ -27,6 +27,12 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
     public Dictionary<string, int> StatusCounts { get; set; } = new();
     public List<SyncLogEntry> Entries { get; set; } = [];
     public List<AktiviteGrubu> Gruplar { get; set; } = [];
+
+    // (ResourceType, PusulaId) -> gonderilen kaydin insan okunur adi.
+    // KULLANICI ISTEGI (2026-10-06): "gonderilen veriyi de yazsin -- doktor ise brans ve
+    // adi, islem/tetkik ise adlari." SyncLog yalnizca id tutuyor; "Tetkik 7612934" teknik
+    // olarak dogru ama okuyana hicbir sey anlatmiyor.
+    public Dictionary<(string, int), string> Aciklamalar { get; set; } = new();
     public int PageNumber { get; set; }
     public bool HasNextPage { get; set; }
 
@@ -120,6 +126,22 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
             }
         }
 
+        // GONDERILEN KAYDIN ADI -- protokol cozumuyle ayni dongude, ayni dayaniklilikla.
+        foreach (var grup in kayitlar.GroupBy(k => k.ResourceType))
+        {
+            if (!PusulaRepository.AciklamaDestekleniyorMu(grup.Key)) continue;
+            try
+            {
+                var adlar = await repository.KayitAciklamalariAsync(
+                    grup.Key, grup.Select(k => k.PusulaId).Distinct().ToList(), ct);
+                foreach (var kv in adlar) Aciklamalar[(grup.Key, kv.Key)] = kv.Value;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Aktivite akisi: {Tip} icin kayit adlari okunamadi.", grup.Key);
+            }
+        }
+
         var protokoller = new Dictionary<int, ProtokolListItem>();
         if (esleme.Count > 0)
         {
@@ -186,11 +208,22 @@ public record AktiviteGrubu(int? ProtokolId, ProtokolListItem? Protokol, List<Sy
     public DateTime SonZamanYerel => AzTime.ToLocal(Kayitlar.Max(k => k.CreatedAtUtc));
 
     // Protokol bilgisi okunamadiysa bile kayitlardaki hasta adi gosterilebilir.
-    public string? HastaAdi => Protokol?.HastaAdiSoyadi is { Length: > 0 } ad
-        ? ad
-        : Kayitlar.Select(k => k.PatientFullName).FirstOrDefault(a => !string.IsNullOrWhiteSpace(a));
+    //
+    // PROTOKOLSUZ GRUPTA ISIM YOK (2026-10-06 duzeltmesi). Ilk halde bu grup da ilk
+    // kaydin hasta adini basliga koyuyordu -- ama o grup FARKLI hastalarin ve doktorlarin
+    // kayitlarini bir arada tutuyor, dolayisiyla tek bir isim duz yanlis bilgi oluyordu.
+    // Kullanici "NƏRGIZ ALIYEVA" basligi altinda uc ayri hastanin satirini gorup ayni
+    // hastanin uc kez gonderildigini dusundu; hakliydi, ekran oyle soyluyordu.
+    // Kimlik artik satir duzeyinde: her satirin kendi adi "Gonderim icerigi" sutununda.
+    public string? HastaAdi => ProtokolId is null
+        ? null
+        : Protokol?.HastaAdiSoyadi is { Length: > 0 } ad
+            ? ad
+            : Kayitlar.Select(k => k.PatientFullName).FirstOrDefault(a => !string.IsNullOrWhiteSpace(a));
 
-    public string? Fin => Protokol?.Fin is { Length: > 0 } f
-        ? f
-        : Kayitlar.Select(k => k.Fin).FirstOrDefault(a => !string.IsNullOrWhiteSpace(a));
+    public string? Fin => ProtokolId is null
+        ? null
+        : Protokol?.Fin is { Length: > 0 } f
+            ? f
+            : Kayitlar.Select(k => k.Fin).FirstOrDefault(a => !string.IsNullOrWhiteSpace(a));
 }

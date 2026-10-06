@@ -135,10 +135,19 @@ else
 
                     <div class="akis-grup-metin">
                         <div class="akis-grup-hasta">
-                            @(string.IsNullOrWhiteSpace(grup.HastaAdi) ? "—" : grup.HastaAdi)
-                            @if (!string.IsNullOrWhiteSpace(grup.Fin))
+                            @if (grup.ProtokolId is null)
                             {
-                                <span class="mono akis-grup-fin">@grup.Fin</span>
+                                @* Bu grupta FARKLI hastalar ve doktorlar var -- tek bir isim
+                                   yazmak yanlis bilgi olurdu (bkz. AktiviteGrubu.HastaAdi). *@
+                                <text>Protokole bağlı olmayan kayıtlar</text>
+                            }
+                            else
+                            {
+                                @(string.IsNullOrWhiteSpace(grup.HastaAdi) ? "—" : grup.HastaAdi)
+                                @if (!string.IsNullOrWhiteSpace(grup.Fin))
+                                {
+                                    <span class="mono akis-grup-fin">@grup.Fin</span>
+                                }
                             }
                         </div>
                         <div class="akis-grup-alt">
@@ -158,7 +167,7 @@ else
                             }
                             else
                             {
-                                <span class="text-faint">Hasta / doktor kayıtları — protokole bağlı değil</span>
+                                <span class="text-faint">Hasta ve doktor kayıtları bir protokole ait değildir &mdash; her satırın kimliği kendi içeriğinde</span>
                             }
                         </div>
                     </div>
@@ -188,6 +197,7 @@ else
                             <th style="width:92px;">Saat</th>
                             <th style="width:150px;">Tür</th>
                             <th style="width:110px;">Pusula Id</th>
+                            <th>Gönderim içeriği</th>
                             <th style="width:130px;">Durum</th>
                             <th style="width:80px;">İşlem</th>
                             <th>Mesaj</th>
@@ -201,6 +211,28 @@ else
                                 <td class="mono text-muted">@AzTime.ToLocal(e.CreatedAtUtc).ToString("HH:mm:ss")</td>
                                 <td><span class="badge @SyncLogEntry.ResourceTypeCssClass(e.ResourceType)">@SyncLogEntry.ResourceTypeLabel(e.ResourceType)</span></td>
                                 <td class="mono">@e.PusulaId.ToString(System.Globalization.CultureInfo.InvariantCulture)</td>
+                                <td>
+                                    @* GONDERIM ICERIGI: id'nin insan okunur karsiligi. Hasta
+                                       kayitlarinda ad zaten SyncLog'da tasiniyor, digerleri
+                                       Pusula'dan toplu cozuluyor. Cozulemezse bos birakiliyor --
+                                       uydurma metin yazmaktansa bos birakmak dogru. *@
+                                    @if (e.ResourceType == "Patient")
+                                    {
+                                        <span>@(string.IsNullOrWhiteSpace(e.PatientFullName) ? "—" : e.PatientFullName)</span>
+                                        @if (!string.IsNullOrWhiteSpace(e.Fin))
+                                        {
+                                            <span class="mono text-muted" style="margin-left:6px;">@e.Fin</span>
+                                        }
+                                    }
+                                    else if (Model.Aciklamalar.TryGetValue((e.ResourceType, e.PusulaId), out var icerik))
+                                    {
+                                        <span>@icerik</span>
+                                    }
+                                    else
+                                    {
+                                        <span class="text-faint">—</span>
+                                    }
+                                </td>
                                 <td>
                                     @{
                                         var (aBadgeClass, aBadgeLabel) = SyncLogEntry.StatusBadge(e);
