@@ -271,7 +271,17 @@ else
                                     }
                                     else if (Model.Aciklamalar.TryGetValue((e.ResourceType, e.PusulaId), out var icerik))
                                     {
-                                        <span>@icerik</span>
+                                        @* Epikrizde onek var cunku deger EPIKRIZIN KENDISI degil,
+                                           onu YAZAN doktor. Oneksiz birakilsaydi Doktor
+                                           satirlarindan ayirt edilemezdi. *@
+                                        @if (e.ResourceType == "Composition")
+                                        {
+                                            <span class="text-muted">Yazan:</span> <span>@icerik</span>
+                                        }
+                                        else
+                                        {
+                                            <span>@icerik</span>
+                                        }
                                     }
                                     else
                                     {

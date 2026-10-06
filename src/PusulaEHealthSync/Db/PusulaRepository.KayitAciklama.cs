@@ -75,8 +75,34 @@ public partial class PusulaRepository
             WHERE e.IslemReferansNumarasi IN ({0})
             GROUP BY e.IslemReferansNumarasi",
 
+        // EPIKRIZ: yazan doktor (kullanici istegi 2026-10-06). PusulaId = ProtokolId.
+        //
+        // SECIM KURALI GetGenelMuayeneByProtokolIdAsync ILE BIREBIR AYNI: bir protokolde
+        // birden fazla GenelMuayene satiri olabiliyor ve gonderilen epikriz "TOP 1, epikriz
+        // metni olan once, sonra en son degisen" kuraliyla seciliyor. Burada ROW_NUMBER ile
+        // ayni sira kuruluyor -- farkli bir satir secseydik ekranda gonderilenden BASKA bir
+        // doktor yazardi.
+        //
+        // LEFT JOIN: doktoru silinmis/eksik olan muayenede satir kaybolmasin diye; adi bos
+        // cikarsa cagiran taraf (KayitAciklamalariAsync) zaten atliyor.
+        "Composition" => @"
+            SELECT t.ProtokolId, t.Ad FROM (
+                SELECT g.ProtokolId,
+                       LTRIM(RTRIM(ISNULL(p.Adi,'') + ' ' + ISNULL(p.Soyadi,'')))
+                     + CASE WHEN b.Adi IS NULL OR LTRIM(RTRIM(b.Adi)) = '' THEN ''
+                            ELSE ' — ' + b.Adi END AS Ad,
+                       ROW_NUMBER() OVER (PARTITION BY g.ProtokolId
+                           ORDER BY CASE WHEN g.Epikriz IS NOT NULL AND LEN(g.Epikriz) > 0 THEN 1 ELSE 0 END DESC,
+                                    ISNULL(g.ModifiedDate, g.CreatedDate) DESC) AS Sira
+                FROM Tedavi.GenelMuayene g
+                LEFT JOIN IK.Personel p ON p.Id = g.DoktorId
+                LEFT JOIN Ortak.Bolum b ON b.Id = p.BolumId
+                WHERE g.ProtokolId IN ({0}) AND g.State <> 0
+            ) t
+            WHERE t.Sira = 1",
+
         // Hasta: ad zaten SyncLogEntry.PatientFullName'de tasiniyor, sorgu gereksiz.
-        // Muayine/Epikriz: protokol duzeyinde, "Tur" rozeti zaten soyluyor.
+        // Muayine: protokol duzeyinde -- bolum bilgisi ekranda protokol kaydindan geliyor.
         _ => null,
     };
 
