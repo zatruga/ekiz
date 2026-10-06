@@ -1792,3 +1792,31 @@ main.content.content--genis { max-width: none; }
 @media (max-width: 720px) {
   .akis-grup-bas { flex-direction: column; gap: 8px; }
 }
+
+/* ==== ACILIR/KAPANIR GRUPLAR (2026-10-06) ====
+   Native <details>/<summary>. list-style ve webkit marker kapatiliyor cunku kendi
+   chevron'umuzu ciziyoruz; summary varsayilan olarak display:list-item geldigi icin
+   flex'e cevriliyor (akis-grup-bas zaten flex yerlesim bekliyor). */
+details.akis-grup > summary { cursor: pointer; list-style: none; user-select: none; }
+details.akis-grup > summary::-webkit-details-marker { display: none; }
+details.akis-grup > summary::marker { content: ""; }
+details.akis-grup > summary:hover { background: var(--bg-elevated); }
+details.akis-grup > summary:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+
+/* Chevron -- CSS ile cizilen ucgen; acikken 90 derece doner. */
+.akis-grup-ok {
+  flex: 0 0 auto;
+  width: 0; height: 0;
+  margin-right: 2px;
+  border-top: 5px solid transparent;
+  border-bottom: 5px solid transparent;
+  border-left: 6px solid var(--text-faint);
+  transition: transform 0.15s ease;
+}
+details.akis-grup[open] > summary .akis-grup-ok { transform: rotate(90deg); }
+
+.akis-grup-adet { font-size: 12px; color: var(--text-faint); white-space: nowrap; }
+
+@media (prefers-reduced-motion: reduce) {
+  .akis-grup-ok { transition: none; }
+}

@@ -115,14 +115,36 @@ else
        kayitlari nadiren iki sayfaya bolunebilir. Protokol bazli sayfalama, sayfa basina
        kac satir cekilecegini onceden bilememek demekti; sayfa boyutu 25'ten 60'a
        cikarilarak bolunme pratikte seyreltildi. *@
+    @* ==== ACILIR/KAPANIR GRUPLAR (KULLANICI ISTEGI 2026-10-06) ====
+       Native <details>/<summary>: JavaScript gerektirmiyor, klavyeyle calisiyor, ekran
+       okuyucular durumu kendiliginden bildiriyor.
+
+       VARSAYILAN DURUM SORUNA GORE: hatali ya da eksik verili gruplar ACIK gelir, tamami
+       basarili olanlar KAPALI. Bu sayfa pratikte "neyin yanlis gittigini" aramak icin
+       aciliyor; 60 kayitlik bir sayfada sorunsuz protokollerin tamamini acik tutmak,
+       aranan iki satiri kaydirmayla aratiyordu. Asagidaki "Tümünü aç/kapat" dugmesi
+       varsayilani her an ezebiliyor, yani kimse kapali bir gruba mahkum kalmiyor. *@
+    <div class="filter-bar" style="justify-content:flex-end; margin-bottom:10px;">
+        <button type="button" class="btn btn-outline btn-sm" onclick="akisTumunuAyarla(true)">Tümünü aç</button>
+        <button type="button" class="btn btn-outline btn-sm" onclick="akisTumunuAyarla(false)">Tümünü kapat</button>
+    </div>
+
     @foreach (var grup in Model.Gruplar)
     {
-        <div class="card akis-grup">
-            <div class="akis-grup-bas">
+        @* open="@bool": Razor, degeri false olan bool nitelikleri CIKTIYA HIC YAZMAZ.
+           HTML'de "open" niteliginin VARLIGI grubu acar -- open="false" yazilsaydi grup
+           yine acik gelirdi. *@
+        <details class="card akis-grup" open="@(grup.Hatali > 0 || grup.Atlanan > 0)">
+            <summary class="akis-grup-bas">
+                <span class="akis-grup-ok" aria-hidden="true"></span>
                 <div class="akis-grup-kimlik">
                     @if (grup.ProtokolId is { } pid)
                     {
-                        <a asp-page="/Protokol" asp-route-id="@pid" class="akis-grup-no" title="Protokol detayını aç">
+                        @* stopPropagation: baglanti <summary> icinde oldugu icin tiklama
+                           hem gezinti hem ac/kapat tetikleyebilirdi. Numaraya tiklamak
+                           detaya gider, basligin bos yerine tiklamak acip kapatir. *@
+                        <a asp-page="/Protokol" asp-route-id="@pid" class="akis-grup-no"
+                           title="Protokol detayını aç" onclick="event.stopPropagation()">
                             @pid.ToString(System.Globalization.CultureInfo.InvariantCulture)
                         </a>
                     }
@@ -187,8 +209,9 @@ else
                         <span class="badge warning" title="@grup.Atlanan kayıt eksik veri yüzünden gönderilemedi"><span class="badge-dot"></span>@grup.Atlanan</span>
                     }
                     <span class="mono text-muted akis-grup-saat">@grup.SonZamanYerel.ToString("dd.MM.yyyy HH:mm:ss")</span>
+                    <span class="akis-grup-adet">@grup.Kayitlar.Count kayıt</span>
                 </div>
-            </div>
+            </summary>
 
             <div class="table-wrap akis-grup-tablo">
                 <table>
@@ -216,7 +239,23 @@ else
                                        kayitlarinda ad zaten SyncLog'da tasiniyor, digerleri
                                        Pusula'dan toplu cozuluyor. Cozulemezse bos birakiliyor --
                                        uydurma metin yazmaktansa bos birakmak dogru. *@
-                                    @if (e.ResourceType == "Patient")
+                                    @* MUAYINE: PusulaId = ProtokolId oldugu icin Pusula'ya
+                                       ayri sorgu gerekmiyor -- bolum bilgisi grubun protokol
+                                       kaydindan geliyor (zaten okunmus durumda).
+                                       Baslikta da yaziyor ama satir kendi basina
+                                       okunabilir olmali: filtreyle tek tur suzuldugunde
+                                       ya da satir kopyalandiginda baslik gorunmuyor. *@
+                                    @if (e.ResourceType == "Encounter" && grup.Protokol?.BolumAdi is { Length: > 0 } muayineBolum)
+                                    {
+                                        <span>@muayineBolum</span>
+                                        @if (grup.Protokol?.GelisTipiId is { } gt)
+                                        {
+                                            @* Ayirici ile tek satirda okunuyor; bos
+                                               span'la yan yana koyunca iki satira sariyordu. *@
+                                            <span class="text-muted">&nbsp;&middot; @(gt == "Y" ? "Yatan" : gt == "G" ? "Günübirlik" : "Ayaktan")</span>
+                                        }
+                                    }
+                                    else if (e.ResourceType == "Patient")
                                     {
                                         <span>@(string.IsNullOrWhiteSpace(e.PatientFullName) ? "—" : e.PatientFullName)</span>
                                         @if (!string.IsNullOrWhiteSpace(e.Fin))
@@ -256,7 +295,7 @@ else
                     </tbody>
                 </table>
             </div>
-        </div>
+        </details>
     }
 
     <div class="pagination">
@@ -271,4 +310,10 @@ else
     </div>
 }
 
-
+<script>
+    // Toplu ac/kapat -- varsayilani ezer. Sunucu tarafi varsayilani "sorunlu olanlar acik"
+    // oldugu icin kullanicinin tam tersini isteyebilecegi durum her zaman var.
+    function akisTumunuAyarla(acik) {
+        document.querySelectorAll('details.akis-grup').forEach(function (d) { d.open = acik; });
+    }
+</script>
