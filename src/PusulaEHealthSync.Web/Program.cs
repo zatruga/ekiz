@@ -96,6 +96,11 @@ builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationSc
 builder.Services.AddAuthorizationBuilder()
     .AddPolicy("AdminOnly", p => p.RequireRole(UserAccountStore.RoleAdmin));
 
+// Aktivite Akisi'nin aralik ozeti icin (bkz. AktiviteModel): sayfalar arasinda gezinirken
+// ust karttaki sayilar sabit kalsin ve on binlerce id Pusula'ya her sayfada yeniden
+// sorulmasin diye iki dakikalik onbellek kullaniliyor.
+builder.Services.AddMemoryCache();
+
 builder.Services.AddRazorPages(options =>
 {
     options.Conventions.AuthorizeFolder("/");

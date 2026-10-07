@@ -417,6 +417,12 @@ a.stat-card.active { border-color: var(--primary); background: var(--primary-sof
   line-height: 1;
 }
 
+/* Buyuk rakamin altindaki ikincil olcu -- Aktivite Akisi'nda kart HASTA sayiyor,
+   bu satir o hastalarin kac SyncLog kaydina karsilik geldigini soyluyor.
+   Negatif margin: .stat-card 14px'lik flex gap kullaniyor, iki olcu birbirine ait
+   oldugu icin aralarinda o kadar bosluk olmamali. */
+.stat-foot { font-size: 12px; color: var(--text-faint); margin-top: -8px; }
+
 .stat-value.success { color: var(--success); }
 .stat-value.warning { color: var(--warning); }
 .stat-value.danger { color: var(--danger); }
@@ -750,6 +756,7 @@ tbody tr:hover { background: var(--surface-hover); }
 
 .alert-danger { background: var(--danger-soft); color: var(--danger); border: 1px solid rgba(248, 113, 113, 0.3); }
 .alert-success { background: var(--success-soft); color: var(--success); border: 1px solid rgba(52, 211, 153, 0.3); }
+.alert-warning { background: var(--warning-soft); color: var(--warning); border: 1px solid rgba(251, 191, 36, 0.3); }
 
 /* ---------- Detail page ---------- */
 

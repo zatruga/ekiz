@@ -171,6 +171,102 @@ public class SyncLogStore
         return result;
     }
 
+    // ======================= AKTIVITE AKISI: IKI ASAMALI OKUMA =======================
+    //
+    // KULLANICI ISTEGI (2026-10-07): "bu liste neden 2 hasta gosteriyor, sonraki dedikce
+    // yukarıdaki sayilar degisiyor; hasta sayilari tam gelsin, sayfa listesindeki
+    // hizmetlere gore degil hastayi saysin."
+    //
+    // SORUN SAYFALAMANIN BIRIMINDEYDI: sayfa 60 SATIR cekiyordu, ekran ise onlari
+    // protokole gore grupluyordu. Tek bir yatan hastanin bir gunluk laboratuvari 60
+    // satiri tek basina doldurabildigi icin 7.554 denemelik bir gun listede 2 hasta
+    // olarak gorunuyordu. Sayfa boyutunu buyutmek cozmez -- birim yanlis.
+    //
+    // Protokole gore sayfalamanin onsarti: satirlar gelmeden ONCE araligin TAMAMININ
+    // protokolu cozulmeli (SyncLog'da protokol bagi yok, Pusula'ya soruluyor). Bu yuzden
+    // okuma ikiye bolundu:
+    //   1. QueryOzetAsync  -- araligin tamami, satir basina dort alan (gruplama + sayim)
+    //   2. GetByIdsAsync   -- yalnizca o sayfaya dusen gruplarin satirlari, tam govdeyle
+    //
+    // Tek parcada yapilamazdi: QueryAsync SelectColumns ile okur, yani her satirin
+    // gonderilen ve donen FHIR govdesini de tasir. Gunde 7.500+ satirda govdeleri
+    // bellege almak sayfayi cokertirdi; oysa govde yalnizca ekranda GORUNEN satirlar
+    // icin gerekiyor.
+
+    // Gruplama ve sayim icin gereken asgari alanlar.
+    public record OzetSatiri(long Id, string ResourceType, int PusulaId, SyncStatus Status, string? Message);
+
+    // ORTAM FILTRESI YOK: QueryAsync ve GetStatusCountsAsync ile ayni bilincli karar
+    // (gerekcesi GetGunKayitlariAsync'in basinda) -- bu bir EKRAN sorgusu, olcum degil.
+    //
+    // mesajlariGetir: Message yalnizca "Hata Kategorisi" filtresi acikken gerekiyor
+    // (kategori mesaj metninden turetiliyor, DB kolonu degil). Varsayilan false cunku
+    // on binlerce hata mesajini bellekte tutmanin baska bir sebebi yok.
+    //
+    // tavan: bellek sigortasi. Asilirsa EN YENI satirlar doner ve cagiran taraf
+    // kullaniciyi uyarir -- sessizce eksik sayi gostermek, hic gostermemekten kotu.
+    public async Task<List<OzetSatiri>> QueryOzetAsync(
+        string? status, string? resourceType, DateTime? fromUtc, DateTime? toUtcExclusive,
+        int tavan, bool mesajlariGetir = false, CancellationToken ct = default)
+    {
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = $@"
+            SELECT Id, ResourceType, PusulaId, Status, {(mesajlariGetir ? "Message" : "NULL")}
+            FROM SyncLog
+            WHERE ($status IS NULL OR Status = $status)
+              AND ($resourceType IS NULL OR ResourceType = $resourceType)
+              AND ($from IS NULL OR CreatedAtUtc >= $from)
+              AND ($to IS NULL OR CreatedAtUtc < $to)
+            ORDER BY Id DESC
+            LIMIT $tavan";
+        cmd.Parameters.AddWithValue("$status", (object?)status ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$resourceType", (object?)resourceType ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$from", (object?)fromUtc?.ToString("O") ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$to", (object?)toUtcExclusive?.ToString("O") ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$tavan", tavan);
+
+        var result = new List<OzetSatiri>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            result.Add(new OzetSatiri(
+                reader.GetInt64(0), reader.GetString(1), reader.GetInt32(2),
+                Enum.Parse<SyncStatus>(reader.GetString(3)),
+                reader.IsDBNull(4) ? null : reader.GetString(4)));
+        return result;
+    }
+
+    // Id listesine gore TAM kayitlar (govdeler dahil). Donus Id'ye gore AZALAN, yani
+    // akisin en yeniden eskiye sirasi korunuyor -- cagiran taraf yeniden siralamak
+    // zorunda kalmasin diye (parti parti okundugu icin sira kendiliginden gelmiyor).
+    public async Task<List<SyncLogEntry>> GetByIdsAsync(
+        IReadOnlyCollection<long> idler, CancellationToken ct = default)
+    {
+        var result = new List<SyncLogEntry>();
+        if (idler.Count == 0) return result;
+
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+
+        // SQLite'in 999 degisken siniri -- mevcut kodla ayni parti boyutu.
+        foreach (var chunk in idler.Distinct().Chunk(900))
+        {
+            using var cmd = conn.CreateCommand();
+            var placeholders = chunk.Select((_, i) => $"$id{i}").ToList();
+            cmd.CommandText = $"SELECT {SelectColumns} FROM SyncLog WHERE Id IN ({string.Join(",", placeholders)})";
+            for (var i = 0; i < chunk.Length; i++)
+                cmd.Parameters.AddWithValue($"$id{i}", chunk[i]);
+
+            using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+                result.Add(ReadEntry(reader));
+        }
+
+        result.Sort((a, b) => b.Id.CompareTo(a.Id));
+        return result;
+    }
+
     public async Task<SyncLogEntry?> GetByIdAsync(long id, CancellationToken ct = default)
     {
         using var conn = new SqliteConnection(_connectionString);

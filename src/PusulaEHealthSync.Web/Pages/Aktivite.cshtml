@@ -10,7 +10,7 @@
 <div class="page-header">
     <div>
         <h1 class="page-title">Aktivite Akışı</h1>
-        <p class="page-subtitle">Her senkron denemesinin ham, teknik kaydı -- kaynak türüne göre filtrelenebilir</p>
+        <p class="page-subtitle">Her senkron denemesinin ham, teknik kaydı &mdash; hastaya göre gruplanmış, kaynak türüne göre filtrelenebilir</p>
     </div>
 </div>
 
@@ -42,33 +42,51 @@
     </select>
 </form>
 
+@* ==== KARTLAR HASTA SAYAR, SATIR DEGIL (KULLANICI ISTEGI 2026-10-07) ====
+   "hasta sayilari tam gelsin, sayfa listelemesi icindeki hizmetlere gore degil hastayi
+   saysin."
+
+   Buyuk rakam HASTA/PROTOKOL sayisi, altindaki kucuk satir o hastalarin kac SyncLog
+   kaydina karsilik geldigi. Ikisi de duruyor cunku iki ayri soruya cevap veriyorlar:
+   "kac hastayi ilgilendiriyor" (is yuku) ve "kac deneme yapildi" (teknik hacim).
+
+   EN KOTU DURUM KAZANIR: bir hastanin 40 kaydindan biri hata aldiysa o hasta Hatalı
+   sayilir. Bu kart "hangi hastalarda sorun var" diye tiklaniyor; 39 kaydi gectigi icin
+   basarili saymak kullaniciyi yanlis yere gotururdu. Kategoriler ortusmuyor,
+   toplamlari Toplam'a esit.
+
+   SAYILAR ARALIGIN TAMAMI ICIN -- goruntulenen sayfaya bagli degil. Sayfalar arasinda
+   gezerken degismemeleri icin aralik ozeti iki dakika onbellekte tutuluyor. *@
 <div class="stat-grid">
     <a asp-page="/Aktivite" asp-route-Status="" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" class="stat-card @(string.IsNullOrEmpty(Model.Status) ? "active" : "")">
         <div class="stat-top">
-            <span class="stat-label">Toplam Deneme</span>
+            <span class="stat-label">Toplam Hasta</span>
             <span class="stat-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
             </span>
         </div>
-        <span class="stat-value">@Model.TotalCount</span>
+        <span class="stat-value">@Model.Ozet.HastaToplam</span>
+        <span class="stat-foot">@Model.Ozet.ToplamKayit kayıt</span>
     </a>
     <a asp-page="/Aktivite" asp-route-Status="Success" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" class="stat-card success @(Model.Status == "Success" ? "active" : "")">
         <div class="stat-top">
-            <span class="stat-label">Başarılı</span>
+            <span class="stat-label">Sorunsuz</span>
             <span class="stat-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
             </span>
         </div>
-        <span class="stat-value success">@Model.SuccessCount</span>
+        <span class="stat-value success">@Model.Ozet.HastaBasarili</span>
+        <span class="stat-foot">@Model.Ozet.BasariliKayit kayıt başarılı</span>
     </a>
     <a asp-page="/Aktivite" asp-route-Status="Skipped" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" class="stat-card warning @(Model.Status == "Skipped" ? "active" : "")">
         <div class="stat-top">
-            <span class="stat-label">Atlanan</span>
+            <span class="stat-label">Eksik verili</span>
             <span class="stat-icon">
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
             </span>
         </div>
-        <span class="stat-value warning">@Model.SkippedCount</span>
+        <span class="stat-value warning">@Model.Ozet.HastaAtlanan</span>
+        <span class="stat-foot">@Model.Ozet.AtlananKayit kayıt atlandı</span>
     </a>
     <a asp-page="/Aktivite" asp-route-Status="Failed" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Kategori="@Model.Kategori" class="stat-card danger @(Model.Status == "Failed" ? "active" : "")">
         <div class="stat-top">
@@ -77,9 +95,27 @@
                 <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
             </span>
         </div>
-        <span class="stat-value danger">@Model.FailedCount</span>
+        <span class="stat-value danger">@Model.Ozet.HastaHatali</span>
+        <span class="stat-foot">@Model.Ozet.HataliKayit kayıt hata aldı</span>
     </a>
 </div>
+
+@* Sessizce eksik sayi gostermek, hic gostermemekten kotu -- taban asildiginda
+   kullanici bunu BILMEK zorunda, cunku karttaki "toplam hasta" artik eksik. *@
+@if (Model.Ozet.Kirpildi)
+{
+    <div class="alert alert-warning">
+        Bu tarih aralığında çok fazla kayıt var; sayılar <strong>en yeni 60.000 kayda</strong> göre hesaplandı.
+        Tam sayı için tarih aralığını daraltın.
+    </div>
+}
+@if (Model.Ozet.PusulaHatasi)
+{
+    <div class="alert alert-warning">
+        Pusula'ya erişilemediği için bazı kayıtların hastası çözülemedi &mdash; onlar listenin sonundaki
+        <strong>kimliği çözülemeyen</strong> grupta duruyor ve hasta sayısına dahil değil.
+    </div>
+}
 
 @if (Model.Status == "Failed" && !string.IsNullOrWhiteSpace(Model.Kategori))
 {
@@ -111,10 +147,10 @@ else
        degil -- protokol icinde sabit olan bir bilgiyi her satirda tekrarlamak tablonun
        1650px genisliginin asil sebebiydi. Satira ozgu kalan bilgi iceride duruyor.
 
-       SAYFALAMA SATIR BAZLI KALDI: QueryAsync satir sayfaliyor, bu yuzden bir protokolun
-       kayitlari nadiren iki sayfaya bolunebilir. Protokol bazli sayfalama, sayfa basina
-       kac satir cekilecegini onceden bilememek demekti; sayfa boyutu 25'ten 60'a
-       cikarilarak bolunme pratikte seyreltildi. *@
+       SAYFALAMA ARTIK GRUP BAZLI (2026-10-07): sayfa basina 25 HASTA/PROTOKOL. Eskiden
+       60 SATIR cekiliyordu ve gruplama ondan sonra yapiliyordu -- tek bir yatan hastanin
+       gunluk laboratuvari 60 satiri doldurabildigi icin 7.554 denemelik bir gun listede
+       iki hasta olarak gorunuyordu. Bir grubun kayitlari artik iki sayfaya BOLUNMEZ. *@
     @* ==== ACILIR/KAPANIR GRUPLAR (KULLANICI ISTEGI 2026-10-06) ====
        Native <details>/<summary>: JavaScript gerektirmiyor, klavyeyle calisiyor, ekran
        okuyucular durumu kendiliginden bildiriyor.
@@ -151,20 +187,31 @@ else
                             @pid.ToString(System.Globalization.CultureInfo.InvariantCulture)
                         </a>
                     }
+                    else if (grup.HastaGrubu)
+                    {
+                        @* HASTA GRUBU: protokolu yok ama kisi belli (aralikta protokol
+                           gonderimi olmayan bir Hasta kaydi). Eskiden bu satirlar da
+                           "Protokolsüz" kovasina dusuyordu; gunde protokol sayisi kadar
+                           Hasta kaydi yazildigi icin o kova tek basina yuzlerce farkli
+                           hastayi yutuyor ve "kac hasta" sayisini anlamsiz kiliyordu. *@
+                        <span class="akis-grup-no akis-grup-no--yok" title="Hasta kaydı — bu aralıkta protokol gönderimi yok">
+                            Hasta
+                        </span>
+                    }
                     else
                     {
-                        <span class="akis-grup-no akis-grup-no--yok" title="Hasta ve doktor kayıtları bir protokole ait değildir">
-                            Protokolsüz
+                        <span class="akis-grup-no akis-grup-no--yok" title="Doktor kayıtları ve protokolü çözülemeyen satırlar">
+                            Kimliksiz
                         </span>
                     }
 
                     <div class="akis-grup-metin">
                         <div class="akis-grup-hasta">
-                            @if (grup.ProtokolId is null)
+                            @if (grup.Kimliksiz)
                             {
-                                @* Bu grupta FARKLI hastalar ve doktorlar var -- tek bir isim
+                                @* Bu grupta FARKLI kisilerin kayitlari var -- tek bir isim
                                    yazmak yanlis bilgi olurdu (bkz. AktiviteGrubu.HastaAdi). *@
-                                <text>Protokole bağlı olmayan kayıtlar</text>
+                                <text>Kimliği çözülemeyen kayıtlar</text>
                             }
                             else
                             {
@@ -190,9 +237,13 @@ else
                             {
                                 <span class="text-faint">Protokol bilgisi okunamadı</span>
                             }
+                            else if (grup.HastaGrubu)
+                            {
+                                <span class="text-faint">Hasta kaydı &mdash; bu tarih aralığında bu hastaya ait protokol gönderimi yok</span>
+                            }
                             else
                             {
-                                <span class="text-faint">Hasta ve doktor kayıtları bir protokole ait değildir &mdash; her satırın kimliği kendi içeriğinde</span>
+                                <span class="text-faint">Doktor kayıtları ve protokolü çözülemeyen satırlar &mdash; her satırın kimliği kendi içeriğinde</span>
                             }
                         </div>
                     </div>
@@ -315,6 +366,9 @@ else
     }
 
     <div class="pagination">
+        <span class="text-muted" style="margin-right:auto; font-size:13px;">
+            @Model.Ozet.Gruplar.Count hastanın @Model.IlkSira&ndash;@Model.SonSira arası gösteriliyor
+        </span>
         @if (Model.PageNumber > 1)
         {
             <a class="btn btn-outline btn-sm" asp-page="/Aktivite" asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Kategori="@Model.Kategori" asp-route-P="@(Model.PageNumber - 1)">&larr; Önceki</a>
