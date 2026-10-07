@@ -199,29 +199,39 @@ public class SyncLogStore
     // ORTAM FILTRESI YOK: QueryAsync ve GetStatusCountsAsync ile ayni bilincli karar
     // (gerekcesi GetGunKayitlariAsync'in basinda) -- bu bir EKRAN sorgusu, olcum degil.
     //
-    // mesajlariGetir: Message yalnizca "Hata Kategorisi" filtresi acikken gerekiyor
-    // (kategori mesaj metninden turetiliyor, DB kolonu degil). Varsayilan false cunku
-    // on binlerce hata mesajini bellekte tutmanin baska bir sebebi yok.
+    // DURUM FILTRESI DE YOK, BILEREK (2026-10-07 duzeltmesi). Ozet, ust karttaki hasta
+    // sayilarini uretiyor ve o sayilar "en kotu durum kazanir" kuraliyla hesaplaniyor:
+    // bir hastanin kaydi hata aldiysa o hasta Hatali sayiliyor. Bu kural ancak hastanin
+    // TUM kayitlari elde varken isler. Sorgu Status'e gore suzulseydi, "Sorunsuz" karti
+    // tiklandiginda yalnizca basarili satirlar okunur, her hasta kendiliginden sorunsuz
+    // gorunur ve kart kendi sayisini yeniden yazardi (kullanici bunu yakaladi: Sorunsuz'a
+    // tiklayinca toplam 82'den 71'e dusuyor, Eksik veri'ye tiklayinca Sorunsuz 0 oluyordu).
+    // Suzme artik SQL'de degil, ekrana hangi gruplarin alinacagi secilirken yapiliyor.
+    //
+    // MESAJ YALNIZCA HATALI SATIRLAR ICIN: "Hata Kategorisi" filtresi mesaj metninden
+    // turetiliyor (DB kolonu degil), ama kategori zaten sadece Failed satirlar icin
+    // anlamli. CASE ile basarili/atlanan satirlarin mesaji hic okunmuyor -- 16.000
+    // satirlik bir gunde bu, bellege 48 mesaj tasimakla 16.000 mesaj tasimak arasindaki
+    // fark demek.
     //
     // tavan: bellek sigortasi. Asilirsa EN YENI satirlar doner ve cagiran taraf
     // kullaniciyi uyarir -- sessizce eksik sayi gostermek, hic gostermemekten kotu.
     public async Task<List<OzetSatiri>> QueryOzetAsync(
-        string? status, string? resourceType, DateTime? fromUtc, DateTime? toUtcExclusive,
-        int tavan, bool mesajlariGetir = false, CancellationToken ct = default)
+        string? resourceType, DateTime? fromUtc, DateTime? toUtcExclusive,
+        int tavan, CancellationToken ct = default)
     {
         using var conn = new SqliteConnection(_connectionString);
         await conn.OpenAsync(ct);
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = $@"
-            SELECT Id, ResourceType, PusulaId, Status, {(mesajlariGetir ? "Message" : "NULL")}
+        cmd.CommandText = @"
+            SELECT Id, ResourceType, PusulaId, Status,
+                   CASE WHEN Status = 'Failed' THEN Message ELSE NULL END
             FROM SyncLog
-            WHERE ($status IS NULL OR Status = $status)
-              AND ($resourceType IS NULL OR ResourceType = $resourceType)
+            WHERE ($resourceType IS NULL OR ResourceType = $resourceType)
               AND ($from IS NULL OR CreatedAtUtc >= $from)
               AND ($to IS NULL OR CreatedAtUtc < $to)
             ORDER BY Id DESC
             LIMIT $tavan";
-        cmd.Parameters.AddWithValue("$status", (object?)status ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$resourceType", (object?)resourceType ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$from", (object?)fromUtc?.ToString("O") ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$to", (object?)toUtcExclusive?.ToString("O") ?? DBNull.Value);

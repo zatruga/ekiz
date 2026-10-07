@@ -170,7 +170,9 @@ else
         @* open="@bool": Razor, degeri false olan bool nitelikleri CIKTIYA HIC YAZMAZ.
            HTML'de "open" niteliginin VARLIGI grubu acar -- open="false" yazilsaydi grup
            yine acik gelirdi. *@
-        <details class="card akis-grup" open="@(grup.Hatali > 0 || grup.Atlanan > 0)">
+        @* Suzgec aciksa grup da acik gelir: kullanici zaten "bu durumdaki satirlari
+           goster" dedi, hepsini tek tek acmasini istemek anlamsiz olurdu. *@
+        <details class="card akis-grup" open="@(grup.Suzulmus || grup.Hatali > 0 || grup.Atlanan > 0)">
             <summary class="akis-grup-bas">
                 @* Ok KIMLIK BLOGUNUN ICINDE: dogrudan summary'nin cocugu oldugunda
                    justify-content:space-between UC ogeyi dagitiyor ve kimlik ORTAYA
@@ -263,7 +265,20 @@ else
                         <span class="badge warning" title="@grup.Atlanan kayıt eksik veri yüzünden gönderilemedi"><span class="badge-dot"></span>@grup.Atlanan</span>
                     }
                     <span class="mono text-muted akis-grup-saat">@grup.SonZamanYerel.ToString("dd.MM.yyyy HH:mm:ss")</span>
-                    <span class="akis-grup-adet">@grup.Kayitlar.Count kayıt</span>
+                    @* SUZGEC ACIKKEN KACTAN KACI: rozetler hastanin aralikta yaptigi
+                       HER SEYI sayiyor, tablo ise yalnizca suzgece uyan satirlari
+                       gosteriyor. Bu satir ikisi arasindaki farki aciklar -- yoksa
+                       "3 basarili rozeti var ama tabloda 1 satir" celiski gibi gorunur. *@
+                    <span class="akis-grup-adet">
+                        @if (grup.Suzulmus)
+                        {
+                            <text>@grup.ToplamKayit kayıttan @grup.Kayitlar.Count tanesi</text>
+                        }
+                        else
+                        {
+                            <text>@grup.ToplamKayit kayıt</text>
+                        }
+                    </span>
                 </div>
             </summary>
 
@@ -367,7 +382,7 @@ else
 
     <div class="pagination">
         <span class="text-muted" style="margin-right:auto; font-size:13px;">
-            @Model.Ozet.Gruplar.Count hastanın @Model.IlkSira&ndash;@Model.SonSira arası gösteriliyor
+            @Model.ListelenenGrupSayisi hastanın @Model.IlkSira&ndash;@Model.SonSira arası gösteriliyor
         </span>
         @if (Model.PageNumber > 1)
         {
