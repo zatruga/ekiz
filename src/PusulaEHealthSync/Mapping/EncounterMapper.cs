@@ -14,8 +14,21 @@ namespace PusulaEHealthSync.Mapping;
 // erisimi yapmaz (PatientMapper ile ayni saflik ilkesi).
 public static class EncounterMapper
 {
-    // AZ CodeSystem http://fhir.az/CodeSystem/hospital-departments (52 kod: 51 isimli +
-    // "999"/Digər, terminology API'den cekildi -- bkz. docs/sql-exports/cs_hospital-departments.json).
+    // AZ CodeSystem http://fhir.az/CodeSystem/hospital-departments
+    // SURUM 0.1.2 (bakanlik yayini 2026-09-05): 93 kod. "999"/Digər DE BU LISTEDE --
+    // 2026-08-21 notundaki "999 eksik" durumu artik gecerli degil, bakanlik onu
+    // terminoloji yayinina eklemis. Elle eklenmemeli: eklenirse C# sozluk
+    // baslaticisi yinelenen anahtar yuzunden CALISMA ANINDA patlar (derleme gecer).
+    //
+    // 2026-10-07'de 0.1.1'den (51 isimli kod) guncellendi: bakanlik 42 YENI bolum
+    // ekledi, HICBIRINI kaldirmadi ve HICBIRININ ADINI degistirmedi -- yani mevcut
+    // eslestirmeler oldugu gibi gecerli kaldi. Yeni kodlarin cogu bu hastaneyi
+    // dogrudan ilgilendiriyor (223 Uşaq nevrologiyası, 232 Uşaq hematologiyası və
+    // onkologiyası, 229 Uşaq oftalmologiyası, 201 Patologiya gibi) -- oncesinde AZ
+    // karsiligi olmadigi icin eslestirilemeyen Pusula bolumleri artik eslestirilebilir.
+    //
+    // Kaynak: https://fhir.e-health.gov.az/CodeSystem-hospital-departments.json
+    // (bkz. docs/sql-exports/cs_hospital-departments-LIVE.json)
     // Sadece referans/dropdown amacli (Bolum Eslestirme sayfasi) -- Map artik bunu OTOMATIK
     // eslestirme icin kullanmiyor, bkz. asagidaki KARAR notu.
     //
@@ -27,7 +40,6 @@ public static class EncounterMapper
     // display'i hic eklemiyor (asagida bkz.).
     public static readonly Dictionary<string, string> HospitalDepartments = new()
     {
-        ["999"] = "Digər",
         ["2"] = "Pulmonologiya",
         ["3"] = "Revmatologiya",
         ["4"] = "Kardiologiya",
@@ -78,6 +90,49 @@ public static class EncounterMapper
         ["113"] = "Ürək-damar cərrahiyyəsi",
         ["114"] = "Neyrocərrahiyyə",
         ["115"] = "Uşaq cərrahiyyəsi",
+        ["200"] = "Anesteziologiya",
+        ["201"] = "Patologiya",
+        ["202"] = "Endoskopiya",
+        ["203"] = "Funksional diaqnostika",
+        ["204"] = "Torakal cərrahiyyə",
+        ["205"] = "Plastik cərrahiyyə",
+        ["206"] = "Şüa terapiyası",
+        ["207"] = "Nüvə təbabəti",
+        ["208"] = "Proktologiya",
+        ["209"] = "Ailə təbabəti",
+        ["210"] = "Məhkəmə-tibbi ekspertiza",
+        ["211"] = "Palliativ yardım",
+        ["212"] = "Transplantologiya",
+        ["220"] = "Uşaq kardiologiyası",
+        ["221"] = "Uşaq endokrinologiyası",
+        ["222"] = "Uşaq nefrologiyası",
+        ["223"] = "Uşaq nevrologiyası",
+        ["224"] = "Uşaq qastroenterologiyası",
+        ["225"] = "Uşaq urologiyası",
+        ["226"] = "Uşaq ürək-damar cərrahiyyəsi",
+        ["227"] = "Uşaq psixiatriyası",
+        ["228"] = "Uşaq stomatologiyası",
+        ["229"] = "Uşaq oftalmologiyası",
+        ["230"] = "Uşaq radiologiyası",
+        ["231"] = "Uşaq təcili yardımı",
+        ["232"] = "Uşaq hematologiyası və onkologiyası",
+        ["233"] = "Uşaq allerqologiyası və immunologiyası",
+        ["234"] = "Uşaq revmatologiyası",
+        ["240"] = "Terapevtik stomatologiya",
+        ["241"] = "Endodontiya",
+        ["242"] = "Parodontologiya",
+        ["243"] = "Ortopedik stomatologiya",
+        ["244"] = "Ortodontiya",
+        ["300"] = "Cərrahi onkologiya",
+        ["301"] = "Onkoginekologiya",
+        ["302"] = "Abdominal cərrahiyyə",
+        ["303"] = "Damar cərrahiyyəsi",
+        ["304"] = "Əl cərrahiyyəsi",
+        ["305"] = "Perinatologiya",
+        ["306"] = "Ağrı təbabəti",
+        ["307"] = "Peşə xəstəlikləri (əmək təbabəti)",
+        ["308"] = "İdman təbabəti",
+        ["999"] = "Digər",
     };
 
     // http://fhir.az/CodeSystem/encounter-type -- terminology API'den cekildi (2026-08-19,

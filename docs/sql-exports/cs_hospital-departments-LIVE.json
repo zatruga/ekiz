@@ -1,1 +1,507 @@
-{"resourceType":"CodeSystem","id":"hospital-departments","text":{"status":"generated","div":"<div xmlns=\"http://www.w3.org/1999/xhtml\"><p class=\"res-header-id\"><b>Generated Narrative: CodeSystem hospital-departments</b></p><a name=\"hospital-departments\"> </a><a name=\"hchospital-departments\"> </a><p>This  code system <code>http://fhir.az/CodeSystem/hospital-departments</code> defines the following codes:</p><table class=\"codes\"><tr><td style=\"white-space:nowrap\"><b>Code</b></td><td><b>Display</b></td><td><b>Definition</b></td></tr><tr><td style=\"white-space:nowrap\">2<a name=\"hospital-departments-2\"> </a></td><td>Pulmonologiya</td><td>Pulmonology</td></tr><tr><td style=\"white-space:nowrap\">3<a name=\"hospital-departments-3\"> </a></td><td>Revmatologiya</td><td>Rheumatology</td></tr><tr><td style=\"white-space:nowrap\">4<a name=\"hospital-departments-4\"> </a></td><td>Kardiologiya</td><td>Cardiology</td></tr><tr><td style=\"white-space:nowrap\">5<a name=\"hospital-departments-5\"> </a></td><td>Cərrahiyyə</td><td>Surgery</td></tr><tr><td style=\"white-space:nowrap\">6<a name=\"hospital-departments-6\"> </a></td><td>Qastroenterologiya</td><td>Gastroenterology</td></tr><tr><td style=\"white-space:nowrap\">7<a name=\"hospital-departments-7\"> </a></td><td>Endokrinologiya</td><td>Endocrinology</td></tr><tr><td style=\"white-space:nowrap\">8<a name=\"hospital-departments-8\"> </a></td><td>Allerqologiya-İmmunologiya</td><td>Allergology-Immunology</td></tr><tr><td style=\"white-space:nowrap\">9<a name=\"hospital-departments-9\"> </a></td><td>Böyüklər üçün yoluxucu xəstəliklər</td><td>Infectious diseases for adults</td></tr><tr><td style=\"white-space:nowrap\">10<a name=\"hospital-departments-10\"> </a></td><td>Uşaqlar üçün yoluxucu xəstəliklər</td><td>Infectious diseases for children</td></tr><tr><td style=\"white-space:nowrap\">15<a name=\"hospital-departments-15\"> </a></td><td>Travmatologiya (ortopedik)</td><td>Traumatology (orthopedic)</td></tr><tr><td style=\"white-space:nowrap\">16<a name=\"hospital-departments-16\"> </a></td><td>Urologiya</td><td>Urology</td></tr><tr><td style=\"white-space:nowrap\">17<a name=\"hospital-departments-17\"> </a></td><td>Onkologiya</td><td>Oncology</td></tr><tr><td style=\"white-space:nowrap\">18<a name=\"hospital-departments-18\"> </a></td><td>Radiologiya</td><td>Radiology</td></tr><tr><td style=\"white-space:nowrap\">19<a name=\"hospital-departments-19\"> </a></td><td>Stomatologiya</td><td>Dentistry</td></tr><tr><td style=\"white-space:nowrap\">21<a name=\"hospital-departments-21\"> </a></td><td>Mama-ginekologiya</td><td>Obstetrics-gynecology</td></tr><tr><td style=\"white-space:nowrap\">24<a name=\"hospital-departments-24\"> </a></td><td>Oftalmologiya</td><td>Ophthalmology</td></tr><tr><td style=\"white-space:nowrap\">25<a name=\"hospital-departments-25\"> </a></td><td>Otolarinqologiya</td><td>Otolaryngology</td></tr><tr><td style=\"white-space:nowrap\">26<a name=\"hospital-departments-26\"> </a></td><td>Surdologiya</td><td>Surgical science</td></tr><tr><td style=\"white-space:nowrap\">27<a name=\"hospital-departments-27\"> </a></td><td>Vərəm</td><td>Tuberculosis</td></tr><tr><td style=\"white-space:nowrap\">29<a name=\"hospital-departments-29\"> </a></td><td>Nevrologiya</td><td>Neurology</td></tr><tr><td style=\"white-space:nowrap\">30<a name=\"hospital-departments-30\"> </a></td><td>Ruhi xəstəliklər</td><td>Mental diseases</td></tr><tr><td style=\"white-space:nowrap\">31<a name=\"hospital-departments-31\"> </a></td><td>Psixoterapiya</td><td>Psychotherapy</td></tr><tr><td style=\"white-space:nowrap\">32<a name=\"hospital-departments-32\"> </a></td><td>Psixoendokrinologiya</td><td>Psychoendocrinology</td></tr><tr><td style=\"white-space:nowrap\">33<a name=\"hospital-departments-33\"> </a></td><td>Narkologiya</td><td>Narcology</td></tr><tr><td style=\"white-space:nowrap\">34<a name=\"hospital-departments-34\"> </a></td><td>Yeniyetmələr üçün narkologiya</td><td>Narcology for adolescents</td></tr><tr><td style=\"white-space:nowrap\">35<a name=\"hospital-departments-35\"> </a></td><td>Anonim müalicə üçün narkologiya</td><td>Narcology for anonymous treatment</td></tr><tr><td style=\"white-space:nowrap\">36<a name=\"hospital-departments-36\"> </a></td><td>Dəri-zöhrəvi</td><td>Dermatovenereology</td></tr><tr><td style=\"white-space:nowrap\">37<a name=\"hospital-departments-37\"> </a></td><td>Bərpaedici müalicə</td><td>Restorative treatment</td></tr><tr><td style=\"white-space:nowrap\">47<a name=\"hospital-departments-47\"> </a></td><td>Qanköçürmə</td><td>Blood transfusion</td></tr><tr><td style=\"white-space:nowrap\">48<a name=\"hospital-departments-48\"> </a></td><td>Hemodializ</td><td>Hemodialysis</td></tr><tr><td style=\"white-space:nowrap\">49<a name=\"hospital-departments-49\"> </a></td><td>Hemosorbsiya</td><td>Hemosorbtion</td></tr><tr><td style=\"white-space:nowrap\">51<a name=\"hospital-departments-51\"> </a></td><td>Terapiya</td><td>Therapy</td></tr><tr><td style=\"white-space:nowrap\">52<a name=\"hospital-departments-52\"> </a></td><td>Pediatriya</td><td>Pediatrics</td></tr><tr><td style=\"white-space:nowrap\">53<a name=\"hospital-departments-53\"> </a></td><td>Reanimasiya</td><td>Resuscitation</td></tr><tr><td style=\"white-space:nowrap\">100<a name=\"hospital-departments-100\"> </a></td><td>Təcili yardım</td><td>Emergency care</td></tr><tr><td style=\"white-space:nowrap\">101<a name=\"hospital-departments-101\"> </a></td><td>Laboratoriya</td><td>Laboratory</td></tr><tr><td style=\"white-space:nowrap\">102<a name=\"hospital-departments-102\"> </a></td><td>Nefrologiya</td><td>Nephrology</td></tr><tr><td style=\"white-space:nowrap\">103<a name=\"hospital-departments-103\"> </a></td><td>Hematologiya</td><td>Hematology</td></tr><tr><td style=\"white-space:nowrap\">104<a name=\"hospital-departments-104\"> </a></td><td>Üz-çənə cərrahiyyəsi</td><td>Maxillofacial surgery</td></tr><tr><td style=\"white-space:nowrap\">105<a name=\"hospital-departments-105\"> </a></td><td>Toksikologiya</td><td>Toxicology</td></tr><tr><td style=\"white-space:nowrap\">106<a name=\"hospital-departments-106\"> </a></td><td>Loqopediya</td><td>Speech therapy</td></tr><tr><td style=\"white-space:nowrap\">107<a name=\"hospital-departments-107\"> </a></td><td>Genetika</td><td>Genetics</td></tr><tr><td style=\"white-space:nowrap\">108<a name=\"hospital-departments-108\"> </a></td><td>Gerontologiya</td><td>Gerontology</td></tr><tr><td style=\"white-space:nowrap\">109<a name=\"hospital-departments-109\"> </a></td><td>Dietologiya</td><td>Dietetics</td></tr><tr><td style=\"white-space:nowrap\">110<a name=\"hospital-departments-110\"> </a></td><td>İmmunologiya</td><td>Immunology</td></tr><tr><td style=\"white-space:nowrap\">111<a name=\"hospital-departments-111\"> </a></td><td>Epidemiologiya</td><td>Epidemiology</td></tr><tr><td style=\"white-space:nowrap\">112<a name=\"hospital-departments-112\"> </a></td><td>Neonatologiya</td><td>Neonatology</td></tr><tr><td style=\"white-space:nowrap\">113<a name=\"hospital-departments-113\"> </a></td><td>Ürək-damar cərrahiyyəsi</td><td>Cardiovascular surgery</td></tr><tr><td style=\"white-space:nowrap\">114<a name=\"hospital-departments-114\"> </a></td><td>Neyrocərrahiyyə</td><td>Neurosurgery</td></tr><tr><td style=\"white-space:nowrap\">115<a name=\"hospital-departments-115\"> </a></td><td>Uşaq cərrahiyyəsi</td><td>Pediatric surgery</td></tr><tr><td style=\"white-space:nowrap\">999<a name=\"hospital-departments-999\"> </a></td><td>Digər</td><td>Other</td></tr></table></div>"},"url":"http://fhir.az/CodeSystem/hospital-departments","version":"0.1.1","name":"AZHospitalDepartments","title":"Xəstəxana Şöbələri (Hospital Departments)","status":"active","date":"2026-03-15T16:10:11+10:00","publisher":"iMed Health LLC-FZ","contact":[{"name":"iMed Health LLC-FZ","telecom":[{"system":"url","value":"https://imed.health"}]}],"description":"Azərbaycan səhiyyə sistemində xəstəxana şöbələri və ixtisaslar (Hospital departments and specialties in Azerbaijan healthcare system)","jurisdiction":[{"coding":[{"system":"urn:iso:std:iso:3166","code":"AZ","display":"Azerbaijan"}]}],"content":"complete","count":51,"concept":[{"code":"2","display":"Pulmonologiya","definition":"Pulmonology"},{"code":"3","display":"Revmatologiya","definition":"Rheumatology"},{"code":"4","display":"Kardiologiya","definition":"Cardiology"},{"code":"5","display":"Cərrahiyyə","definition":"Surgery"},{"code":"6","display":"Qastroenterologiya","definition":"Gastroenterology"},{"code":"7","display":"Endokrinologiya","definition":"Endocrinology"},{"code":"8","display":"Allerqologiya-İmmunologiya","definition":"Allergology-Immunology"},{"code":"9","display":"Böyüklər üçün yoluxucu xəstəliklər","definition":"Infectious diseases for adults"},{"code":"10","display":"Uşaqlar üçün yoluxucu xəstəliklər","definition":"Infectious diseases for children"},{"code":"15","display":"Travmatologiya (ortopedik)","definition":"Traumatology (orthopedic)"},{"code":"16","display":"Urologiya","definition":"Urology"},{"code":"17","display":"Onkologiya","definition":"Oncology"},{"code":"18","display":"Radiologiya","definition":"Radiology"},{"code":"19","display":"Stomatologiya","definition":"Dentistry"},{"code":"21","display":"Mama-ginekologiya","definition":"Obstetrics-gynecology"},{"code":"24","display":"Oftalmologiya","definition":"Ophthalmology"},{"code":"25","display":"Otolarinqologiya","definition":"Otolaryngology"},{"code":"26","display":"Surdologiya","definition":"Surgical science"},{"code":"27","display":"Vərəm","definition":"Tuberculosis"},{"code":"29","display":"Nevrologiya","definition":"Neurology"},{"code":"30","display":"Ruhi xəstəliklər","definition":"Mental diseases"},{"code":"31","display":"Psixoterapiya","definition":"Psychotherapy"},{"code":"32","display":"Psixoendokrinologiya","definition":"Psychoendocrinology"},{"code":"33","display":"Narkologiya","definition":"Narcology"},{"code":"34","display":"Yeniyetmələr üçün narkologiya","definition":"Narcology for adolescents"},{"code":"35","display":"Anonim müalicə üçün narkologiya","definition":"Narcology for anonymous treatment"},{"code":"36","display":"Dəri-zöhrəvi","definition":"Dermatovenereology"},{"code":"37","display":"Bərpaedici müalicə","definition":"Restorative treatment"},{"code":"47","display":"Qanköçürmə","definition":"Blood transfusion"},{"code":"48","display":"Hemodializ","definition":"Hemodialysis"},{"code":"49","display":"Hemosorbsiya","definition":"Hemosorbtion"},{"code":"51","display":"Terapiya","definition":"Therapy"},{"code":"52","display":"Pediatriya","definition":"Pediatrics"},{"code":"53","display":"Reanimasiya","definition":"Resuscitation"},{"code":"100","display":"Təcili yardım","definition":"Emergency care"},{"code":"101","display":"Laboratoriya","definition":"Laboratory"},{"code":"102","display":"Nefrologiya","definition":"Nephrology"},{"code":"103","display":"Hematologiya","definition":"Hematology"},{"code":"104","display":"Üz-çənə cərrahiyyəsi","definition":"Maxillofacial surgery"},{"code":"105","display":"Toksikologiya","definition":"Toxicology"},{"code":"106","display":"Loqopediya","definition":"Speech therapy"},{"code":"107","display":"Genetika","definition":"Genetics"},{"code":"108","display":"Gerontologiya","definition":"Gerontology"},{"code":"109","display":"Dietologiya","definition":"Dietetics"},{"code":"110","display":"İmmunologiya","definition":"Immunology"},{"code":"111","display":"Epidemiologiya","definition":"Epidemiology"},{"code":"112","display":"Neonatologiya","definition":"Neonatology"},{"code":"113","display":"Ürək-damar cərrahiyyəsi","definition":"Cardiovascular surgery"},{"code":"114","display":"Neyrocərrahiyyə","definition":"Neurosurgery"},{"code":"115","display":"Uşaq cərrahiyyəsi","definition":"Pediatric surgery"},{"code":"999","display":"Digər","definition":"Other"}]}
+{
+  "resourceType": "CodeSystem",
+  "id": "hospital-departments",
+  "text": {
+    "status": "generated",
+    "div": "<div xmlns=\"http://www.w3.org/1999/xhtml\"><p class=\"res-header-id\"><b>Generated Narrative: CodeSystem hospital-departments</b></p><a name=\"hospital-departments\"> </a><a name=\"hchospital-departments\"> </a><p>This  code system <code>http://fhir.az/CodeSystem/hospital-departments</code> defines the following codes:</p><table class=\"codes\"><tr><td style=\"white-space:nowrap\"><b>Code</b></td><td><b>Display</b></td><td><b>Definition</b></td></tr><tr><td style=\"white-space:nowrap\">2<a name=\"hospital-departments-2\"> </a></td><td>Pulmonologiya</td><td>Pulmonology</td></tr><tr><td style=\"white-space:nowrap\">3<a name=\"hospital-departments-3\"> </a></td><td>Revmatologiya</td><td>Rheumatology</td></tr><tr><td style=\"white-space:nowrap\">4<a name=\"hospital-departments-4\"> </a></td><td>Kardiologiya</td><td>Cardiology</td></tr><tr><td style=\"white-space:nowrap\">5<a name=\"hospital-departments-5\"> </a></td><td>Cərrahiyyə</td><td>Surgery</td></tr><tr><td style=\"white-space:nowrap\">6<a name=\"hospital-departments-6\"> </a></td><td>Qastroenterologiya</td><td>Gastroenterology</td></tr><tr><td style=\"white-space:nowrap\">7<a name=\"hospital-departments-7\"> </a></td><td>Endokrinologiya</td><td>Endocrinology</td></tr><tr><td style=\"white-space:nowrap\">8<a name=\"hospital-departments-8\"> </a></td><td>Allerqologiya-İmmunologiya</td><td>Allergology-Immunology</td></tr><tr><td style=\"white-space:nowrap\">9<a name=\"hospital-departments-9\"> </a></td><td>Böyüklər üçün yoluxucu xəstəliklər</td><td>Infectious diseases for adults</td></tr><tr><td style=\"white-space:nowrap\">10<a name=\"hospital-departments-10\"> </a></td><td>Uşaqlar üçün yoluxucu xəstəliklər</td><td>Infectious diseases for children</td></tr><tr><td style=\"white-space:nowrap\">15<a name=\"hospital-departments-15\"> </a></td><td>Travmatologiya (ortopedik)</td><td>Traumatology (orthopedic)</td></tr><tr><td style=\"white-space:nowrap\">16<a name=\"hospital-departments-16\"> </a></td><td>Urologiya</td><td>Urology</td></tr><tr><td style=\"white-space:nowrap\">17<a name=\"hospital-departments-17\"> </a></td><td>Onkologiya</td><td>Oncology</td></tr><tr><td style=\"white-space:nowrap\">18<a name=\"hospital-departments-18\"> </a></td><td>Radiologiya</td><td>Radiology</td></tr><tr><td style=\"white-space:nowrap\">19<a name=\"hospital-departments-19\"> </a></td><td>Stomatologiya</td><td>Dentistry</td></tr><tr><td style=\"white-space:nowrap\">21<a name=\"hospital-departments-21\"> </a></td><td>Mama-ginekologiya</td><td>Obstetrics-gynecology</td></tr><tr><td style=\"white-space:nowrap\">24<a name=\"hospital-departments-24\"> </a></td><td>Oftalmologiya</td><td>Ophthalmology</td></tr><tr><td style=\"white-space:nowrap\">25<a name=\"hospital-departments-25\"> </a></td><td>Otolarinqologiya</td><td>Otolaryngology</td></tr><tr><td style=\"white-space:nowrap\">26<a name=\"hospital-departments-26\"> </a></td><td>Surdologiya</td><td>Audiology</td></tr><tr><td style=\"white-space:nowrap\">27<a name=\"hospital-departments-27\"> </a></td><td>Vərəm</td><td>Tuberculosis</td></tr><tr><td style=\"white-space:nowrap\">29<a name=\"hospital-departments-29\"> </a></td><td>Nevrologiya</td><td>Neurology</td></tr><tr><td style=\"white-space:nowrap\">30<a name=\"hospital-departments-30\"> </a></td><td>Ruhi xəstəliklər</td><td>Mental diseases</td></tr><tr><td style=\"white-space:nowrap\">31<a name=\"hospital-departments-31\"> </a></td><td>Psixoterapiya</td><td>Psychotherapy</td></tr><tr><td style=\"white-space:nowrap\">32<a name=\"hospital-departments-32\"> </a></td><td>Psixoendokrinologiya</td><td>Psychoendocrinology</td></tr><tr><td style=\"white-space:nowrap\">33<a name=\"hospital-departments-33\"> </a></td><td>Narkologiya</td><td>Narcology</td></tr><tr><td style=\"white-space:nowrap\">34<a name=\"hospital-departments-34\"> </a></td><td>Yeniyetmələr üçün narkologiya</td><td>Narcology for adolescents</td></tr><tr><td style=\"white-space:nowrap\">35<a name=\"hospital-departments-35\"> </a></td><td>Anonim müalicə üçün narkologiya</td><td>Narcology for anonymous treatment</td></tr><tr><td style=\"white-space:nowrap\">36<a name=\"hospital-departments-36\"> </a></td><td>Dəri-zöhrəvi</td><td>Dermatovenereology</td></tr><tr><td style=\"white-space:nowrap\">37<a name=\"hospital-departments-37\"> </a></td><td>Bərpaedici müalicə</td><td>Restorative treatment</td></tr><tr><td style=\"white-space:nowrap\">47<a name=\"hospital-departments-47\"> </a></td><td>Qanköçürmə</td><td>Blood transfusion</td></tr><tr><td style=\"white-space:nowrap\">48<a name=\"hospital-departments-48\"> </a></td><td>Hemodializ</td><td>Hemodialysis</td></tr><tr><td style=\"white-space:nowrap\">49<a name=\"hospital-departments-49\"> </a></td><td>Hemosorbsiya</td><td>Hemosorbtion</td></tr><tr><td style=\"white-space:nowrap\">51<a name=\"hospital-departments-51\"> </a></td><td>Terapiya</td><td>Therapy</td></tr><tr><td style=\"white-space:nowrap\">52<a name=\"hospital-departments-52\"> </a></td><td>Pediatriya</td><td>Pediatrics</td></tr><tr><td style=\"white-space:nowrap\">53<a name=\"hospital-departments-53\"> </a></td><td>Reanimasiya</td><td>Resuscitation</td></tr><tr><td style=\"white-space:nowrap\">100<a name=\"hospital-departments-100\"> </a></td><td>Təcili yardım</td><td>Emergency care</td></tr><tr><td style=\"white-space:nowrap\">101<a name=\"hospital-departments-101\"> </a></td><td>Laboratoriya</td><td>Laboratory</td></tr><tr><td style=\"white-space:nowrap\">102<a name=\"hospital-departments-102\"> </a></td><td>Nefrologiya</td><td>Nephrology</td></tr><tr><td style=\"white-space:nowrap\">103<a name=\"hospital-departments-103\"> </a></td><td>Hematologiya</td><td>Hematology</td></tr><tr><td style=\"white-space:nowrap\">104<a name=\"hospital-departments-104\"> </a></td><td>Üz-çənə cərrahiyyəsi</td><td>Maxillofacial surgery</td></tr><tr><td style=\"white-space:nowrap\">105<a name=\"hospital-departments-105\"> </a></td><td>Toksikologiya</td><td>Toxicology</td></tr><tr><td style=\"white-space:nowrap\">106<a name=\"hospital-departments-106\"> </a></td><td>Loqopediya</td><td>Speech therapy</td></tr><tr><td style=\"white-space:nowrap\">107<a name=\"hospital-departments-107\"> </a></td><td>Genetika</td><td>Genetics</td></tr><tr><td style=\"white-space:nowrap\">108<a name=\"hospital-departments-108\"> </a></td><td>Gerontologiya</td><td>Gerontology</td></tr><tr><td style=\"white-space:nowrap\">109<a name=\"hospital-departments-109\"> </a></td><td>Dietologiya</td><td>Dietetics</td></tr><tr><td style=\"white-space:nowrap\">110<a name=\"hospital-departments-110\"> </a></td><td>İmmunologiya</td><td>Immunology</td></tr><tr><td style=\"white-space:nowrap\">111<a name=\"hospital-departments-111\"> </a></td><td>Epidemiologiya</td><td>Epidemiology</td></tr><tr><td style=\"white-space:nowrap\">112<a name=\"hospital-departments-112\"> </a></td><td>Neonatologiya</td><td>Neonatology</td></tr><tr><td style=\"white-space:nowrap\">113<a name=\"hospital-departments-113\"> </a></td><td>Ürək-damar cərrahiyyəsi</td><td>Cardiovascular surgery</td></tr><tr><td style=\"white-space:nowrap\">114<a name=\"hospital-departments-114\"> </a></td><td>Neyrocərrahiyyə</td><td>Neurosurgery</td></tr><tr><td style=\"white-space:nowrap\">115<a name=\"hospital-departments-115\"> </a></td><td>Uşaq cərrahiyyəsi</td><td>Pediatric surgery</td></tr><tr><td style=\"white-space:nowrap\">200<a name=\"hospital-departments-200\"> </a></td><td>Anesteziologiya</td><td>Anesthesiology</td></tr><tr><td style=\"white-space:nowrap\">201<a name=\"hospital-departments-201\"> </a></td><td>Patologiya</td><td>Pathology</td></tr><tr><td style=\"white-space:nowrap\">202<a name=\"hospital-departments-202\"> </a></td><td>Endoskopiya</td><td>Endoscopy</td></tr><tr><td style=\"white-space:nowrap\">203<a name=\"hospital-departments-203\"> </a></td><td>Funksional diaqnostika</td><td>Functional diagnostics</td></tr><tr><td style=\"white-space:nowrap\">204<a name=\"hospital-departments-204\"> </a></td><td>Torakal cərrahiyyə</td><td>Thoracic surgery</td></tr><tr><td style=\"white-space:nowrap\">205<a name=\"hospital-departments-205\"> </a></td><td>Plastik cərrahiyyə</td><td>Plastic surgery</td></tr><tr><td style=\"white-space:nowrap\">206<a name=\"hospital-departments-206\"> </a></td><td>Şüa terapiyası</td><td>Radiation therapy</td></tr><tr><td style=\"white-space:nowrap\">207<a name=\"hospital-departments-207\"> </a></td><td>Nüvə təbabəti</td><td>Nuclear medicine</td></tr><tr><td style=\"white-space:nowrap\">208<a name=\"hospital-departments-208\"> </a></td><td>Proktologiya</td><td>Proctology</td></tr><tr><td style=\"white-space:nowrap\">209<a name=\"hospital-departments-209\"> </a></td><td>Ailə təbabəti</td><td>Family medicine</td></tr><tr><td style=\"white-space:nowrap\">210<a name=\"hospital-departments-210\"> </a></td><td>Məhkəmə-tibbi ekspertiza</td><td>Forensic medicine</td></tr><tr><td style=\"white-space:nowrap\">211<a name=\"hospital-departments-211\"> </a></td><td>Palliativ yardım</td><td>Palliative care</td></tr><tr><td style=\"white-space:nowrap\">212<a name=\"hospital-departments-212\"> </a></td><td>Transplantologiya</td><td>Transplantology</td></tr><tr><td style=\"white-space:nowrap\">220<a name=\"hospital-departments-220\"> </a></td><td>Uşaq kardiologiyası</td><td>Pediatric cardiology</td></tr><tr><td style=\"white-space:nowrap\">221<a name=\"hospital-departments-221\"> </a></td><td>Uşaq endokrinologiyası</td><td>Pediatric endocrinology</td></tr><tr><td style=\"white-space:nowrap\">222<a name=\"hospital-departments-222\"> </a></td><td>Uşaq nefrologiyası</td><td>Pediatric nephrology</td></tr><tr><td style=\"white-space:nowrap\">223<a name=\"hospital-departments-223\"> </a></td><td>Uşaq nevrologiyası</td><td>Pediatric neurology</td></tr><tr><td style=\"white-space:nowrap\">224<a name=\"hospital-departments-224\"> </a></td><td>Uşaq qastroenterologiyası</td><td>Pediatric gastroenterology</td></tr><tr><td style=\"white-space:nowrap\">225<a name=\"hospital-departments-225\"> </a></td><td>Uşaq urologiyası</td><td>Pediatric urology</td></tr><tr><td style=\"white-space:nowrap\">226<a name=\"hospital-departments-226\"> </a></td><td>Uşaq ürək-damar cərrahiyyəsi</td><td>Pediatric cardiovascular surgery</td></tr><tr><td style=\"white-space:nowrap\">227<a name=\"hospital-departments-227\"> </a></td><td>Uşaq psixiatriyası</td><td>Pediatric psychiatry</td></tr><tr><td style=\"white-space:nowrap\">228<a name=\"hospital-departments-228\"> </a></td><td>Uşaq stomatologiyası</td><td>Pediatric dentistry</td></tr><tr><td style=\"white-space:nowrap\">229<a name=\"hospital-departments-229\"> </a></td><td>Uşaq oftalmologiyası</td><td>Pediatric ophthalmology</td></tr><tr><td style=\"white-space:nowrap\">230<a name=\"hospital-departments-230\"> </a></td><td>Uşaq radiologiyası</td><td>Pediatric radiology</td></tr><tr><td style=\"white-space:nowrap\">231<a name=\"hospital-departments-231\"> </a></td><td>Uşaq təcili yardımı</td><td>Pediatric emergency care</td></tr><tr><td style=\"white-space:nowrap\">232<a name=\"hospital-departments-232\"> </a></td><td>Uşaq hematologiyası və onkologiyası</td><td>Pediatric hematology and oncology</td></tr><tr><td style=\"white-space:nowrap\">233<a name=\"hospital-departments-233\"> </a></td><td>Uşaq allerqologiyası və immunologiyası</td><td>Pediatric allergology and immunology</td></tr><tr><td style=\"white-space:nowrap\">234<a name=\"hospital-departments-234\"> </a></td><td>Uşaq revmatologiyası</td><td>Pediatric rheumatology</td></tr><tr><td style=\"white-space:nowrap\">240<a name=\"hospital-departments-240\"> </a></td><td>Terapevtik stomatologiya</td><td>Therapeutic (restorative) dentistry</td></tr><tr><td style=\"white-space:nowrap\">241<a name=\"hospital-departments-241\"> </a></td><td>Endodontiya</td><td>Endodontics</td></tr><tr><td style=\"white-space:nowrap\">242<a name=\"hospital-departments-242\"> </a></td><td>Parodontologiya</td><td>Periodontology</td></tr><tr><td style=\"white-space:nowrap\">243<a name=\"hospital-departments-243\"> </a></td><td>Ortopedik stomatologiya</td><td>Prosthodontics</td></tr><tr><td style=\"white-space:nowrap\">244<a name=\"hospital-departments-244\"> </a></td><td>Ortodontiya</td><td>Orthodontics</td></tr><tr><td style=\"white-space:nowrap\">300<a name=\"hospital-departments-300\"> </a></td><td>Cərrahi onkologiya</td><td>Surgical oncology</td></tr><tr><td style=\"white-space:nowrap\">301<a name=\"hospital-departments-301\"> </a></td><td>Onkoginekologiya</td><td>Gynecologic oncology</td></tr><tr><td style=\"white-space:nowrap\">302<a name=\"hospital-departments-302\"> </a></td><td>Abdominal cərrahiyyə</td><td>Abdominal (gastrointestinal) surgery</td></tr><tr><td style=\"white-space:nowrap\">303<a name=\"hospital-departments-303\"> </a></td><td>Damar cərrahiyyəsi</td><td>Vascular surgery</td></tr><tr><td style=\"white-space:nowrap\">304<a name=\"hospital-departments-304\"> </a></td><td>Əl cərrahiyyəsi</td><td>Hand surgery</td></tr><tr><td style=\"white-space:nowrap\">305<a name=\"hospital-departments-305\"> </a></td><td>Perinatologiya</td><td>Perinatology (maternal-fetal medicine)</td></tr><tr><td style=\"white-space:nowrap\">306<a name=\"hospital-departments-306\"> </a></td><td>Ağrı təbabəti</td><td>Pain medicine (algology)</td></tr><tr><td style=\"white-space:nowrap\">307<a name=\"hospital-departments-307\"> </a></td><td>Peşə xəstəlikləri (əmək təbabəti)</td><td>Occupational medicine</td></tr><tr><td style=\"white-space:nowrap\">308<a name=\"hospital-departments-308\"> </a></td><td>İdman təbabəti</td><td>Sports medicine</td></tr><tr><td style=\"white-space:nowrap\">999<a name=\"hospital-departments-999\"> </a></td><td>Digər</td><td>Other</td></tr></table></div>"
+  },
+  "url": "http://fhir.az/CodeSystem/hospital-departments",
+  "version": "0.1.2",
+  "name": "AZHospitalDepartments",
+  "title": "Xəstəxana Şöbələri (Hospital Departments)",
+  "status": "active",
+  "date": "2026-09-05T12:47:52+10:00",
+  "publisher": "iMed Health LLC-FZ",
+  "contact": [
+    {
+      "name": "iMed Health LLC-FZ",
+      "telecom": [
+        {
+          "system": "url",
+          "value": "https://imed.health"
+        }
+      ]
+    }
+  ],
+  "description": "Azərbaycan səhiyyə sistemində xəstəxana şöbələri və ixtisaslar (Hospital departments and specialties in Azerbaijan healthcare system)",
+  "jurisdiction": [
+    {
+      "coding": [
+        {
+          "system": "urn:iso:std:iso:3166",
+          "code": "AZ",
+          "display": "Azerbaijan"
+        }
+      ]
+    }
+  ],
+  "content": "complete",
+  "count": 93,
+  "concept": [
+    {
+      "code": "2",
+      "display": "Pulmonologiya",
+      "definition": "Pulmonology"
+    },
+    {
+      "code": "3",
+      "display": "Revmatologiya",
+      "definition": "Rheumatology"
+    },
+    {
+      "code": "4",
+      "display": "Kardiologiya",
+      "definition": "Cardiology"
+    },
+    {
+      "code": "5",
+      "display": "Cərrahiyyə",
+      "definition": "Surgery"
+    },
+    {
+      "code": "6",
+      "display": "Qastroenterologiya",
+      "definition": "Gastroenterology"
+    },
+    {
+      "code": "7",
+      "display": "Endokrinologiya",
+      "definition": "Endocrinology"
+    },
+    {
+      "code": "8",
+      "display": "Allerqologiya-İmmunologiya",
+      "definition": "Allergology-Immunology"
+    },
+    {
+      "code": "9",
+      "display": "Böyüklər üçün yoluxucu xəstəliklər",
+      "definition": "Infectious diseases for adults"
+    },
+    {
+      "code": "10",
+      "display": "Uşaqlar üçün yoluxucu xəstəliklər",
+      "definition": "Infectious diseases for children"
+    },
+    {
+      "code": "15",
+      "display": "Travmatologiya (ortopedik)",
+      "definition": "Traumatology (orthopedic)"
+    },
+    {
+      "code": "16",
+      "display": "Urologiya",
+      "definition": "Urology"
+    },
+    {
+      "code": "17",
+      "display": "Onkologiya",
+      "definition": "Oncology"
+    },
+    {
+      "code": "18",
+      "display": "Radiologiya",
+      "definition": "Radiology"
+    },
+    {
+      "code": "19",
+      "display": "Stomatologiya",
+      "definition": "Dentistry"
+    },
+    {
+      "code": "21",
+      "display": "Mama-ginekologiya",
+      "definition": "Obstetrics-gynecology"
+    },
+    {
+      "code": "24",
+      "display": "Oftalmologiya",
+      "definition": "Ophthalmology"
+    },
+    {
+      "code": "25",
+      "display": "Otolarinqologiya",
+      "definition": "Otolaryngology"
+    },
+    {
+      "code": "26",
+      "display": "Surdologiya",
+      "definition": "Audiology"
+    },
+    {
+      "code": "27",
+      "display": "Vərəm",
+      "definition": "Tuberculosis"
+    },
+    {
+      "code": "29",
+      "display": "Nevrologiya",
+      "definition": "Neurology"
+    },
+    {
+      "code": "30",
+      "display": "Ruhi xəstəliklər",
+      "definition": "Mental diseases"
+    },
+    {
+      "code": "31",
+      "display": "Psixoterapiya",
+      "definition": "Psychotherapy"
+    },
+    {
+      "code": "32",
+      "display": "Psixoendokrinologiya",
+      "definition": "Psychoendocrinology"
+    },
+    {
+      "code": "33",
+      "display": "Narkologiya",
+      "definition": "Narcology"
+    },
+    {
+      "code": "34",
+      "display": "Yeniyetmələr üçün narkologiya",
+      "definition": "Narcology for adolescents"
+    },
+    {
+      "code": "35",
+      "display": "Anonim müalicə üçün narkologiya",
+      "definition": "Narcology for anonymous treatment"
+    },
+    {
+      "code": "36",
+      "display": "Dəri-zöhrəvi",
+      "definition": "Dermatovenereology"
+    },
+    {
+      "code": "37",
+      "display": "Bərpaedici müalicə",
+      "definition": "Restorative treatment"
+    },
+    {
+      "code": "47",
+      "display": "Qanköçürmə",
+      "definition": "Blood transfusion"
+    },
+    {
+      "code": "48",
+      "display": "Hemodializ",
+      "definition": "Hemodialysis"
+    },
+    {
+      "code": "49",
+      "display": "Hemosorbsiya",
+      "definition": "Hemosorbtion"
+    },
+    {
+      "code": "51",
+      "display": "Terapiya",
+      "definition": "Therapy"
+    },
+    {
+      "code": "52",
+      "display": "Pediatriya",
+      "definition": "Pediatrics"
+    },
+    {
+      "code": "53",
+      "display": "Reanimasiya",
+      "definition": "Resuscitation"
+    },
+    {
+      "code": "100",
+      "display": "Təcili yardım",
+      "definition": "Emergency care"
+    },
+    {
+      "code": "101",
+      "display": "Laboratoriya",
+      "definition": "Laboratory"
+    },
+    {
+      "code": "102",
+      "display": "Nefrologiya",
+      "definition": "Nephrology"
+    },
+    {
+      "code": "103",
+      "display": "Hematologiya",
+      "definition": "Hematology"
+    },
+    {
+      "code": "104",
+      "display": "Üz-çənə cərrahiyyəsi",
+      "definition": "Maxillofacial surgery"
+    },
+    {
+      "code": "105",
+      "display": "Toksikologiya",
+      "definition": "Toxicology"
+    },
+    {
+      "code": "106",
+      "display": "Loqopediya",
+      "definition": "Speech therapy"
+    },
+    {
+      "code": "107",
+      "display": "Genetika",
+      "definition": "Genetics"
+    },
+    {
+      "code": "108",
+      "display": "Gerontologiya",
+      "definition": "Gerontology"
+    },
+    {
+      "code": "109",
+      "display": "Dietologiya",
+      "definition": "Dietetics"
+    },
+    {
+      "code": "110",
+      "display": "İmmunologiya",
+      "definition": "Immunology"
+    },
+    {
+      "code": "111",
+      "display": "Epidemiologiya",
+      "definition": "Epidemiology"
+    },
+    {
+      "code": "112",
+      "display": "Neonatologiya",
+      "definition": "Neonatology"
+    },
+    {
+      "code": "113",
+      "display": "Ürək-damar cərrahiyyəsi",
+      "definition": "Cardiovascular surgery"
+    },
+    {
+      "code": "114",
+      "display": "Neyrocərrahiyyə",
+      "definition": "Neurosurgery"
+    },
+    {
+      "code": "115",
+      "display": "Uşaq cərrahiyyəsi",
+      "definition": "Pediatric surgery"
+    },
+    {
+      "code": "200",
+      "display": "Anesteziologiya",
+      "definition": "Anesthesiology"
+    },
+    {
+      "code": "201",
+      "display": "Patologiya",
+      "definition": "Pathology"
+    },
+    {
+      "code": "202",
+      "display": "Endoskopiya",
+      "definition": "Endoscopy"
+    },
+    {
+      "code": "203",
+      "display": "Funksional diaqnostika",
+      "definition": "Functional diagnostics"
+    },
+    {
+      "code": "204",
+      "display": "Torakal cərrahiyyə",
+      "definition": "Thoracic surgery"
+    },
+    {
+      "code": "205",
+      "display": "Plastik cərrahiyyə",
+      "definition": "Plastic surgery"
+    },
+    {
+      "code": "206",
+      "display": "Şüa terapiyası",
+      "definition": "Radiation therapy"
+    },
+    {
+      "code": "207",
+      "display": "Nüvə təbabəti",
+      "definition": "Nuclear medicine"
+    },
+    {
+      "code": "208",
+      "display": "Proktologiya",
+      "definition": "Proctology"
+    },
+    {
+      "code": "209",
+      "display": "Ailə təbabəti",
+      "definition": "Family medicine"
+    },
+    {
+      "code": "210",
+      "display": "Məhkəmə-tibbi ekspertiza",
+      "definition": "Forensic medicine"
+    },
+    {
+      "code": "211",
+      "display": "Palliativ yardım",
+      "definition": "Palliative care"
+    },
+    {
+      "code": "212",
+      "display": "Transplantologiya",
+      "definition": "Transplantology"
+    },
+    {
+      "code": "220",
+      "display": "Uşaq kardiologiyası",
+      "definition": "Pediatric cardiology"
+    },
+    {
+      "code": "221",
+      "display": "Uşaq endokrinologiyası",
+      "definition": "Pediatric endocrinology"
+    },
+    {
+      "code": "222",
+      "display": "Uşaq nefrologiyası",
+      "definition": "Pediatric nephrology"
+    },
+    {
+      "code": "223",
+      "display": "Uşaq nevrologiyası",
+      "definition": "Pediatric neurology"
+    },
+    {
+      "code": "224",
+      "display": "Uşaq qastroenterologiyası",
+      "definition": "Pediatric gastroenterology"
+    },
+    {
+      "code": "225",
+      "display": "Uşaq urologiyası",
+      "definition": "Pediatric urology"
+    },
+    {
+      "code": "226",
+      "display": "Uşaq ürək-damar cərrahiyyəsi",
+      "definition": "Pediatric cardiovascular surgery"
+    },
+    {
+      "code": "227",
+      "display": "Uşaq psixiatriyası",
+      "definition": "Pediatric psychiatry"
+    },
+    {
+      "code": "228",
+      "display": "Uşaq stomatologiyası",
+      "definition": "Pediatric dentistry"
+    },
+    {
+      "code": "229",
+      "display": "Uşaq oftalmologiyası",
+      "definition": "Pediatric ophthalmology"
+    },
+    {
+      "code": "230",
+      "display": "Uşaq radiologiyası",
+      "definition": "Pediatric radiology"
+    },
+    {
+      "code": "231",
+      "display": "Uşaq təcili yardımı",
+      "definition": "Pediatric emergency care"
+    },
+    {
+      "code": "232",
+      "display": "Uşaq hematologiyası və onkologiyası",
+      "definition": "Pediatric hematology and oncology"
+    },
+    {
+      "code": "233",
+      "display": "Uşaq allerqologiyası və immunologiyası",
+      "definition": "Pediatric allergology and immunology"
+    },
+    {
+      "code": "234",
+      "display": "Uşaq revmatologiyası",
+      "definition": "Pediatric rheumatology"
+    },
+    {
+      "code": "240",
+      "display": "Terapevtik stomatologiya",
+      "definition": "Therapeutic (restorative) dentistry"
+    },
+    {
+      "code": "241",
+      "display": "Endodontiya",
+      "definition": "Endodontics"
+    },
+    {
+      "code": "242",
+      "display": "Parodontologiya",
+      "definition": "Periodontology"
+    },
+    {
+      "code": "243",
+      "display": "Ortopedik stomatologiya",
+      "definition": "Prosthodontics"
+    },
+    {
+      "code": "244",
+      "display": "Ortodontiya",
+      "definition": "Orthodontics"
+    },
+    {
+      "code": "300",
+      "display": "Cərrahi onkologiya",
+      "definition": "Surgical oncology"
+    },
+    {
+      "code": "301",
+      "display": "Onkoginekologiya",
+      "definition": "Gynecologic oncology"
+    },
+    {
+      "code": "302",
+      "display": "Abdominal cərrahiyyə",
+      "definition": "Abdominal (gastrointestinal) surgery"
+    },
+    {
+      "code": "303",
+      "display": "Damar cərrahiyyəsi",
+      "definition": "Vascular surgery"
+    },
+    {
+      "code": "304",
+      "display": "Əl cərrahiyyəsi",
+      "definition": "Hand surgery"
+    },
+    {
+      "code": "305",
+      "display": "Perinatologiya",
+      "definition": "Perinatology (maternal-fetal medicine)"
+    },
+    {
+      "code": "306",
+      "display": "Ağrı təbabəti",
+      "definition": "Pain medicine (algology)"
+    },
+    {
+      "code": "307",
+      "display": "Peşə xəstəlikləri (əmək təbabəti)",
+      "definition": "Occupational medicine"
+    },
+    {
+      "code": "308",
+      "display": "İdman təbabəti",
+      "definition": "Sports medicine"
+    },
+    {
+      "code": "999",
+      "display": "Digər",
+      "definition": "Other"
+    }
+  ]
+}

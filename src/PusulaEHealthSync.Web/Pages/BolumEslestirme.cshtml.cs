@@ -198,10 +198,12 @@ public class BolumEslestirmeModel(PusulaRepository pusulaRepository, BolumMappin
         };
     }
 
+    // 999/Digər ARTIK AYRICA EKLENMIYOR (2026-10-07): bakanlik onu terminoloji yayinina
+    // ekledi, yani EncounterMapper.HospitalDepartments icinde zaten var. Append kalsaydi
+    // acilir listede iki kez gorunurdu.
     public static IReadOnlyList<KeyValuePair<string, string>> AzDepartments { get; } =
         EncounterMapper.HospitalDepartments
             .OrderBy(kv => int.Parse(kv.Key))
             .Select(kv => new KeyValuePair<string, string>(kv.Key, kv.Value))
-            .Append(new KeyValuePair<string, string>("999", "Digər"))
             .ToList();
 }
