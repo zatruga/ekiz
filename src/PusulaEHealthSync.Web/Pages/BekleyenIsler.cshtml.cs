@@ -30,6 +30,12 @@ public class BekleyenIslerModel(PendingWorkService pendingWork, SettingsStore se
     // gonderimi acan kisinin nereye yazdigini tahmin etmesi gerekiyordu.
     public string Ortam { get; private set; } = "Test";
 
+    // "Neden bekliyor" aciklamasi icin (KULLANICI ISTEGI 2026-10-08). Uygun bir protokolun
+    // neden hala gitmedigi sorusunun cevabi sira ve hiz: her turda en fazla kac protokol
+    // gonderiliyor ve tur kac dakikada bir donuyor.
+    public int PartiBoyutu { get; private set; }
+    public int TurAraligiDakika { get; private set; }
+
     // TARIH ARALIGI (KULLANICI ISTEGI 2026-09-29): "bekleyen islere 2 tarih secimi
     // koyalim, baslangic tarihi ve bitme tarihi, bu iki tarih arasini hesaplasin."
     //
@@ -54,6 +60,10 @@ public class BekleyenIslerModel(PendingWorkService pendingWork, SettingsStore se
     {
         OtomatikGonderimAcik = await settings.GetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, false, ct);
         Ortam = await settings.GetStringAsync(SettingsStore.EHealthEnvironmentKey, SettingsStore.EHealthEnvironmentDefault, ct);
+        PartiBoyutu = await settings.GetIntAsync(
+            SettingsStore.AutoSendBatchSizeKey, SettingsStore.AutoSendBatchSizeDefault, ct);
+        TurAraligiDakika = await settings.GetIntAsync(
+            SettingsStore.AutoSendIntervalMinutesKey, SettingsStore.AutoSendIntervalMinutesDefault, ct);
         await AralikHesaplaAsync(ct);
         Sonuc = pendingWork.SonSonuc;
         SonHesaplamaUtc = pendingWork.SonHesaplamaUtc;

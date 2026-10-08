@@ -295,15 +295,38 @@ public class PendingWorkService(
 
         var bekleyen = new List<PendingCandidate>();
         var takilan = new List<PendingCandidate>();
+        var gonderilmisKalem = 0;
+
+        // SORUNLU PROTOKOLLER: bekleyeni ya da takilani olan. Geri kalanlar "tamamlanmis"
+        // -- aralikta is vardi ve hepsi gitti.
+        var sorunluProtokoller = new HashSet<int>();
+
         foreach (var c in candidates)
         {
             switch (Siniflandir(c, sentLookup, ardisikBasarisiz, takilmaEsigi))
             {
-                case KalemDurumu.Bekliyor: bekleyen.Add(c); break;
-                case KalemDurumu.Takildi: takilan.Add(c); break;
+                case KalemDurumu.Bekliyor:
+                    bekleyen.Add(c); sorunluProtokoller.Add(c.ProtokolId); break;
+                case KalemDurumu.Takildi:
+                    takilan.Add(c); sorunluProtokoller.Add(c.ProtokolId); break;
+                default:
+                    gonderilmisKalem++; break;
             }
         }
-        if (bekleyen.Count == 0 && takilan.Count == 0) return PendingWorkResult.Bos;
+
+        var tarananProtokol = candidates.Select(c => c.ProtokolId).Distinct().Count();
+        var kapsam = new PendingKapsam(
+            TarananProtokol: tarananProtokol,
+            TamamlananProtokol: tarananProtokol - sorunluProtokoller.Count,
+            TarananKalem: candidates.Count,
+            GonderilmisKalem: gonderilmisKalem,
+            BekleyenKalem: bekleyen.Count,
+            TakilanKalem: takilan.Count);
+
+        // Her sey gonderilmisse de KAPSAM donuyor -- "bekleyen is yok" ile "taranacak bir
+        // sey yoktu" ayni sey degil, ekranda ikisi ayirt edilebilmeli.
+        if (bekleyen.Count == 0 && takilan.Count == 0)
+            return PendingWorkResult.Bos with { Kapsam = kapsam };
 
         // 5) Protokol bilgisi + uygunluk kurallari. Iki kume de ayni protokol tablosundan
         //    besleniyor, bu yuzden tek okuma.
@@ -461,7 +484,8 @@ public class PendingWorkService(
         return new PendingWorkResult(
             KirpUygunOnce(gruplar, maxProtocols), ozet, gruplar.Count,
             enEski,
-            Kirp(takilanGruplar, maxProtocols), takilanOzet, takilanGruplar.Count);
+            Kirp(takilanGruplar, maxProtocols), takilanOzet, takilanGruplar.Count,
+            kapsam);
     }
 
     // Bir kalemin durumu. KULLANICI KARARI (2026-10-03): "bekleyenleri ayrı bir listeye
@@ -618,8 +642,34 @@ public record PendingWorkResult(
     DateTime? EnEskiBekleyenTarih,
     List<PendingProtocol> TakilanProtokoller,
     Dictionary<string, int> TakilanOzetSayimlar,
-    int ToplamTakilanProtokolSayisi)
+    int ToplamTakilanProtokolSayisi,
+    // KAPSAM (KULLANICI ISTEGI 2026-10-08): "bekleyen islerde hasta sayisini da yazalim,
+    // kac hasta kaci gitmis vs."
+    //
+    // Sayfa bugune kadar yalnizca BEKLEYENI gosteriyordu: "412 bekleyen protokol" rakami
+    // tek basina iyi mi kotu mu belli degildi -- 412/430 ise is daha baslamamis, 412/9.000
+    // ise neredeyse bitmis demek. Payda olmadan pay anlamsiz.
+    //
+    // Birim PROTOKOL: gonderim birimi protokol, ve ayni hastanin aralikta birden fazla
+    // protokolu olabiliyor. Ekranda "hasta" diye degil "protokol" diye yaziliyor ki
+    // kullanici iki ayri sayiyi karistirmasin.
+    PendingKapsam Kapsam)
 {
     public static PendingWorkResult Bos => new([], new Dictionary<string, int>(), 0, null,
-                                               [], new Dictionary<string, int>(), 0);
+                                               [], new Dictionary<string, int>(), 0,
+                                               PendingKapsam.Bos);
+}
+
+// Tarama penceresinin TAMAMI -- gonderilmisler dahil. Bekleyen sayilarinin paydasi.
+public record PendingKapsam(
+    int TarananProtokol, int TamamlananProtokol,
+    int TarananKalem, int GonderilmisKalem, int BekleyenKalem, int TakilanKalem)
+{
+    public static PendingKapsam Bos => new(0, 0, 0, 0, 0, 0);
+
+    // Tamamlanan protokolun taranan icindeki orani. Payda 0 ise 100 -- "gonderilecek bir
+    // sey yoktu" durumu ekranda "%0 tamam" diye gorunmemeli.
+    public int TamamlananYuzde => TarananProtokol == 0
+        ? 100
+        : (int)Math.Round(100.0 * TamamlananProtokol / TarananProtokol);
 }

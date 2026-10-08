@@ -80,11 +80,42 @@ else
         </span>
     </div>
 
+    @* ===== KAPSAM: PAY VE PAYDA (KULLANICI ISTEGI 2026-10-08) =====
+       "bekleyen islerde hasta sayisini da yazalim, kac hasta kaci gitmis vs."
+
+       Sayfa bugune kadar yalnizca BEKLEYENI gosteriyordu ve "412 bekleyen protokol"
+       rakami tek basina iyi mi kotu mu belli degildi: 412/430 ise is daha baslamamis,
+       412/9.000 ise neredeyse bitmis demek. Payda olmadan pay anlamsiz.
+
+       BIRIM PROTOKOL, "HASTA" DEGIL: gonderim birimi protokol ve ayni hastanin aralikta
+       birden fazla protokolu olabiliyor. Etiketler bunu acikca yaziyor ki iki ayri sayi
+       birbirine karismasin. *@
+    var kapsam = Model.Sonuc.Kapsam;
     <div class="stat-grid">
         <div class="stat-card">
-            <div class="stat-label">Bekleyen protokol</div>
-            <div class="stat-value">@Model.Sonuc.ToplamProtokolSayisi</div>
+            <div class="stat-label">Taranan protokol</div>
+            <div class="stat-value">@kapsam.TarananProtokol</div>
+            <div class="stat-foot">@kapsam.TarananKalem kalem (hasta başına birden fazla protokol olabilir)</div>
         </div>
+        <div class="stat-card success">
+            <div class="stat-label">Tamamlanan</div>
+            <div class="stat-value success">@kapsam.TamamlananProtokol</div>
+            <div class="stat-foot">taranan protokolün %@kapsam.TamamlananYuzde'i &middot; @kapsam.GonderilmisKalem kalem gönderildi</div>
+        </div>
+        <div class="stat-card warning">
+            <div class="stat-label">Bekleyen protokol</div>
+            <div class="stat-value warning">@Model.Sonuc.ToplamProtokolSayisi</div>
+            <div class="stat-foot">@kapsam.BekleyenKalem kalem gönderilmeyi bekliyor</div>
+        </div>
+        <div class="stat-card danger">
+            <div class="stat-label">Takılan protokol</div>
+            <div class="stat-value danger">@Model.Sonuc.ToplamTakilanProtokolSayisi</div>
+            <div class="stat-foot">@kapsam.TakilanKalem kalem mevcut veriyle gönderilemiyor</div>
+        </div>
+    </div>
+
+    <p class="section-title" style="margin-top:22px">Bekleyen kalemler, türüne göre</p>
+    <div class="stat-grid">
         @foreach (var kv in Model.Sonuc.OzetSayimlar.OrderByDescending(k => k.Value))
         {
             <div class="stat-card">
@@ -116,6 +147,7 @@ else
                 </tr>
             </thead>
             <tbody>
+            @{ var uygunSira = 1; }
             @foreach (var p in Model.Sonuc.Protokoller)
             {
                 <tr>
@@ -136,10 +168,38 @@ else
                             <span class="badge neutral">@grup.Key @(grup.Count() > 1 ? $"({grup.Count()})" : "")</span>
                         }
                     </td>
+                    @* ===== NEDEN BEKLIYOR (KULLANICI ISTEGI 2026-10-08) =====
+                       "burada neden gonderim beklediğini de yazalım."
+
+                       Uygun OLMAYANLARIN sebebi zaten yaziliyordu. Eksik olan UYGUN
+                       olanlardi: ekranda "Gönderim bekliyor" yaziyordu ve kullanici
+                       hakli olarak "uygunsa neden hala gitmedi" diye soruyordu. Cevap
+                       sira: dongu her turda en fazla PartiBoyutu protokol gonderiyor.
+                       Liste zaten uygun olanlari basa aliyor (bkz. KirpUygunOnce), yani
+                       satirin listedeki yeri gercek sirasidir. *@
                     <td>
                         @if (p.Eligible)
                         {
-                            <span class="badge warning"><span class="badge-dot"></span>Gönderim bekliyor</span>
+                            @if (uygunSira <= Model.PartiBoyutu)
+                            {
+                                <span class="badge warning"><span class="badge-dot"></span>Sıradaki turda</span>
+                                <div class="text-muted">Sırada @uygunSira. &mdash; bu tur gönderilecek</div>
+                            }
+                            else
+                            {
+                                @* Kacinci turda sirasi gelecek: parti boyutuna bolunur. *@
+                                var turSayisi = (uygunSira + Model.PartiBoyutu - 1) / Model.PartiBoyutu;
+                                <span class="badge warning"><span class="badge-dot"></span>Gönderim bekliyor</span>
+                                <div class="text-muted">
+                                    Sırada @uygunSira. &mdash; tur başına @Model.PartiBoyutu protokol,
+                                    yaklaşık @turSayisi. turda (@SureMetni(turSayisi * Model.TurAraligiDakika))
+                                </div>
+                            }
+                            @if (!Model.OtomatikGonderimAcik)
+                            {
+                                <div class="text-faint">Otomatik gönderim kapalı &mdash; sıra ilerlemiyor</div>
+                            }
+                            uygunSira++;
                         }
                         else
                         {
@@ -234,4 +294,15 @@ else
         </table>
         </div>
     }
+}
+
+@functions {
+    // Dakikayi okunur sureye cevirir. 180 dakika yerine "3 saat" yazmak, zaten tahmini
+    // olan bir sayiyi okunur kiliyor. 48 saati asarsa gun, cunku "73 saat" de okunmuyor.
+    static string SureMetni(int dakika) => dakika switch
+    {
+        < 120 => $"~{dakika} dk",
+        < 2880 => $"~{dakika / 60} saat",
+        _ => $"~{dakika / 1440} gün",
+    };
 }
