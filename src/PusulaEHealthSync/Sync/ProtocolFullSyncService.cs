@@ -170,8 +170,11 @@ public class ProtocolFullSyncService(
     private async Task<int> SendAllVitalsAsync(
         ProtokolListItem protokol, string azPatientId, string? azEncounterId, CancellationToken ct)
     {
+        // atlaGonderilmisse: Lab/Radyoloji/Patoloji'deki BasariylaGonderildi kontrolunun
+        // vital karsiligi. Burada degil servisin icinde, cunku karar muayenenin degisim
+        // tarihine bakiyor ve o kayit zaten orada okunuyor (ikinci bir sorgu acmamak icin).
         var sonuclar = await vitalSignsSyncService.SyncAllAsync(
-            protokol, azPatientId, azEncounterId, liveMode: true, ct);
+            protokol, azPatientId, azEncounterId, liveMode: true, ct, atlaGonderilmisse: true);
         return sonuclar.Count(r => r.Status == SyncStatus.Success);
     }
 

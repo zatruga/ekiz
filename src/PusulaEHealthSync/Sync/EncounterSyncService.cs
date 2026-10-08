@@ -215,13 +215,44 @@ public class EncounterSyncService(
     // EKLEMEDIGI icin (base FHIR Encounter'da boyle bir alan yok) ikinci bir Encounter
     // update'ine gerek yok, dolayisiyla cagiran tarafa donecek "headline" bir entry de
     // yok -- her Procedure kendi SyncLogEntry'sini kendi yazar (Aktivite Akisi'nda gorunur).
+    // ZATEN BASARIYLA GONDERILMIS KAYIT YENIDEN GONDERILMEZ (2026-10-08).
+    //
+    // CANLI VERIDE OLCULDU: sunucudaki senkron gunlugunde 239.442 satirin 185.600'u
+    // (%78) gereksizdi -- ayni kaydin ILK basarili gonderiminden sonra gelen tekrarlar.
+    // Yalnizca Procedure'de 168.170 satirin 160.740'i (%96) boyleydi. Islem turu
+    // dagilimi da ayni seyi soyluyordu: 185.034 Update cagrisinin tamami basarili, yani
+    // hicbiri bir sey degistirmiyordu.
+    //
+    // SEBEP: asagidaki zincir donguleri kosulsuz gonderiyordu. ProtocolFullSyncService'in
+    // kendi Lab/Radyoloji/Patoloji metotlarinda bu kontrol (BasariylaGonderildi) VARDI --
+    // laboratuvarin tekrar orani bu yuzden %1'de kaldi. Zincirde unutulmustu.
+    //
+    // Bedeli uc kat: bakanliga gereksiz Update trafigi, sisen senkron gunlugu, ve en
+    // onemlisi YAVASLAYAN TUR -- her tur ayni kayitlari yeniden yolladigi icin saatte
+    // gonderilebilen protokol sayisi dusuyordu. Kullanicinin "neden surekli gondermiyor"
+    // sorusunun olculebilir sebebi buydu.
+    //
+    // ZORLAMA YOLU KAPANMIYOR: Protokol Detay'daki tek tek "Gönder" dugmeleri ve Aktivite
+    // Akisi'ndaki satir gonderimi bu zincirden gecmiyor, dogrudan ilgili servisi cagiriyor.
+    // Bir kaydi bilerek yeniden gondermek isteyen hala gonderebiliyor.
+    private static bool BasariylaGonderildi(SyncLogEntry? durum) =>
+        durum is { Status: SyncStatus.Success } && durum.Operation != SyncOperation.Delete;
+
     private async Task SyncProceduresAsync(ProtokolListItem protokol, string azPatientId, string azEncounterId, CancellationToken ct)
     {
         if (!await settings.GetBoolAsync(SettingsStore.ProcedureSendEnabledKey, true, ct)) return;
 
         var islemler = await repository.GetIslemlerByProtokolIdAsync(protokol.ProtokolId, ct);
+        if (islemler.Count == 0) return;
+
+        var durumlar = await syncLog.GetLatestByPusulaIdsAsync(
+            "Procedure", islemler.Select(i => i.Id).ToList(), ct, govdeleriGetir: false);
+
         foreach (var islem in islemler)
+        {
+            if (BasariylaGonderildi(durumlar.GetValueOrDefault(islem.Id))) continue;
             await procedureSyncService.SyncOneAsync(islem, protokol, azPatientId, azEncounterId, liveMode: true, ct);
+        }
     }
 
     // AZ DiagnosticReport (radyoloji) -- SyncProceduresAsync'TEN SONRA cagrilmali: her raporun
@@ -248,8 +279,13 @@ public class EncounterSyncService(
             : await syncLog.GetLatestByPusulaIdsAsync("Practitioner", doktorIds, ct);
         var practitionerCache = new Dictionary<int, string?>();
 
+        var raporDurumlari = await syncLog.GetLatestByPusulaIdsAsync(
+            "DiagnosticReport", reports.Select(r => r.TetkikIslemId).ToList(), ct, govdeleriGetir: false);
+
         foreach (var report in reports)
         {
+            if (BasariylaGonderildi(raporDurumlari.GetValueOrDefault(report.TetkikIslemId))) continue;
+
             var azProcedureId = procedureStatuses.GetValueOrDefault(report.ProtokolIslemId) is { Status: SyncStatus.Success, AzResourceId: not null } procStatus
                 ? procStatus.AzResourceId
                 : null;
@@ -300,8 +336,13 @@ public class EncounterSyncService(
             : await syncLog.GetLatestByPusulaIdsAsync("Practitioner", doktorIds, ct);
         var practitionerCache = new Dictionary<int, string?>();
 
+        var raporDurumlari = await syncLog.GetLatestByPusulaIdsAsync(
+            "DiagnosticReport-Patoloji", reports.Select(r => r.ResultId).ToList(), ct, govdeleriGetir: false);
+
         foreach (var report in reports)
         {
+            if (BasariylaGonderildi(raporDurumlari.GetValueOrDefault(report.ResultId))) continue;
+
             var azProcedureId = report.ProtokolIslemId is { } patolojiIslemId
                 && procedureStatuses.GetValueOrDefault(patolojiIslemId) is { Status: SyncStatus.Success, AzResourceId: not null } procStatus
                 ? procStatus.AzResourceId
@@ -346,14 +387,42 @@ public class EncounterSyncService(
         var tanilar = await repository.GetTanilarByProtokolIdAsync(protokol.ProtokolId, ct);
         if (tanilar.Count == 0) return null;
 
+        // TANIDA ATLAMA, DIGERLERINDEN BIR ADIM FARKLI: atlanan taninin AZ id'sine yine de
+        // ihtiyac var, cunku asagida Encounter.diagnosis o referanslarla guncelleniyor.
+        // Gonderimi atlayip id'yi de atsaydik, ikinci kayitta Encounter'in tani baglari
+        // SILINIRDI -- yani "gereksiz gonderim yapma" duzeltmesi veri kaybina donusurdu.
+        // Bu yuzden atlanan tanilarin id'si gunlukten okunup listeye ekleniyor.
+        var taniDurumlari = await syncLog.GetLatestByPusulaIdsAsync(
+            "Condition", tanilar.Select(t => t.Id).ToList(), ct, govdeleriGetir: false);
+
         var conditionIds = new List<string>();
+        var yeniGonderilenVar = false;
         foreach (var tani in tanilar)
         {
+            var oncekiDurum = taniDurumlari.GetValueOrDefault(tani.Id);
+            if (BasariylaGonderildi(oncekiDurum))
+            {
+                if (oncekiDurum!.AzResourceId is { } mevcutId) conditionIds.Add(mevcutId);
+                continue;
+            }
+
+            yeniGonderilenVar = true;
             var conditionResult = await conditionSyncService.SyncOneAsync(tani, protokol, azPatientId, azEncounterId, tanilar.Count, liveMode: true, ct);
             if (conditionResult.AzResourceId is not null)
                 conditionIds.Add(conditionResult.AzResourceId);
         }
         if (conditionIds.Count == 0) return null;
+
+        // HICBIR YENI TANI GITMEDIYSE ENCOUNTER'I GUNCELLEME.
+        //
+        // Asagidaki Update, Encounter.diagnosis'e tani referanslarini ekliyor. Tum tanilar
+        // atlandiysa o referanslar TRƏS'te zaten duruyor demektir -- ayni govdeyi yeniden
+        // yazmak hicbir sey degistirmiyor, yalnizca her turda bir Update cagrisi ve bir
+        // gunluk satiri uretiyordu. Olculdu: Encounter satirlarinin %86'si tekrardi.
+        //
+        // Donus null: cagiran taraf (SyncOneAsync) bu durumda ILK yazma kaydini kullanir,
+        // yani sonuc yine dogru Encounter kaydini gosterir.
+        if (!yeniGonderilenVar) return null;
 
         var diagMapping = EncounterMapper.Map(protokol, azPatientId, azPractitionerId, bolumMap, conditionIds);
         if (diagMapping is not MappingResult.Success diagSuccess) return null;

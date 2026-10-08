@@ -24,11 +24,31 @@ public class VitalSignsSyncService(
 {
     public const string ResourceTypeAdi = "Observation-Vital";
 
+    // atlaGonderilmisse: ZATEN BASARIYLA GONDERILMIS ve o gunden beri DEGISMEMIS vitaller
+    // yeniden gonderilmez. Otomatik dongu true gecer; ekrandaki "Gönder" dugmesi false
+    // (varsayilan) -- kullanici acikca bastiysa zorlamali.
+    //
+    // NEDEN EKLENDI (2026-10-08, CANLI VERIDE OLCULDU): bu metot kosulsuz gonderiyordu ve
+    // otomatik dongu her turda protokolun TUM vitallerini yeniden yolluyordu. Sunucudaki
+    // senkron gunlugunde tek bir vital kaydi 344 KEZ gonderilmis gorunuyor -- 344'u de
+    // basarili, yani 343'u tamamen gereksiz. Laboratuvar, radyoloji ve patolojide bu kontrol
+    // (ProtocolFullSyncService.BasariylaGonderildi) vardi; yalnizca vitalde unutulmus.
+    //
+    // Bedeli uc kat: bakanliga gereksiz Update trafigi, sisen senkron gunlugu (239.000
+    // satirin buyuk kismi bu), ve en onemlisi YAVASLAYAN TUR -- her tur ayni vitalleri
+    // yeniden yolladigi icin saatte daha az protokol gonderilebiliyordu.
+    //
+    // DEGISIKLIK KONTROLU TARIHE GORE: "gonderildi, bir daha bakma" demek yanlis olurdu --
+    // muayeneye sonradan yeni olcum eklenebiliyor. Muayenenin son degisim ani gonderimden
+    // SONRAYSA yeniden gonderiliyor.
     public async Task<List<SyncLogEntry>> SyncAllAsync(
-        ProtokolListItem protokol, string azPatientId, string? azEncounterId, bool liveMode, CancellationToken ct = default)
+        ProtokolListItem protokol, string azPatientId, string? azEncounterId, bool liveMode,
+        CancellationToken ct = default, bool atlaGonderilmisse = false)
     {
         var muayene = await repository.GetGenelMuayeneByProtokolIdAsync(protokol.ProtokolId, ct);
         if (muayene is null) return [];
+
+        if (atlaGonderilmisse && await DegismedenGonderilmisMiAsync(muayene, ct)) return [];
 
         var kaynaklar = VitalSignsMapper.Map(muayene, protokol, azPatientId, azEncounterId);
         if (kaynaklar.Count == 0) return [];
@@ -38,6 +58,27 @@ public class VitalSignsSyncService(
             sonuclar.Add(await GonderAsync(kaynak, muayene, protokol, liveMode, ct));
 
         return sonuclar;
+    }
+
+    // Bir protokolun TUM vitalleri ayni PusulaId ile (GenelMuayene.Id) yaziliyor, yani
+    // gunlukteki son kayit kumenin tamamini temsil ediyor. Son kayit basariliysa ve
+    // muayene o andan beri degismediyse gonderilecek yeni bir sey yok.
+    //
+    // Son kayit BASARISIZSA atlanmaz: hata gecici olabilir, bir sonraki tur yeniden dener.
+    // Silme sonrasi da atlanmaz -- Operation=Delete, kaydin TRƏS'te olmadigi anlamina gelir.
+    private async Task<bool> DegismedenGonderilmisMiAsync(GenelMuayeneRecord muayene, CancellationToken ct)
+    {
+        var durumlar = await syncLog.GetLatestByPusulaIdsAsync(
+            ResourceTypeAdi, [muayene.Id], ct, govdeleriGetir: false);
+
+        if (durumlar.GetValueOrDefault(muayene.Id) is not
+            { Status: SyncStatus.Success, Operation: not SyncOperation.Delete } son) return false;
+
+        // Pusula tarihleri YEREL (Baki), SyncLog UTC saklar -- cevrim sart. Cevrilmeseydi
+        // dort saatlik fark yuzunden her muayene "gonderimden sonra degismis" gorunur ve
+        // duzeltme hicbir ise yaramazdi.
+        var degisim = AzTime.ToUtc(muayene.ModifiedDate ?? muayene.CreatedDate);
+        return degisim <= son.CreatedAtUtc;
     }
 
     private async Task<SyncLogEntry> GonderAsync(
