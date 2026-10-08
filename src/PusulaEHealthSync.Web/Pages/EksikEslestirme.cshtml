@@ -1,0 +1,115 @@
+@page
+@model PusulaEHealthSync.Web.Pages.EksikEslestirmeModel
+@{
+    ViewData["Title"] = "Gönderilemeyen Tetkikler";
+    ViewData["Genis"] = true;
+}
+
+<p class="breadcrumb"><a asp-page="/Index">Protokol Listesi</a> / Gönderilemeyen Tetkikler</p>
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Gönderilemeyen Tetkikler</h1>
+        <p class="page-subtitle">
+            Pusula'da sonucu onaylanmış ama tanım eksikliği yüzünden TRƏS'e hiç gönderilemeyen laboratuvar tetkikleri
+        </p>
+    </div>
+</div>
+
+@* NEDEN BU SAYFA VAR: bakanlik profili Observation.extension:procedure-code alanini
+   ZORUNLU tutuyor ve degeri Icbari hizmet kodundan geliyor. O kod yoksa kaynak
+   uretilemiyor bile -- gonderilip reddedilmiyor, hic olusturulamiyor. Yani bu kayitlar
+   "tekrar denenecek" kategorisinde DEGIL; tanim tamamlanmadikca hicbir zaman gitmezler. *@
+<div class="alert alert-warning" style="margin-bottom:16px;">
+    Buradaki kayıtlar <strong>yeniden denemekle gönderilemez</strong> &mdash; eksik olan Pusula'daki tanım.
+    Tanım tamamlandığında kayıt ilk gece turunda kendiliğinden gider, elle bir şey yapmanız gerekmez.
+</div>
+
+<form method="post" class="filter-bar">
+    <div class="field" style="margin:0;">
+        <label for="bas">Başlangıç</label>
+        <input type="date" id="bas" name="Baslangic" value="@Model.EtkinBaslangic.ToString("yyyy-MM-dd")" />
+    </div>
+    <div class="field" style="margin:0;">
+        <label for="bit">Bitiş</label>
+        <input type="date" id="bit" name="Bitis" value="@Model.EtkinBitis.ToString("yyyy-MM-dd")" />
+    </div>
+    <button type="submit" class="btn btn-primary" onsubmit="pusulaLockSubmit(this)">Hesapla</button>
+    @if (Model.Satirlar is not null)
+    {
+        <button type="submit" asp-page-handler="Indir" class="btn btn-outline">Excel olarak indir</button>
+    }
+</form>
+
+@if (Model.Hata is not null)
+{
+    <div class="alert alert-danger">@Model.Hata</div>
+}
+
+@if (Model.Satirlar is null)
+{
+    <div class="empty-state">
+        <p>Henüz hesaplanmadı.</p>
+        <p class="text-muted">
+            Sorgu canlı veride yaklaşık <strong>15 saniye</strong> sürüyor, bu yüzden sayfa her açılışta
+            hesaplamıyor. Yukarıdaki <strong>Hesapla</strong> ile başlatın.
+        </p>
+    </div>
+}
+else if (Model.Satirlar.Count == 0)
+{
+    <div class="empty-state"><p>Bu aralıkta tanım eksikliği yüzünden gönderilemeyen tetkik yok.</p></div>
+}
+else
+{
+    @* SEBEBE GORE OZET: "once hangisini duzeltirsem en cok kazandiririm" sorusunun cevabi.
+       Sira kayit sayisina gore, cunku is yuku orada -- 1 tetkik 2.500 kayit acabiliyor. *@
+    <div class="stat-grid">
+        <div class="stat-card">
+            <div class="stat-label">Gönderilemeyen tetkik</div>
+            <div class="stat-value">@Model.Satirlar.Count</div>
+            <div class="stat-foot">@Model.ToplamSonuc sonuç kaydı bekliyor</div>
+        </div>
+        @foreach (var (sebep, tetkik, sonuc) in Model.Ozet)
+        {
+            <div class="stat-card warning">
+                <div class="stat-label">@sebep</div>
+                <div class="stat-value warning">@sonuc</div>
+                <div class="stat-foot">@tetkik tetkik</div>
+            </div>
+        }
+    </div>
+
+    <p class="text-muted" style="margin:16px 0 8px;">
+        En çok kayıt üretenden başlayarak sıralı. <strong>Sebep sütunu nereye bakılacağını söylüyor:</strong>
+        &ldquo;Test bir hizmete bağlı değil&rdquo; laboratuvar modülünün (LIS) işi;
+        &ldquo;Hizmetin İcbari karşılığı yok&rdquo; ise hizmetin İcbari Sigorta Fiyat Listesi'ne bağlanmasını gerektirir.
+    </p>
+
+    <div class="table-wrap">
+        <table>
+            <thead>
+                <tr>
+                    <th>Tetkik</th>
+                    <th style="width:110px;">Sonuç</th>
+                    <th style="width:110px;">Protokol</th>
+                    <th style="width:170px;">LOINC kodu</th>
+                    <th>Pusula hizmeti</th>
+                    <th style="width:220px;">Neden gönderilemiyor</th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var s in Model.Satirlar)
+                {
+                    <tr>
+                        <td>@s.TetkikAdi</td>
+                        <td class="mono">@s.SonucSayisi</td>
+                        <td class="mono text-muted">@s.ProtokolSayisi</td>
+                        <td class="mono text-muted">@(string.IsNullOrWhiteSpace(s.LoincKodu) ? "—" : s.LoincKodu)</td>
+                        <td class="text-muted">@(string.IsNullOrWhiteSpace(s.HizmetAdi) ? "—" : s.HizmetAdi)</td>
+                        <td><span class="badge warning"><span class="badge-dot"></span>@s.Sebep</span></td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+}

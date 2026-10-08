@@ -59,6 +59,12 @@
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18"/><path d="M3 12h18"/><path d="M3 17h10"/><circle cx="18" cy="17" r="3"/></svg>
                     Hizmet Eşleştirme
                 </a>
+                @* Eslestirme sayfalarinin hemen ardinda: o sayfalarda NEYI duzeltmek
+                   gerektigini bu rapor soyluyor. (2026-10-08 kullanici istegi.) *@
+                <a asp-page="/EksikEslestirme" class="nav-link @(currentPage is "/EksikEslestirme" ? "active" : "")">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6"/><path d="M9 11h2"/></svg>
+                    Gönderilemeyen Tetkikler
+                </a>
                 <a asp-page="/Doktorlar" class="nav-link @(currentPage is "/Doktorlar" ? "active" : "")">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                     Doktorlar
