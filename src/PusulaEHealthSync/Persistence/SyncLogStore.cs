@@ -554,6 +554,102 @@ public class SyncLogStore
         return result;
     }
 
+    // ======================= KAYIT SAYIMI (SATIR DEGIL) =======================
+    //
+    // KULLANICI (2026-10-08): "genel bakis kismi gercekleri yansitmiyor sanki."
+    //
+    // Hakliydi. Genel Bakis'teki her sayi SATIR sayiyordu, oysa sorulan soru KAYIT
+    // sayisiydi. Sunucu verisinde olculdu: bugun "Bugün Gönderilen" karti 549 yaziyordu,
+    // gercekte gonderilen farkli protokol sayisi 121 idi -- 4,5 kat sisik. Sebep ayni
+    // kaydin birden fazla satir uretmesi (yeniden gonderimler, bir de Encounter'in tani
+    // baglama Update'i). Son 7 gunde Procedure'de oran 24 kattaydi.
+    //
+    // "EN KOTU DURUM KAZANIR": bir kaydin denemelerinden biri hata aldiysa o kayit
+    // hatali sayilir. Aktivite Akisi'ndaki hasta siniflandirmasiyla ayni kural --
+    // ekranlar arasinda ayni soruya ayni cevap verilsin diye.
+    //
+    // ORTAM FILTRESI YOK: QueryAsync/GetStatusCountsAsync ile ayni bilincli karar.
+    public async Task<Dictionary<string, int>> GetDistinctRecordCountsAsync(
+        string? resourceType, DateTime? fromUtc, DateTime? toUtcExclusive, CancellationToken ct = default)
+    {
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+        using var cmd = conn.CreateCommand();
+        // Ic sorgu her kaydin EN KOTU durumunu buluyor (Failed > Skipped > Success),
+        // dis sorgu onlari sayiyor.
+        cmd.CommandText = @"
+            SELECT durum, COUNT(*) FROM (
+                SELECT ResourceType, PusulaId,
+                       CASE WHEN SUM(Status = 'Failed')  > 0 THEN 'Failed'
+                            WHEN SUM(Status = 'Skipped') > 0 THEN 'Skipped'
+                            ELSE 'Success' END AS durum
+                FROM SyncLog
+                WHERE ($resourceType IS NULL OR ResourceType = $resourceType)
+                  AND ($from IS NULL OR CreatedAtUtc >= $from)
+                  AND ($to IS NULL OR CreatedAtUtc < $to)
+                GROUP BY ResourceType, PusulaId
+            ) GROUP BY durum";
+        cmd.Parameters.AddWithValue("$resourceType", (object?)resourceType ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$from", (object?)fromUtc?.ToString("O") ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$to", (object?)toUtcExclusive?.ToString("O") ?? DBNull.Value);
+
+        var sonuc = new Dictionary<string, int>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct)) sonuc[reader.GetString(0)] = reader.GetInt32(1);
+        return sonuc;
+    }
+
+    // Bir turde BASARIYLA gonderilmis FARKLI kayit sayisi. "Bugün Gönderilen" karti
+    // bunu soruyor: kac protokol gitti, kac satir yazildi degil.
+    public async Task<int> GetDistinctSuccessCountAsync(
+        string resourceType, DateTime? fromUtc, DateTime? toUtcExclusive, CancellationToken ct = default)
+    {
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+            SELECT COUNT(DISTINCT PusulaId) FROM SyncLog
+            WHERE ResourceType = $resourceType AND Status = 'Success'
+              AND ($from IS NULL OR CreatedAtUtc >= $from)
+              AND ($to IS NULL OR CreatedAtUtc < $to)";
+        cmd.Parameters.AddWithValue("$resourceType", resourceType);
+        cmd.Parameters.AddWithValue("$from", (object?)fromUtc?.ToString("O") ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$to", (object?)toUtcExclusive?.ToString("O") ?? DBNull.Value);
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync(ct));
+    }
+
+    // Hata/atlama MESAJLARI -- kategori dagilimi icin. Yalnizca mesaj okunuyor, govde yok.
+    //
+    // NEDEN AYRI: Genel Bakis kategorileri QueryAsync ile en fazla 500 satir cekip
+    // hesapliyordu ve o 500'u TUM resim gibi gosteriyordu. Olculdu: son 7 gunde 808
+    // Failed var, yani kategoriler zaten eksikti. Mesaj kisa oldugu icin tavani yuksek
+    // tutmak ucuz; yine de asilirsa cagiran taraf bunu EKRANDA soyluyor.
+    public async Task<List<string?>> GetMessagesAsync(
+        string status, string? resourceType, DateTime? fromUtc, DateTime? toUtcExclusive,
+        int tavan, CancellationToken ct = default)
+    {
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+            SELECT Message FROM SyncLog
+            WHERE Status = $status
+              AND ($resourceType IS NULL OR ResourceType = $resourceType)
+              AND ($from IS NULL OR CreatedAtUtc >= $from)
+              AND ($to IS NULL OR CreatedAtUtc < $to)
+            ORDER BY Id DESC LIMIT $tavan";
+        cmd.Parameters.AddWithValue("$status", status);
+        cmd.Parameters.AddWithValue("$resourceType", (object?)resourceType ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$from", (object?)fromUtc?.ToString("O") ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$to", (object?)toUtcExclusive?.ToString("O") ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$tavan", tavan);
+
+        var sonuc = new List<string?>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct)) sonuc.Add(reader.IsDBNull(0) ? null : reader.GetString(0));
+        return sonuc;
+    }
+
     // BIR YEREL GUNUN TUM KAYITLARI -- ORTAMA KISITLI (2026-10-05, gun sonu raporu icin).
     //
     // NEDEN AYRI BIR METOT: QueryAsync, GetStatusCountsAsync ve GetDailyTrendAsync ortam

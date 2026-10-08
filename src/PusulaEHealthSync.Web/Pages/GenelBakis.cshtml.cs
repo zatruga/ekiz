@@ -37,7 +37,27 @@ public class GenelBakisModel(PusulaRepository pusulaRepository, SyncLogStore syn
     public int FailedCount { get; set; }
     public int PendingCount { get; set; }
 
-    public double TodaySentPct => TodayProtocolCount == 0 ? 0 : Math.Round(TodaySentCount * 100.0 / TodayProtocolCount, 0);
+    // GONDERILEBILEN KAYIT ORANI -- paydada ATLANANLAR DA var (2026-10-08 duzeltmesi).
+    //
+    // Eski "Genel Başarı Oranı" Basarili/(Basarili+Hatali) idi ve %99,6 gosteriyordu.
+    // Teknik olarak dogru ama yaniltici: sunucu verisinde olculdu, ayni hafta 31.603
+    // kayit eksik veri yuzunden HIC DENENMEDI ve bu sayi paydada yoktu. Yani ekran
+    // "neredeyse her sey gidiyor" derken kayitlarin %13'u bakanliga hic ulasmiyordu.
+    // Kullanicinin "gercekleri yansitmiyor" demesinin en buyuk sebebi buydu.
+    //
+    // Yeni olcu "gonderebildik mi" sorusunu yanitliyor. Reddedilme orani ayri gosteriliyor
+    // -- o da ayri bir soru ve kaybolmamali.
+    public int PeriodSuccessRecords { get; set; }
+    public int PeriodFailedRecords { get; set; }
+    public int PeriodSkippedRecords { get; set; }
+    public int PeriodTotalRecords => PeriodSuccessRecords + PeriodFailedRecords + PeriodSkippedRecords;
+
+    // Hata/atlama mesajlari tavana dayandi mi? Dayandiysa kategoriler EKSIK ve bunu
+    // ekranda soylemek zorundayiz -- eksik bir dagilimi tam gibi gostermek, hic
+    // gostermemekten kotu.
+    public bool ErrorSampleTruncated { get; set; }
+    public bool NotReadySampleTruncated { get; set; }
+    private const int MesajTavani = 20_000;
     public double SuccessRateRingDashOffset => 119.4 * (1 - OverallSuccessRatePct / 100.0);
     public DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
 
@@ -126,23 +146,31 @@ public class GenelBakisModel(PusulaRepository pusulaRepository, SyncLogStore syn
         TodayProtocolChangePct = yesterdayProtocols.Count == 0 ? 0 : Math.Round((TodayProtocolCount - yesterdayProtocols.Count) * 100.0 / yesterdayProtocols.Count, 1);
 
         // SyncLog UTC saklar -- yerel gun siniri cevrilerek verilir.
-        var todayEncounterCounts = await syncLog.GetStatusCountsAsync("Encounter", AzTime.ToUtc(todayFrom), AzTime.ToUtc(todayToExclusive), ct);
-        TodaySentCount = todayEncounterCounts.GetValueOrDefault(nameof(SyncStatus.Success));
+        // FARKLI PROTOKOL, SATIR DEGIL. Eskiden Encounter Success SATIRLARI sayiliyordu;
+        // bir protokol birden fazla satir uretiyor (yeniden gonderim + tani baglama
+        // Update'i), olculdu: ekran 549 yazarken gercek 121 idi.
+        TodaySentCount = await syncLog.GetDistinctSuccessCountAsync(
+            "Encounter", AzTime.ToUtc(todayFrom), AzTime.ToUtc(todayToExclusive), ct);
 
-        var periodCounts = await syncLog.GetStatusCountsAsync(null, PeriodFromUtc, PeriodToUtcExclusive, ct);
-        var periodSuccess = periodCounts.GetValueOrDefault(nameof(SyncStatus.Success));
-        var periodFailed = periodCounts.GetValueOrDefault(nameof(SyncStatus.Failed));
-        FailedCount = periodFailed;
-        PendingCount = periodCounts.GetValueOrDefault(nameof(SyncStatus.Skipped));
-        OverallSuccessRatePct = (periodSuccess + periodFailed) == 0 ? 0 : Math.Round(periodSuccess * 100.0 / (periodSuccess + periodFailed), 1);
+        // KAYIT BAZLI, "en kotu durum kazanir" (bkz. GetDistinctRecordCountsAsync).
+        var periodCounts = await syncLog.GetDistinctRecordCountsAsync(null, PeriodFromUtc, PeriodToUtcExclusive, ct);
+        PeriodSuccessRecords = periodCounts.GetValueOrDefault(nameof(SyncStatus.Success));
+        PeriodFailedRecords = periodCounts.GetValueOrDefault(nameof(SyncStatus.Failed));
+        PeriodSkippedRecords = periodCounts.GetValueOrDefault(nameof(SyncStatus.Skipped));
+        FailedCount = PeriodFailedRecords;
+        PendingCount = PeriodSkippedRecords;
+        OverallSuccessRatePct = PeriodTotalRecords == 0
+            ? 0 : Math.Round(PeriodSuccessRecords * 100.0 / PeriodTotalRecords, 1);
 
         var periodLengthDays = PeriodToDate.DayNumber - PeriodFromDate.DayNumber + 1;
         var prevFromUtc = PeriodFromUtc.AddDays(-periodLengthDays);
-        var prevCounts = await syncLog.GetStatusCountsAsync(null, prevFromUtc, PeriodFromUtc, ct);
+        var prevCounts = await syncLog.GetDistinctRecordCountsAsync(null, prevFromUtc, PeriodFromUtc, ct);
         var prevSuccess = prevCounts.GetValueOrDefault(nameof(SyncStatus.Success));
-        var prevFailed = prevCounts.GetValueOrDefault(nameof(SyncStatus.Failed));
-        SuccessRateHasBaseline = (prevSuccess + prevFailed) > 0;
-        var prevRate = SuccessRateHasBaseline ? prevSuccess * 100.0 / (prevSuccess + prevFailed) : 0;
+        var prevToplam = prevSuccess
+                       + prevCounts.GetValueOrDefault(nameof(SyncStatus.Failed))
+                       + prevCounts.GetValueOrDefault(nameof(SyncStatus.Skipped));
+        SuccessRateHasBaseline = prevToplam > 0;
+        var prevRate = SuccessRateHasBaseline ? prevSuccess * 100.0 / prevToplam : 0;
         SuccessRateDeltaPct = Math.Round(OverallSuccessRatePct - prevRate, 1);
 
         // Yerel gun araligi -- GetDailyTrendAsync UTC cevrimini kendi yapiyor.
@@ -150,7 +178,7 @@ public class GenelBakisModel(PusulaRepository pusulaRepository, SyncLogStore syn
 
         foreach (var rt in TrackedResourceTypes)
         {
-            var counts = await syncLog.GetStatusCountsAsync(rt, PeriodFromUtc, PeriodToUtcExclusive, ct);
+            var counts = await syncLog.GetDistinctRecordCountsAsync(rt, PeriodFromUtc, PeriodToUtcExclusive, ct);
             var s = counts.GetValueOrDefault(nameof(SyncStatus.Success));
             var w = counts.GetValueOrDefault(nameof(SyncStatus.Skipped));
             var d = counts.GetValueOrDefault(nameof(SyncStatus.Failed));
@@ -190,16 +218,25 @@ public class GenelBakisModel(PusulaRepository pusulaRepository, SyncLogStore syn
             .Select(g => new DeptVolumeRow(g.Name, g.Count, maxDept == 0 ? 0 : (int)Math.Round(g.Count * 100.0 / maxDept)))
             .ToList();
 
-        var notReadyEntries = await syncLog.QueryAsync("Skipped", "Composition", 500, 0, PeriodFromUtc, PeriodToUtcExclusive, ct);
-        NotReadyGroups = notReadyEntries
-            .GroupBy(e => e.Message ?? "Belirtilmemiş")
+        var notReadyMesajlari = await syncLog.GetMessagesAsync(
+            nameof(SyncStatus.Skipped), "Composition", PeriodFromUtc, PeriodToUtcExclusive, MesajTavani, ct);
+        NotReadySampleTruncated = notReadyMesajlari.Count >= MesajTavani;
+        NotReadyGroups = notReadyMesajlari
+            .GroupBy(m => m ?? "Belirtilmemiş")
             .Select(g => new NotReadyGroup(g.Key, g.Count()))
             .OrderByDescending(g => g.Count)
             .Take(6)
             .ToList();
 
-        ErrorCategories = failedEntries
-            .Select(e => SyncLogEntry.ErrorCategory(e.Message))
+        // KATEGORILER TAM KUMEDEN. Eskiden yukaridaki 500'luk failedEntries uzerinden
+        // hesaplaniyordu ve o 500 TUM resim gibi gosteriliyordu -- olculdu: son 7 gunde
+        // 808 Failed vardi, yani dagilim zaten eksikti. Artik yalnizca MESAJ okunuyor
+        // (govde yok), bu yuzden tavan cok daha yuksek tutulabiliyor.
+        var hataMesajlari = await syncLog.GetMessagesAsync(
+            nameof(SyncStatus.Failed), null, PeriodFromUtc, PeriodToUtcExclusive, MesajTavani, ct);
+        ErrorSampleTruncated = hataMesajlari.Count >= MesajTavani;
+        ErrorCategories = hataMesajlari
+            .Select(SyncLogEntry.ErrorCategory)
             .GroupBy(c => c.Label)
             .Select(g => new ErrorCategoryGroup(g.Key, g.First().Description, g.Count()))
             .OrderByDescending(g => g.Count)
