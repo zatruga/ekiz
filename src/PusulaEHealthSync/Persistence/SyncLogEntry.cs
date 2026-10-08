@@ -148,6 +148,27 @@ public class SyncLogEntry
     public static (string Label, string Description) ErrorCategory(string? message)
     {
         var m = message ?? "";
+
+        // ESLESTIRME EKSIGI -- "Referans bulunamadi"DAN ONCE BAKILIYOR, SIRA ONEMLI.
+        //
+        // KULLANICI (2026-10-08): bir idrar tetkiki icin ekranda "Bağlı bir kayıt TRƏS'te
+        // artık mevcut değil -- önce o kayıt tekrar gönderilmeli" yaziyordu ve hakli olarak
+        // "hangi kaydi tekrar gondereyim" diye sordu. Gonderilecek bir kayit YOKTU.
+        //
+        // Sebep asagidaki referans dalinin "bulunamadı" kelimesini yakalamasiydi: ham mesaj
+        // "İcbari Sigorta Fiyat Listesi eşleşmesi BULUNAMADI" diyor, ama buradaki
+        // "bulunamadi" TRƏS'teki bir kaydi degil, PUSULA'daki eslestirme tablosunda bir
+        // satirin olmadigini anlatiyor. Ikisi tamamen farkli isler gerektiriyor:
+        // biri yeniden gonderim, digeri veri tanimi.
+        //
+        // Olculdu (sunucu gunlugu, 2026-10-08): atlanan laboratuvar kayitlarinin %70'i
+        // (21.076 kayit) bu kaliptaydi ve hepsi yanlis kategoride gorunuyordu.
+        if (m.Contains("İcbari", StringComparison.OrdinalIgnoreCase)
+            || m.Contains("Icbari", StringComparison.OrdinalIgnoreCase)
+            || m.Contains("LOINC", StringComparison.OrdinalIgnoreCase)
+            || m.Contains("procedure-code", StringComparison.OrdinalIgnoreCase))
+            return ("Eşleştirme eksik", "Pusula'daki tanım eksik: hizmetin İcbari karşılığı ya da tetkikin LOINC kodu yok");
+
         if (m.Contains("Instance count for", StringComparison.OrdinalIgnoreCase) && m.Contains("cardinality", StringComparison.OrdinalIgnoreCase))
             return ("Zorunlu alan eksik/hatalı", "FHIR profilinde zorunlu tutulan bir alan boş bırakılmış ya da yanlış sayıda dolu");
         if (m.Contains("FIN", StringComparison.OrdinalIgnoreCase))
@@ -305,6 +326,9 @@ public class SyncLogEntry
             "Zaman aşımı / bağlantı" => "TRƏS sunucusu zamanında yanıt vermedi -- bağlantı sorunu olabilir, tekrar denenmeli.",
             "TRƏS bağlantı ayarı eksik" => "Ayarlar sayfasında TRƏS bağlantı bilgileri eksik ya da hatalı.",
             "Referans bulunamadı" => "Bağlı bir kayıt TRƏS'te artık mevcut değil -- önce o kayıt tekrar gönderilmeli.",
+            // Yeniden gondermek BU DURUMDA ISE YARAMAZ -- eksik olan Pusula'daki tanim.
+            // Mesaj bu yuzden "tekrar gönder" demiyor, nereye bakilacagini soyluyor.
+            "Eşleştirme eksik" => "Pusula'da tanım eksik: tetkikin/hizmetin İcbari Sigorta Fiyat Listesi karşılığı ya da LOINC kodu yok. Tanım tamamlanınca kayıt kendiliğinden gönderilir -- yeniden denemek işe yaramaz.",
             _ => s,
         };
     }
