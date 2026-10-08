@@ -11,15 +11,7 @@ namespace PusulaEHealthSync.Web.Pages;
 public class DetailModel(
     SyncLogStore syncLog,
     PusulaRepository pusulaRepository,
-    PatientSyncService patientSyncService,
-    EncounterSyncService encounterSyncService,
-    PractitionerSyncService practitionerSyncService,
-    CompositionSyncService compositionSyncService,
-    ConditionSyncService conditionSyncService,
-    ProcedureSyncService procedureSyncService,
-    LabResultSyncService labResultSyncService,
-    RadiologyReportSyncService radiologyReportSyncService,
-    PathologyReportSyncService pathologyReportSyncService,
+    TekilGonderimService tekilGonderim,
     DeleteService deleteService,
     EHealthClient eHealthClient) : PageModel
 {
@@ -89,197 +81,31 @@ public class DetailModel(
         return Page();
     }
 
-    // "Tekrar gonder" -- Patient, Encounter, Practitioner, Composition (Epikriz) icin
-    // destekleniyor (Lab/DiagnosticReport mapper'i henuz yazilmadi -- veri kaynagi
-    // netlesmedi, bkz. SettingsStore.LabOnlyVerifiedKey yorumu).
-    // KARAR (2026-08-20): artik CANLI gonderim yapar (liveMode:true) -- Encounter icin
-    // hasta TRƏS'te yoksa EncounterSyncService onu otomatik once canli gonderir.
-    public async Task<IActionResult> OnPostResendAsync(long id)
+    // "Tekrar gonder" -- her kayit turu icin.
+    //
+    // MANTIK ARTIK BURADA DEGIL (2026-10-08): TekilGonderimService'e tasindi, cunku ayni
+    // islem Aktivite Akisi'ndan da isteniyor (kullanici: "tum silme ve gonderme prosesleri
+    // olsun"). Ikinci bir kopya bu projede daha once pahaliya mal oldu -- 2026-09-15'te
+    // toplu gonderim kendi zincirini tasiyordu ve ayristi, epikriz/laboratuvar/patoloji
+    // toplu gonderimde hic gitmedi. Tek yer, tek davranis.
+    //
+    // KARAR (2026-08-20): CANLI gonderim yapar (liveMode: true).
+    public async Task<IActionResult> OnPostResendAsync(long id, CancellationToken ct)
     {
-        var existing = await syncLog.GetByIdAsync(id);
+        var existing = await syncLog.GetByIdAsync(id, ct);
         if (existing is null) return NotFound();
 
-        switch (existing.ResourceType)
-        {
-            case "Patient":
-                {
-                    var result = await patientSyncService.SyncOneAsync(existing.PusulaId, liveMode: true);
-                    return RedirectToPage("/Detail", new { id = result.Id });
-                }
-            case "Encounter":
-                {
-                    var result = await encounterSyncService.SyncOneAsync(existing.PusulaId, liveMode: true);
-                    return RedirectToPage("/Detail", new { id = result.Id });
-                }
-            case "Practitioner":
-                {
-                    var result = await practitionerSyncService.SyncOneAsync(existing.PusulaId, liveMode: true);
-                    return RedirectToPage("/Detail", new { id = result.Id });
-                }
-            case "Composition":
-                {
-                    var result = await compositionSyncService.SyncOneAsync(existing.PusulaId, liveMode: true);
-                    return RedirectToPage("/Detail", new { id = result.Id });
-                }
-            // Condition/Procedure/Observation/DiagnosticReport -- KULLANICI ISTEGI (2026-08-31):
-            // "detay ekranına geçince gönder ve sil vs hiç bir buton yok". Bu 4 turun Protokol
-            // Detay sayfasinda ZATEN kendi Gönder butonlari var (OnPostGonderTaniAsync vb.), ama
-            // buraya (orn. Aktivite Akisi'ndan) dogrudan gelindiginde hicbir secenek yoktu.
-            // Patient/Encounter/Practitioner/Composition'in aksine bunlarin gonderimi Encounter
-            // baglamina (azPatientId/azEncounterId) ihtiyac duyuyor -- bu baglam SADECE
-            // FromProtokol doluysa bilinir (Protokol sayfasindaki Detay linkleri bunu her zaman
-            // tasir, bkz. Detail.cshtml.cs OnGetAsync'teki ayni gerekce). Bos ise TAHMIN
-            // ETMIYORUZ, kullaniciyi Protokol sayfasina yonlendiren bir mesaj gosteriyoruz.
-            case "Condition":
-                {
-                    var ctx = await ResolveEncounterContextAsync(cascadeEncounter: true);
-                    if (ctx is not ({ } protokol, { } azPatientId, { } azEncounterId, _))
-                        return await NotSupportedPage(existing, ctx.Reason!);
-                    var tanilar = await pusulaRepository.GetTanilarByProtokolIdAsync(protokol.ProtokolId);
-                    var tani = tanilar.FirstOrDefault(t => t.Id == existing.PusulaId);
-                    if (tani is null) return await NotSupportedPage(existing, "Kaynak Pusula kaydı artık bulunamıyor.");
-                    var result = await conditionSyncService.SyncOneAsync(tani, protokol, azPatientId, azEncounterId, tanilar.Count, liveMode: true);
-                    return RedirectToPage("/Detail", new { id = result.Id, fromProtokol = FromProtokol });
-                }
-            case "Procedure":
-                {
-                    var ctx = await ResolveEncounterContextAsync(cascadeEncounter: true);
-                    if (ctx is not ({ } protokol, { } azPatientId, { } azEncounterId, _))
-                        return await NotSupportedPage(existing, ctx.Reason!);
-                    var islemler = await pusulaRepository.GetIslemlerByProtokolIdAsync(protokol.ProtokolId);
-                    var islem = islemler.FirstOrDefault(i => i.Id == existing.PusulaId);
-                    if (islem is null) return await NotSupportedPage(existing, "Kaynak Pusula kaydı artık bulunamıyor.");
-                    var result = await procedureSyncService.SyncOneAsync(islem, protokol, azPatientId, azEncounterId, liveMode: true);
-                    return RedirectToPage("/Detail", new { id = result.Id, fromProtokol = FromProtokol });
-                }
-            case "Observation":
-                {
-                    var ctx = await ResolveEncounterContextAsync(cascadeEncounter: false);
-                    if (ctx is not ({ } protokol, { } azPatientId, _, _))
-                        return await NotSupportedPage(existing, ctx.Reason!);
-                    // SyncLog.PusulaId artik GRUBUN anahtar satirinin Id'si (bkz.
-                    // LabGroupBuilder) -- tek satir degil, o grubun tamami yeniden gonderilir.
-                    var labs = await pusulaRepository.GetLabResultsByProtokolIdAsync(protokol.ProtokolId);
-                    var grup = LabGroupBuilder.Build(labs)
-                        .FirstOrDefault(g => g.AnahtarId == existing.PusulaId
-                                          || g.TumSatirlar.Any(l => l.LabaratuarSonucId == existing.PusulaId));
-                    if (grup is null) return await NotSupportedPage(existing, "Kaynak Pusula kaydı artık bulunamıyor.");
-                    var result = await labResultSyncService.SyncGroupAsync(grup, protokol, azPatientId, ctx.AzEncounterId, liveMode: true);
-                    return RedirectToPage("/Detail", new { id = result.Id, fromProtokol = FromProtokol });
-                }
-            case "DiagnosticReport":
-                {
-                    var ctx = await ResolveEncounterContextAsync(cascadeEncounter: false);
-                    if (ctx is not ({ } protokol, { } azPatientId, _, _))
-                        return await NotSupportedPage(existing, ctx.Reason!);
-                    var reports = await pusulaRepository.GetRadiologyReportsByProtokolIdAsync(protokol.ProtokolId);
-                    var report = reports.FirstOrDefault(r => r.TetkikIslemId == existing.PusulaId);
-                    if (report is null) return await NotSupportedPage(existing, "Kaynak Pusula kaydı artık bulunamıyor.");
-                    var procedureStatuses = await syncLog.GetLatestByPusulaIdsAsync("Procedure", [report.ProtokolIslemId]);
-                    var azProcedureId = procedureStatuses.GetValueOrDefault(report.ProtokolIslemId) is { Status: SyncStatus.Success, AzResourceId: not null } proc ? proc.AzResourceId : null;
-                    string? azPractitionerId = null;
-                    if (report.RaporuOnaylayanDoktorId is { } doktorId)
-                    {
-                        var practitionerStatuses = await syncLog.GetLatestByPusulaIdsAsync("Practitioner", [doktorId]);
-                        azPractitionerId = practitionerStatuses.GetValueOrDefault(doktorId) is { Status: SyncStatus.Success, AzResourceId: not null } prac ? prac.AzResourceId : null;
-                    }
-                    var result = await radiologyReportSyncService.SyncOneAsync(report, protokol, azPatientId, ctx.AzEncounterId, azProcedureId, azPractitionerId, liveMode: true);
-                    return RedirectToPage("/Detail", new { id = result.Id, fromProtokol = FromProtokol });
-                }
-            // Zincirin UC halkasi da ayni yerden tetikleniyor: patoloji gonderimi zaten
-            // Observation -> Composition -> DiagnosticReport'u BIRLIKTE gonderiyor
-            // (PathologyReportSyncService), dolayisiyla hangi halkanin uzerinde "Tekrar
-            // Gonder"e basilirsa basilsin dogru davranis butun zinciri rapordan bastan
-            // calistirmaktir.
-            case "DiagnosticReport-Patoloji":
-            case "Composition-Patoloji":
-            case "Observation-Patoloji":
-                {
-                    var ctx = await ResolveEncounterContextAsync(cascadeEncounter: false);
-                    if (ctx is not ({ } protokol, { } azPatientId, _, _))
-                        return await NotSupportedPage(existing, ctx.Reason!);
+        var sonuc = await tekilGonderim.GonderAsync(existing, FromProtokol, ct);
+        if (sonuc.Kayit is { } yeniKayit)
+            return RedirectToPage("/Detail", new { id = yeniKayit.Id, fromProtokol = FromProtokol });
 
-                    // Composition'in PusulaId'si rapor ile ayni (ResultId); Observation'inki
-                    // ise EPulse.IslemReferansNumarasi -- once rapora cikilmasi gerekiyor.
-                    var resultId = existing.ResourceType == "Observation-Patoloji"
-                        ? await pusulaRepository.GetPathologyResultIdByIslemReferansAsync(existing.PusulaId)
-                        : existing.PusulaId;
-                    if (resultId is null)
-                        return await NotSupportedPage(existing, "Bu bulgunun ait olduğu patoloji raporu Pusula'da bulunamadı.");
-
-                    var reports = await pusulaRepository.GetPathologyReportsByProtokolIdAsync(protokol.ProtokolId);
-                    var report = reports.FirstOrDefault(r => r.ResultId == resultId);
-                    if (report is null) return await NotSupportedPage(existing, "Kaynak Pusula kaydı artık bulunamıyor.");
-                    string? azProcedureId = null;
-                    if (report.ProtokolIslemId is { } patolojiIslemId)
-                    {
-                        var procedureStatuses = await syncLog.GetLatestByPusulaIdsAsync("Procedure", [patolojiIslemId]);
-                        azProcedureId = procedureStatuses.GetValueOrDefault(patolojiIslemId) is { Status: SyncStatus.Success, AzResourceId: not null } proc ? proc.AzResourceId : null;
-                    }
-                    string? azPractitionerId = null;
-                    if (report.ApprovedById is { } doktorId)
-                    {
-                        var practitionerStatuses = await syncLog.GetLatestByPusulaIdsAsync("Practitioner", [doktorId]);
-                        azPractitionerId = practitionerStatuses.GetValueOrDefault(doktorId) is { Status: SyncStatus.Success, AzResourceId: not null } prac ? prac.AzResourceId : null;
-                    }
-                    var result = await pathologyReportSyncService.SyncOneAsync(report, protokol, azPatientId, ctx.AzEncounterId, azProcedureId, azPractitionerId, liveMode: true);
-                    return RedirectToPage("/Detail", new { id = result.Id, fromProtokol = FromProtokol });
-                }
-            default:
-                ResendMessage = $"'{existing.ResourceType}' kayıt türü için tekrar gönderim henüz desteklenmiyor.";
-                Entry = existing;
-                PrettyRequest = Pretty(existing.RequestJson);
-                PrettyResponse = Pretty(existing.ResponseJson);
-                return Page();
-        }
-    }
-
-    private async Task<IActionResult> NotSupportedPage(SyncLogEntry existing, string reason)
-    {
-        ResendMessage = reason;
+        // Gonderilemedi: sayfada KALINIP sebep gosteriliyor. Yonlendirme yapilsaydi sebep
+        // kaybolurdu ve kullanici "tikladim, bir sey olmadi" derdi.
+        ResendMessage = sonuc.Hata;
         Entry = existing;
         PrettyRequest = Pretty(existing.RequestJson);
         PrettyResponse = Pretty(existing.ResponseJson);
         return Page();
-    }
-
-    // Condition/Procedure/Observation/DiagnosticReport'un ortak baglam ihtiyaci -- Protokol.cshtml.cs'teki
-    // GetGercekIdleriAsync/GetIdleriLabIcinAsync ile AYNI kurallar (canli Patient aramasi, kayitli
-    // Encounter'in GERCEKTEN gecerli olup olmadigini canli kontrol etme). cascadeEncounter=true
-    // olan turlerde (Condition/Procedure, Encounter.encounter 1..1 zorunlu) Encounter yoksa/gecersizse
-    // OTOMATIK olarak yeniden gonderilir -- cascadeEncounter=false olanlarda (Lab/Radyoloji,
-    // encounter opsiyonel) sadece referans eklenmez, YENI bir Encounter olusturulmaz.
-    private async Task<(ProtokolListItem? Protokol, string? AzPatientId, string? AzEncounterId, string? Reason)> ResolveEncounterContextAsync(bool cascadeEncounter)
-    {
-        if (FromProtokol is null)
-            return (null, null, null, "Bu kayıt için protokol bağlamı bilinmiyor -- Protokol Detay sayfasından tekrar gönderin.");
-
-        var protokol = await pusulaRepository.GetProtokolByIdAsync(FromProtokol.Value);
-        if (protokol is null)
-            return (null, null, null, "İlgili protokol artık bulunamıyor.");
-
-        var azPatientId = await eHealthClient.FindExistingIdAsync("Patient", protokol.HastaId.ToString());
-        var encounterStatuses = await syncLog.GetLatestByPusulaIdsAsync("Encounter", [protokol.ProtokolId]);
-        var azEncounterId = encounterStatuses.GetValueOrDefault(protokol.ProtokolId)?.AzResourceId;
-
-        if (azEncounterId is not null)
-        {
-            var check = await eHealthClient.GetAsync("Encounter", azEncounterId);
-            if (!check.Success) azEncounterId = null;
-        }
-
-        if (azEncounterId is null && cascadeEncounter)
-        {
-            var encResult = await encounterSyncService.SyncOneAsync(protokol.ProtokolId, liveMode: true);
-            azEncounterId = encResult.AzResourceId;
-        }
-
-        if (azPatientId is null)
-            return (null, null, null, "Hasta TRƏS'te bulunamadı -- önce Hasta gönderilmeli.");
-        if (cascadeEncounter && azEncounterId is null)
-            return (null, null, null, "Müayinə TRƏS'e gönderilemedi -- önce onu Protokol Detay sayfasından gönderin.");
-
-        return (protokol, azPatientId, azEncounterId, null);
     }
 
     // Yanlislikla gonderilmis bir kaydi TRƏS'ten geri almak icin -- sadece gercekten

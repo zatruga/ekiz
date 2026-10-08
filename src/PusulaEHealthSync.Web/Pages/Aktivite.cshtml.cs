@@ -3,6 +3,7 @@ using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Caching.Memory;
 using PusulaEHealthSync.Db;
 using PusulaEHealthSync.Persistence;
+using PusulaEHealthSync.Sync;
 
 namespace PusulaEHealthSync.Web.Pages;
 
@@ -40,7 +41,9 @@ namespace PusulaEHealthSync.Web.Pages;
 //      gezinirken sayilar SABIT kaliyor (ayrica her sayfada on binlerce id'yi Pusula'ya
 //      yeniden sormayi da onluyor).
 public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
-    IMemoryCache cache, ILogger<AktiviteModel> logger) : PageModel
+    IMemoryCache cache, TekilGonderimService tekilGonderim, DeleteService deleteService,
+    ProtocolFullSyncService protocolFullSync, CancellationSyncService cancellationSync,
+    ILogger<AktiviteModel> logger) : PageModel
 {
     public List<SyncLogEntry> Entries { get; set; } = [];
     public List<AktiviteGrubu> Gruplar { get; set; } = [];
@@ -68,6 +71,11 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
 
     // Ust kart sayilari -- ARALIGIN TAMAMI, sayfadan bagimsiz.
     public AkisOzeti Ozet { get; set; } = AkisOzeti.Bos;
+
+    // Gonderim/silme sonucu. TempData: islemler POST-REDIRECT-GET ile bitiyor (tazeleme
+    // ayni gonderimi tekrar yapmasin diye), mesajin yonlendirmeden sagligiyla cikmasi lazim.
+    [TempData] public string? IslemMesaji { get; set; }
+    [TempData] public bool IslemBasarili { get; set; }
 
     // SAYFA BOYUTU ARTIK GRUP SAYISI (hasta/protokol), satir sayisi degil. 25 grup, bir
     // ekranda kapali halde rahat sigiyor; acildiginda satir sayisi gruba gore degisiyor
@@ -98,6 +106,11 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
 
     [BindProperty(SupportsGet = true)]
     public int P { get; set; } = 1;
+
+    // Tekil gonderimde kaydin hangi protokole ait oldugu -- formdan gelir (akis protokole
+    // gore grupli, yani ekran bunu zaten biliyor). Tahmin edilmez.
+    [BindProperty]
+    public int? ProtokolId { get; set; }
 
     // Genel Bakış'taki "Hata Kategorileri" kutucuklarından geliyor -- SyncLogEntry.ErrorCategory
     // ile ayni etiketle eslesen Failed kayitlarini gosterir. Bu bir DB sutunu degil (mesaj
@@ -347,6 +360,115 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
                 k.Max(x => x.Id));
         }
     }
+
+    // =========================== GONDERME VE SILME ===========================
+    //
+    // KULLANICI ISTEGI (2026-10-08): "aktivite akisinda gonderme ve silme
+    // fonksiyonlarini da ekleyelim -- tum silme ve gonderme prosesleri olsun, tek tek,
+    // toplu, hasta bazli, hepsi."
+    //
+    // DORT ISLEM, DORDU DE MEVCUT SERVISLERI CAGIRIYOR -- bu ekrana ozel hicbir gonderim
+    // ya da silme mantigi YAZILMADI. Sebep bu projede olculmus bir hata: 2026-09-15'te
+    // toplu gonderim kendi zincirini tasiyordu, EncounterSyncService'ten ayristi ve
+    // epikriz/laboratuvar/patoloji toplu gonderimde HIC gitmedi. Ayni tuzaga iki kez
+    // dusmemek icin:
+    //   Tek kayit gonder -> TekilGonderimService      (Detay sayfasi da ayni servisi kullanir)
+    //   Tek kayit sil    -> DeleteService             (patoloji zincirini de o cozer)
+    //   Hastanin tumunu gonder -> ProtocolFullSyncService  (otomatik dongunun kullandigi yol)
+    //   Hastanin tumunu sil    -> CancellationSyncService.DeleteProtocolChainAsync
+    //
+    // SILME SIRASI BURADA TEKRARLANMIYOR: FHIR hala referans verilen bir kaynagi silmeyi
+    // HTTP 409 ile reddediyor, yani sira distan ice olmak zorunda (raporlar -> epikriz/
+    // islem/tani -> Muayine). O kural CancellationSyncService'te, tek kopya halinde.
+    //
+    // HASTA (Patient) TOPLU SILMEDE SILINMEZ: ayni hasta baska protokollerde de kullaniliyor,
+    // bir protokolden silmek digerlerini kirardi. Hasta satirinin kendi "Sil" dugmesi var.
+
+    public async Task<IActionResult> OnPostGonderAsync(long kayitId, CancellationToken ct)
+    {
+        var kayit = await syncLog.GetByIdAsync(kayitId, ct);
+        if (kayit is null) return NotFound();
+
+        // Protokol baglami: Tani/Islem/Lab/Radyoloji/Patoloji gonderimi buna ihtiyac
+        // duyuyor. Akis protokole gore grupli oldugu icin numara formdan geliyor --
+        // tahmin edilmiyor.
+        var sonuc = await tekilGonderim.GonderAsync(kayit, ProtokolId, ct);
+        if (sonuc.Kayit is { } yeni)
+            Sonuclandir(yeni.Status != SyncStatus.Failed,
+                yeni.Status == SyncStatus.Failed
+                    ? $"Gönderilemedi: {SyncLogEntry.FriendlyError(yeni.Message)}"
+                    : $"{SyncLogEntry.ResourceTypeLabel(kayit.ResourceType)} gönderildi.");
+        else
+            Sonuclandir(false, sonuc.Hata);
+
+        return GeriDon();
+    }
+
+    public async Task<IActionResult> OnPostSilAsync(long kayitId, CancellationToken ct)
+    {
+        var kayit = await syncLog.GetByIdAsync(kayitId, ct);
+        if (kayit is null) return NotFound();
+
+        // AzResourceId bos ise TRƏS'te silinecek bir sey yok ($validate edilmis kayit).
+        // Dugme zaten gosterilmiyor ama istek elle de gelebilir.
+        if (kayit.AzResourceId is null)
+        {
+            Sonuclandir(false, "Bu kaydın TRƏS'te karşılığı yok -- silinecek bir şey bulunmuyor.");
+            return GeriDon();
+        }
+
+        var sonuc = await deleteService.DeleteAsync(kayit, ct);
+        Sonuclandir(sonuc.Status != SyncStatus.Failed,
+            sonuc.Status == SyncStatus.Failed
+                ? $"Silinemedi: {SyncLogEntry.FriendlyError(sonuc.Message)}"
+                : $"{SyncLogEntry.ResourceTypeLabel(kayit.ResourceType)} TRƏS'ten silindi.");
+        return GeriDon();
+    }
+
+    public async Task<IActionResult> OnPostGrupGonderAsync(int protokolId, CancellationToken ct)
+    {
+        var protokol = await repository.GetProtokolByIdAsync(protokolId, ct);
+        if (protokol is null)
+        {
+            Sonuclandir(false, "Protokol Pusula'da bulunamadı.");
+            return GeriDon();
+        }
+
+        var sonuc = await protocolFullSync.SyncAllAsync(protokol, ct);
+        Sonuclandir(sonuc.EncounterStatus != SyncStatus.Failed,
+            $"Protokol {protokolId} yeniden gönderildi (müayinə: {sonuc.EncounterStatus}).");
+        return GeriDon();
+    }
+
+    public async Task<IActionResult> OnPostGrupSilAsync(int protokolId, CancellationToken ct)
+    {
+        var sonuc = await cancellationSync.DeleteProtocolChainAsync(
+            protokolId, $"Aktivite Akışı \"Tümünü Sil\" ({protokolId})", ct);
+        Sonuclandir(sonuc.Err == 0,
+            $"Protokol {protokolId}: {sonuc.Ok} kayıt TRƏS'ten silindi"
+            + (sonuc.Err > 0 ? $", {sonuc.Err} tanesi silinemedi." : "."));
+        return GeriDon();
+    }
+
+    private void Sonuclandir(bool basarili, string? mesaj)
+    {
+        IslemBasarili = basarili;
+        IslemMesaji = mesaj;
+    }
+
+    // POST-REDIRECT-GET: tazeleme ayni gonderimi/silmeyi tekrar yapmasin. Filtre, tarih
+    // araligi ve sayfa numarasi KORUNUYOR -- kullanici her islemden sonra listenin basina
+    // dusseydi 25 hastalik bir sayfada tek tek calismak imkansiz olurdu.
+    //
+    // PageNumber DEGIL P: PageNumber yalnizca OnGetAsync'te atanıyor, POST handler'larinda
+    // 0 kalir. Yonlendirmede onu kullansaydik P=0 gider, OnGetAsync de 1'e kirpar ve her
+    // islemden sonra kullanici sayfa 1'e duserdi -- tam da kacinmak istedigimiz sey.
+    private IActionResult GeriDon() => RedirectToPage("/Aktivite", new
+    {
+        Status, ResourceType, Kategori, P = P < 1 ? 1 : P,
+        From = From?.ToString("yyyy-MM-dd"),
+        To = To?.ToString("yyyy-MM-dd"),
+    });
 
     // Gonderilen kaydin insan okunur adi -- protokol cozumuyle ayni dayaniklilikla
     // (Pusula erisilemezse sutun bos kalir, sayfa yine acilir).

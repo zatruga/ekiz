@@ -71,6 +71,7 @@ builder.Services.AddSingleton<LabResultSyncService>();
 builder.Services.AddSingleton<RadiologyReportSyncService>();
 builder.Services.AddSingleton<PathologyReportSyncService>();
 builder.Services.AddSingleton<DeleteService>();
+builder.Services.AddSingleton<TekilGonderimService>();
 builder.Services.AddSingleton<ProtocolFullSyncService>();
 builder.Services.AddSingleton<PendingWorkService>();
 builder.Services.AddSingleton<CancellationSyncService>();

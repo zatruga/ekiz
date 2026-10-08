@@ -100,6 +100,14 @@
     </a>
 </div>
 
+@* ISLEM SONUCU -- gonderme/silme POST-REDIRECT-GET ile bittigi icin TempData'dan
+   geliyor. Sessiz basari yok: devlet kayit sistemine yazan bir dugmeye basan kisi
+   ne oldugunu GORMELI. *@
+@if (!string.IsNullOrWhiteSpace(Model.IslemMesaji))
+{
+    <div class="alert @(Model.IslemBasarili ? "alert-success" : "alert-danger")">@Model.IslemMesaji</div>
+}
+
 @* Sessizce eksik sayi gostermek, hic gostermemekten kotu -- taban asildiginda
    kullanici bunu BILMEK zorunda, cunku karttaki "toplam hasta" artik eksik. *@
 @if (Model.Ozet.Kirpildi)
@@ -269,6 +277,35 @@ else
                        HER SEYI sayiyor, tablo ise yalnizca suzgece uyan satirlari
                        gosteriyor. Bu satir ikisi arasindaki farki aciklar -- yoksa
                        "3 basarili rozeti var ama tabloda 1 satir" celiski gibi gorunur. *@
+                    @* HASTA BAZLI TOPLU ISLEMLER. <summary> icinde oldugu icin
+                       stopPropagation sart -- yoksa dugmeye basmak grubu da acip
+                       kapatirdi. Yalnizca protokolu BELLI gruplarda var: hasta kaydi
+                       ve kimliksiz gruplarda gonderilecek/silinecek bir zincir yok,
+                       o satirlarin kendi dugmeleri iceride duruyor. *@
+                    @if (grup.ProtokolId is { } grupPid)
+                    {
+                        <span class="akis-grup-islem" onclick="event.stopPropagation()">
+                            <form method="post" asp-page-handler="GrupGonder" asp-route-protokolId="@grupPid"
+                                  asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType"
+                                  asp-route-Kategori="@Model.Kategori" asp-route-P="@Model.PageNumber"
+                                  asp-route-From="@fromIso" asp-route-To="@toIso"
+                                  onsubmit="pusulaLockSubmit(this)">
+                                <button type="submit" class="btn btn-outline btn-sm"
+                                        title="Bu protokolün tüm zincirini yeniden gönder (müayinə, tanı, işlem, epikriz, laboratuvar, radyoloji, patoloji)">
+                                    Tümünü gönder
+                                </button>
+                            </form>
+                            <form method="post" asp-page-handler="GrupSil" asp-route-protokolId="@grupPid"
+                                  asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType"
+                                  asp-route-Kategori="@Model.Kategori" asp-route-P="@Model.PageNumber"
+                                  asp-route-From="@fromIso" asp-route-To="@toIso"
+                                  data-onay="Protokol @grupPid: bu hastanın TRƏS'e gönderilmiş TÜM kayıtları silinecek."
+                                  onsubmit="return pusulaSilOnayi(this)"
+                                  title="Hasta kaydı silinmez -- başka protokollerde de kullanılıyor">
+                                <button type="submit" class="btn btn-outline btn-sm alt-serit-sil">Tümünü sil</button>
+                            </form>
+                        </span>
+                    }
                     <span class="akis-grup-adet">
                         @if (grup.Suzulmus)
                         {
@@ -371,7 +408,51 @@ else
                                         @(e.Message ?? "-")
                                     }
                                 </td>
-                                <td><a asp-page="/Detail" asp-route-id="@e.Id" class="btn btn-outline btn-sm">Detay</a></td>
+                                @* fromProtokol TASINIYOR (2026-10-08). Detay sayfasindaki
+                                   "Tekrar gonder", Tani/Islem/Lab/Radyoloji turlerinde
+                                   Encounter baglamina (azPatientId/azEncounterId) ihtiyac
+                                   duyuyor ve o baglam yalnizca protokol biliniyorsa
+                                   cozulebiliyor. Bu baglanti onu tasimadigi icin Aktivite
+                                   Akisi'ndan gelen kullanici "desteklenmiyor, Protokol
+                                   sayfasina gidin" mesajiyla karsilasiyordu -- oysa akis
+                                   artik protokole gore grupli, protokol numarasi elimizde. *@
+                                <td>
+                                    <div class="akis-satir-islem">
+                                        <a asp-page="/Detail" asp-route-id="@e.Id"
+                                           asp-route-fromProtokol="@grup.ProtokolId"
+                                           class="btn btn-outline btn-sm">Detay</a>
+
+                                        @* TEKIL GONDERIM. ProtokolId gizli alanla gidiyor:
+                                           Tani/Islem/Lab/Radyoloji/Patoloji gonderimi
+                                           Encounter baglamina ihtiyac duyuyor ve o baglam
+                                           ancak protokol biliniyorsa cozuluyor. Grup
+                                           basligindan geldigi icin TAHMIN yok. *@
+                                        <form method="post" asp-page-handler="Gonder" asp-route-kayitId="@e.Id"
+                                              asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType"
+                                              asp-route-Kategori="@Model.Kategori" asp-route-P="@Model.PageNumber"
+                                              asp-route-From="@fromIso" asp-route-To="@toIso"
+                                              onsubmit="pusulaLockSubmit(this)">
+                                            <input type="hidden" name="ProtokolId" value="@grup.ProtokolId" />
+                                            <button type="submit" class="btn btn-outline btn-sm" title="Bu kaydı yeniden gönder">Gönder</button>
+                                        </form>
+
+                                        @* SILME DUGMESI YALNIZCA TRƏS'TE KARSILIGI OLAN
+                                           KAYITTA. AzResourceId bossa kayit yalnizca
+                                           $validate edilmis demektir -- silinecek bir sey
+                                           yok, dugmeyi gostermek yaniltici olurdu. *@
+                                        @if (e.AzResourceId is not null)
+                                        {
+                                            <form method="post" asp-page-handler="Sil" asp-route-kayitId="@e.Id"
+                                                  asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType"
+                                                  asp-route-Kategori="@Model.Kategori" asp-route-P="@Model.PageNumber"
+                                                  asp-route-From="@fromIso" asp-route-To="@toIso"
+                                                  data-onay="@SyncLogEntry.ResourceTypeLabel(e.ResourceType) kaydı (Pusula @e.PusulaId) TRƏS'ten silinecek."
+                                                  onsubmit="return pusulaSilOnayi(this)">
+                                                <button type="submit" class="btn btn-outline btn-sm alt-serit-sil">Sil</button>
+                                            </form>
+                                        }
+                                    </div>
+                                </td>
                             </tr>
                         }
                     </tbody>
@@ -396,6 +477,19 @@ else
 }
 
 <script>
+    // SILME ONAYI. Silme, bakanligin sistemine KALICI yaziyor ve geri alinamiyor; bu ekran
+    // ise 25 gruplu, filtrelenebilen bir gunluk -- yanlis tiklamanin en kolay oldugu yer.
+    // Onaydan sonra dugme kilitleniyor (cift gonderim olmasin).
+    // Mesaj data-onay niteliginden okunuyor, onsubmit'in icine gomulmuyor: kayit adinda
+    // bir kesme isareti ("Müayinə'nin" gibi) JS dizesini bozardi ve dugme sessizce
+    // calismaz hale gelirdi. Nitelikte Razor kodlamayi kendi yapiyor.
+    function pusulaSilOnayi(form) {
+        var mesaj = form.getAttribute('data-onay') || 'Bu kayıt TRƏS\'ten silinecek.';
+        if (!confirm(mesaj + '\n\nBu işlem geri alınamaz. Devam edilsin mi?')) { return false; }
+        pusulaLockSubmit(form);
+        return true;
+    }
+
     // Toplu ac/kapat -- varsayilani ezer. Sunucu tarafi varsayilani "sorunlu olanlar acik"
     // oldugu icin kullanicinin tam tersini isteyebilecegi durum her zaman var.
     function akisTumunuAyarla(acik) {

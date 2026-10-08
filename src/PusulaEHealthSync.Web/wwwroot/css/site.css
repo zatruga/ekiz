@@ -1780,6 +1780,13 @@ main.content.content--genis { max-width: none; }
 .akis-grup-no:hover { text-decoration: underline; }
 .akis-grup-no--yok { color: var(--text-faint); font-weight: 600; font-size: 13px; }
 
+/* Aktivite Akisi islem dugmeleri (2026-10-08). Formlar blok oge oldugu icin yan yana
+   durmalari ayrica soylenmek zorunda; aksi halde her dugme alt alta dusuyor. */
+.akis-grup-islem { display: inline-flex; gap: 6px; align-items: center; margin-right: 10px; }
+.akis-grup-islem form { display: inline; }
+.akis-satir-islem { display: flex; gap: 6px; align-items: center; flex-wrap: wrap; }
+.akis-satir-islem form { display: inline; margin: 0; }
+
 .akis-grup-metin { min-width: 0; }
 .akis-grup-hasta { font-size: 14px; font-weight: 600; color: var(--text); }
 .akis-grup-fin { font-size: 12px; font-weight: 400; color: var(--text-muted); margin-left: 8px; }
