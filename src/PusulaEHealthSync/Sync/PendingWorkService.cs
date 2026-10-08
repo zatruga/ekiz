@@ -411,9 +411,39 @@ public class PendingWorkService(
 
         // En eski bekleyen once -- en uzun sure takilı kalanlar gorunur olsun.
         static List<PendingProtocol> Kirp(List<PendingProtocol> g, int n) => g
-            .OrderBy(x => x.Items.Min(i => i.SonuclanmaTarihi == DateTime.MinValue ? DateTime.MaxValue : i.SonuclanmaTarihi))
+            .OrderBy(EnEskiKalem)
             .Take(n)
             .ToList();
+
+        // ANA KUMEDE UYGUN OLANLAR ONCE (2026-10-08 duzeltmesi).
+        //
+        // KULLANICI: "otomatik gonderimi sanki surekli yapmiyor gibi?"
+        //
+        // SEBEP: AutoSyncWorker bu listeden `Where(Eligible).Take(partiBoyutu)` aliyor, ama
+        // liste n=200'de KIRPILIYORDU ve kirpma yalnizca "en eski kalem" sirasina bakiyordu.
+        // Uygunluk sirayi hic etkilemedigi icin pencere, gonderilemeyecek protokollerle
+        // doluyordu.
+        //
+        // OLCULDU (canli Pusula, 01.10-08.10 arasi): 634 protokol gonderime uygun, buna
+        // karsilik 4.260'i "henuz uygun degil" (kapanmamis ayaktan protokoller -- ayaktanda
+        // kapanis cogu zaman hic yapilmiyor, protokol acilistan 7 gun sonra uygun hale
+        // geliyor) ve 85'i KALICI olarak uygun degil (taburcusu girilmemis yatan hasta).
+        // Bu 4.345 protokolun kalemleri EN ESKI olanlar oldugu icin siranin basini onlar
+        // tutuyor; 200'luk pencereye uygun protokol ya hic giremiyor ya da parti boyutunun
+        // (50) cok altinda giriyordu. Dongu calisiyor, ama her turda gonderecek is
+        // bulamiyordu.
+        //
+        // TAKILANLAR LISTESINE UYGULANMIYOR: orada soru "ne kadar suredir takili" --
+        // uygunluk o listenin konusu degil, en eski once dogru sira.
+        static List<PendingProtocol> KirpUygunOnce(List<PendingProtocol> g, int n) => g
+            .OrderByDescending(x => x.Eligible)
+            .ThenBy(EnEskiKalem)
+            .Take(n)
+            .ToList();
+
+        static DateTime EnEskiKalem(PendingProtocol x) => x.Items.Count == 0
+            ? DateTime.MaxValue
+            : x.Items.Min(i => i.SonuclanmaTarihi == DateTime.MinValue ? DateTime.MaxValue : i.SonuclanmaTarihi);
 
         // EN ESKI BEKLEYEN -- KIRPILMAMIS kumeden. Artimli tarama penceresinin alt sinirini
         // bu belirliyor (bkz. RefreshIncrementalAsync); kirpilmis listeden hesaplansaydi,
@@ -429,7 +459,7 @@ public class PendingWorkService(
                     enEski = i.SonuclanmaTarihi;
 
         return new PendingWorkResult(
-            Kirp(gruplar, maxProtocols), ozet, gruplar.Count,
+            KirpUygunOnce(gruplar, maxProtocols), ozet, gruplar.Count,
             enEski,
             Kirp(takilanGruplar, maxProtocols), takilanOzet, takilanGruplar.Count);
     }

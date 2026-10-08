@@ -221,8 +221,23 @@
                                         {
                                             <span class="rchip disabled" title="Protokol kapanana (veya @Model.OpenProtokolSendAfterDays gün dolana) kadar bekliyor -- bkz. Ayarlar">Bekliyor</span>
                                         }
-                                        <span class="rchip disabled" title="Henüz geliştirilmedi">Lab</span>
-                                        <span class="rchip disabled" title="Henüz geliştirilmedi">Epikriz</span>
+                                        @* EPIKRIZ / LAB / RAD / PATOLOJI (2026-10-08).
+                                           Once burada iki SABIT "Henüz geliştirilmedi" metni
+                                           vardi ve Rad hic yoktu -- modüller aylar once
+                                           yazilmisti ama rozetler hic baglanmamisti.
+
+                                           ROZET YALNIZCA O TUR VARSA CIKAR: ayaktan bir
+                                           muayenede radyoloji de patoloji de yok; hepsini
+                                           her satirda gostermek 30 satirlik tabloyu
+                                           okunamaz hale getirirdi. Rozetin YOKLUGU
+                                           "bu protokolde o tur kayit yok" demek. *@
+                                        @foreach (var tip in PusulaEHealthSync.Web.Pages.IndexModel.RozetTurleri)
+                                        {
+                                            if (!row.Rozetler.TryGetValue(tip, out var rozet)) { continue; }
+                                            <span class="rchip @rozet.Durum" title="@rozet.Ipucu">
+                                                <span class="rchip-label">@PusulaEHealthSync.Web.Pages.IndexModel.RozetBasligi(tip)</span>@rozet.Etiket
+                                            </span>
+                                        }
                                     </div>
                                 </td>
                                 <td>

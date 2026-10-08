@@ -82,6 +82,98 @@ public partial class PusulaRepository
         _ => null,
     };
 
+    // ================= TERS YON: PROTOKOL -> COCUK KAYITLAR (2026-10-08) =================
+    //
+    // KULLANICI ISTEGI: "protokol listesinde hastanin sagindaki gonderilen rozetler --
+    // muayene, hasta, epikriz, lab, rad -- bunlar radyoloji ya da laboratuvar gonderilse
+    // bile yesil olmuyor."
+    //
+    // Olculdu: Lab ve Epikriz rozetleri ekranda SABIT metindi (`disabled`, "Henüz
+    // gelistirilmedi"), Rad rozeti ise hic yoktu. Yani modüller 2026-08/09'da yazildi ama
+    // listedeki gostergeleri hic baglanmadi -- rozetler gonderimi olcmuyordu, hicbir sey
+    // olcmuyorlardi.
+    //
+    // Baglamak icin ters yone ihtiyac var: SyncLog cocuk kaydin id'siyle tutuluyor
+    // (Observation -> LabaratuarSonucId), ekran ise protokolden soruyor. Yukaridaki
+    // ProtokolIdleriniCozAsync cocuktan protokole gidiyor; bu metot tam tersi.
+    //
+    // UYGUNLUK KOSULLARI TARAMAYLA AYNI: her sorgu, PendingWork taramasinin o tur icin
+    // kullandigi kosulun aynisini tasiyor. Farkli olsaydi rozet "gonderilmedi" derken
+    // tarama o kaydi hic aday gormuyor olabilirdi -- kullanici da hic gelmeyecek bir
+    // gonderimi beklerdi.
+    //
+    // SALT OKUNUR: SELECT'ten baska bir sey yok (projenin 1 numarali kurali).
+    private static string? CocukSorgusu(string resourceType) => resourceType switch
+    {
+        // GetCompletedLabResultsAsync ile ayni (Status = 6)
+        "Observation" => @"
+            SELECT lab.VisitId, lab.LabaratuarSonucId
+            FROM LIS.uv_LaboratuarSonucKayitBilgileriByProtokolId lab
+            WHERE lab.Status = 6 AND lab.VisitId IN ({0})",
+
+        // GetCompletedRadiologyAsync ile ayni (State = 6). Protokol bagi ProtokolIslem
+        // uzerinden -- RIS.TetkikIslem'in kendi ProtokolId'si YOK (olculdu).
+        "DiagnosticReport" => @"
+            SELECT pi.ProtokolId, rti.Id
+            FROM RIS.TetkikIslem rti
+            INNER JOIN Hasta.ProtokolIslem pi ON pi.Id = rti.ProtokolIslemId
+            WHERE rti.State = 6 AND pi.ProtokolId IN ({0})",
+
+        // GetCompletedPathologyAsync ile ayni (ReportState = 4)
+        "DiagnosticReport-Patoloji" => @"
+            SELECT r.VisitId, r.Id
+            FROM [EMR.Pathology].[Result] r
+            WHERE r.ReportState = 4 AND r.VisitId IN ({0})",
+
+        // GetLockedEpikrizAsync ile ayni. PusulaId = ProtokolId oldugu icin "cocuk id"
+        // protokolun kendisi; sorgu burada "bu protokolde gonderilecek bir epikriz VAR MI"
+        // sorusunu cevapliyor. Bir protokolde birden fazla GenelMuayene satiri olabildigi
+        // icin DISTINCT sart -- yoksa tek epikriz iki kez sayilirdi.
+        "Composition" => @"
+            SELECT DISTINCT g.ProtokolId, g.ProtokolId
+            FROM Tedavi.GenelMuayene g
+            WHERE g.KilitDurumuId = 1 AND g.State <> 0
+              AND g.Epikriz IS NOT NULL AND DATALENGTH(g.Epikriz) > 0
+              AND g.ProtokolId IN ({0})",
+
+        _ => null,
+    };
+
+    public static bool CocukSorgusuVarMi(string resourceType) => CocukSorgusu(resourceType) is not null;
+
+    // ProtokolId -> o protokolde GONDERILMEYE UYGUN cocuk kayitlarin PusulaId'leri.
+    // Hic cocugu olmayan protokol sonucta YER ALMAZ -- cagiran taraf onun icin rozet
+    // gostermez ("gonderilmedi" demez, cunku gonderilecek bir sey yok).
+    public async Task<Dictionary<int, List<int>>> ProtokolCocukIdleriAsync(
+        string resourceType, IReadOnlyCollection<int> protokolIdleri, CancellationToken ct = default)
+    {
+        var sonuc = new Dictionary<int, List<int>>();
+        if (protokolIdleri.Count == 0) return sonuc;
+        if (CocukSorgusu(resourceType) is not { } sablon) return sonuc;
+
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
+        await conn.OpenAsync(ct);
+
+        // SQL Server'in 2100 parametre siniri -- mevcut kodla ayni payla.
+        foreach (var chunk in protokolIdleri.Distinct().Chunk(1000))
+        {
+            var isimler = string.Join(",", chunk.Select((_, i) => "@p" + i));
+            await using var cmd = new SqlCommand(string.Format(sablon, isimler), conn) { CommandTimeout = 120 };
+            for (var i = 0; i < chunk.Length; i++) cmd.Parameters.AddWithValue("@p" + i, chunk[i]);
+
+            await using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct))
+            {
+                if (reader.IsDBNull(0) || reader.IsDBNull(1)) continue;
+                var protokolId = reader.GetInt32(0);
+                if (!sonuc.TryGetValue(protokolId, out var liste)) sonuc[protokolId] = liste = [];
+                liste.Add(reader.GetInt32(1));
+            }
+        }
+
+        return sonuc;
+    }
+
     // PusulaId -> ProtokolId. Cozulemeyen id'ler sonucta YER ALMAZ -- cagiran taraf
     // onlari "protokol eslesmedi" olarak gosterir, sessizce dusurmez.
     public async Task<Dictionary<int, int>> ProtokolIdleriniCozAsync(

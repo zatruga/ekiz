@@ -9,15 +9,20 @@ namespace PusulaEHealthSync.Web.Pages;
 
 // Protokol Listesi -- ana ekran (KARAR: 2026-08-19, bkz. web-ia-plan artifact bolum 04).
 // Pusula'nin kendi ENabiz Gonderim ekranindaki mantik (protokol satiri + durum filtreleri)
-// esas alindi. Patient ve Encounter senkron ediliyor (2026-08-20: Organization/5204 cevabiyla
-// Encounter da acildi); Condition/Lab/Epikriz kod tarafinda henuz yok, bu yuzden o kolonlar
-// tabloda "Hazir degil" olarak sabit gosterilir -- yanlis izlenim vermesin diye.
+// esas alindi.
+//
+// ROZETLER (2026-10-08): Hasta ve Muayene'nin yani sira Epikriz, Laboratuvar, Radyoloji ve
+// Patoloji de gosteriliyor. Oncesinde Lab ve Epikriz rozetleri ekranda SABIT "Henüz
+// gelistirilmedi" metniydi ve Rad rozeti hic yoktu -- modüller Agustos/Eylul'de yazilmis
+// ama listedeki gostergeleri hic baglanmamisti. Kullanici hakli olarak sordu: "radyoloji
+// ya da laboratuvar gonderilse bile yesil olmuyor."
 public class IndexModel(
     PusulaRepository pusulaRepository,
     SyncLogStore syncLog,
     SettingsStore settings,
     ProtocolFullSyncService protocolFullSync,
-    DeleteService deleteService) : PageModel
+    DeleteService deleteService,
+    ILogger<IndexModel> logger) : PageModel
 {
     private const int PageSize = 30;
 
@@ -70,9 +75,50 @@ public class IndexModel(
 
     public record ProtokolRow(ProtokolListItem Protokol, SyncLogEntry? HastaDurumKaydi, SyncLogEntry? MuayineDurumKaydi, bool MuayineGonderimeUygun)
     {
+        // Epikriz / Laboratuvar / Radyoloji / Patoloji rozetleri. Anahtar ResourceType.
+        // YALNIZCA GOSTERILEN SAYFA icin doldurulur (bkz. RozetleriDoldurAsync).
+        public Dictionary<string, GonderimRozeti> Rozetler { get; init; } = [];
+
         // "Hatali olanlari sec" toplu-secim butonu icin -- Hasta VEYA Muayine son
         // denemesi Failed ise bu protokol "hatali" sayilir.
         public bool Hatali => HastaDurumKaydi?.Status == SyncStatus.Failed || MuayineDurumKaydi?.Status == SyncStatus.Failed;
+    }
+
+    // Bir protokolun TEK BIR kayit turundeki gonderim durumu (Lab, Rad, Epikriz, Patoloji).
+    //
+    // NEDEN AYRI BIR TIP: Hasta ve Muayine'de protokol basina TEK kayit var, o yuzden
+    // SyncLogEntry'nin kendisi yetiyordu. Laboratuvarda ise bir protokolde 70 satir
+    // olabiliyor; rozet onlarin TOPLU halini anlatmali.
+    //
+    // EN KOTU DURUM KAZANIR -- Aktivite Akisi'ndaki hasta siniflandirmasiyla ayni kural:
+    // bir satir hata aldiysa rozet kirmizi. Yesil rozet "hepsi temiz" demek olmali, yoksa
+    // kullanici ekrana guvenip hatayi kacirir.
+    public record GonderimRozeti(int PusulaKayit, int Basarili, int Atlanan, int Hatali)
+    {
+        public int GonderimKaydi => Basarili + Atlanan + Hatali;
+
+        // GONDERIM KAYDI SAYISI ILE PUSULA SATIR SAYISI KASITLI OLARAK KARSILASTIRILMIYOR.
+        //
+        // Laboratuvarda bakanlik istegi geregi bir PANEL tek Observation olarak gidiyor
+        // (bkz. LabGroupBuilder): 28 satirlik bir hemogram icin tek gonderim yapiliyor.
+        // Uye satirlarin da SyncLog kaydi almasi 2026-10-05'te eklendi, yani ONCESINDE
+        // gonderilmis protokollerde 28 satira karsilik 1 kayit var. "Kayit sayisi satir
+        // sayisindan az ise eksik" deseydik, dogru gonderilmis her eski protokol ekranda
+        // kirmizi/sari gorunurdu. Rozet bu yuzden VAR OLAN kayitlarin en kotusunu
+        // gosteriyor; iki sayi da ipucu metninde yaziyor, isteyen bakar.
+        public string Durum =>
+            Hatali > 0 ? "danger" :
+            Atlanan > 0 ? "warning" :
+            Basarili > 0 ? "success" : "pending";
+
+        public string Etiket =>
+            Hatali > 0 ? $"{Hatali} hatalı" :
+            Atlanan > 0 ? "Eksik veri" :
+            Basarili > 0 ? "Gönderildi" : "Gönderilmedi";
+
+        public string Ipucu => GonderimKaydi == 0
+            ? $"Pusula'da {PusulaKayit} gönderilmeye uygun kayıt var, henüz hiçbiri için gönderim denemesi yok."
+            : $"Pusula'da {PusulaKayit} kayıt · gönderim denemesi: {Basarili} başarılı, {Atlanan} eksik veri, {Hatali} hatalı.";
     }
 
     public async Task OnGetAsync(CancellationToken ct)
@@ -139,7 +185,69 @@ public class IndexModel(
 
         HasNextPage = filteredList.Count > PageNumber * PageSize;
         Rows = filteredList.Skip((PageNumber - 1) * PageSize).Take(PageSize).ToList();
+
+        await RozetleriDoldurAsync(ct);
     }
+
+    // EPIKRIZ / LAB / RADYOLOJI / PATOLOJI ROZETLERI (2026-10-08).
+    //
+    // YALNIZCA GOSTERILEN SAYFA ICIN (30 protokol): bu dort tur, Hasta ve Muayine'den
+    // farkli olarak protokolden dogrudan okunamiyor -- SyncLog cocuk kaydin id'siyle
+    // tutuluyor, o yuzden once Pusula'dan "bu protokolde hangi laboratuvar satirlari
+    // var" diye sormak gerekiyor. Tarih araligindaki TUM adaylar icin yapilsaydi
+    // (binlerce protokol, on binlerce laboratuvar satiri) liste ekrani kullanilamaz
+    // hale gelirdi. Sayfadaki 30 protokol icin olculdu: dort sorgu toplam ~0,7 sn.
+    //
+    // HER TUR KENDI BASINA DAYANIKLI: biri patlarsa yalnizca o rozet eksik kalir,
+    // liste yine acilir. Protokol listesi, Pusula'nin yarisi calismazken bile
+    // gosterilebilmeli.
+    private async Task RozetleriDoldurAsync(CancellationToken ct)
+    {
+        if (Rows.Count == 0) return;
+        var protokolIds = Rows.Select(r => r.Protokol.ProtokolId).Distinct().ToList();
+
+        foreach (var tip in RozetTurleri)
+        {
+            try
+            {
+                var cocuklar = await pusulaRepository.ProtokolCocukIdleriAsync(tip, protokolIds, ct);
+                if (cocuklar.Count == 0) continue;
+
+                // Tum sayfanin cocuk id'leri TEK sorguda -- protokol basina ayri sorgu
+                // 30 SQLite gidis-donusu olurdu.
+                var durumlar = await syncLog.GetLatestByPusulaIdsAsync(
+                    tip, cocuklar.Values.SelectMany(x => x).Distinct().ToList(), ct, govdeleriGetir: false);
+
+                foreach (var row in Rows)
+                {
+                    if (!cocuklar.TryGetValue(row.Protokol.ProtokolId, out var idler)) continue;
+                    var kayitlar = idler.Select(durumlar.GetValueOrDefault).OfType<SyncLogEntry>().ToList();
+                    row.Rozetler[tip] = new GonderimRozeti(
+                        idler.Count,
+                        kayitlar.Count(k => k.Status == SyncStatus.Success),
+                        kayitlar.Count(k => k.Status == SyncStatus.Skipped),
+                        kayitlar.Count(k => k.Status == SyncStatus.Failed));
+                }
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Protokol listesi: {Tip} rozetleri okunamadi.", tip);
+            }
+        }
+    }
+
+    // Rozet sirasi ekrandaki sirayla ayni tutuluyor.
+    public static readonly string[] RozetTurleri =
+        ["Composition", "Observation", "DiagnosticReport", "DiagnosticReport-Patoloji"];
+
+    public static string RozetBasligi(string resourceType) => resourceType switch
+    {
+        "Composition" => "Epikriz",
+        "Observation" => "Lab",
+        "DiagnosticReport" => "Rad",
+        "DiagnosticReport-Patoloji" => "Patoloji",
+        _ => resourceType,
+    };
 
     public static string GelisTipiLabel(string? code) => code switch
     {
