@@ -297,27 +297,31 @@ public class PendingWorkService(
         var takilan = new List<PendingCandidate>();
         var gonderilmisKalem = 0;
 
-        // SORUNLU PROTOKOLLER: bekleyeni ya da takilani olan. Geri kalanlar "tamamlanmis"
-        // -- aralikta is vardi ve hepsi gitti.
-        var sorunluProtokoller = new HashSet<int>();
+        // Protokol basina IKI bayrak: eksigi var mi, gideni var mi. Ikisi birlikte uc
+        // dilimi veriyor (hic gonderilmemis / kismen / tamamlanmis).
+        var eksigiOlan = new HashSet<int>();
+        var gidenOlan = new HashSet<int>();
 
         foreach (var c in candidates)
         {
             switch (Siniflandir(c, sentLookup, ardisikBasarisiz, takilmaEsigi))
             {
                 case KalemDurumu.Bekliyor:
-                    bekleyen.Add(c); sorunluProtokoller.Add(c.ProtokolId); break;
+                    bekleyen.Add(c); eksigiOlan.Add(c.ProtokolId); break;
                 case KalemDurumu.Takildi:
-                    takilan.Add(c); sorunluProtokoller.Add(c.ProtokolId); break;
+                    takilan.Add(c); eksigiOlan.Add(c.ProtokolId); break;
                 default:
-                    gonderilmisKalem++; break;
+                    gonderilmisKalem++; gidenOlan.Add(c.ProtokolId); break;
             }
         }
 
         var tarananProtokol = candidates.Select(c => c.ProtokolId).Distinct().Count();
+        var kismen = eksigiOlan.Count(id => gidenOlan.Contains(id));
         var kapsam = new PendingKapsam(
             TarananProtokol: tarananProtokol,
-            TamamlananProtokol: tarananProtokol - sorunluProtokoller.Count,
+            TamamlananProtokol: tarananProtokol - eksigiOlan.Count,
+            KismenGonderilmisProtokol: kismen,
+            HicGonderilmemisProtokol: eksigiOlan.Count - kismen,
             TarananKalem: candidates.Count,
             GonderilmisKalem: gonderilmisKalem,
             BekleyenKalem: bekleyen.Count,
@@ -661,14 +665,35 @@ public record PendingWorkResult(
 }
 
 // Tarama penceresinin TAMAMI -- gonderilmisler dahil. Bekleyen sayilarinin paydasi.
+//
+// PROTOKOL UC DILIME AYRILIYOR (2026-10-08 duzeltmesi). Ilk halde yalnizca "tamamlanan"
+// vardi ve kullanici hakli olarak sasirdi: ekranda 9 yaziyordu, "bir haftadir ne
+// gonderiyoruz" diye sordu.
+//
+// Sebep olcunun KESKIN olmasiydi. "Tamamlanan" = protokolun TEK BIR kalemi bile
+// eksik degil. Isleyen bir hastanede bu neredeyse hic gerceklesmiyor: protokol acik
+// kaldigi surece yeni laboratuvar sonucu dusmeye devam ediyor, dolayisiyla 50 kaleminin
+// 49'u gitmis bir protokol de "tamamlanmamis" sayiliyordu. Yani sayi, is yapilmadigini
+// degil, isin bitmedigini olcuyordu -- ikisi ayni sey degil.
+//
+// Uc dilim gercegi gosteriyor: hic dokunulmamis protokol ile neredeyse bitmis protokol
+// artik ayni kovada degil.
 public record PendingKapsam(
-    int TarananProtokol, int TamamlananProtokol,
+    int TarananProtokol,
+    int TamamlananProtokol,      // tek bir kalemi bile eksik degil
+    int KismenGonderilmisProtokol, // bir kismi gitti, bir kismi bekliyor
+    int HicGonderilmemisProtokol,  // hicbir kalemi gitmemis
     int TarananKalem, int GonderilmisKalem, int BekleyenKalem, int TakilanKalem)
 {
-    public static PendingKapsam Bos => new(0, 0, 0, 0, 0, 0);
+    public static PendingKapsam Bos => new(0, 0, 0, 0, 0, 0, 0, 0);
 
-    // Tamamlanan protokolun taranan icindeki orani. Payda 0 ise 100 -- "gonderilecek bir
-    // sey yoktu" durumu ekranda "%0 tamam" diye gorunmemeli.
+    // ASIL ILERLEME OLCUSU KALEM DUZEYINDE. Protokol duzeyindeki "tamamlanan" keskin
+    // oldugu icin ilerlemeyi oldugundan kotu gosteriyor; gonderilmis kalem orani ise
+    // gercekten ne kadar is yapildigini soyluyor.
+    public int GonderilmisKalemYuzde => TarananKalem == 0
+        ? 100
+        : (int)Math.Round(100.0 * GonderilmisKalem / TarananKalem);
+
     public int TamamlananYuzde => TarananProtokol == 0
         ? 100
         : (int)Math.Round(100.0 * TamamlananProtokol / TarananProtokol);

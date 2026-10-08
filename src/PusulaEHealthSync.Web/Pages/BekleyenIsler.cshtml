@@ -91,28 +91,67 @@ else
        birden fazla protokolu olabiliyor. Etiketler bunu acikca yaziyor ki iki ayri sayi
        birbirine karismasin. *@
     var kapsam = Model.Sonuc.Kapsam;
+    @* ILERLEME KALEM DUZEYINDE OKUNUR, PROTOKOL DUZEYINDE DEGIL.
+       Ilk halde buyuk rakam "tamamlanan protokol"du ve kullanici hakli olarak sasirdi:
+       ekranda 9 yaziyordu, "bir haftadir ne gonderiyoruz" diye sordu. Olcu keskindi --
+       protokolun TEK BIR kalemi bile eksikse tamamlanmamis sayiliyordu, oysa acik bir
+       protokole gun boyu yeni laboratuvar sonucu dusuyor. Yani sayi isin yapilmadigini
+       degil, BITMEDIGINI olcuyordu. Buyuk rakam artik gercekten gonderilen kalem. *@
     <div class="stat-grid">
+        <div class="stat-card success">
+            <div class="stat-label">Gönderilen kalem</div>
+            <div class="stat-value success">@kapsam.GonderilmisKalem</div>
+            <div class="stat-foot">taranan @kapsam.TarananKalem kalemin %@kapsam.GonderilmisKalemYuzde'i</div>
+        </div>
+        <div class="stat-card warning">
+            <div class="stat-label">Bekleyen kalem</div>
+            <div class="stat-value warning">@kapsam.BekleyenKalem</div>
+            <div class="stat-foot">@Model.Sonuc.ToplamProtokolSayisi protokole dağılıyor</div>
+        </div>
+        <div class="stat-card danger">
+            <div class="stat-label">Takılan kalem</div>
+            <div class="stat-value danger">@kapsam.TakilanKalem</div>
+            <div class="stat-foot">@Model.Sonuc.ToplamTakilanProtokolSayisi protokolde, mevcut veriyle gönderilemiyor</div>
+        </div>
         <div class="stat-card">
             <div class="stat-label">Taranan protokol</div>
             <div class="stat-value">@kapsam.TarananProtokol</div>
-            <div class="stat-foot">@kapsam.TarananKalem kalem (hasta başına birden fazla protokol olabilir)</div>
-        </div>
-        <div class="stat-card success">
-            <div class="stat-label">Tamamlanan</div>
-            <div class="stat-value success">@kapsam.TamamlananProtokol</div>
-            <div class="stat-foot">taranan protokolün %@kapsam.TamamlananYuzde'i &middot; @kapsam.GonderilmisKalem kalem gönderildi</div>
-        </div>
-        <div class="stat-card warning">
-            <div class="stat-label">Bekleyen protokol</div>
-            <div class="stat-value warning">@Model.Sonuc.ToplamProtokolSayisi</div>
-            <div class="stat-foot">@kapsam.BekleyenKalem kalem gönderilmeyi bekliyor</div>
-        </div>
-        <div class="stat-card danger">
-            <div class="stat-label">Takılan protokol</div>
-            <div class="stat-value danger">@Model.Sonuc.ToplamTakilanProtokolSayisi</div>
-            <div class="stat-foot">@kapsam.TakilanKalem kalem mevcut veriyle gönderilemiyor</div>
+            <div class="stat-foot">aralıkta gönderilecek kalemi olanlar &mdash; aynı hastanın birden fazla protokolü olabilir</div>
         </div>
     </div>
+
+    @* Protokol duzeyindeki dagilim: "9 tamamlandi" rakamini tek basina gormek yaniltiyordu,
+       yaninda "kac tanesi kismen gitti" ve "kac tanesine hic dokunulmadi" olunca anlam
+       kazaniyor. Asil kotu haber HIC GONDERILMEMIS olanlardir, tamamlanmamis olanlar degil. *@
+    <p class="section-title" style="margin-top:22px">Protokollerin durumu</p>
+    <div class="stat-grid">
+        <div class="stat-card success">
+            <div class="stat-label">Tamamlanmış</div>
+            <div class="stat-value success">@kapsam.TamamlananProtokol</div>
+            <div class="stat-foot">tek bir kalemi bile eksik değil (%@kapsam.TamamlananYuzde)</div>
+        </div>
+        <div class="stat-card warning">
+            <div class="stat-label">Kısmen gönderilmiş</div>
+            <div class="stat-value warning">@kapsam.KismenGonderilmisProtokol</div>
+            <div class="stat-foot">bir kısmı gitti, kalanı sırada &mdash; açık protokole yeni sonuç düştükçe burası dolar</div>
+        </div>
+        <div class="stat-card danger">
+            <div class="stat-label">Hiç gönderilmemiş</div>
+            <div class="stat-value danger">@kapsam.HicGonderilmemisProtokol</div>
+            <div class="stat-foot">hiçbir kalemi TRƏS'e gitmemiş</div>
+        </div>
+    </div>
+
+    @* IKI EKRAN AYNI SEYI OLCMUYOR -- kullanici 2026-10-08'de bu iki sayiyi yan yana
+       koyup hakli olarak "tutmuyor" dedi. Fark tasarimsal, hata degil; ama ekranda
+       yazmadikca her bakista yeniden sorulacak bir soru. *@
+    <p class="text-muted" style="margin:14px 0 0; font-size:13px;">
+        <strong>Aktivite Akışı'ndaki sayılarla karşılaştırmayın:</strong> orası
+        <em>o tarihte yapılan denemelerin</em> sonucunu gösterir (&ldquo;bugün bir şey ters gitti mi?&rdquo;),
+        burası ise <em>Pusula'da hazır olup hâlâ gitmemiş olanı</em> (&ldquo;geriye ne kaldı?&rdquo;).
+        Bir hasta Aktivite'de &ldquo;sorunsuz&rdquo; görünürken burada bekleyen kalemi olabilir &mdash;
+        o gün gönderilenler başarılı olmuş, ama hepsi gönderilmemiştir.
+    </p>
 
     <p class="section-title" style="margin-top:22px">Bekleyen kalemler, türüne göre</p>
     <div class="stat-grid">

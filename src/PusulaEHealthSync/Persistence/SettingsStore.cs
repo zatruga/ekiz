@@ -63,7 +63,6 @@ public class SettingsStore
     public const string EHealthLiveProviderIdKey = "EHealth.Live.ProviderId";
 
     // -- Otomatik gonderim (genel) -------------------------------------------------------
-    public const string AutoSendPatientEnabledKey = "AutoSend.Patient.Enabled";
     public const string AutoSendEncounterEnabledKey = "AutoSend.Encounter.Enabled";
     public const string AutoSendIntervalMinutesKey = "AutoSend.IntervalMinutes";
     public const int AutoSendIntervalMinutesDefault = 60;
@@ -129,7 +128,6 @@ public class SettingsStore
     // ARTIK KULLANILMIYOR (2026-10-05): takilanlar turu SAYIYLA degil SUREYLE siniriyor.
     // Anahtar duruyor cunku sunucudaki veritabaninda kayitli bir degeri olabilir; okuyan
     // kimse yok. Yeni kurulumlarda hic yazilmaz.
-    public const string StuckRetryBatchSizeKey = "AutoSend.StuckRetryBatchSize";
     public const int StuckRetryBatchSizeDefault = 100;
 
     // TAKILANLAR TURUNUN SURE BUTCESI (2026-10-05, kullanici sorusu uzerine).
@@ -193,7 +191,6 @@ public class SettingsStore
     // (numune bolgesi, endikasyon), sonuc DEGERI/onay durumu icin ayri bir tablo/kaynak
     // henuz bulunamadi. Anahtar burada dursun (Ayarlar sayfasinda kullanilmiyor) -- mapper
     // yazilinca ayni kalip (SendEnabled + OnlyVerified) uygulanacak.
-    public const string LabOnlyVerifiedKey = "Lab.OnlyVerified";
 
     // -- Gunluk e-posta raporu ------------------------------------------------------------
     public const string MailEnabledKey = "Mail.Enabled";

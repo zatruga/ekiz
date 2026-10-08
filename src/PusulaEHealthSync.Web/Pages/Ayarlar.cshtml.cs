@@ -130,6 +130,15 @@ public class AyarlarModel(
     [BindProperty]
     public bool ProcedureSendEnabled { get; set; }
 
+    // RADYOLOJI VE PATOLOJI ANAHTARLARI EKRANA 2026-10-08'DE GELDI.
+    //
+    // Ikisi de kod tarafinda AYLARDIR okunuyordu (EncounterSyncService ve
+    // ProtocolFullSyncService, varsayilan true) ama Ayarlar'da karsiligi yoktu -- yani
+    // gonderimi kapatacak bir dugme vardi, kullanici onu goremiyordu. Ayar denetiminde
+    // cikti: "okunuyor ama ekranda yok" iki anahtar bunlardi.
+    public bool RadiologyReportSendEnabled { get; set; }
+    public bool PathologyReportSendEnabled { get; set; }
+
     // -- Gunluk e-posta raporu -------------------------------------------------------------
     [BindProperty]
     public bool MailEnabled { get; set; }
@@ -323,6 +332,8 @@ public class AyarlarModel(
     {
         await settings.SetBoolAsync(SettingsStore.ConditionSendEnabledKey, ConditionSendEnabled, ct);
         await settings.SetBoolAsync(SettingsStore.ProcedureSendEnabledKey, ProcedureSendEnabled, ct);
+        await settings.SetBoolAsync(SettingsStore.RadiologyReportSendEnabledKey, RadiologyReportSendEnabled, ct);
+        await settings.SetBoolAsync(SettingsStore.PathologyReportSendEnabledKey, PathologyReportSendEnabled, ct);
         return await SavedAsync("tanislem", ct);
     }
 
@@ -469,6 +480,10 @@ public class AyarlarModel(
 
         ConditionSendEnabled = await settings.GetBoolAsync(SettingsStore.ConditionSendEnabledKey, true, ct);
         ProcedureSendEnabled = await settings.GetBoolAsync(SettingsStore.ProcedureSendEnabledKey, true, ct);
+        // Varsayilanlar SERVISTEKI ile ayni (true) olmak zorunda: farkli olsaydi sayfa
+        // acilip kaydedildiginde kullanicinin hic dokunmadigi bir davranis degisirdi.
+        RadiologyReportSendEnabled = await settings.GetBoolAsync(SettingsStore.RadiologyReportSendEnabledKey, true, ct);
+        PathologyReportSendEnabled = await settings.GetBoolAsync(SettingsStore.PathologyReportSendEnabledKey, true, ct);
 
         if (!skipMail)
         {

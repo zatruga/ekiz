@@ -401,11 +401,12 @@
                 </div>
 
                 <div class="card card-pad settings-card">
-                    <p class="section-title">Tanı (Condition) &amp; İşlem (Procedure) Kuralları</p>
+                    <p class="section-title">Kayıt Türü Anahtarları</p>
                     <p class="card-desc">
-                        İkisi de Müayinə "Gönder" ile birlikte otomatik gönderilir (Encounter'in gerçek
+                        Hepsi Müayinə "Gönder" ile birlikte otomatik gönderilir (Encounter'in gerçek
                         id'si önce bilinmesi gerektiği için ayrı gönderilemezler) -- burada sadece bu
-                        otomatik gönderimi tamamen açıp kapatabilirsiniz.
+                        otomatik gönderimi tür tür açıp kapatabilirsiniz. Kapatılan tür hem otomatik
+                        döngüde hem de "Tümünü Gönder"de atlanır.
                     </p>
                     <form method="post" asp-page-handler="TaniIslem" style="display:flex; flex-direction:column; flex:1;">
                         <div class="toggle-row">
@@ -415,6 +416,17 @@
                         <div class="toggle-row">
                             <input type="checkbox" id="procedureSendEnabled" asp-for="ProcedureSendEnabled" />
                             <label for="procedureSendEnabled">İşlem (Procedure) otomatik gönderimini etkinleştir</label>
+                        </div>
+                        @* Bu ikisi kod tarafinda aylardir okunuyordu ama ekranda karsiligi
+                           yoktu -- yani gonderimi kapatan bir dugme vardi, kullanici
+                           goremiyordu (ayar denetimi, 2026-10-08). *@
+                        <div class="toggle-row">
+                            <input type="checkbox" id="radiologyReportSendEnabled" asp-for="RadiologyReportSendEnabled" />
+                            <label for="radiologyReportSendEnabled">Radyoloji raporu (DiagnosticReport) otomatik gönderimini etkinleştir</label>
+                        </div>
+                        <div class="toggle-row">
+                            <input type="checkbox" id="pathologyReportSendEnabled" asp-for="PathologyReportSendEnabled" />
+                            <label for="pathologyReportSendEnabled">Patoloji raporu (DiagnosticReport + zinciri) otomatik gönderimini etkinleştir</label>
                         </div>
                         <div class="card-actions">
                             <button type="submit" class="btn btn-primary">Kaydet</button>
