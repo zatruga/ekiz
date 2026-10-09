@@ -2,15 +2,26 @@
 @model PusulaEHealthSync.Web.Pages.GenelBakisModel
 @{
     ViewData["Title"] = "Genel Bakış";
+    var o = Model.Ozet;
+    var fromIso = Model.PeriodFromDate.ToString("yyyy-MM-dd");
+    var toIso = Model.PeriodToDate.ToString("yyyy-MM-dd");
     var todayIso = Model.Today.ToString("yyyy-MM-dd");
-    var periodFromIso = Model.PeriodFromDate.ToString("yyyy-MM-dd");
-    var periodToIso = Model.PeriodToDate.ToString("yyyy-MM-dd");
+
+    // BIRIM ALT SATIRI tek yerden -- ekrandaki her protokol rakami altinda ayni bicimde
+    // "N kayit - M satir" gorunsun diye. Birimini soylemeyen bir sayi bu projede yanlis
+    // sayidan daha cok kafa karistirdi (bkz. GenelBakis.cshtml.cs basindaki not).
+    Func<int, int, string> birim = (kayit, satir) =>
+        $"{kayit.ToString("N0")} kayıt · {satir.ToString("N0")} satır";
 }
 
 <div class="page-header">
     <div>
         <h1 class="page-title">Genel Bakış</h1>
-        <p class="page-subtitle">Sistemin gönderim sağlığına tek bakışta genel bakış</p>
+        <p class="page-subtitle">
+            Ana ölçü <b>protokol</b> &mdash; bir protokolün altındaki tüm kayıtlar (hasta, müayinə, tanı,
+            işlem, tetkik, epikriz) tek bir protokol durumunda toplanıyor. Kayıt ve satır sayıları
+            her rakamın altında ayrıca yazıyor.
+        </p>
     </div>
     <form method="get" class="segmented">
         <input type="radio" id="dGun" name="Donem" value="0" checked="@(Model.Donem == "0")" onchange="this.form.submit()" /><label for="dGun">Bugün</label>
@@ -19,85 +30,148 @@
     </form>
 </div>
 
+@if (o.PusulaHatasi)
+{
+    <div class="alert-warning" style="margin-bottom:16px;">
+        <b>Pusula'ya erişilemedi.</b> Protokol numaraları çözülemediği için aşağıdaki protokol
+        sayıları eksik olabilir. Kayıt ve satır sayıları SyncLog'dan geldiği için etkilenmedi.
+    </div>
+}
+@if (o.Kirpildi)
+{
+    <div class="alert-warning" style="margin-bottom:16px;">
+        <b>Dönem çok geniş.</b> Kayıt tavanı aşıldı, aşağıdaki sayılar en yeni kayıtlarla sınırlı.
+        Daha kısa bir dönem seçin.
+    </div>
+}
+
+@* ======================= GONDERIM SAGLIGI =======================
+   KULLANICI (2026-10-08): "otomatik gonderimi sanki surekli yapmiyor gibi?"
+   Haklydi: olculdu, 14 gunun yalnizca 7'sinde gonderim vardi. Ama ekranda bunu
+   soyleyen hicbir sey yoktu -- trend grafigi sifire inip cikiyordu ve bu "o gun is
+   yoktu" gibi okunuyordu. Artik dogrudan yaziyor. *@
+@if (o.PencereGun > 0 && o.DoluGun < o.PencereGun)
+{
+    <div class="alert-warning" style="margin-bottom:16px;">
+        <b>Son @o.PencereGun günün @(o.PencereGun - o.DoluGun)'inde hiç gönderim yapılmamış.</b>
+        Gönderim yalnızca @o.DoluGun günde çalışmış@(o.SonGonderimGunu is { } sg ? $"; en son {sg:dd.MM.yyyy}" : "").
+        Otomatik gönderim kapalıysa ya da tur hata alıp bırakıyorsa bu beklenen bir tablo &mdash;
+        <a asp-page="/Ayarlar">Ayarlar</a> ve <a asp-page="/BekleyenIsler">Bekleyen İşler</a> sayfalarına bakın.
+    </div>
+}
+
 <div class="kpi-grid">
-    <a asp-page="/Index" asp-route-From="@todayIso" asp-route-To="@todayIso" class="kpi-card" target="_blank" rel="noopener">
+    @* 1) DOKUNULAN PROTOKOL -- her seyin paydasi. "Acilan" DEGIL: kural geregi acik bir
+       protokol 7 gun dolmadan gonderilmiyor, yani donemde gidenlerin neredeyse tamami
+       onceki gunlerin protokolleri. Iki kumeyi bolmek anlamsizdi ve %100'u asabiliyordu
+       (2026-10-08'de kaldirildi, tekrar eklenmemeli). *@
+    <a asp-page="/Aktivite" asp-route-From="@fromIso" asp-route-To="@toIso" class="kpi-card" target="_blank" rel="noopener">
         <div class="kpi-top">
-            <span class="kpi-label">Bugün Açılan Protokol</span>
+            <span class="kpi-label">Dokunulan Protokol</span>
             <span class="kpi-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg></span>
         </div>
-        <span class="kpi-value">@Model.TodayProtocolCount</span>
-        @if (Model.TodayProtocolHasBaseline)
+        <span class="kpi-value">@o.ProtokolDokunulan.ToString("N0")</span>
+        <span class="kpi-sub">@birim(o.KayitToplam, o.SatirToplam)</span>
+        @if (o.ProtokolsuzKayit > 0)
         {
-            <span class="kpi-sub"><span class="@(Model.TodayProtocolChangePct >= 0 ? "up" : "down")">@(Model.TodayProtocolChangePct >= 0 ? "▲" : "▼") %@Math.Abs(Model.TodayProtocolChangePct).ToString("0.#")</span> dünden bugüne</span>
-        }
-        else
-        {
-            <span class="kpi-sub">dünle karşılaştırma yok</span>
+            <span class="kpi-sub">@o.ProtokolsuzKayit.ToString("N0") kayıt protokole bağlanamadı (çoğu doktor kaydı)</span>
         }
     </a>
 
-    <a asp-page="/Aktivite" asp-route-ResourceType="Encounter" asp-route-Status="Success" asp-route-From="@todayIso" asp-route-To="@todayIso" class="kpi-card success" target="_blank" rel="noopener">
+    @* 2) TAMAMLANAN -- hatasiz VE eksiksiz. Hem ring hem yuzde bu olcude. *@
+    <a asp-page="/Aktivite" asp-route-Status="Success" asp-route-From="@fromIso" asp-route-To="@toIso" class="kpi-card success" target="_blank" rel="noopener">
         <div class="kpi-top">
-            <span class="kpi-label">Bugün Gönderilen</span>
-            <span class="kpi-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12a9 9 0 0 1 9-9 9.75 9.75 0 0 1 6.74 2.74L21 8"/><path d="M21 3v5h-5"/><path d="M21 12a9 9 0 0 1-9 9 9.75 9.75 0 0 1-6.74-2.74L3 16"/><path d="M8 16H3v5"/></svg></span>
-        </div>
-        <span class="kpi-value success">@Model.TodaySentCount</span>
-        @* "BUGUN ACILANIN YUZDESI" KALDIRILDI (2026-10-08).
-           Eski alt satir "@TodayProtocolCount protokolün %X'i" diyordu ve IKI YANLIS
-           birden tasiyordu: (1) buyuk rakam SATIR sayiyordu, farkli protokol degil --
-           olculdu, ekran 549 yazarken gercek 121 idi; (2) daha onemlisi, bugun
-           GONDERILEN protokoller bugun ACILANLAR degil. Kural geregi acik bir protokol
-           7 gun dolmadan gonderilmiyor, yani bugun gidenlerin neredeyse tamami onceki
-           gunlerin protokolleri. Iki ayri kumenin orani anlamsizdi ve %100'u asabiliyordu. *@
-        <span class="kpi-sub">farklı protokol &mdash; çoğu önceki günlerden</span>
-    </a>
-
-    <a asp-page="/Aktivite" asp-route-From="@periodFromIso" asp-route-To="@periodToIso" class="kpi-card" target="_blank" rel="noopener">
-        <div class="kpi-top">
-            <span class="kpi-label">Gönderilen Kayıt Oranı</span>
+            <span class="kpi-label">Gönderimi Tamamlanan</span>
             <span class="kpi-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg></span>
         </div>
-        @* PAYDADA ATLANANLAR DA VAR (2026-10-08 duzeltmesi).
-           Eski olcu Basarili/(Basarili+Hatali) idi ve %99,6 gosteriyordu. Teknik olarak
-           dogru ama yaniltici: ayni hafta 31.603 kayit eksik veri yuzunden HIC
-           denenmemisti ve bu sayi paydada yoktu. Ekran "neredeyse her sey gidiyor"
-           derken kayitlarin %13'u bakanliga hic ulasmiyordu. *@
-        <span class="kpi-value success">@Model.OverallSuccessRatePct.ToString("0.0")<span style="font-size:18px;">%</span></span>
-        <span class="kpi-sub">@Model.PeriodSuccessRecords / @Model.PeriodTotalRecords kayıt gönderildi</span>
-        @if (Model.SuccessRateHasBaseline)
+        <span class="kpi-value success">@o.ProtokolTamam.ToString("N0")</span>
+        <span class="kpi-sub">dokunulan protokolün %@o.TamamYuzde.ToString("0.0")'i</span>
+        @if (o.DeltaVar)
         {
-            <span class="kpi-sub"><span class="@(Model.SuccessRateDeltaPct >= 0 ? "up" : "down")">@(Model.SuccessRateDeltaPct >= 0 ? "▲" : "▼") %@Math.Abs(Model.SuccessRateDeltaPct).ToString("0.#")</span> önceki döneme göre</span>
+            <span class="kpi-sub"><span class="@(o.TamamYuzdeDelta >= 0 ? "up" : "down")">@(o.TamamYuzdeDelta >= 0 ? "▲" : "▼") %@Math.Abs(o.TamamYuzdeDelta).ToString("0.#")</span> önceki döneme göre</span>
         }
         <svg class="kpi-ring" width="46" height="46" viewBox="0 0 46 46" aria-hidden="true">
             <circle cx="23" cy="23" r="19" fill="none" stroke="var(--surface-hover)" stroke-width="5" />
             <circle cx="23" cy="23" r="19" fill="none" stroke="var(--success)" stroke-width="5" stroke-linecap="round"
-                    stroke-dasharray="119.4" stroke-dashoffset="@Model.SuccessRateRingDashOffset.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)" transform="rotate(-90 23 23)" />
+                    stroke-dasharray="119.4" stroke-dashoffset="@o.RingDashOffset.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)" transform="rotate(-90 23 23)" />
         </svg>
     </a>
 
-    <a asp-page="/Aktivite" asp-route-Status="Failed" asp-route-From="@periodFromIso" asp-route-To="@periodToIso" class="kpi-card warning" target="_blank" rel="noopener">
+    @* 3) EKSIGI OLAN -- "bekleyen" DEGIL. Skipped, siraya girmis bir kayit degil:
+       gonderilmek icin gereken veri Pusula'da olmadigi icin DENENMEMIS kayit. "Bekleyen"
+       demek kendiliginden gidecegi izlenimi veriyordu; oysa tanim tamamlanmadikca hicbir
+       zaman gitmiyorlar. *@
+    <a asp-page="/Aktivite" asp-route-Status="Skipped" asp-route-From="@fromIso" asp-route-To="@toIso" class="kpi-card warning" target="_blank" rel="noopener">
         <div class="kpi-top">
-            <span class="kpi-label">Gönderilemeyen Kayıt</span>
+            <span class="kpi-label">Eksik Verisi Olan</span>
+            <span class="kpi-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 9v4"/><path d="M12 17h.01"/><path d="M10.3 3.9 1.8 18a2 2 0 0 0 1.7 3h17a2 2 0 0 0 1.7-3L13.7 3.9a2 2 0 0 0-3.4 0Z"/></svg></span>
+        </div>
+        <span class="kpi-value warning">@o.ProtokolEksik.ToString("N0")</span>
+        @{
+            var enCokEksik = o.EksikSebepleri.FirstOrDefault();
+        }
+        <span class="kpi-sub">@(enCokEksik is null ? "eksiği olan protokol yok" : $"en çok: {enCokEksik.Kategori}")</span>
+        <span class="kpi-sub">Pusula'da tanım/veri tamamlanınca kendiliğinden gider</span>
+    </a>
+
+    @* 4) HATA ALAN *@
+    <a asp-page="/Aktivite" asp-route-Status="Failed" asp-route-From="@fromIso" asp-route-To="@toIso" class="kpi-card danger" target="_blank" rel="noopener">
+        <div class="kpi-top">
+            <span class="kpi-label">Hata Alan</span>
             <span class="kpi-icon"><svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></span>
         </div>
-        @* "Bekleyen" DEGIL "eksik veri": Skipped, siraya girmis bir kayit degil --
-           gonderilmek icin gereken veri Pusula'da olmadigi icin DENENMEMIS kayit.
-           "Bekleyen" demek, kendiliginden gidecegi izlenimi veriyordu; oysa tanim
-           tamamlanmadikca hicbir zaman gitmiyorlar (bkz. Gönderilemeyen Tetkikler). *@
-        <span class="kpi-value warning">@(Model.FailedCount + Model.PendingCount)</span>
-        <span class="kpi-sub">@Model.FailedCount hata aldı &middot; @Model.PendingCount eksik veri</span>
+        <span class="kpi-value" style="color:var(--danger);">@o.ProtokolHatali.ToString("N0")</span>
+        @{
+            var enCokHata = o.HataSebepleri.FirstOrDefault();
+        }
+        <span class="kpi-sub">@(enCokHata is null ? "hata alan protokol yok" : $"en çok: {enCokHata.Kategori}")</span>
+        <span class="kpi-sub">TRƏS reddetti &mdash; düzeltilmeden tekrar denemek işe yaramaz</span>
     </a>
+</div>
+
+@* HASTANE HACMI -- GONDERIM KUMESINDEN AYRI DURUYOR.
+   Bilincli olarak ust karttan cikarildi: "donemde acilan" ile "donemde gonderilen"
+   AYNI KUME DEGIL (7 gun kurali), oranlamak anlamsiz. Yine de hacmi gormek gerekiyor,
+   bu yuzden ayri bir seritte. *@
+<div class="card card-pad" style="margin-bottom:22px; display:flex; flex-wrap:wrap; gap:28px; align-items:center;">
+    <div>
+        <p class="section-title" style="margin-bottom:4px;">Hastane Hacmi</p>
+        <p class="card-desc" style="margin:0;">
+            Dönemde Pusula'da <b>açılan</b> protokoller. Yukarıdaki gönderim sayılarıyla aynı küme
+            <b>değil</b> &mdash; açık bir protokol gönderime uygun sayılmak için belirli bir süre bekler,
+            dolayısıyla bugün gidenlerin çoğu önceki günlerin protokolleridir.
+        </p>
+    </div>
+    <div style="display:flex; gap:32px; margin-left:auto;">
+        <a asp-page="/Index" asp-route-From="@fromIso" asp-route-To="@toIso" class="icbari-kpi" style="text-decoration:none;" target="_blank" rel="noopener">
+            <span class="icbari-kpi-label">Dönemde açılan protokol</span>
+            <span class="icbari-kpi-value">@o.AcilanProtokol.ToString("N0")</span>
+        </a>
+        <a asp-page="/Index" asp-route-From="@todayIso" asp-route-To="@todayIso" class="icbari-kpi" style="text-decoration:none;" target="_blank" rel="noopener">
+            <span class="icbari-kpi-label">Bugün açılan</span>
+            <span class="icbari-kpi-value">
+                @o.AcilanBugun.ToString("N0")
+                @if (o.AcilanTabanVar)
+                {
+                    <span style="font-size:13px;" class="@(o.AcilanDegisimYuzde >= 0 ? "up" : "down")">@(o.AcilanDegisimYuzde >= 0 ? "▲" : "▼") %@Math.Abs(o.AcilanDegisimYuzde).ToString("0.#")</span>
+                }
+            </span>
+        </a>
+    </div>
 </div>
 
 <div class="dash-grid">
     <div class="card card-pad">
-        <p class="section-title">Gönderim Trendi</p>
-        <p class="card-desc">Son 14 günün günlük başarılı / hatalı gönderim sayıları</p>
+        <p class="section-title">Günlük Gönderim Trendi</p>
+        <p class="card-desc">
+            Son @o.PencereGun günde her gün kaç <b>protokole</b> dokunuldu. Kesikli çizgi o gün
+            sorunlu kalan (eksik ya da hatalı) protokolleri gösteriyor.
+        </p>
         <div class="trend-legend">
-            <span class="legend-item"><span class="legend-dot" style="background:var(--success);"></span>Başarılı</span>
-            <span class="legend-item"><span class="legend-dot" style="background:var(--danger);"></span>Hatalı</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--success);"></span>Dokunulan protokol</span>
+            <span class="legend-item"><span class="legend-dot" style="background:var(--danger);"></span>Sorunlu kalan</span>
         </div>
-        @if (Model.Trend.Count < 2)
+        @if (o.Trend.Count < 2)
         {
             <p class="text-muted" style="padding:40px 0; text-align:center;">Grafik için yeterli veri yok.</p>
         }
@@ -115,36 +189,56 @@
                 <line x1="8" x2="712" y1="140.7" y2="140.7" stroke="var(--border)" stroke-width="1" />
                 <line x1="8" x2="712" y1="196" y2="196" stroke="var(--border)" stroke-width="1" />
                 <path d="@Model.TrendAreaPath" fill="url(#successGrad)" stroke="none" />
-                <path d="@Model.TrendSuccessPath" fill="none" stroke="var(--success)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
-                <path d="@Model.TrendFailedPath" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="4 3" />
+                <path d="@Model.TrendTamamPath" fill="none" stroke="var(--success)" stroke-width="2.5" stroke-linejoin="round" stroke-linecap="round" />
+                <path d="@Model.TrendSorunluPath" fill="none" stroke="var(--danger)" stroke-width="2" stroke-linejoin="round" stroke-linecap="round" stroke-dasharray="4 3" />
                 <circle cx="@Model.TrendLastX.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)" cy="@Model.TrendLastY.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)" r="4" fill="var(--success)" />
                 @foreach (var lbl in Model.TrendLabels)
                 {
                     @Html.Raw($"<text x=\"{lbl.X.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)}\" y=\"214\" fill=\"var(--text-faint)\" font-size=\"10\" text-anchor=\"{lbl.Anchor}\">{System.Net.WebUtility.HtmlEncode(lbl.Text)}</text>")
                 }
             </svg>
+            <p class="stat-foot" style="margin-top:10px;">
+                En yoğun gün @Model.TrendMaks.ToString("N0") protokol &middot;
+                @o.DoluGun / @o.PencereGun günde gönderim var
+            </p>
         }
     </div>
 
+    @* ======================= KAYNAK TURU -- TUM TURLER =======================
+       ESKI HAL ALTI TURU SABIT BIR DIZIDEN OKUYORDU ve SyncLog'da on iki tur vardi.
+       Gorunmeyenler arasinda Observation da vardi -- haftada ~42.000 kayitla en buyuk
+       kalem. Yani kart tum isin %63'unu hic gostermiyordu. Artik turler VERININ
+       KENDISINDEN geliyor, yeni bir modul eklendiginde kendiliginden listeye giriyor. *@
     <div class="card card-pad">
-        <p class="section-title">Kaynak Türüne Göre Durum</p>
-        <p class="card-desc">Seçili dönemde her kaynak tipi için başarı dağılımı</p>
-        @if (Model.Breakdown.Count == 0)
+        <p class="section-title">Kayıt Türüne Göre Durum</p>
+        <p class="card-desc">
+            Her türde kaç protokol sorunsuz tamamlandı. Çubuk protokol oranını gösteriyor;
+            protokole bağlanamayan türlerde (doktor) kayıt oranı gösterilir ve bu satırda belirtilir.
+        </p>
+        @if (o.Turler.Count == 0)
         {
             <p class="text-muted">Seçili dönemde kayıt yok.</p>
         }
         else
         {
-            foreach (var row in Model.Breakdown)
+            foreach (var t in o.Turler)
             {
-                <a asp-page="/Aktivite" asp-route-ResourceType="@row.ResourceType" asp-route-From="@periodFromIso" asp-route-To="@periodToIso" class="bd-row" target="_blank" rel="noopener">
-                    <div class="bd-head"><span class="bd-name">@row.Label</span><span class="bd-total">@row.Total</span></div>
-                    <div class="bd-bar">
-                        <div class="bd-seg success" style="width:@(row.Total == 0 ? 0 : row.Success * 100.0 / row.Total)%"></div>
-                        <div class="bd-seg warning" style="width:@(row.Total == 0 ? 0 : row.Warning * 100.0 / row.Total)%"></div>
-                        <div class="bd-seg danger" style="width:@(row.Total == 0 ? 0 : row.Danger * 100.0 / row.Total)%"></div>
+                <a asp-page="/Aktivite" asp-route-ResourceType="@t.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" class="bd-row" target="_blank" rel="noopener">
+                    <div class="bd-head">
+                        <span class="bd-name">@t.Etiket</span>
+                        <span class="bd-total">@(t.Protokolsuz ? $"{t.Kayit:N0} kayıt" : $"{t.Protokol:N0} protokol")</span>
                     </div>
-                    <div class="bd-pct">%@row.SuccessPct.ToString("0.0") başarılı</div>
+                    <div class="bd-bar">
+                        <div class="bd-seg success" style="width:@(t.BarToplam == 0 ? 0 : t.BarTamam * 100.0 / t.BarToplam)%"></div>
+                        <div class="bd-seg warning" style="width:@(t.BarToplam == 0 ? 0 : t.BarEksik * 100.0 / t.BarToplam)%"></div>
+                        <div class="bd-seg danger" style="width:@(t.BarToplam == 0 ? 0 : t.BarHatali * 100.0 / t.BarToplam)%"></div>
+                    </div>
+                    <div class="bd-pct">
+                        %@t.TamamYuzde.ToString("0.0") sorunsuz
+                        <span style="color:var(--text-faint);">
+                            &middot; @birim(t.Kayit, t.Satir)@(t.Protokolsuz ? " · protokole bağlanmıyor" : "")
+                        </span>
+                    </div>
                 </a>
             }
         }
@@ -154,73 +248,119 @@
 <div class="bottom-grid">
     <div class="card card-pad accent-danger">
         <p class="section-title">Son Hatalar</p>
-        <p class="card-desc">Seçili dönemde en son başarısız olan gönderimler</p>
-        @if (Model.RecentErrors.Count == 0)
+        <p class="card-desc">
+            Dönemde TRƏS'in reddettiği gönderimler &mdash; aynı protokolün aynı sebeple
+            tekrarlanan denemeleri tek satırda.
+        </p>
+        @if (o.SonHatalar.Count == 0)
         {
             <p class="text-muted">Seçili dönemde hata yok.</p>
         }
         else
         {
-            foreach (var e in Model.RecentErrors)
+            foreach (var e in o.SonHatalar)
             {
-                <a asp-page="/Detail" asp-route-id="@e.LastEntryId" class="err-row" target="_blank" rel="noopener">
+                <a asp-page="/Detail" asp-route-id="@e.SonId" class="err-row" target="_blank" rel="noopener">
                     <span class="err-badge"><svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg></span>
                     <span class="err-main">
                         <span class="err-title">
-                            @e.PatientFullName &middot; @e.ResourceTypeLabel
-                            @if (e.Count > 1)
+                            @e.HastaAdi &middot; @e.TurEtiketi
+                            @if (e.ProtokolId is { } pid)
                             {
-                                <span class="err-count-badge">&times;@e.Count</span>
+                                <span class="err-count-badge">Protokol @pid</span>
+                            }
+                            @if (e.Kayit > 1)
+                            {
+                                <span class="err-count-badge">@e.Kayit kayıt</span>
                             }
                         </span>
-                        <div class="err-sub">@e.FriendlyMessage</div>
-                        @if (e.FriendlyMessage != e.RawMessage)
+                        <div class="err-sub">@e.AnlasilirMesaj</div>
+                        @if (e.AnlasilirMesaj != e.HamMesaj)
                         {
-                            <div class="err-raw">@e.RawMessage</div>
+                            <div class="err-raw">@e.HamMesaj</div>
                         }
                     </span>
-                    <span class="err-time">@PusulaEHealthSync.Web.Pages.GenelBakisModel.RelativeTime(e.LastSeenUtc)</span>
+                    <span class="err-time">@e.Gun.ToString("dd.MM")</span>
                 </a>
             }
         }
     </div>
 
+    @* ======================= BOLUM -- GONDERILEN PROTOKOLLERIN BOLUMU =======================
+       ESKI HAL BASKA BIR SORUYU CEVAPLIYORDU: donemde ACILAN protokolleri bolume gore
+       sayiyordu, yani hastane is hacmini. Bu bir GONDERIM panosu; burada ilgilendigimiz
+       sey gonderimi yapilan protokollerin hangi bolumlerde sorun cikardigi. Hacim rakami
+       yukaridaki "Hastane Hacmi" seridinde duruyor. *@
     <div class="card card-pad">
-        <p class="section-title">Bölüme Göre Gönderim Hacmi</p>
-        <p class="card-desc">Seçili dönemde en çok protokolü olan bölümler</p>
-        @if (Model.DeptVolume.Count == 0)
+        <p class="section-title">Bölüme Göre Gönderim Durumu</p>
+        <p class="card-desc">Dönemde gönderimi yapılan protokoller, bölümüne ve sonucuna göre.</p>
+        @if (o.Bolumler.Count == 0)
         {
-            <p class="text-muted">Seçili dönemde kayıt yok.</p>
+            <p class="text-muted">Seçili dönemde gönderim yok.</p>
         }
         else
         {
-            foreach (var d in Model.DeptVolume)
+            foreach (var b in o.Bolumler)
             {
-                <div class="dept-row">
-                    <span class="dept-name">@d.Name</span>
-                    <span class="dept-bar-track"><span class="dept-bar-fill" style="width:@d.Pct%"></span></span>
-                    <span class="dept-pct">@d.Count</span>
+                <div class="bd-row" style="cursor:default;">
+                    <div class="bd-head">
+                        <span class="bd-name">@b.Ad</span>
+                        <span class="bd-total">@b.Protokol.ToString("N0") protokol</span>
+                    </div>
+                    <div class="bd-bar">
+                        <div class="bd-seg success" style="width:@(b.Protokol == 0 ? 0 : b.Tamam * 100.0 / b.Protokol)%"></div>
+                        <div class="bd-seg warning" style="width:@(b.Protokol == 0 ? 0 : b.Eksik * 100.0 / b.Protokol)%"></div>
+                        <div class="bd-seg danger" style="width:@(b.Protokol == 0 ? 0 : b.Hatali * 100.0 / b.Protokol)%"></div>
+                    </div>
+                    <div class="bd-pct">
+                        @b.Tamam sorunsuz
+                        @if (b.Eksik > 0) { <span style="color:var(--warning);">&middot; @b.Eksik eksik</span> }
+                        @if (b.Hatali > 0) { <span style="color:var(--danger);">&middot; @b.Hatali hatalı</span> }
+                    </div>
                 </div>
             }
         }
     </div>
 </div>
 
+@* ======================= SEBEPLER =======================
+   ESKI HAL HAM MESAJA GORE GRUPLUYORDU. Mesaj panel adini ve tarihini de tasidigi icin
+   ayni sebep onlarca satira boluniyordu -- "Idrar Mikroskopisi (01.08.2026)",
+   "(03.08.2026)", "(04.08.2026)" ... her biri 10 kayitla ayri bir kutucuk. Ekranda alti
+   kutucuk gorunuyordu ve altisi da AYNI sebebi anlatiyordu. Artik
+   SyncLogEntry.ErrorCategory ile KATEGORI bazinda, ve sayilar SATIR degil KAYIT.
+   (Olculdu: son 7 gunde 808 hata satiri = 46 hatali kayit, 17,6 kat fark.) *@
 <div class="card card-pad accent-warning" style="margin-bottom:18px;">
-    <p class="section-title">Hazır Olmayan Kayıtlar</p>
-    <p class="card-desc">Bunlar HATA değil -- Pusula tarafında henüz tamamlanmadığı için gönderilemeyen kayıtlar. Tamamlandıklarında otomatik gönderilecekler.</p>
-    @if (Model.NotReadyGroups.Count == 0)
+    <p class="section-title">Eksik Veri Sebepleri</p>
+    <p class="card-desc">
+        Bunlar <b>hata değil</b> &mdash; gönderilmek için gereken veri Pusula'da olmadığı için
+        hiç denenmemiş kayıtlar. Tanım/veri tamamlandığında kendiliğinden gönderilirler;
+        yeniden denemek işe yaramaz.
+    </p>
+    @if (o.EksikSebepleri.Count == 0)
     {
-        <p class="text-muted">Seçili dönemde bekleyen kayıt yok.</p>
+        <p class="text-muted">Seçili dönemde eksik verili kayıt yok.</p>
     }
     else
     {
-        <div class="ready-grid">
-            @foreach (var r in Model.NotReadyGroups)
+        <div class="cat-grid">
+            @foreach (var s in o.EksikSebepleri)
             {
-                <a asp-page="/Aktivite" asp-route-Status="Skipped" asp-route-ResourceType="Composition" asp-route-From="@periodFromIso" asp-route-To="@periodToIso" class="ready-tile" target="_blank" rel="noopener">
-                    <div class="ready-count">@r.Count</div>
-                    <div class="ready-name">@r.Reason</div>
+                <a asp-page="/Aktivite" asp-route-Status="Skipped" asp-route-Kategori="@s.Kategori" asp-route-From="@fromIso" asp-route-To="@toIso" class="cat-tile" target="_blank" rel="noopener">
+                    @if (s.Protokol > 0)
+                    {
+                        <div class="cat-count">@s.Protokol.ToString("N0") <span style="font-size:14px; color:var(--text-faint);">protokol</span></div>
+                        <div class="cat-name">@s.Kategori</div>
+                        <div class="cat-desc">@s.Aciklama</div>
+                        <div class="stat-foot" style="margin-top:8px;">@birim(s.Kayit, s.Satir)</div>
+                    }
+                    else
+                    {
+                        <div class="cat-count">@s.Kayit.ToString("N0") <span style="font-size:14px; color:var(--text-faint);">kayıt</span></div>
+                        <div class="cat-name">@s.Kategori</div>
+                        <div class="cat-desc">@s.Aciklama</div>
+                        <div class="stat-foot" style="margin-top:8px;">@s.Satir.ToString("N0") satır &middot; protokole bağlanmıyor</div>
+                    }
                 </a>
             }
         </div>
@@ -228,21 +368,32 @@
 </div>
 
 <div class="card card-pad accent-danger" style="margin-bottom:18px;">
-    <p class="section-title">Hata Kategorileri</p>
-    <p class="card-desc">Başarısız gönderimler tek tek değil, SEBEBİNE göre gruplanmış.</p>
-    @if (Model.ErrorCategories.Count == 0)
+    <p class="section-title">Hata Sebepleri</p>
+    <p class="card-desc">TRƏS'in reddettiği gönderimler tek tek değil, <b>sebebine</b> göre gruplanmış.</p>
+    @if (o.HataSebepleri.Count == 0)
     {
         <p class="text-muted">Seçili dönemde hata yok.</p>
     }
     else
     {
         <div class="cat-grid">
-            @foreach (var c in Model.ErrorCategories)
+            @foreach (var s in o.HataSebepleri)
             {
-                <a asp-page="/Aktivite" asp-route-Status="Failed" asp-route-Kategori="@c.Label" asp-route-From="@periodFromIso" asp-route-To="@periodToIso" class="cat-tile" target="_blank" rel="noopener">
-                    <div class="cat-count">@c.Count</div>
-                    <div class="cat-name">@c.Label</div>
-                    <div class="cat-desc">@c.Description</div>
+                <a asp-page="/Aktivite" asp-route-Status="Failed" asp-route-Kategori="@s.Kategori" asp-route-From="@fromIso" asp-route-To="@toIso" class="cat-tile" target="_blank" rel="noopener">
+                    @if (s.Protokol > 0)
+                    {
+                        <div class="cat-count">@s.Protokol.ToString("N0") <span style="font-size:14px; color:var(--text-faint);">protokol</span></div>
+                        <div class="cat-name">@s.Kategori</div>
+                        <div class="cat-desc">@s.Aciklama</div>
+                        <div class="stat-foot" style="margin-top:8px;">@birim(s.Kayit, s.Satir)</div>
+                    }
+                    else
+                    {
+                        <div class="cat-count">@s.Kayit.ToString("N0") <span style="font-size:14px; color:var(--text-faint);">kayıt</span></div>
+                        <div class="cat-name">@s.Kategori</div>
+                        <div class="cat-desc">@s.Aciklama</div>
+                        <div class="stat-foot" style="margin-top:8px;">@s.Satir.ToString("N0") satır &middot; protokole bağlanmıyor</div>
+                    }
                 </a>
             }
         </div>
@@ -252,26 +403,27 @@
 <div class="card card-pad accent-violet">
     <p class="section-title" style="color:var(--violet);">İcbari Sigorta Gönderim Kapsamı</p>
     <p class="card-desc">
-        İcbari Sigorta Fiyat Listesi ile eşleşen (faturaya konu) hizmetlerden hangileri TRƏS'e gönderildi, hangileri gönderilemedi.
-        Tutar/kayıp ciro bilgisi burada gösterilmiyor -- Pusula'daki fiyat/tarife alanı henüz doğrulanmadı.
+        İcbari Sigorta Fiyat Listesi ile eşleşen (faturaya konu) hizmetlerden hangileri TRƏS'e gönderildi.
+        Buradaki ölçü <b>işlem</b> &mdash; protokol değil, çünkü faturalama kalemi işlemin kendisi.
+        Tutar/kayıp ciro bilgisi gösterilmiyor: Pusula'daki fiyat/tarife alanı henüz doğrulanmadı.
     </p>
     <div class="icbari-kpis">
         <div class="icbari-kpi">
-            <span class="icbari-kpi-label">İcbari eşleşen işlem (seçili dönem)</span>
-            <span class="icbari-kpi-value">@Model.IcbariMatchedCount</span>
+            <span class="icbari-kpi-label">İcbari eşleşen işlem</span>
+            <span class="icbari-kpi-value">@o.IcbariIslem.ToString("N0")</span>
         </div>
         <div class="icbari-kpi">
             <span class="icbari-kpi-label">Başarıyla gönderilen</span>
-            <span class="icbari-kpi-value" style="color:var(--success);">@Model.IcbariSentCount <span style="font-size:15px; color:var(--text-faint);">(%@Model.IcbariSentPct.ToString("0.0"))</span></span>
+            <span class="icbari-kpi-value" style="color:var(--success);">@o.IcbariGonderilen.ToString("N0") <span style="font-size:15px; color:var(--text-faint);">(%@o.IcbariYuzde.ToString("0.0"))</span></span>
         </div>
         <div class="icbari-kpi">
             <span class="icbari-kpi-label">Gönderilmeyen</span>
-            <span class="icbari-kpi-value" style="color:var(--danger);">@(Model.IcbariMatchedCount - Model.IcbariSentCount)</span>
+            <span class="icbari-kpi-value" style="color:var(--danger);">@((o.IcbariIslem - o.IcbariGonderilen).ToString("N0"))</span>
         </div>
     </div>
-    @if (Model.IcbariUnsent.Count == 0)
+    @if (o.IcbariGonderilmeyen.Count == 0)
     {
-        <p class="text-muted">@(Model.IcbariMatchedCount == 0 ? "Seçili dönemde icbari sigorta ile eşleşen işlem yok." : "Eşleşen tüm işlemler gönderilmiş.")</p>
+        <p class="text-muted">@(o.IcbariIslem == 0 ? "Seçili dönemde icbari sigorta ile eşleşen işlem yok." : "Eşleşen tüm işlemler gönderilmiş.")</p>
     }
     else
     {
@@ -279,12 +431,12 @@
             <table class="icbari-table">
                 <thead><tr><th>Hasta / Protokol</th><th>Hizmet</th><th>Sebep</th></tr></thead>
                 <tbody>
-                    @foreach (var r in Model.IcbariUnsent)
+                    @foreach (var r in o.IcbariGonderilmeyen)
                     {
                         <tr class="clickable" onclick="window.open('@Url.Page("/Protokol", new { id = r.ProtokolId })', '_blank')">
-                            <td><div style="font-weight:600;">@r.PatientName</div><div style="color:var(--text-faint); font-size:11.5px; margin-top:2px;">Protokol @r.ProtokolId</div></td>
-                            <td>@r.ServiceName</td>
-                            <td class="reason">@r.Reason</td>
+                            <td><div style="font-weight:600;">@r.HastaAdi</div><div style="color:var(--text-faint); font-size:11.5px; margin-top:2px;">Protokol @r.ProtokolId</div></td>
+                            <td>@r.HizmetAdi</td>
+                            <td class="reason">@r.Sebep</td>
                         </tr>
                     }
                 </tbody>

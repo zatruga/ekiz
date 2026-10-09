@@ -171,6 +171,65 @@ public class SyncLogEntry
 
         if (m.Contains("Instance count for", StringComparison.OrdinalIgnoreCase) && m.Contains("cardinality", StringComparison.OrdinalIgnoreCase))
             return ("Zorunlu alan eksik/hatalı", "FHIR profilinde zorunlu tutulan bir alan boş bırakılmış ya da yanlış sayıda dolu");
+
+        // ================= ATLAMA (Skipped) KATEGORILERI -- 2026-10-09 =================
+        //
+        // NEDEN EKLENDI: Genel Bakis'taki "Hazir Olmayan Kayitlar" karti sebepleri HAM
+        // MESAJA gore gruplandiriyordu. Olculdu (sunucu gunlugu, son 7 gun): mesaj panel
+        // adini ve tarihini de tasidigi icin ayni sebep onlarca satira boluniyordu --
+        // "Idrar Mikroskopisi (01.08.2026)", "(03.08.2026)", "(04.08.2026)" ... her biri
+        // 10 kayitla ayri bir kutucuk. Ekranda 6 kutucuk gorunuyordu ve altisi da AYNI
+        // sebebi anlatiyordu; gercek dagilim hic gorunmuyordu.
+        //
+        // Kategoriler hatalarla AYNI fonksiyonda cunku ekran ikisini de ayni kutucuk
+        // izgarasinda gosteriyor ve kullanici ikisi arasinda gecis yapiyor. Ayri bir
+        // siniflandirici yazmak, zamanla iki ayri sebep listesi anlamina gelirdi.
+
+        // ISLEM TARIHI MUAYINE ARALIGI DISINDA. Olculdu (sunucu, son 7 gun): bu kalip
+        // Failed kayitlarin 30'u, yani EN BUYUK hata grubu -- ve "Diger" kategorisine
+        // dusuyordu. Yani ekrandaki en buyuk hata kutucugu "yukaridaki kategorilere
+        // girmeyen tekil hatalar" diyordu, oysa hepsi AYNI ve cok net bir sebepti.
+        // Bakanlik kurali: Procedure.performedDateTime, Encounter.period icinde olmali.
+        if (m.Contains("Procedure date must not be", StringComparison.OrdinalIgnoreCase))
+            return ("İşlem tarihi müayinə dışında", "İşlemin tarihi müayinənin başlangıç/bitiş aralığının dışında kalıyor -- TRƏS bunu kabul etmiyor");
+
+        // "TCKimlikNo (FIN icin kullanilacak alan) bos" -- FIN dalindan ONCE bakiliyor.
+        // O dal yalnizca "FIN" kelimesini aradigi icin bu mesaji "FIN formati hatali"
+        // sayiyordu; oysa alan BOS, bicimi bozuk degil. Biri Pusula'da kimlik girilmesini,
+        // digeri yazilmis numaranin duzeltilmesini gerektiriyor.
+        if ((m.Contains("TCKimlikNo", StringComparison.OrdinalIgnoreCase)
+             || m.Contains("FIN", StringComparison.OrdinalIgnoreCase))
+            && (m.Contains("boş", StringComparison.OrdinalIgnoreCase)
+                || m.Contains("bos", StringComparison.OrdinalIgnoreCase)))
+            return ("Kimlik numarası boş", "Hastanın/doktorun FIN alanı Pusula'da hiç girilmemiş -- gönderim için zorunlu");
+
+        // Epikriz ve patoloji raporu AYNI kategoriye giriyor: ikisinde de "kayit
+        // kilitlenmis/tamamlanmis ama metin yazilmamis" durumu var ve ikisinde de
+        // yapilacak sey ayni (Pusula'da metni yaz). Ayri kutucuk gostermek, ayni isi
+        // iki sebep gibi okutmak olurdu.
+        if (m.Contains("metni boş", StringComparison.OrdinalIgnoreCase))
+            return ("Gönderilecek metin yok", "Kayıt kilitlenmiş/tamamlanmış ama metin alanı boş -- gönderilecek içerik yok");
+
+        if (m.Contains("sonuç değeri", StringComparison.OrdinalIgnoreCase))
+            return ("Tetkik sonucu girilmemiş", "Laboratuvar tetkiki tamamlanmış görünüyor ama sonuç değeri boş -- Observation.value zorunlu");
+
+        // ZINCIRDEKI ONCEKI KAYIT GITMEDI. Ornekler (olculdu): epikrizin yazari doktor
+        // gonderilemediyse Composition.author dolduralamiyor; radyoloji raporunun bagli
+        // oldugu islem gonderilmediyse related-procedure uzantisi bos kaliyor.
+        //
+        // "Referans bulunamadi"DAN FARKLI: orada bagli kayit TRƏS'te VARDI ve artik yok
+        // (silinmis), burada HIC gonderilmedi. Ilki yeniden gonderim gerektiriyor,
+        // ikincisi kendiliginden cozuluyor -- zincirdeki kayit gittiginde bu da gider.
+        if (m.Contains("henüz gönderilmedi", StringComparison.OrdinalIgnoreCase)
+            || m.Contains("TRƏS'te gönderilemedi", StringComparison.OrdinalIgnoreCase))
+            return ("Zincirdeki önceki kayıt gitmedi", "Bu kaydın bağlı olduğu kayıt (doktor/işlem) henüz gönderilmedi -- o gidince bu da kendiliğinden gider");
+
+        // BU BIR SORUN DEGIL, BILINCLI DISLAMA -- ekranda hata/eksik gibi gorunmemesi
+        // icin kendi adi var. Yalnizca Doktor (PersonelTipiId=1) Practitioner olarak
+        // gonderiliyor; hemsire, teknisyen vb. gonderilmiyor.
+        if (m.Contains("PersonelTipiId", StringComparison.OrdinalIgnoreCase))
+            return ("Doktor dışı personel", "Kayıt doktor değil (hemşire/teknisyen vb.) -- bilinçli olarak gönderilmiyor, yapılacak bir şey yok");
+
         if (m.Contains("FIN", StringComparison.OrdinalIgnoreCase))
             return ("FIN formatı hatalı", "TC Kimlik/FIN alanı AZ FIN biçimine uymuyor");
         if (m.Contains("ICD", StringComparison.OrdinalIgnoreCase) || m.Contains("tanı", StringComparison.OrdinalIgnoreCase))
@@ -329,6 +388,15 @@ public class SyncLogEntry
             // Yeniden gondermek BU DURUMDA ISE YARAMAZ -- eksik olan Pusula'daki tanim.
             // Mesaj bu yuzden "tekrar gönder" demiyor, nereye bakilacagini soyluyor.
             "Eşleştirme eksik" => "Pusula'da tanım eksik: tetkikin/hizmetin İcbari Sigorta Fiyat Listesi karşılığı ya da LOINC kodu yok. Tanım tamamlanınca kayıt kendiliğinden gönderilir -- yeniden denemek işe yaramaz.",
+            // Asagidaki uc kategori 2026-10-09'da eklendi -- hepsi ATLAMA (Skipped)
+            // sebebi, yani hata degil. Ucunde de ortak nokta: duzeltme PUSULA'da
+            // yapiliyor, burada "tekrar gonder" demek yanlis yonlendirme olurdu.
+            "Kimlik numarası boş" => "Pusula'da hastanın/doktorun kimlik (FIN) alanı hiç girilmemiş. FIN gönderim için zorunlu -- alan doldurulunca kayıt kendiliğinden gönderilir.",
+            "Gönderilecek metin yok" => "Kayıt kilitlenmiş/tamamlanmış ama metin alanı (epikriz ya da rapor) boş. Gönderilecek bir içerik yok -- metin yazılınca kayıt kendiliğinden gönderilir.",
+            "İşlem tarihi müayinə dışında" => "İşlemin tarihi, bağlı olduğu müayinənin başlangıç-bitiş aralığının dışında kalıyor. TRƏS bunu iş kuralı olarak reddediyor -- Pusula'daki işlem ya da protokol tarihi düzeltilmeli.",
+            "Zincirdeki önceki kayıt gitmedi" => "Bu kaydın bağlı olduğu kayıt (epikrizi yazan doktor, ya da raporun işlemi) henüz TRƏS'e gönderilmedi. O kayıt gönderildiğinde bu da kendiliğinden gider -- ayrıca bir şey yapmak gerekmiyor.",
+            "Doktor dışı personel" => "Kayıt doktor değil (hemşire, teknisyen vb.). Yalnızca doktorlar Practitioner olarak gönderiliyor -- bu bilinçli bir dışlama, hata değil.",
+            "Tetkik sonucu girilmemiş" => "Tetkik tamamlanmış görünüyor ama sonuç değeri boş. Sonuç değeri olmayan bir tetkik TRƏS'e gönderilemiyor -- sonuç girilince kayıt kendiliğinden gönderilir.",
             _ => s,
         };
     }

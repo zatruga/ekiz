@@ -81,6 +81,11 @@ builder.Services.AddSingleton<CancellationSyncService>();
 builder.Services.AddSingleton<PusulaEHealthSync.Reporting.GunSonuRaporService>();
 builder.Services.AddSingleton<PusulaEHealthSync.Reporting.MailSender>();
 
+// Protokol bazli durum ozeti (2026-10-09). Genel Bakis'in her sayisi bunun uzerinden
+// hesaplaniyor -- "hangi protokol ne durumda" sorusu artik tek yerde cevaplaniyor
+// (bkz. ProtokolDurumService basindaki not).
+builder.Services.AddSingleton<PusulaEHealthSync.Reporting.ProtokolDurumService>();
+
 // Saatlik otomatik gonderim. VARSAYILAN KAPALI -- Ayarlar'daki "Otomatik gonderim"
 // acilmadan tek kayit bile gondermez (bkz. AutoSyncWorker).
 builder.Services.AddHostedService<AutoSyncWorker>();

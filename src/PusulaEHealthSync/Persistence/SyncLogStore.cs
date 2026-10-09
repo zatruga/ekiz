@@ -667,6 +667,79 @@ public class SyncLogStore
         return Convert.ToInt32(await cmd.ExecuteScalarAsync(ct));
     }
 
+    // ============== GUN KIRILIMLI KAYIT OZETI (2026-10-09, Genel Bakis icin) ==============
+    //
+    // KULLANICI: "genel bakis alanini bir kontrol eder misin, burada ana kriter PROTOKOL
+    // olmali, sayilar protokol ozelinde listelemeli, altinda satir sayisi olabilir."
+    //
+    // Protokol bazina cikmak icin kaydin hangi protokole ait oldugunu Pusula'ya sormak
+    // gerekiyor (SyncLog'da protokol bagi yok -- bkz. PusulaRepository.ProtokolCozum).
+    // Bu metot o sorguya girdi uretir: SATIR degil KAYIT, ve kayit basina GUN.
+    //
+    // NEDEN GUN DE GRUP ANAHTARI: ekranin hem donem toplamlarina hem de gunluk trend
+    // grafigine ihtiyaci var. Gun anahtarda olmasa trend icin ayri bir sorgu + AYRI bir
+    // protokol cozumu gerekirdi; gun burada oldugu icin TEK cozumle hem donem hem gunluk
+    // kirilim cikiyor. Bedeli grup sayisinin artmasi -- olculdu (sunucu, son 14 gun):
+    // 21.865 kayit -> 38.868 kayit-gun. Ayni kayda iki gun dokunulduysa iki satir doner,
+    // ki gunluk grafik icin dogru olan da bu.
+    //
+    // SILME VE DOGRULAMA DISARIDA: SyncLog gonderimi, silmeyi ve $validate'i ayni yere
+    // yaziyor ve ucunde de Status='Success'. Suzmezsek "gonderildi" sayisi silinen
+    // kayitlari da sayar -- gun sonu raporu bu ayrimi 2026-10-05'te zaten yapmisti,
+    // ekran yapmiyordu. Olculdu: sunucuda son 7 gunde hic Delete/Validate satiri YOK,
+    // yani bugun fark sifir; ama ilk silme yapildigi gun ekran sessizce yanlis sayardi.
+    //
+    // DURUM "EN KOTU KAZANIR" -- QueryOzetAsync ve GetDistinctRecordCountsAsync ile ayni
+    // kural, ekranlar arasinda ayni soruya ayni cevap verilsin diye.
+    //
+    // MESAJ: once hata mesaji, yoksa atlama mesaji. Kayit basina TEK ornek yeter --
+    // kategori dagilimi bunun uzerinden hesaplaniyor (bkz. SyncLogEntry.ErrorCategory).
+    // SonId: o kayit-gun grubunun EN YENI SyncLog satiri -- ekranda "Son Hatalar"
+    // listesinden Kayit Detayi sayfasina gecis icin. Grup zaten MAX(Id)'ye gore
+    // siralandigi icin bedava geliyor.
+    public record KayitGunOzeti(long SonId, string ResourceType, int PusulaId, DateOnly Gun,
+                                SyncStatus Durum, int SatirSayisi, string? Mesaj);
+
+    public async Task<List<KayitGunOzeti>> GetKayitGunOzetleriAsync(
+        DateTime fromUtc, DateTime toUtcExclusive, int tavan, CancellationToken ct = default)
+    {
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+        using var cmd = conn.CreateCommand();
+        // Gun siniri YEREL (Baki) -- UTC'ye gore gruplamak gece nobetinde (00:00-04:00)
+        // yapilan gonderimleri bir onceki gune dusururdu. Bu hata bu projede gunluk
+        // trend grafiginde bir kez yasandi (bkz. AzTime).
+        cmd.CommandText = $@"
+            SELECT MAX(Id) AS SonId, ResourceType, PusulaId,
+                   substr(datetime(CreatedAtUtc, {AzTime.SqliteShiftToLocal}), 1, 10) AS Gun,
+                   CASE WHEN SUM(Status = 'Failed')  > 0 THEN 'Failed'
+                        WHEN SUM(Status = 'Skipped') > 0 THEN 'Skipped'
+                        ELSE 'Success' END AS Durum,
+                   COUNT(*) AS Satir,
+                   COALESCE(MAX(CASE WHEN Status = 'Failed'  THEN Message END),
+                            MAX(CASE WHEN Status = 'Skipped' THEN Message END)) AS Mesaj
+            FROM SyncLog
+            WHERE CreatedAtUtc >= $from AND CreatedAtUtc < $to
+              AND (Operation IS NULL OR Operation NOT IN ('Delete', 'Validate'))
+            GROUP BY ResourceType, PusulaId, Gun
+            ORDER BY MAX(Id) DESC
+            LIMIT $tavan";
+        cmd.Parameters.AddWithValue("$from", fromUtc.ToString("O"));
+        cmd.Parameters.AddWithValue("$to", toUtcExclusive.ToString("O"));
+        cmd.Parameters.AddWithValue("$tavan", tavan);
+
+        var sonuc = new List<KayitGunOzeti>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            sonuc.Add(new KayitGunOzeti(
+                reader.GetInt64(0), reader.GetString(1), reader.GetInt32(2),
+                DateOnly.Parse(reader.GetString(3), System.Globalization.CultureInfo.InvariantCulture),
+                Enum.Parse<SyncStatus>(reader.GetString(4)),
+                reader.GetInt32(5),
+                reader.IsDBNull(6) ? null : reader.GetString(6)));
+        return sonuc;
+    }
+
     // Hata/atlama MESAJLARI -- kategori dagilimi icin. Yalnizca mesaj okunuyor, govde yok.
     //
     // NEDEN AYRI: Genel Bakis kategorileri QueryAsync ile en fazla 500 satir cekip
