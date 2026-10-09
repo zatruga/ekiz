@@ -82,9 +82,16 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
     // ama bu kullanicinin zaten gormek istedigi derinlik.
     private const int PageSize = 25;
 
-    // Aralikta okunacak azami satir -- bellek sigortasi. Mevcut hacimde (gunde ~7.500
-    // deneme) yaklasik sekiz gunluk aralik demek; varsayilan aralik yedi gun. Asilirsa
-    // kullanici UYARILIYOR, sessizce eksik sayi gosterilmiyor.
+    // Aralikta okunacak azami KAYIT -- bellek sigortasi.
+    //
+    // 2026-10-09'A KADAR SATIR TAVANIYDI VE EKRANI YALAN SOYLETIYORDU: tavan asildiginda
+    // sorgu "en yeni 60.000 SATIR" donuyordu, yani baslangic tarihi fiilen yok sayiliyordu.
+    // Kullanici 01.10'dan baslatip 84 hasta, 03.10'dan baslatip 451 hasta gordu ve hakli
+    // olarak "daha az gunde nasil cok data olur" diye sordu -- iki sorgu da ayni 60.000
+    // satiri okuyordu, kayit sayilari bile birebir aynisi cikiyordu.
+    //
+    // Birim artik KAYIT: olculdu, 239.442 satir = 23.228 farkli kayit (10,3 kat). Ayni
+    // sayiyla on kat genis aralik kapsaniyor, pratikte tavan hic devreye girmiyor.
     private const int OzetTavani = 60_000;
 
     // Onbellek omru. Kisa: bu ekran "simdi ne oluyor" diye aciliyor, bayat veri ise
@@ -171,20 +178,23 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
         // anahtari yapilsaydi her aramada yedi alan uzerinden hash hesaplanirdi. Grup ile
         // satirlarini yan yana tutmak hem ucuz hem acik.
         var sayfaSatirlari = sayfaGruplari
-            .Select(g => (Grup: g, Idler: g.Kayitlar
+            .Select(g => (Grup: g, Kimlikler: g.Kayitlar
                 .Where(r => seciliDurum is null || r.Durum == seciliDurum)
                 .Where(r => kategoriSuzgeci is null || r.HataKategorisi == kategoriSuzgeci)
-                .Select(r => r.Id).ToList()))
+                .Select(r => (r.ResourceType, r.PusulaId)).ToList()))
             .ToList();
 
-        Entries = await syncLog.GetByIdsAsync(sayfaSatirlari.SelectMany(x => x.Idler).ToList(), ct);
+        // DENEMELER BURADA OKUNUYOR. Ozet kayit basina tek satir tasiyor; tablonun
+        // gosterdigi tek tek denemeler yalnizca bu sayfadaki gruplar icin getiriliyor.
+        Entries = await syncLog.GetByRecordsAsync(
+            sayfaSatirlari.SelectMany(x => x.Kimlikler).ToList(), fromUtc, toUtcExclusive, ct);
 
-        var kayitlar = Entries.ToDictionary(e => e.Id);
+        var denemeler = Entries.ToLookup(e => (e.ResourceType, e.PusulaId));
         Gruplar = sayfaSatirlari
             .Select(x => new AktiviteGrubu(
                 x.Grup,
                 x.Grup.ProtokolId is { } pid ? Ozet.Protokoller.GetValueOrDefault(pid) : null,
-                x.Idler.Select(kayitlar.GetValueOrDefault).OfType<SyncLogEntry>().ToList()))
+                x.Kimlikler.SelectMany(k => denemeler[k]).OrderByDescending(e => e.Id).ToList()))
             .Where(g => g.Kayitlar.Count > 0)
             .ToList();
 
@@ -203,8 +213,18 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
         var anahtar = $"aktivite-ozet|{fromUtc:O}|{toUtcExclusive:O}|{ResourceType}";
         return await cache.GetOrCreateAsync(anahtar, async giris =>
         {
-            giris.AbsoluteExpirationRelativeToNow = OnbellekOmru;
-            return await OzetiHesaplaAsync(fromUtc, toUtcExclusive, ct);
+            var ozet = await OzetiHesaplaAsync(fromUtc, toUtcExclusive, ct);
+
+            // PUSULA PATLADIYSA ONBELLEGE ALMA (2026-10-09).
+            //
+            // Protokol cozumu basarisiz oldugunda hasta sayisi YANLIS cikiyor ve iki
+            // dakika boyunca o yanlis sayi herkese gosteriliyordu. Kullanici tam bunu
+            // gordu: ayni veri icin bir seferinde 340, digerinde 650 hasta. Gecici bir
+            // ag kesintisinin sonucunu onbellege almak, hatayi kalicilastirmak demek.
+            // Sifir omurle yazinca bir sonraki acilis yeniden deniyor.
+            giris.AbsoluteExpirationRelativeToNow =
+                ozet.PusulaHatasi ? TimeSpan.FromTicks(1) : OnbellekOmru;
+            return ozet;
         }) ?? AkisOzeti.Bos;
     }
 
@@ -212,6 +232,13 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
     {
         var satirlar = await syncLog.QueryOzetAsync(
             ResourceType, fromUtc, toUtcExclusive, OzetTavani, ct);
+
+        // KAYIT SAYILARI AYRI VE KIRPILMASIZ: ust karttaki "N kayit" alt satirlari
+        // dogrudan SQL toplamindan geliyor, ozetin tavanindan etkilenmiyor. Eskiden
+        // ikisi de ayni kirpilmis listeden hesaplandigi icin tavan asildiginda iki
+        // farkli tarih araligi ayni kayit sayisini gosteriyordu.
+        var durumSayilari = await syncLog.GetStatusCountsAsync(
+            ResourceType, fromUtc, toUtcExclusive, ct);
 
         var kirpildi = satirlar.Count >= OzetTavani;
         if (satirlar.Count == 0) return AkisOzeti.Bos;
@@ -289,7 +316,7 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
         foreach (var (pid, kova) in protokolKovalari)
         {
             if (!protokoller.TryGetValue(pid, out var pr) || pr.HastaId == 0) continue;
-            var enYeni = kova.Max(k => k.Id);
+            var enYeni = kova.Max(k => k.SonId);
             if (!hastaninProtokolu.TryGetValue(pr.HastaId, out var mevcut) || enYeni > mevcut.EnYeniId)
                 hastaninProtokolu[pr.HastaId] = (pid, enYeni);
         }
@@ -299,6 +326,22 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
             if (!hastaninProtokolu.TryGetValue(hastaId, out var hedef)) continue;
             protokolKovalari[hedef.ProtokolId].AddRange(kova);
             hastaKovalari.Remove(hastaId);
+        }
+
+        // PUSULA OKUNAMADIYSA HASTA KAYITLARI AYRI GRUP OLMAZ (2026-10-09 duzeltmesi).
+        //
+        // Birlestirme HastaId'ye ihtiyac duyuyor, o da protokol bilgisinden geliyor.
+        // Bilgi okunamazsa her Patient kaydi kendi grubu oluyor ve HASTA SAYISI YUKARI
+        // SISIYOR. Kullanici tam bunu gordu: ayni veride bir seferinde 340, digerinde
+        // 650 hasta -- aradaki 310 fark, o araliktaki 303 farkli Patient kaydi.
+        //
+        // Yukari sisen bir sayi, eksik bir sayidan daha kotu: "iyiye gidiyoruz" diye
+        // okunuyor. Bilmiyorsak sayiya katmiyoruz -- kayitlar kimligi cozulemeyen
+        // kovaya gidiyor ve ekran bunu zaten uyari olarak soyluyor.
+        if (pusulaHatasi && hastaKovalari.Count > 0)
+        {
+            foreach (var kova in hastaKovalari.Values) kimliksiz.AddRange(kova);
+            hastaKovalari.Clear();
         }
 
         // ---- 5) SIRALA ----
@@ -326,10 +369,11 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
 
         return new AkisOzeti(
             gruplar, protokoller,
-            ToplamKayit: satirlar.Count,
-            BasariliKayit: satirlar.Count(k => k.Status == SyncStatus.Success),
-            AtlananKayit: satirlar.Count(k => k.Status == SyncStatus.Skipped),
-            HataliKayit: satirlar.Count(k => k.Status == SyncStatus.Failed),
+            // Kirpilmasiz SQL toplami -- tarih araligini gercekten yansitir.
+            ToplamKayit: durumSayilari.Values.Sum(),
+            BasariliKayit: durumSayilari.GetValueOrDefault(nameof(SyncStatus.Success)),
+            AtlananKayit: durumSayilari.GetValueOrDefault(nameof(SyncStatus.Skipped)),
+            HataliKayit: durumSayilari.GetValueOrDefault(nameof(SyncStatus.Failed)),
             HastaToplam: hastaGruplari.Count,
             HastaBasarili: hastaGruplari.Count(g => g.Hatali == 0 && g.Atlanan == 0),
             HastaAtlanan: hastaGruplari.Count(g => g.Hatali == 0 && g.Atlanan > 0),
@@ -349,15 +393,15 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
         // yapildigi icin ikisine de sonradan ihtiyac var.
         static AkisGrupOzeti Grup(int? protokolId, bool hastaGrubu, List<SyncLogStore.OzetSatiri> k)
         {
-            var satirlar = k.OrderByDescending(x => x.Id)
-                .Select(x => new AkisKayitRef(x.Id, x.Status,
-                    x.Status == SyncStatus.Failed ? SyncLogEntry.ErrorCategory(x.Message).Label : null))
+            var kayitlar = k.OrderByDescending(x => x.SonId)
+                .Select(x => new AkisKayitRef(x.ResourceType, x.PusulaId, x.Status, x.DenemeSayisi,
+                    x.Status == SyncStatus.Failed ? SyncLogEntry.ErrorCategory(x.HataMesaji).Label : null))
                 .ToList();
-            return new AkisGrupOzeti(protokolId, hastaGrubu, satirlar,
+            return new AkisGrupOzeti(protokolId, hastaGrubu, kayitlar,
                 k.Count(x => x.Status == SyncStatus.Success),
                 k.Count(x => x.Status == SyncStatus.Skipped),
                 k.Count(x => x.Status == SyncStatus.Failed),
-                k.Max(x => x.Id));
+                k.Max(x => x.SonId));
         }
     }
 
@@ -503,12 +547,14 @@ public record AkisOzeti(
     public static readonly AkisOzeti Bos = new([], new(), 0, 0, 0, 0, 0, 0, 0, 0, false, false);
 }
 
-// Ozetteki tek bir SyncLog satiri: yalnizca kimligi, durumu ve (hatali ise) hata
-// kategorisi. Govde yok -- ekrana dusen satirlar icin ayrica okunuyor.
+// Ozetteki tek bir KAYIT (satir degil): kimligi, en kotu durumu, kac kez denendigi ve
+// (hatali ise) hata kategorisi. Denemelerin kendisi burada YOK -- yalnizca ekrana dusen
+// gruplar icin ayrica okunuyor (bkz. SyncLogStore.GetByRecordsAsync).
 //
-// HataKategorisi burada hazir duruyor cunku "Hata Kategorileri" suzgeci artik SQL'de
-// degil bellekte uygulaniyor; mesaj metni ise ozetten sonra birakiliyor.
-public record AkisKayitRef(long Id, SyncStatus Durum, string? HataKategorisi);
+// SATIR DEGIL KAYIT: ayni kaydin onlarca denemesini ozette tasimak, tarih araligi genis
+// oldugunda tavani doldurup baslangic tarihini etkisiz kiliyordu (bkz. OzetTavani).
+public record AkisKayitRef(string ResourceType, int PusulaId, SyncStatus Durum,
+                           int DenemeSayisi, string? HataKategorisi);
 
 // Tek bir grubun (hasta/protokol) ozeti.
 public record AkisGrupOzeti(int? ProtokolId, bool HastaGrubu, List<AkisKayitRef> Kayitlar,
@@ -545,8 +591,14 @@ public record AktiviteGrubu(AkisGrupOzeti Ozet, ProtokolListItem? Protokol, List
     public int Hatali => Ozet.Hatali;
     public int Atlanan => Ozet.Atlanan;
 
+    // Grubun KAYIT sayisi (deneme degil) -- ust karttaki sayimla ayni birim.
     public int ToplamKayit => Ozet.Kayitlar.Count;
-    public bool Suzulmus => Kayitlar.Count < ToplamKayit;
+
+    // Tabloda gosterilen DENEME sayisi. Kayit sayisindan fazla olabilir: bir kayit
+    // birden cok kez denenmis olabilir.
+    public int ToplamDeneme => Ozet.Kayitlar.Sum(k => k.DenemeSayisi);
+
+    public bool Suzulmus => Kayitlar.Count < ToplamDeneme;
 
     // Grup basligindaki saat -- gruptaki EN YENI kayit (akis en yeniden eskiye okunuyor).
     public DateTime SonZamanYerel => AzTime.ToLocal(Kayitlar.Max(k => k.CreatedAtUtc));

@@ -113,15 +113,22 @@
 @if (Model.Ozet.Kirpildi)
 {
     <div class="alert alert-warning">
-        Bu tarih aralığında çok fazla kayıt var; sayılar <strong>en yeni 60.000 kayda</strong> göre hesaplandı.
-        Tam sayı için tarih aralığını daraltın.
+        Bu tarih aralığında <strong>60.000'den fazla farklı kayıt</strong> var; hasta grupları en yeni
+        60.000 kayda göre çıkarıldı. Üstteki <strong>kayıt sayıları etkilenmez</strong> (doğrudan
+        veritabanı toplamından gelir); yalnızca hasta sayısı eksik kalabilir. Tam liste için aralığı daraltın.
     </div>
 }
 @if (Model.Ozet.PusulaHatasi)
 {
-    <div class="alert alert-warning">
-        Pusula'ya erişilemediği için bazı kayıtların hastası çözülemedi &mdash; onlar listenin sonundaki
-        <strong>kimliği çözülemeyen</strong> grupta duruyor ve hasta sayısına dahil değil.
+    @* SAYI GUVENILMEZ OLDUGUNDA BUNU SOYLEMEK ZORUNDAYIZ. Kullanici ayni veri icin bir
+       seferinde 340, digerinde 650 hasta gordu; aradaki fark Pusula'ya erisilemedigi an
+       protokole baglanamayan kayitlardi. Yumusak bir not yeterli degil -- karttaki rakam
+       o an YANLIS, ve yanlis yonu YUKARI. *@
+    <div class="alert alert-danger">
+        <strong>Hasta sayıları eksik.</strong> Pusula'ya erişilemediği için bazı kayıtların hangi
+        protokole ait olduğu çözülemedi; onlar listenin sonundaki <strong>kimliği çözülemeyen</strong>
+        grupta duruyor. Üstteki hasta sayılarını bu haliyle başka bir ölçümle karşılaştırmayın &mdash;
+        sayfayı yenileyip tekrar deneyin. (Kayıt sayıları etkilenmez, onlar doğrudan veritabanından gelir.)
     </div>
 }
 
@@ -306,10 +313,18 @@ else
                             </form>
                         </span>
                     }
+                    @* KAYIT ile DENEME ayri: bir kayit birden cok kez denenmis olabilir,
+                       tablo denemeleri gosteriyor ama rozetler ve ust kart KAYIT sayiyor.
+                       Ikisi farkliysa ikisi de yaziliyor, yoksa "3 kayit" basligi altinda
+                       30 satir gormek celiski gibi duruyordu. *@
                     <span class="akis-grup-adet">
                         @if (grup.Suzulmus)
                         {
-                            <text>@grup.ToplamKayit kayıttan @grup.Kayitlar.Count tanesi</text>
+                            <text>@grup.ToplamDeneme denemeden @grup.Kayitlar.Count tanesi</text>
+                        }
+                        else if (grup.ToplamDeneme > grup.ToplamKayit)
+                        {
+                            <text>@grup.ToplamKayit kayıt &middot; @grup.ToplamDeneme deneme</text>
                         }
                         else
                         {

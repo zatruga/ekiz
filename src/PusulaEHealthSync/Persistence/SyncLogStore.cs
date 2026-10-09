@@ -193,29 +193,30 @@ public class SyncLogStore
     // bellege almak sayfayi cokertirdi; oysa govde yalnizca ekranda GORUNEN satirlar
     // icin gerekiyor.
 
-    // Gruplama ve sayim icin gereken asgari alanlar.
-    public record OzetSatiri(long Id, string ResourceType, int PusulaId, SyncStatus Status, string? Message);
+    // Gruplama ve sayim icin gereken asgari alanlar -- SATIR degil KAYIT basina bir tane.
+    public record OzetSatiri(long SonId, string ResourceType, int PusulaId, SyncStatus Status,
+                             int DenemeSayisi, string? HataMesaji);
 
-    // ORTAM FILTRESI YOK: QueryAsync ve GetStatusCountsAsync ile ayni bilincli karar
-    // (gerekcesi GetGunKayitlariAsync'in basinda) -- bu bir EKRAN sorgusu, olcum degil.
+    // TARIH ARALIGINDAKI KAYITLAR (2026-10-09'da SATIR bazindan KAYIT bazina cevrildi).
     //
-    // DURUM FILTRESI DE YOK, BILEREK (2026-10-07 duzeltmesi). Ozet, ust karttaki hasta
-    // sayilarini uretiyor ve o sayilar "en kotu durum kazanir" kuraliyla hesaplaniyor:
-    // bir hastanin kaydi hata aldiysa o hasta Hatali sayiliyor. Bu kural ancak hastanin
-    // TUM kayitlari elde varken isler. Sorgu Status'e gore suzulseydi, "Sorunsuz" karti
-    // tiklandiginda yalnizca basarili satirlar okunur, her hasta kendiliginden sorunsuz
-    // gorunur ve kart kendi sayisini yeniden yazardi (kullanici bunu yakaladi: Sorunsuz'a
-    // tiklayinca toplam 82'den 71'e dusuyor, Eksik veri'ye tiklayinca Sorunsuz 0 oluyordu).
-    // Suzme artik SQL'de degil, ekrana hangi gruplarin alinacagi secilirken yapiliyor.
+    // KULLANICI: "birinde ayin 01'ini cekiyorum 84 sorunsuz var, digerinde 03'u cekiyorum
+    // 451 sorunsuz var -- daha az gunde cok data nasil oluyor?"
     //
-    // MESAJ YALNIZCA HATALI SATIRLAR ICIN: "Hata Kategorisi" filtresi mesaj metninden
-    // turetiliyor (DB kolonu degil), ama kategori zaten sadece Failed satirlar icin
-    // anlamli. CASE ile basarili/atlanan satirlarin mesaji hic okunmuyor -- 16.000
-    // satirlik bir gunde bu, bellege 48 mesaj tasimakla 16.000 mesaj tasimak arasindaki
-    // fark demek.
+    // SEBEP TAVANDI. Sorgu "ORDER BY Id DESC LIMIT 60000" yapiyordu ve iki aralik da
+    // tavani asiyordu (ikisinde de 237.077 satir var), yani IKISI DE AYNI en yeni 60.000
+    // satiri donuyordu -- BASLANGIC TARIHI FIILEN YOK SAYILIYORDU. Ekrandaki kayit
+    // sayilarinin iki aralikta birebir ayni cikmasi bunun kanitiydi.
     //
-    // tavan: bellek sigortasi. Asilirsa EN YENI satirlar doner ve cagiran taraf
-    // kullaniciyi uyarir -- sessizce eksik sayi gostermek, hic gostermemekten kotu.
+    // COZUM BIRIMI DEGISTIRMEK: ayni kaydin onlarca denemesi ayri satir olarak
+    // tasiniyordu. Olculdu: 239.442 satir = 23.228 farkli kayit, yani 10,3 kat fazlalik.
+    // Artik kayit basina TEK satir donuyor; ayni tavan on kat genis araligi kapsiyor ve
+    // tavan pratikte hic devreye girmiyor. Denemelerin kendisi, yalnizca ekranda GORUNEN
+    // gruplar icin ayrica okunuyor (bkz. GetByRecordsAsync).
+    //
+    // DURUM "EN KOTU KAZANIR": kaydin denemelerinden biri hata aldiysa kayit hatali
+    // sayilir -- Genel Bakis ve Aktivite Akisi ayni kurali kullansin diye.
+    //
+    // ORTAM FILTRESI YOK: QueryAsync/GetStatusCountsAsync ile ayni bilincli karar.
     public async Task<List<OzetSatiri>> QueryOzetAsync(
         string? resourceType, DateTime? fromUtc, DateTime? toUtcExclusive,
         int tavan, CancellationToken ct = default)
@@ -224,13 +225,20 @@ public class SyncLogStore
         await conn.OpenAsync(ct);
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
-            SELECT Id, ResourceType, PusulaId, Status,
-                   CASE WHEN Status = 'Failed' THEN Message ELSE NULL END
+            SELECT MAX(Id) AS SonId, ResourceType, PusulaId,
+                   CASE WHEN SUM(Status = 'Failed')  > 0 THEN 'Failed'
+                        WHEN SUM(Status = 'Skipped') > 0 THEN 'Skipped'
+                        ELSE 'Success' END AS Durum,
+                   COUNT(*) AS Deneme,
+                   -- Kategori suzgeci icin bir hata mesaji ornegi; yalnizca hatali
+                   -- kayitlarda dolu, digerlerinde NULL (bellek israfi olmasin).
+                   MAX(CASE WHEN Status = 'Failed' THEN Message END) AS HataMesaji
             FROM SyncLog
             WHERE ($resourceType IS NULL OR ResourceType = $resourceType)
               AND ($from IS NULL OR CreatedAtUtc >= $from)
               AND ($to IS NULL OR CreatedAtUtc < $to)
-            ORDER BY Id DESC
+            GROUP BY ResourceType, PusulaId
+            ORDER BY SonId DESC
             LIMIT $tavan";
         cmd.Parameters.AddWithValue("$resourceType", (object?)resourceType ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$from", (object?)fromUtc?.ToString("O") ?? DBNull.Value);
@@ -243,7 +251,48 @@ public class SyncLogStore
             result.Add(new OzetSatiri(
                 reader.GetInt64(0), reader.GetString(1), reader.GetInt32(2),
                 Enum.Parse<SyncStatus>(reader.GetString(3)),
-                reader.IsDBNull(4) ? null : reader.GetString(4)));
+                reader.GetInt32(4),
+                reader.IsDBNull(5) ? null : reader.GetString(5)));
+        return result;
+    }
+
+    // Belirli KAYITLARIN tarih araligindaki TUM denemeleri -- ekranda gorunen gruplar icin.
+    // Ozet kayit basina tek satir tasidigi icin denemeler artik burada okunuyor; kume
+    // bir sayfaya dusen gruplarla sinirli oldugu icin maliyeti kucuk.
+    public async Task<List<SyncLogEntry>> GetByRecordsAsync(
+        IReadOnlyCollection<(string ResourceType, int PusulaId)> kayitlar,
+        DateTime? fromUtc, DateTime? toUtcExclusive, CancellationToken ct = default)
+    {
+        var result = new List<SyncLogEntry>();
+        if (kayitlar.Count == 0) return result;
+
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+
+        // SQLite satir-degeri IN'i destekliyor: (a, b) IN (VALUES (..), (..)).
+        // Parti boyutu 400 -- cift basina iki degisken, 999 sinirinin altinda kaliyor.
+        foreach (var chunk in kayitlar.Distinct().Chunk(400))
+        {
+            using var cmd = conn.CreateCommand();
+            var degerler = string.Join(",", chunk.Select((_, i) => $"($rt{i}, $id{i})"));
+            cmd.CommandText = $@"
+                SELECT {SelectColumns} FROM SyncLog
+                WHERE (ResourceType, PusulaId) IN (VALUES {degerler})
+                  AND ($from IS NULL OR CreatedAtUtc >= $from)
+                  AND ($to IS NULL OR CreatedAtUtc < $to)";
+            for (var i = 0; i < chunk.Length; i++)
+            {
+                cmd.Parameters.AddWithValue($"$rt{i}", chunk[i].ResourceType);
+                cmd.Parameters.AddWithValue($"$id{i}", chunk[i].PusulaId);
+            }
+            cmd.Parameters.AddWithValue("$from", (object?)fromUtc?.ToString("O") ?? DBNull.Value);
+            cmd.Parameters.AddWithValue("$to", (object?)toUtcExclusive?.ToString("O") ?? DBNull.Value);
+
+            using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (await reader.ReadAsync(ct)) result.Add(ReadEntry(reader));
+        }
+
+        result.Sort((a, b) => b.Id.CompareTo(a.Id));
         return result;
     }
 
