@@ -60,7 +60,10 @@ public class PendingWorkService(
 
     // Yatan hastada kural "taburcu olunca gonder". Ama protokol veri girisi hatasiyla hic
     // kapanmazsa sonsuza dek beklerdi -- kullanici karari (2026-09-09): makul bir tavan koy.
-    public const int YatanMaxOpenDays = 90;
+    //
+    // 2026-10-09: deger artik AYARDAN geliyor (SettingsStore.YatanMaxOpenDaysKey). Koda
+    // gomuluyken degistirmenin yolu yoktu; oysa 97 yatan protokolun taburcusu hic
+    // girilmemis ve bu tavan tam da onlari kurtaran kural.
 
     // ONBELLEK: tam tarama canli veride ~15 sn suruyor (7 gunluk pencerede 54.000
     // laboratuvar + 24.000 islem adayi taraniyor) -- her sayfa acilisinda calistirilamaz.
@@ -340,6 +343,8 @@ public class PendingWorkService(
             SettingsStore.OpenProtokolSendAfterDaysKey, SettingsStore.OpenProtokolSendAfterDaysDefault, ct);
         var minYas = await settings.GetIntAsync(
             SettingsStore.MinProtokolYasiGunKey, SettingsStore.MinProtokolYasiGunDefault, ct);
+        var yatanTavan = await settings.GetIntAsync(
+            SettingsStore.YatanMaxOpenDaysKey, SettingsStore.YatanMaxOpenDaysDefault, ct);
 
         // SOGUMA SURESI -- Ayarlar'daki "Kac dakika sonra tekrar dene?" (2026-10-05'te
         // gercekten baglandi; o alan da okunmuyordu).
@@ -398,7 +403,7 @@ public class PendingWorkService(
                 if (tabanTarih is { } taban && protokol.AcilisTarihi is { } acilis
                     && DateOnly.FromDateTime(acilis.Date) < taban) continue;
 
-                var (eligible, reason) = IsEligible(protokol, openAfterDays, minYas);
+                var (eligible, reason) = IsEligible(protokol, openAfterDays, minYas, yatanTavan);
                 var items = group
                     .Select(c => new PendingItem(
                         c.ResourceType, c.Baslik, c.PusulaId, c.SonuclanmaTarihi, c.Aciklama,
@@ -552,9 +557,10 @@ public class PendingWorkService(
 
     // Protokol gonderime uygun mu? Yatan ve ayaktan icin FARKLI kural (kullanici karari
     // 2026-09-09), ustune AYNI GUN GONDERME kurali (kullanici karari 2026-10-03).
-    private static (bool Eligible, string? Reason) IsEligible(ProtokolListItem p, int openAfterDays, int minAgeDays)
+    private static (bool Eligible, string? Reason) IsEligible(
+        ProtokolListItem p, int openAfterDays, int minAgeDays, int yatanTavanGun)
     {
-        var (uygunlukAni, redSebebi) = UygunlukAni(p, openAfterDays);
+        var (uygunlukAni, redSebebi) = UygunlukAni(p, openAfterDays, yatanTavanGun);
         if (uygunlukAni is null) return (false, redSebebi);
 
         // AYNI GUN GONDERILMEZ (KULLANICI KARARI 2026-10-03: "gönderim yaparken 1 gün
@@ -578,7 +584,7 @@ public class PendingWorkService(
     }
 
     // Protokolun gonderime uygun hale geldigi AN. null ise henuz uygun degil (sebebiyle).
-    private static (DateTime? An, string? Sebep) UygunlukAni(ProtokolListItem p, int openAfterDays)
+    private static (DateTime? An, string? Sebep) UygunlukAni(ProtokolListItem p, int openAfterDays, int yatanTavanGun)
     {
         // YATAN (Y): olcut TABURCU (kullanici karari 2026-09-14). Yatis haftalar surebilir ve
         // epizot bitmeden gondermek yanlis olur -- bu yuzden ayaktandaki gun esigi kisayolu
@@ -598,8 +604,8 @@ public class PendingWorkService(
             // Veri girisi hatasiyla hic kapanmayan/taburcu edilmeyen protokoller sonsuza dek
             // beklemesin diye tavan.
             var yatanAcik = (DateTime.Now - p.AcilisTarihi.Value).TotalDays;
-            return yatanAcik >= YatanMaxOpenDays
-                ? (p.AcilisTarihi.Value.AddDays(YatanMaxOpenDays), null)
+            return yatanAcik >= yatanTavanGun
+                ? (p.AcilisTarihi.Value.AddDays(yatanTavanGun), null)
                 : (null, $"Hasta hâlâ yatıyor (taburcu bekleniyor, {(int)yatanAcik} gündür açık)");
         }
 

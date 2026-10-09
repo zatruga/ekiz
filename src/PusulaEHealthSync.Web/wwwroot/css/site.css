@@ -1249,7 +1249,13 @@ input[type="checkbox"].row-check,
 
 .settings-grid .span-2 { grid-column: 1 / -1; }
 
-.settings-card { display: flex; flex-direction: column; height: 100%; }
+/* KARTLAR KOMSUSUNA GORE UZAMAZ (2026-10-09).
+   .settings-grid'te align-items:start zaten vardi ama height:100% onu etkisiz kiliyordu:
+   yuzde yukseklik, grid satirinin yuksekligine (yani satirdaki EN UZUN kartin boyuna)
+   gore cozuluyor. Sonucta kisa bir kart uzun komsusu kadar uzuyor, formun flex:1'i de
+   "Kaydet" dugmesini en dibe itiyordu -- kullanici "neden bu kadar bosluk var" diye
+   sordugu bosluk tam olarak buydu. Yukseklik kalkinca her kart kendi icerigi kadar. */
+.settings-card { display: flex; flex-direction: column; }
 
 .card-title-row {
   display: flex;

@@ -216,6 +216,20 @@
                                 </span></div>
                         </div>
                         <div class="field-row-2">
+                            @* DEVRE KESICI 2026-10-09'DA EKRANA GELDI. Koda gomuluyken,
+                               bakanlik tarafinda uzun suren bir kesinti yasandiginda esigi
+                               gecici olarak yukseltmenin yolu yoktu. *@
+                            <div class="field">
+                                <label for="devreKesici">Üst üste kaç bağlantı hatasında tur bırakılsın?</label>
+                                <input type="number" id="devreKesici" asp-for="DevreKesiciSiniri" min="1" max="100" />
+                                <span class="field-hint">
+                                    Yalnızca <b>bağlantı/kimlik</b> hataları sayılır; bakanlığın reddettiği bir kayıt (ör. geçersiz ICD kodu)
+                                    buna dahil değildir. TRƏS ulaşılamazken turun saatlerce zaman aşımında beklemesini önler.
+                                </span>
+                                <span asp-validation-for="DevreKesiciSiniri" style="display:block; margin-top:6px; font-size:12.5px; color:var(--danger);"></span>
+                            </div>
+                        </div>
+                        <div class="field-row-2">
                             <div class="field">
                                 <label for="minYas">Kapandıktan kaç gün sonra gönderilsin?</label>
                                 <input type="number" id="minYas" asp-for="MinProtokolYasiGun" min="0" max="30" />
@@ -370,10 +384,23 @@
                         <b>uygun</b> sayılır.
                     </p>
                     <form method="post" asp-page-handler="Protokol" style="display:flex; flex-direction:column; flex:1;">
-                        <div class="field" style="max-width:220px;">
-                            <label for="days">Kaç gün sonra gönderime uygun say?</label>
-                            <input type="number" id="days" asp-for="OpenProtokolSendAfterDays" min="0" max="365" />
-                            <span asp-validation-for="OpenProtokolSendAfterDays" class="text-muted" style="display:block; margin-top:6px; font-size:12.5px; color:var(--danger);"></span>
+                        <div class="field-row-2">
+                            <div class="field">
+                                <label for="days">Ayaktan: kaç gün sonra gönderime uygun say?</label>
+                                <input type="number" id="days" asp-for="OpenProtokolSendAfterDays" min="0" max="365" />
+                                <span class="field-hint">Ayaktan protokollerde kapanış çoğu zaman hiç yapılmıyor; bu süre dolunca yine de gönderilir.</span>
+                                <span asp-validation-for="OpenProtokolSendAfterDays" style="display:block; margin-top:6px; font-size:12.5px; color:var(--danger);"></span>
+                            </div>
+                            @* YATAN TAVANI 2026-10-09'DA EKRANA GELDI. Deger koda gomuluydu
+                               (90 gun), yani degistirmenin yolu yoktu. Olculdu (01.10-09.10):
+                               97 yatan protokolun taburcusu hic girilmemis -- bu tavan tam da
+                               onlari kurtaran kural, ve suresi hastaneye gore degisebilir. *@
+                            <div class="field">
+                                <label for="yatanTavan">Yatan: taburcu girilmezse kaç gün sonra gönder?</label>
+                                <input type="number" id="yatanTavan" asp-for="YatanMaxOpenDays" min="1" max="3650" />
+                                <span class="field-hint">Yatanda kural &ldquo;taburcu olunca gönder&rdquo;. Taburcu hiç girilmezse protokol sonsuza dek beklerdi; bu süre o kayıtları kurtarır.</span>
+                                <span asp-validation-for="YatanMaxOpenDays" style="display:block; margin-top:6px; font-size:12.5px; color:var(--danger);"></span>
+                            </div>
                         </div>
                         <div class="card-actions">
                             <button type="submit" class="btn btn-primary">Kaydet</button>
@@ -534,6 +561,11 @@
                                 <input type="number" id="mailHour" asp-for="MailSendHour" min="0" max="23" />
                                 <span class="field-hint">Bu saatte dünün raporu gider. 7 = sabah işe gelindiğinde
                                 gelen kutusunda hazır.</span></div>
+                            @* Tavan 2026-10-09'da ekrana geldi; koda gomuluydu (300). *@
+                            <div class="field"><label for="mailTavan">Mailde en fazla kaç hatalı kalem listelensin?</label>
+                                <input type="number" id="mailTavan" asp-for="MailHataliKalemTavani" min="1" max="5000" />
+                                <span class="field-hint">Toplam sayı her zaman yazılır; bu yalnızca listenin uzunluğunu sınırlar,
+                                mailin okunamaz hale gelmemesi için.</span></div>
                         </div>
 
                         <div class="field">

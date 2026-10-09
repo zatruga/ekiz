@@ -15,6 +15,8 @@ public class GunSonuRaporService(
 {
     // Hatali kalem listesinin tavani. Asilirsa rapor "ilk N" diyip toplami ayrica yazar --
     // 4.000 satirlik bir e-posta, kimsenin okumadigi bir e-postadir.
+    // 2026-10-09: varsayilan; gercek deger Ayarlar'dan geliyor
+    // (SettingsStore.MailHataliKalemTavaniKey).
     public const int HataliKalemTavani = 300;
 
     public async Task<GunSonuRaporu> OlusturAsync(DateOnly gun, CancellationToken ct = default)
@@ -139,13 +141,17 @@ public class GunSonuRaporService(
             : null;
         var sonTurOzet = await settings.GetStringAsync(SettingsStore.AutoSendLastRunOzetKey, "", ct);
 
+        // Mailde listelenecek azami hatali kalem -- ayardan (oncesinde koda gomuluydu).
+        var hataliTavan = Math.Max(1, await settings.GetIntAsync(
+            SettingsStore.MailHataliKalemTavaniKey, SettingsStore.MailHataliKalemTavaniDefault, ct));
+
         return new GunSonuRaporu(
             gun, ortam, otomatikAcik,
             protokolDurumlari.Count, basariliProtokol, hataliProtokol, eksikProtokol,
             gonderimler.Count, basarili, hatali, atlanan,
             silmeler.Count(s => s.Status == SyncStatus.Success),
             kaynakKirilimi, hataGruplari,
-            hataliHepsi.Take(HataliKalemTavani).ToList(), hataliHepsi.Count,
+            hataliHepsi.Take(hataliTavan).ToList(), hataliHepsi.Count,
             sonTarama?.ToplamProtokolSayisi ?? 0,
             sonTarama?.ToplamTakilanProtokolSayisi ?? 0,
             sonTurYerel,

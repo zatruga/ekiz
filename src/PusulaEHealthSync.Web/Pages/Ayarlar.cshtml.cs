@@ -138,6 +138,16 @@ public class AyarlarModel(
     // cikti: "okunuyor ama ekranda yok" iki anahtar bunlardi.
     public bool RadiologyReportSendEnabled { get; set; }
     public bool PathologyReportSendEnabled { get; set; }
+    // Koda gomuluyken degistirilemeyen iki kural 2026-10-09'da ayara cevrildi.
+    [Range(1, 3650, ErrorMessage = "1 ile 3650 arasında bir gün sayısı girin.")]
+    public int YatanMaxOpenDays { get; set; }
+
+    [Range(1, 100, ErrorMessage = "1 ile 100 arasında bir sayı girin.")]
+    public int DevreKesiciSiniri { get; set; }
+
+    [Range(1, 5000, ErrorMessage = "1 ile 5000 arasında bir sayı girin.")]
+    public int MailHataliKalemTavani { get; set; }
+
     public bool LabSendEnabled { get; set; }
     public bool VitalSignsSendEnabled { get; set; }
 
@@ -179,6 +189,7 @@ public class AyarlarModel(
     {
         if (!ModelState.IsValid) { await LoadAsync(ct, skipProtokol: true); return Page(); }
         await settings.SetIntAsync(SettingsStore.OpenProtokolSendAfterDaysKey, OpenProtokolSendAfterDays, ct);
+        await settings.SetIntAsync(SettingsStore.YatanMaxOpenDaysKey, YatanMaxOpenDays, ct);
         return await SavedAsync("protokol", ct);
     }
 
@@ -308,6 +319,7 @@ public class AyarlarModel(
         // degistirmekle ayni jest olmamali.
         await settings.SetIntAsync(SettingsStore.AutoSendIntervalMinutesKey, AutoSendIntervalMinutes, ct);
         await settings.SetIntAsync(SettingsStore.AutoSendBatchSizeKey, AutoSendBatchSize, ct);
+        await settings.SetIntAsync(SettingsStore.DevreKesiciSiniriKey, DevreKesiciSiniri, ct);
         await settings.SetIntAsync(SettingsStore.MinProtokolYasiGunKey, MinProtokolYasiGun, ct);
         await settings.SetStringAsync(SettingsStore.SendFloorDateKey, Clean(SendFloorDate), ct);
         await settings.SetIntAsync(SettingsStore.StuckRetryHourKey, TakilanDenemeSaati, ct);
@@ -352,6 +364,7 @@ public class AyarlarModel(
         await settings.SetStringAsync(SettingsStore.MailPasswordKey, MailPassword ?? "", ct);
         await settings.SetStringAsync(SettingsStore.MailFromAddressKey, Clean(MailFromAddress), ct);
         await settings.SetIntAsync(SettingsStore.MailSendHourKey, MailSendHour, ct);
+        await settings.SetIntAsync(SettingsStore.MailHataliKalemTavaniKey, MailHataliKalemTavani, ct);
         await settings.SetStringAsync(SettingsStore.MailRecipientsKey, Clean(MailRecipients), ct);
         return await SavedAsync("mail", ct);
     }
@@ -488,6 +501,10 @@ public class AyarlarModel(
         // acilip kaydedildiginde kullanicinin hic dokunmadigi bir davranis degisirdi.
         RadiologyReportSendEnabled = await settings.GetBoolAsync(SettingsStore.RadiologyReportSendEnabledKey, true, ct);
         PathologyReportSendEnabled = await settings.GetBoolAsync(SettingsStore.PathologyReportSendEnabledKey, true, ct);
+        YatanMaxOpenDays = await settings.GetIntAsync(
+            SettingsStore.YatanMaxOpenDaysKey, SettingsStore.YatanMaxOpenDaysDefault, ct);
+        DevreKesiciSiniri = await settings.GetIntAsync(
+            SettingsStore.DevreKesiciSiniriKey, SettingsStore.DevreKesiciSiniriDefault, ct);
         LabSendEnabled = await settings.GetBoolAsync(SettingsStore.LabSendEnabledKey, true, ct);
         VitalSignsSendEnabled = await settings.GetBoolAsync(SettingsStore.VitalSignsSendEnabledKey, true, ct);
 
@@ -501,6 +518,8 @@ public class AyarlarModel(
             MailPassword = await settings.GetStringAsync(SettingsStore.MailPasswordKey, "", ct);
             MailFromAddress = await settings.GetStringAsync(SettingsStore.MailFromAddressKey, SettingsStore.MailFromAddressDefault, ct);
             MailSendHour = await settings.GetIntAsync(SettingsStore.MailSendHourKey, SettingsStore.MailSendHourDefault, ct);
+        MailHataliKalemTavani = await settings.GetIntAsync(
+            SettingsStore.MailHataliKalemTavaniKey, SettingsStore.MailHataliKalemTavaniDefault, ct);
             MailRecipients = await settings.GetStringAsync(SettingsStore.MailRecipientsKey, "", ct);
         }
     }

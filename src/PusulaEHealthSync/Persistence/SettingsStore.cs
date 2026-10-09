@@ -193,6 +193,29 @@ public class SettingsStore
     //
     // VARSAYILAN true: bugunku davranis aynen devam etsin, ayar eklemek hicbir seyi
     // kendiliginden kapatmasin.
+    // YATAN HASTA TAVANI (2026-10-09'da ayara cevrildi; oncesinde koda gomuluydu).
+    //
+    // Yatan hastada kural "taburcu olunca gonder". Ama protokol veri girisi hatasiyla hic
+    // kapanmazsa sonsuza dek beklerdi -- kullanici karari (2026-09-09): makul bir tavan koy.
+    // Deger 90 gundu ama ekranda yoktu, yani degistirmenin yolu da yoktu. Olculdu
+    // (01.10-09.10): 97 yatan protokolun taburcusu hic girilmemis; bu tavan tam da onlari
+    // kurtaran kural.
+    public const string YatanMaxOpenDaysKey = "YatanMaxOpen.Gun";
+    public const int YatanMaxOpenDaysDefault = 90;
+
+    // DEVRE KESICI (2026-10-09'da ayara cevrildi).
+    //
+    // Ust uste bu kadar ISTISNA gelirse tur birakilir -- bakanlik sunucusu ulasilamaz
+    // oldugunda her protokol icin ag zaman asimina dusup turu saatlere yaymayi onluyor.
+    // NORMAL basarisizlik (orn. reddedilen ICD kodu) sayilmaz, yalnizca istisna.
+    public const string DevreKesiciSiniriKey = "AutoSend.DevreKesiciSiniri";
+    public const int DevreKesiciSiniriDefault = 5;
+
+    // Gun sonu mailinde listelenecek azami hatali kalem -- mailin okunamaz hale gelmesini
+    // onluyor. Oncesinde koda gomuluydu (300).
+    public const string MailHataliKalemTavaniKey = "Mail.HataliKalemTavani";
+    public const int MailHataliKalemTavaniDefault = 300;
+
     public const string LabSendEnabledKey = "Lab.SendEnabled";
     public const string VitalSignsSendEnabledKey = "VitalSigns.SendEnabled";
 

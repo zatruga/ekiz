@@ -137,7 +137,10 @@ public class AutoSyncWorker(
         // ISTISNA sayilir -- ag hatasi, kimlik dogrulama hatasi gibi altyapi sorunlari.
         // Ust uste bu kadar istisna geldiyse sorun tek tek protokollerde degil baglantida
         // demektir; tur birakilir, bir sonraki turda yeniden denenir.
-        const int UstUsteIstisnaSiniri = 5;
+        // 2026-10-09: deger artik AYARDAN geliyor. Koda gomuluyken, bakanlik tarafinda
+        // uzun suren bir kesinti yasandiginda esigi gecici olarak yukseltmenin yolu yoktu.
+        var ustUsteIstisnaSiniri = Math.Max(1, await settings.GetIntAsync(
+            SettingsStore.DevreKesiciSiniriKey, SettingsStore.DevreKesiciSiniriDefault, ct));
         int ustUsteIstisna = 0;
 
         foreach (var p in uygun)
@@ -178,7 +181,7 @@ public class AutoSyncWorker(
                 ustUsteIstisna++;
                 logger.LogWarning(ex, "Otomatik gonderim: protokol {Id} gonderilemedi.", p.Protokol.ProtokolId);
 
-                if (ustUsteIstisna >= UstUsteIstisnaSiniri)
+                if (ustUsteIstisna >= ustUsteIstisnaSiniri)
                 {
                     logger.LogError(
                         "Otomatik gonderim: ust uste {Sayi} protokolde istisna olustu -- baglanti/kimlik "
