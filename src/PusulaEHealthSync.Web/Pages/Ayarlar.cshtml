@@ -202,7 +202,18 @@
                             <div class="field"><label for="autoInterval">Kaç dakikada bir çalışsın?</label>
                                 <input type="number" id="autoInterval" asp-for="AutoSendIntervalMinutes" min="5" max="1440" /></div>
                             <div class="field"><label for="autoBatch">Bir turda en fazla kaç protokol?</label>
-                                <input type="number" id="autoBatch" asp-for="AutoSendBatchSize" min="1" max="500" /></div>
+                                @* TAVAN 500'DEN 5000'E CIKARILDI (2026-10-09, kullanici istegi:
+                                   "tur mur koymasak, 01.10'dan itibaren tum veriyi gondersek").
+                                   Birikmis veriyi tek turda kapatmak icin 500 yetmiyordu; devreye
+                                   alim sonrasi 1.367 uygun protokol vardi. Gereksiz tekrar
+                                   gonderim durduruldugu icin (2026-10-08) tur basina is da ciddi
+                                   olcude azaldi, buyuk parti artik makul. *@
+                                <input type="number" id="autoBatch" asp-for="AutoSendBatchSize" min="1" max="5000" />
+                                <span class="field-hint">
+                                    Birikmiş veriyi tek seferde kapatmak için yüksek tutun (ör. 2000).
+                                    Uzun süren bir tur gece işlerini (takılanlar, gün sonu maili) geciktirir;
+                                    &ldquo;Durdur&rdquo; tur ortasında da geçerlidir.
+                                </span></div>
                         </div>
                         <div class="field-row-2">
                             <div class="field">
