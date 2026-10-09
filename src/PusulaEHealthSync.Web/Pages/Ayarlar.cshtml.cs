@@ -73,7 +73,10 @@ public class AyarlarModel(
     [Range(5, 1440)]
     public int AutoSendIntervalMinutes { get; set; }
     [BindProperty]
-    [Range(1, 500)]
+    // TAVAN 5000 -- ekrandaki max ile AYNI olmak zorunda. 2026-10-09'da ekrandaki
+    // deger 500'den 5000'e cikarilmis ama burasi atlanmisti; sonuc, 500'un uzerindeki
+    // her girisin SESSIZCE reddedilmesiydi (bkz. asagidaki asp-validation-for notu).
+    [Range(1, 5000, ErrorMessage = "1 ile 5000 arasında bir sayı girin.")]
     public int AutoSendBatchSize { get; set; }
 
     // -- Bekleyen is taramasi araligi -------------------------------------------------------
@@ -136,19 +139,31 @@ public class AyarlarModel(
     // ProtocolFullSyncService, varsayilan true) ama Ayarlar'da karsiligi yoktu -- yani
     // gonderimi kapatacak bir dugme vardi, kullanici onu goremiyordu. Ayar denetiminde
     // cikti: "okunuyor ama ekranda yok" iki anahtar bunlardi.
+    [BindProperty]
+    // [BindProperty] ZORUNLU -- 2026-10-09'da bu satirlarin eksikligi bulundu.
+    // Attribute olmayinca POST'ta deger baglanmiyor, property varsayilaninda kaliyor
+    // (bool -> false) ve handler o varsayilani KAYDEDIYOR: "Kayit Turu Anahtarlari"
+    // kartina Kaydet basmak dort modulu sessizce kapatiyordu. Bu dosyaya yeni bir
+    // form alani eklerken ilk kontrol edilecek sey budur.
     public bool RadiologyReportSendEnabled { get; set; }
+    [BindProperty]
     public bool PathologyReportSendEnabled { get; set; }
     // Koda gomuluyken degistirilemeyen iki kural 2026-10-09'da ayara cevrildi.
+    [BindProperty]
     [Range(1, 3650, ErrorMessage = "1 ile 3650 arasında bir gün sayısı girin.")]
     public int YatanMaxOpenDays { get; set; }
 
+    [BindProperty]
     [Range(1, 100, ErrorMessage = "1 ile 100 arasında bir sayı girin.")]
     public int DevreKesiciSiniri { get; set; }
 
+    [BindProperty]
     [Range(1, 5000, ErrorMessage = "1 ile 5000 arasında bir sayı girin.")]
     public int MailHataliKalemTavani { get; set; }
 
+    [BindProperty]
     public bool LabSendEnabled { get; set; }
+    [BindProperty]
     public bool VitalSignsSendEnabled { get; set; }
 
     // -- Gunluk e-posta raporu -------------------------------------------------------------

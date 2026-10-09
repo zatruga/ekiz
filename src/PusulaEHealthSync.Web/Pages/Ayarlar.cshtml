@@ -11,6 +11,21 @@
     </div>
 </div>
 
+@* SESSIZ RED ARTIK YOK (2026-10-09).
+   Kullanici parti boyutuna 2000 yazdi, kaydetti, sayfayi yenileyince eski deger geri
+   gelmisti. Sebep: sunucu tarafi dogrulama degeri reddetmis, handler erken donmus --
+   ama o alanin asp-validation-for span'i olmadigi icin EKRANDA hicbir sey yazmamisti.
+   Kaydetmedigini soylemeyen bir "Kaydet" dugmesi, bozuk bir dugmeden kotudur.
+   Bu seritte formdaki TUM dogrulama hatalari listeleniyor, alan alan span eklemeye
+   bagli kalmadan. *@
+@if (!ViewData.ModelState.IsValid)
+{
+    <div class="alert-warning" style="margin-bottom:16px;">
+        <b>Kaydedilmedi.</b> Girilen değerlerden biri kabul edilmedi:
+        <div asp-validation-summary="All" style="margin-top:6px;"></div>
+    </div>
+}
+
 <div class="settings-shell">
     <partial name="Shared/_SettingsNav" model="@("ortam")" />
 
@@ -209,6 +224,7 @@
                                    gonderim durduruldugu icin (2026-10-08) tur basina is da ciddi
                                    olcude azaldi, buyuk parti artik makul. *@
                                 <input type="number" id="autoBatch" asp-for="AutoSendBatchSize" min="1" max="5000" />
+                                <span asp-validation-for="AutoSendBatchSize" style="display:block; margin-top:6px; font-size:12.5px; color:var(--danger);"></span>
                                 <span class="field-hint">
                                     Birikmiş veriyi tek seferde kapatmak için yüksek tutun (ör. 2000).
                                     Uzun süren bir tur gece işlerini (takılanlar, gün sonu maili) geciktirir;
