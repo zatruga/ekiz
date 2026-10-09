@@ -276,7 +276,12 @@
 
         <!-- 3. GÖNDERİM PARAMETRELERİ -->
         <section class="settings-panel" id="panel-param">
-            <div class="settings-grid">
+            @* MASONRY: bu bolumdeki kartlarin boylari cok farkli (Tarama Araligi uzun,
+               Hata Sonrasi Tekrar Deneme kisa). CSS Grid'de satirlar hizali oldugu icin
+               kisa kartin ALTINDA delik kaliyordu -- kart yuksekligini serbest birakmak
+               bosluğu yok etmedi, yalnizca kartin icinden altina tasidi. Sutun akisinda
+               (CSS columns) kartlar bosluk birakmadan diziliyor. *@
+            <div class="settings-grid settings-grid--masonry">
 
                 <div class="card card-pad settings-card">
                     <p class="section-title">Hata Sonrası Tekrar Deneme</p>
@@ -497,20 +502,11 @@
                     </form>
                 </div>
 
-                <div class="card card-pad settings-card is-placeholder span-2">
-                    <div class="card-title-row">
-                        <p class="section-title">Lab Kuralları</p>
-                        <span class="rchip neutral">Hazır değil</span>
-                    </div>
-                    <p class="card-desc">
-                        Lab sonucu (DiagnosticReport) gönderimi için mapper henüz yazılmadı -- Pusula'da
-                        güncel lab sonuç verisinin nerede tutulduğu netleşmeden (bkz. konuşma) bu alan pasif.
-                    </p>
-                    <div class="toggle-row">
-                        <input type="checkbox" disabled />
-                        <label>Lab sonucunu sadece onaylanmış/verified olduğunda gönder</label>
-                    </div>
-                </div>
+                @* "Lab Kurallari -- Hazir degil" karti 2026-10-09'da KALDIRILDI.
+                   "Lab sonucu gonderimi icin mapper henuz yazilmadi" diyordu; oysa
+                   laboratuvar aylardir gonderiliyor (haftada ~42.000 kayit) ve artik
+                   Kayit Turu Anahtarlari kartinda kendi acma/kapama anahtari var.
+                   Yanlis bilgi veren bir yer tutucu, hic olmayan bir karttan kotu. *@
 
             </div>
         </section>
