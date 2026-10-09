@@ -185,6 +185,17 @@ public class SettingsStore
     // mantigi, kendi ayri anahtariyla. Bkz. EncounterSyncService.SyncPathologyReportsAsync.
     public const string PathologyReportSendEnabledKey = "PathologyReport.SendEnabled";
 
+    // LABORATUVAR VE VITAL ANAHTARLARI (2026-10-09, kullanici istegi: "bu alani
+    // guncelleyelim"). Kayit turu anahtarlari kartinda dort tur vardi; laboratuvar ve
+    // vital bulgular hic yoktu, yani gonderimi acip kapatmanin yolu da yoktu. Oysa
+    // laboratuvar hacmin EN BUYUK kalemi (42.000 satir/hafta) -- bir sorun ciktiginda
+    // tek basina durdurulabilmesi gereken ilk sey o.
+    //
+    // VARSAYILAN true: bugunku davranis aynen devam etsin, ayar eklemek hicbir seyi
+    // kendiliginden kapatmasin.
+    public const string LabSendEnabledKey = "Lab.SendEnabled";
+    public const string VitalSignsSendEnabledKey = "VitalSigns.SendEnabled";
+
     // Lab (DiagnosticReport) HENUZ YAZILMADI -- veri kaynagi netlesmedi (bkz. konusma
     // 2026-08-20): legacy LIS.TestIslem/NumuneIslem tablolari bos (0 satir, "-old" suffix'li
     // arsiv), yeni [EMR.Laboratory].[Order] tablosu ise sadece siparis metadata'si tutuyor

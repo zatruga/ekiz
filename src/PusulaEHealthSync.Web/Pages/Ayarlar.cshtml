@@ -413,11 +413,20 @@
 
                 <div class="card card-pad settings-card">
                     <p class="section-title">Kayıt Türü Anahtarları</p>
+                    @* ACIKLAMA DUZELTILDI (2026-10-09): eski metin hepsinin Encounter
+                       cascade'inden gittigini soyluyordu, ama laboratuvar ve vital
+                       ProtocolFullSyncService'ten gidiyor. Daha onemlisi o iki tur
+                       listede HIC YOKTU -- yani gonderimini kapatmanin yolu da yoktu. *@
                     <p class="card-desc">
-                        Hepsi Müayinə "Gönder" ile birlikte otomatik gönderilir (Encounter'in gerçek
-                        id'si önce bilinmesi gerektiği için ayrı gönderilemezler) -- burada sadece bu
-                        otomatik gönderimi tür tür açıp kapatabilirsiniz. Kapatılan tür hem otomatik
-                        döngüde hem de "Tümünü Gönder"de atlanır.
+                        Bir protokol gönderilirken altındaki kayıtlar da birlikte gider; burada hangi
+                        türlerin gideceğini seçersiniz. Kapatılan tür hem otomatik döngüde hem de
+                        &ldquo;Tümünü Gönder&rdquo;de atlanır &mdash; Protokol Detay'daki <em>tek tek</em>
+                        gönderim düğmeleri yine çalışır.
+                    </p>
+                    <p class="card-desc">
+                        Müayinə (Encounter) ve Hasta (Patient) burada yok, çünkü onlar zincirin temeli:
+                        ikisi gönderilmeden altındaki hiçbir kayıt gönderilemez. Epikrizin kendi ayrı
+                        kartı var (imzalı/imzasız seçeneği olduğu için).
                     </p>
                     <form method="post" asp-page-handler="TaniIslem" style="display:flex; flex-direction:column; flex:1;">
                         <div class="toggle-row">
@@ -438,6 +447,18 @@
                         <div class="toggle-row">
                             <input type="checkbox" id="pathologyReportSendEnabled" asp-for="PathologyReportSendEnabled" />
                             <label for="pathologyReportSendEnabled">Patoloji raporu (DiagnosticReport + zinciri) otomatik gönderimini etkinleştir</label>
+                        </div>
+                        @* LABORATUVAR VE VITAL 2026-10-09'DA EKLENDI. Ikisi de aylardir
+                           gonderiliyordu ama ekranda anahtari yoktu. Laboratuvar hacmin en
+                           buyuk kalemi (haftada ~42.000 kayit) -- bir sorun ciktiginda tek
+                           basina durdurulabilmesi gereken ilk sey o. *@
+                        <div class="toggle-row">
+                            <input type="checkbox" id="labSendEnabled" asp-for="LabSendEnabled" />
+                            <label for="labSendEnabled">Laboratuvar sonucu (Observation) otomatik gönderimini etkinleştir</label>
+                        </div>
+                        <div class="toggle-row">
+                            <input type="checkbox" id="vitalSignsSendEnabled" asp-for="VitalSignsSendEnabled" />
+                            <label for="vitalSignsSendEnabled">Vital bulgular (Observation &mdash; ateş, nabız, tansiyon) otomatik gönderimini etkinleştir</label>
                         </div>
                         <div class="card-actions">
                             <button type="submit" class="btn btn-primary">Kaydet</button>

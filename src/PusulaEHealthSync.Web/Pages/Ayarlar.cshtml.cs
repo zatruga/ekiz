@@ -138,6 +138,8 @@ public class AyarlarModel(
     // cikti: "okunuyor ama ekranda yok" iki anahtar bunlardi.
     public bool RadiologyReportSendEnabled { get; set; }
     public bool PathologyReportSendEnabled { get; set; }
+    public bool LabSendEnabled { get; set; }
+    public bool VitalSignsSendEnabled { get; set; }
 
     // -- Gunluk e-posta raporu -------------------------------------------------------------
     [BindProperty]
@@ -334,6 +336,8 @@ public class AyarlarModel(
         await settings.SetBoolAsync(SettingsStore.ProcedureSendEnabledKey, ProcedureSendEnabled, ct);
         await settings.SetBoolAsync(SettingsStore.RadiologyReportSendEnabledKey, RadiologyReportSendEnabled, ct);
         await settings.SetBoolAsync(SettingsStore.PathologyReportSendEnabledKey, PathologyReportSendEnabled, ct);
+        await settings.SetBoolAsync(SettingsStore.LabSendEnabledKey, LabSendEnabled, ct);
+        await settings.SetBoolAsync(SettingsStore.VitalSignsSendEnabledKey, VitalSignsSendEnabled, ct);
         return await SavedAsync("tanislem", ct);
     }
 
@@ -484,6 +488,8 @@ public class AyarlarModel(
         // acilip kaydedildiginde kullanicinin hic dokunmadigi bir davranis degisirdi.
         RadiologyReportSendEnabled = await settings.GetBoolAsync(SettingsStore.RadiologyReportSendEnabledKey, true, ct);
         PathologyReportSendEnabled = await settings.GetBoolAsync(SettingsStore.PathologyReportSendEnabledKey, true, ct);
+        LabSendEnabled = await settings.GetBoolAsync(SettingsStore.LabSendEnabledKey, true, ct);
+        VitalSignsSendEnabled = await settings.GetBoolAsync(SettingsStore.VitalSignsSendEnabledKey, true, ct);
 
         if (!skipMail)
         {

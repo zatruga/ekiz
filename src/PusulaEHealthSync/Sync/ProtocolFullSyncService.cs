@@ -170,6 +170,8 @@ public class ProtocolFullSyncService(
     private async Task<int> SendAllVitalsAsync(
         ProtokolListItem protokol, string azPatientId, string? azEncounterId, CancellationToken ct)
     {
+        if (!await settings.GetBoolAsync(SettingsStore.VitalSignsSendEnabledKey, true, ct)) return 0;
+
         // atlaGonderilmisse: Lab/Radyoloji/Patoloji'deki BasariylaGonderildi kontrolunun
         // vital karsiligi. Burada degil servisin icinde, cunku karar muayenenin degisim
         // tarihine bakiyor ve o kayit zaten orada okunuyor (ikinci bir sorgu acmamak icin).
@@ -181,6 +183,8 @@ public class ProtocolFullSyncService(
     private async Task<int> SendAllLabsAsync(
         ProtokolListItem protokol, string azPatientId, string? azEncounterId, CancellationToken ct)
     {
+        if (!await settings.GetBoolAsync(SettingsStore.LabSendEnabledKey, true, ct)) return 0;
+
         // BAKANLIK ISTEGI (2026-09-16): gonderim birimi satir degil GRUP -- alt
         // parametreli panel tek Observation + component[]. Gruplama LabGroupBuilder'da,
         // ekrandaki gruplamayla AYNI kodda (bkz. o dosyadaki not).
