@@ -125,6 +125,11 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
     [BindProperty(SupportsGet = true)]
     public string? Kategori { get; set; }
 
+    // "Hic gonderilemeyen" karti Status'e bu degeri koyuyor. SyncStatus adlariyla
+    // (Success/Skipped/Failed) cakismiyor; Enum.TryParse basarisiz olur ve durum
+    // suzgeci devre disi kalir -- tam istenen davranis (bkz. OnGetAsync).
+    public const string HicbiriAnahtari = "HicGitmedi";
+
     public DateOnly EffectiveFrom { get; set; }
     public DateOnly EffectiveTo { get; set; }
 
@@ -159,11 +164,24 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
         // "Hatali"ya basinca ustte yazan 7 hastanin ta kendisi listeleniyor. Grup icinde
         // ise yalnizca o durumdaki satirlar gosteriliyor -- 200 kaydi olan bir hastada
         // hata alan 3 satiri aramak zorunda kalinmasin diye.
-        var seciliDurum = Enum.TryParse<SyncStatus>(Status, out var d) ? d : (SyncStatus?)null;
+        // "HIC GONDERILEMEYEN" AYRI BIR SUZGEC (2026-10-10, kullanici istegi:
+        // "aktivite ekranina hicbir gonderimi yapilamayan protokol sayilarini yazan bir
+        // kutu mu eklesek").
+        //
+        // Bu bir SyncStatus DEGIL: diger dort kart birbirini disliyor ve toplamlari
+        // Toplam'a esit. Bu olcu onlarin UZERINE biniyor -- "Eksik verili" ve "Hatali"
+        // hastalarin bir ALT KUMESI (hic basarili kaydi olmayanlar). Ayri bir anahtar
+        // kelimeyle tasinmasinin sebebi bu; Status'e karistirilsaydi dort kartin
+        // toplami bozulurdu.
+        var hicbiriSuzgeci = Status == HicbiriAnahtari;
+        var seciliDurum = hicbiriSuzgeci
+            ? null
+            : Enum.TryParse<SyncStatus>(Status, out var d) ? d : (SyncStatus?)null;
         var kategoriSuzgeci = seciliDurum == SyncStatus.Failed && !string.IsNullOrWhiteSpace(Kategori)
             ? Kategori : null;
 
         var listelenen = Ozet.Gruplar
+            .Where(g => !hicbiriSuzgeci || g.HicGitmedi)
             .Where(g => seciliDurum is null || g.Sinif == seciliDurum)
             .Where(g => kategoriSuzgeci is null || g.Kayitlar.Any(r => r.HataKategorisi == kategoriSuzgeci))
             .ToList();
@@ -545,6 +563,16 @@ public record AkisOzeti(
     bool Kirpildi, bool PusulaHatasi)
 {
     public static readonly AkisOzeti Bos = new([], new(), 0, 0, 0, 0, 0, 0, 0, 0, false, false);
+
+    // HIC GONDERILEMEYEN: tek bir kaydi bile basariyla gitmemis hastalar.
+    //
+    // Diger dort kartin ALT KUMESI, besinci bir kova DEGIL -- "Eksik verili" ve
+    // "Hatali" hastalarin icinden, hic basarisi olmayanlar. Ayri durmasinin sebebi
+    // soyledigi seyin kokten farkli olmasi: 40 kaydindan 39'u giden bir hasta ile
+    // hicbiri gitmeyen bir hasta ayni kartta ayni agirlikta goruruyor, oysa ikincisi
+    // bakanlik tarafinda HIC VAR OLMAYAN bir hasta demek.
+    public int HastaHicGitmedi => Gruplar.Count(g => g.HicGitmedi);
+    public int HicGitmeyenKayit => Gruplar.Where(g => g.HicGitmedi).Sum(g => g.Kayitlar.Count);
 }
 
 // Ozetteki tek bir KAYIT (satir degil): kimligi, en kotu durumu, kac kez denendigi ve
@@ -560,6 +588,10 @@ public record AkisKayitRef(string ResourceType, int PusulaId, SyncStatus Durum,
 public record AkisGrupOzeti(int? ProtokolId, bool HastaGrubu, List<AkisKayitRef> Kayitlar,
     int Basarili, int Atlanan, int Hatali, long EnYeniKayitId)
 {
+    // Tek bir kaydi bile gitmemis mi? Kaydi olmayan grup "gitmedi" SAYILMAZ --
+    // gonderilecek bir sey yoksa gonderilememis de denmez.
+    public bool HicGitmedi => Basarili == 0 && Kayitlar.Count > 0;
+
     // HASTANIN SINIFI, "EN KOTU DURUM KAZANIR" KURALIYLA. Ust karttaki sayilar da,
     // bir karta tiklandiginda listelenecek hastalar da bu tek kuraldan geliyor --
     // boylece kartta yazan sayi ile listelenen hasta sayisi birbirini tutuyor.

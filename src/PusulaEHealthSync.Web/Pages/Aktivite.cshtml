@@ -57,7 +57,7 @@
 
    SAYILAR ARALIGIN TAMAMI ICIN -- goruntulenen sayfaya bagli degil. Sayfalar arasinda
    gezerken degismemeleri icin aralik ozeti iki dakika onbellekte tutuluyor. *@
-<div class="stat-grid">
+<div class="stat-grid stat-grid--5">
     <a asp-page="/Aktivite" asp-route-Status="" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" class="stat-card @(string.IsNullOrEmpty(Model.Status) ? "active" : "")">
         <div class="stat-top">
             <span class="stat-label">Toplam Hasta</span>
@@ -97,6 +97,27 @@
         </div>
         <span class="stat-value danger">@Model.Ozet.HastaHatali</span>
         <span class="stat-foot">@Model.Ozet.HataliKayit kayıt hata aldı</span>
+    </a>
+
+    @* HIC GONDERILEMEYEN -- KULLANICI ISTEGI (2026-10-10).
+       DIGER DORDUNUN ALT KUMESI, BESINCI BIR KOVA DEGIL. Soldaki dort kart
+       birbirini disliyor ve toplamlari "Toplam Hasta"ya esit; bu kart onlarin
+       UZERINE biniyor. Ayri durmasinin sebebi soyledigi seyin kokten farkli
+       olmasi: 40 kaydindan 39'u giden bir hasta da, hicbiri gitmeyen bir hasta
+       da "Eksik verili" kartinda ayni agirlikta gorunuyordu -- oysa ikincisi
+       bakanlik tarafinda HIC VAR OLMAYAN bir hasta demek. *@
+    <a asp-page="/Aktivite" asp-route-Status="@PusulaEHealthSync.Web.Pages.AktiviteModel.HicbiriAnahtari"
+       asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso"
+       class="stat-card danger @(Model.Status == PusulaEHealthSync.Web.Pages.AktiviteModel.HicbiriAnahtari ? "active" : "")"
+       title="Tek bir kaydı bile TRƏS'e ulaşmamış hastalar — yukarıdaki &ldquo;Eksik verili&rdquo; ve &ldquo;Hatalı&rdquo; içinden">
+        <div class="stat-top">
+            <span class="stat-label">Hiç gönderilemeyen</span>
+            <span class="stat-icon">
+                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.9 4.9 19.1 19.1"/><circle cx="12" cy="12" r="10"/></svg>
+            </span>
+        </div>
+        <span class="stat-value danger">@Model.Ozet.HastaHicGitmedi</span>
+        <span class="stat-foot">@Model.Ozet.HicGitmeyenKayit kayıt &middot; hiçbiri ulaşmadı</span>
     </a>
 </div>
 
@@ -292,6 +313,15 @@ else
                     @if (grup.ProtokolId is { } grupPid)
                     {
                         <span class="akis-grup-islem" onclick="event.stopPropagation()">
+                            @* PROTOKOL DETAY DUGMESI -- KULLANICI ISTEGI (2026-10-10):
+                               "protokol bilgisinin yazdigi alana protokol detay butonu mu koysak".
+                               Soldaki protokol numarasi zaten detaya gidiyordu ama bir rakam
+                               gibi duruyordu, tiklanabildigi belli degildi. Islem dugmelerinin
+                               yaninda, ayni gorsel dille duran bir dugme bunu acik ediyor.
+                               Yeni sekmede aciliyor: kisi akis listesindeki yerini kaybetmesin. *@
+                            <a asp-page="/Protokol" asp-route-id="@grupPid" class="btn btn-outline btn-sm"
+                               target="_blank" rel="noopener"
+                               title="Protokol detayını yeni sekmede aç">Protokol detayı</a>
                             <form method="post" asp-page-handler="GrupGonder" asp-route-protokolId="@grupPid"
                                   asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType"
                                   asp-route-Kategori="@Model.Kategori" asp-route-P="@Model.PageNumber"

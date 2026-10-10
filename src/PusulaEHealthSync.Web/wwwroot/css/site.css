@@ -371,6 +371,20 @@ main.content {
   margin-bottom: 32px;
 }
 
+/* BES KARTLI VARYANT -- 2026-10-10, Aktivite Akisi'na "Hic gonderilemeyen" karti
+   eklendiginde. .stat-grid'in kendisi DEGISTIRILMEDI: ayni sinifi Bekleyen Isler
+   (9 kart) ve Gonderilemeyen Tetkikler (2 kart) de kullaniyor, dort sutunluk
+   kural orada dogru duruyor. Genel kurali degistirmek, istenmeyen iki sayfayi
+   da yeniden duzenlerdi. */
+.stat-grid--5 { grid-template-columns: repeat(5, 1fr); }
+
+@media (max-width: 1400px) {
+  .stat-grid--5 { grid-template-columns: repeat(3, 1fr); }
+}
+@media (max-width: 900px) {
+  .stat-grid--5 { grid-template-columns: repeat(2, 1fr); }
+}
+
 @media (max-width: 1100px) { .stat-grid { grid-template-columns: repeat(2, 1fr); } }
 @media (max-width: 560px) { .stat-grid { grid-template-columns: 1fr; } }
 
