@@ -37,6 +37,12 @@ public static class ConditionMapper
         // "kesinlesmis" olarak bildirilmisti. Bu duzeltmenin asil sebebi bu.
         var dogrulamaDurumu = VerificationStatus(tani.TaniTipiKodu);
 
+        // KOD COZUMU -- BAKANLIK DONUSU (2026-10-10): "sistemde eslesmeyen alt kirilimli
+        // kod varsa ust kodu ile gonderebilirsiniz". Kural yapisal ve ihtiyatli; ICD-O
+        // morfoloji kodlarinda yanlis tani uretmemek icin bicim denetimi var
+        // (bkz. AzIcd10.Coz).
+        var kodCozum = AzIcd10.Coz(tani.Kodu);
+
         var condition = new JsonObject
         {
             ["resourceType"] = "Condition",
@@ -67,11 +73,16 @@ public static class ConditionMapper
                     new JsonObject
                     {
                         ["system"] = IcdSystem,
-                        ["code"] = tani.Kodu,
-                        ["display"] = AzIcd10.Display(tani.Kodu) ?? tani.Adi ?? tani.Kodu,
+                        ["code"] = kodCozum.Kod,
+                        ["display"] = kodCozum.Display ?? tani.Adi ?? tani.Kodu,
                     },
                 },
-                ["text"] = tani.Adi ?? tani.Kodu,
+                // ORIJINAL KOD BURADA KORUNUYOR. Ust koda dusuldugunde gonderilen kod
+                // artik hastanin kayitindaki kod degil; tam kod text'e yaziliyor ki
+                // bakanlik tarafinda da, bizim ekranda da bilgi kaybolmasin.
+                ["text"] = kodCozum.UstKodaDusuldu
+                    ? $"{tani.Adi ?? tani.Kodu} ({tani.Kodu})"
+                    : tani.Adi ?? tani.Kodu,
             },
             ["subject"] = new JsonObject { ["reference"] = $"Patient/{azPatientId}" },
             ["encounter"] = new JsonObject { ["reference"] = $"Encounter/{azEncounterId}" },

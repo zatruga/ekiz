@@ -364,3 +364,31 @@ eşleşti) doğrulandı. Zincir: view.LoincKodu -> LIS.Test.LoincKodu -> HizmetI
 ediyor, `LabResultObservationMapper` İcbari kodu bulunamayan (LOINC eşleşmesi
 yok ya da o hizmet İcbari listede değil) test sonuçlarını Skipped bırakıyor
 -- procedure-code doldurulamadan gönderilemez.
+
+---
+
+### ICD-10 yıldızlı (*) kodlar AZ CodeSystem'de neden yok?
+
+**Bağlam:** Bakanlık 2026-10-10'da şunu bildirdi: *"eğer ICD kodlarında
+sistemde eşleşmeyen alt kırılımlı kod var ise bunu üst kodu ile
+gönderebilirsiniz."* Bu izin uygulandı (bkz. `AzIcd10.Coz`) ve ölçüldü:
+Pusula'da 01.10 sonrası kullanılan 780 farklı koddan 753'ü listede var,
+27'si yok. Üst koda düşme kuralı bunların 12'sini (33 tanı) kurtarıyor.
+
+**Kalan 15 kodun 5'i ICD-O morfoloji kodu** (`M8960/3`, `M8800/3`,
+`M9122/0`, `M9392/3`, `M8170/3`) -- bunlar Pusula'da ICD-10 alanına yanlış
+girilmiş tümör histoloji kodları, bakanlık tarafında bir sorun yok.
+Hastane tarafında düzeltilmeli.
+
+**Soru, kalan 10 kod için:** `G46`, `G55.1`, `H19`, `H19.1`, `H36.0`,
+`H67`, `I84`, `J91`, `M73`, `N74` -- bunların neredeyse tamamı ICD-10'un
+**yıldızlı (asterisk) manifestasyon kodları**. Yıldızlı kodlar tek başına
+değil, hançer (+) koduyla birlikte kullanılır. AZ CodeSystem
+(`CodeSystem-az-icd-10`, 33.083 kod) bunları içermiyor.
+
+Sorular:
+1. Yıldızlı kodlar bilinçli olarak mı dışarıda bırakıldı?
+2. Eğer öyleyse, hastanede bu kodlarla girilmiş tanılar nasıl
+   gönderilmeli -- hançer kodu yoksa? (Ölçüm: 86 tanı, 86 protokol.)
+3. `I84` (hemoroid) ICD-10'un yeni sürümlerinde kaldırılmış; onun
+   karşılığı olarak ne beklenmeli?

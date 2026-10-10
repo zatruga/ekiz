@@ -55,4 +55,68 @@ public static class AzIcd10
         : null;
 
     public static bool Iceriyor(string? kod) => Display(kod) is not null;
+
+    // ================= UST KODA DUSME (2026-10-10) =================
+    //
+    // BAKANLIK DONUSU (kullanici aktardi, 2026-10-10): "eger ICD kodlarinda sistemde
+    // eslesmeyen alt kirilimli kod var ise bunu UST KODU ile gonderebilirsiniz."
+    //
+    // OLCULDU (Pusula, 01.10 sonrasi): 780 farkli kod kullanilmis, 753'u listede var.
+    // Kalan 27 kod (119 tani) reddediliyordu; bu kural 12 kodu (33 tani) kurtariyor.
+    //
+    // ---- KURAL NEDEN "SON KARAKTERI AT" DEGIL ----
+    //
+    // Naif bir kisaltma TIBBEN YANLIS TANI URETIYOR. Pusula'da ICD-10 alanina girilmis
+    // bes ICD-O MORFOLOJI kodu var (M8960/3, M8800/3, M9122/0, M9392/3, M8170/3) --
+    // bunlar tumor histolojisi kodlari, tani kodu degil. Son karakteri ata ata
+    // gidilirse:
+    //     M8960/3 (nefroblastom)  ->  M89  "Sümüklərin digər xəstəlikləri"
+    //     M8170/3 (hepatosellüler ca) -> M81 "Patoloji sınıq olmadan osteoporoz"
+    // Yani hastaya bambaska bir tani yazilmis olurdu. Bakanligin izni "alt kirilimi
+    // ust kirilimla gonder" demek; "tanimadigin kodu benzeyen bir seye cevir" demek
+    // DEGIL.
+    //
+    // Bu yuzden kural YAPISAL:
+    //   1) Kod ICD-10 biciminde olmali: bir harf + iki rakam, istege bagli .rakamlar
+    //   2) Yalnizca NOKTADAN SONRAKI kisim kisaltilir, teker teker
+    //   3) Son durak uc karakterlik taban kod; tabanin kendisi ASLA kisaltilmaz
+    //      ("M25" -> "M2" gibi bir sey uretilmez)
+    // Bicime uymayan kod icin hic deneme yapilmaz -- oldugu gibi gider ve reddedilir,
+    // ki dogrusu da bu: yanlis tani gondermektense gondermemek.
+    //
+    // ---- KURTARILAMAYANLAR ----
+    // Kalan 15 kodun 5'i yukaridaki ICD-O kodlari. Digerleri gercek ICD-10 kodlari ama
+    // bakanligin listesinde yoklar ve neredeyse hepsi YILDIZLI (*) kodlar -- G46, H19,
+    // H36.0, H67, J91, M73, N74, G55.1. Yildizli kodlar ICD-10'da tek baslarina degil
+    // hancer (+) koduyla birlikte kullanilir; AZ CodeSystem bunlari disariда birakmis
+    // gorunuyor. Bu ayri bir bakanlik sorusu (bkz. docs/bakanlik-sorulari.md).
+    private static readonly System.Text.RegularExpressions.Regex Icd10Bicimi =
+        new(@"^[A-Z][0-9]{2}(\.[0-9]+)?$", System.Text.RegularExpressions.RegexOptions.Compiled);
+
+    // Gonderilecek kodu cozer. Kod listede varsa aynen doner. Yoksa ve ICD-10
+    // biciminde bir ALT KIRILIM ise, listede bulunan ilk ust kod donulur.
+    // Hicbiri olmazsa orijinal kod doner (gonderim denenir, sunucu reddeder --
+    // kullanici Aktivite'de sebebini gorur).
+    public static (string Kod, string? Display, bool UstKodaDusuldu) Coz(string? kod)
+    {
+        var k = (kod ?? "").Trim();
+        if (k.Length == 0) return (k, null, false);
+
+        if (Display(k) is { } d) return (k, d, false);
+        if (!Icd10Bicimi.IsMatch(k.ToUpperInvariant())) return (k, null, false);
+
+        var nokta = k.IndexOf('.');
+        if (nokta <= 0) return (k, null, false);     // taban kod zaten; yukarisi yok
+
+        var taban = k[..nokta];
+        var ondalik = k[(nokta + 1)..];
+
+        // En yakin ustten basla: "S62.60" -> "S62.6" -> "S62"
+        for (var n = ondalik.Length - 1; n >= 1; n--)
+        {
+            var aday = $"{taban}.{ondalik[..n]}";
+            if (Display(aday) is { } ad) return (aday, ad, true);
+        }
+        return Display(taban) is { } td ? (taban, td, true) : (k, null, false);
+    }
 }
