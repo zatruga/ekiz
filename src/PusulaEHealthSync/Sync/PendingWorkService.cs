@@ -406,7 +406,16 @@ public class PendingWorkService(
                 var (eligible, reason) = IsEligible(protokol, openAfterDays, minYas, yatanTavan);
                 var items = group
                     .Select(c => new PendingItem(
-                        c.ResourceType, c.Baslik, c.PusulaId, c.SonuclanmaTarihi, c.Aciklama,
+                        c.ResourceType, c.Baslik, c.PusulaId, c.SonuclanmaTarihi,
+                        // Gonderim disi kalan kalemde SEBEP aciklamanin onune yaziliyor --
+                        // Takilanlar listesinde "neden takili" sorusu ekrandan cevaplansin
+                        // diye. Bu kalemlerin SyncLog kaydi hic olmadigi icin baska
+                        // hicbir yerde sebepleri gorunmuyor.
+                        string.IsNullOrEmpty(c.GonderilemezSebep)
+                            ? c.Aciklama
+                            : string.IsNullOrWhiteSpace(c.Aciklama)
+                                ? c.GonderilemezSebep
+                                : $"{c.Aciklama} -- {c.GonderilemezSebep}",
                         sentLookup.GetValueOrDefault((c.ResourceType, c.PusulaId))))
                     .OrderBy(i => i.SonuclanmaTarihi)
                     .ToList();
@@ -531,6 +540,25 @@ public class PendingWorkService(
         Dictionary<(string, int), int> ardisikBasarisiz,
         int takilmaEsigi)
     {
+        // GONDERIM LISTESINE HIC GIRMEYEN KALEM -- 2026-10-10'da eklendi.
+        //
+        // Aday taramasi bir kalemi goruyor ama gonderim sorgusu onu secmiyorsa
+        // (Icbari eslesmesi yok, radyoloji/laboratuvar onayi bekliyor), o kaleme ait
+        // SyncLog satiri HIC olusmuyor. Asagidaki "hic denenmemis -> Bekliyor" dali
+        // boyle bir kalemi her turda yeniden bekleyen sayiyordu ve kalem protokolu
+        // kuyrugun basina kalici olarak cakiyordu.
+        //
+        // OLCULDU (01.10-10.10): 6.283 islem kaleminin Icbari eslesmesi yok ve bunlar
+        // 2.128 protokolu civiliyordu. 200'luk pencere bu protokollerle doluyor,
+        // arkadaki 3.334 uygun protokol hic sira alamiyordu -- kullanicinin "neden bu
+        // kadar az gonderdik" sorusunun cevabi buydu.
+        //
+        // TAKILANLAR'A ALINIYOR, SILINMIYOR: kalem listede SEBEBIYLE gorunur kalir ama
+        // ana pencereyi isgal etmez. Pusula'da eslesme tanimlanir ya da tetkik
+        // onaylanirsa sebep kaybolur ve kalem kendiliginden ana listeye doner.
+        if (!string.IsNullOrEmpty(c.GonderilemezSebep))
+            return KalemDurumu.Takildi;
+
         if (!sent.TryGetValue((c.ResourceType, c.PusulaId), out var last))
             return KalemDurumu.Bekliyor;                     // hic denenmemis
 

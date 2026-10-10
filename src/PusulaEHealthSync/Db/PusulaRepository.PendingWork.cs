@@ -82,17 +82,86 @@ public partial class PusulaRepository
 
     // Prosedur -- GetIslemlerByProtokolIdAsync ile AYNI gecerlilik kurali (State>=2).
     // SyncLog karsiligi: ResourceType="Procedure", PusulaId=ProtokolIslem.Id.
+    // ============ ADAY TARAMASI GONDERIM LISTESIYLE AYNI SORUYU SORMALI ============
+    //
+    // KULLANICI (2026-10-10): "4 gundur ayin 1'inden itibaren gonderilsin diyorum ama
+    // sistem 813 protokol gondermis, neden bu kadar az?"
+    //
+    // SEBEP BU SORGUYDU. Aday taramasi ile gonderim listesi
+    // (GetIslemlerByProtokolIdAsync) AYNI kalemleri secmiyordu: gonderim listesi
+    // Icbari eslesmesi olmayan ve onayi beklenen kalemleri eliyordu, tarama elemiyordu.
+    //
+    // SONUC BIR ACLIK (starvation) DONGUSU: boyle bir kalem aday olarak goruluyor, ama
+    // gonderim onu hic gormedigi icin SyncLog'a HICBIR SATIR yazilmiyor. Siniflandir()
+    // "SyncLog'da kaydi yok" diye bakip "Bekliyor" diyor -- ve bu sonsuza kadar
+    // tekrarliyor. Kalem protokolu kuyrugun basina cakiyor, protokol 200'luk pencereyi
+    // isgal ediyor, arkadaki protokoller hic sira alamiyor.
+    //
+    // OLCULDU (canli Pusula, 01.10-10.10):
+    //   20.812 kalem gonderilebilir   (5.869 protokol)
+    //    6.283 kalem Icbari eslesmesi yok  -> 2.128 protokolu KALICI olarak civiliyordu
+    //      710 kalem radyoloji onayi bekliyor (583 protokol)
+    //      607 kalem laboratuvar onayi bekliyor (207 protokol)
+    // Ayni gun SyncLog'da: 6.163 bekleyen protokol, pencere 200, ve o 200'un 174'u
+    // zaten gonderilmis protokollerdi. Bir protokolun Muayine'si 30, epikrizi 29 kez
+    // gonderilmisti; buna karsilik 3.334 uygun protokole hic dokunulmamisti.
+    //
+    // KALEMLER GIZLENMIYOR: eleme degil ISARETLEME yapiliyor. GonderilemezSebep dolu
+    // gelen kalem Siniflandir() tarafindan "Takildi" sayilir -- ana pencereyi isgal
+    // etmez ama Takilanlar listesinde SEBEBIYLE gorunur. Sessizce dusurmek, bu projede
+    // tekrar tekrar yanlis cikan yoldu.
+    //
+    // KENDILIGINDEN DUZELIR: tarama her turda yeniden calisiyor. Pusula'da Icbari
+    // eslesmesi tanimlandigi ya da radyoloji/laboratuvar onaylandigi anda kalem
+    // "gonderilebilir" olur ve ana listeye geri doner.
+    //
+    // KOSULLAR TEK YERDE (IcbariApply / GonderimDisiSebep): iki sorgu da ayni metni
+    // kullaniyor, boylece bir daha birbirinden ayrisamazlar. Bu projede ayni hesabin
+    // iki kopyasi bugune kadar uc kez ayrismisti.
     public async Task<List<PendingCandidate>> GetCreatedProceduresAsync(
         DateTime fromLocal, DateTime? toLocalExclusive = null, CancellationToken ct = default)
     {
         const string sql = @"
-            SELECT pi.ProtokolId, pi.Id, pi.CreatedDate, oh.Adi
+            SELECT pi.ProtokolId, pi.Id, pi.CreatedDate, oh.Adi, " + GonderimDisiSebep + @"
             FROM Hasta.ProtokolIslem pi
             INNER JOIN Ortak.Hizmet oh ON oh.Id = pi.HizmetId
+            " + IcbariApply + @"
             WHERE pi.State >= 2 AND pi.CreatedDate >= @From AND pi.CreatedDate < @To
               AND oh.Kodu <> '30105'";
         return await QueryCandidatesAsync(sql, fromLocal, toLocalExclusive ?? SinirYok, "Procedure", "İşlem", ct);
     }
+
+    // Icbari Sigorta Fiyat Listesi eslesmesi -- GetIslemlerByProtokolIdAsync'teki
+    // OUTER APPLY ile BIREBIR AYNI (KurumHizmetKategoriId = 13, paket once).
+    private const string IcbariApply = @"
+            OUTER APPLY (
+                SELECT TOP 1 PKH.Kodu
+                FROM Ortak.HizmetKurumHizmet OHKH
+                INNER JOIN Pazarlama.KurumHizmet PKH ON PKH.Id = OHKH.KurumHizmetId
+                WHERE OHKH.HizmetId = oh.Id
+                  AND PKH.KurumHizmetKategoriId = 13
+                  AND PKH.State <> 0
+                  AND OHKH.State <> 0
+                ORDER BY PKH.IsPaket DESC
+            ) icb";
+
+    // Kalem gonderim listesine NEDEN girmiyor? Bos (NULL) ise giriyor demektir.
+    // Her dal GetIslemlerByProtokolIdAsync'teki bir WHERE kosulunun karsiligi --
+    // oradaki kosul degisirse burasi da degismeli.
+    private const string GonderimDisiSebep = @"
+                CASE
+                  WHEN pi.HizmetId IS NULL
+                    THEN N'Hizmet tanımı yok -- Pusula''daki işlem kaydı eksik'
+                  WHEN icb.Kodu IS NULL OR LEN(icb.Kodu) = 0
+                    THEN N'İcbari Sigorta Fiyat Listesi eşleşmesi yok -- Procedure.extension:procedure-code doldurulamıyor'
+                  WHEN EXISTS (SELECT 1 FROM RIS.TetkikIslem rti
+                               WHERE rti.ProtokolIslemId = pi.Id AND rti.State <> 0 AND rti.State <> 6)
+                    THEN N'Radyoloji tetkiki henüz onaylanmadı -- onaylanınca kendiliğinden gönderilir'
+                  WHEN EXISTS (SELECT 1 FROM LIS.TestIslem lti
+                               WHERE lti.ProtokolIslemId = pi.Id AND lti.State <> 0 AND lti.State <> 6)
+                    THEN N'Laboratuvar tetkiki henüz onaylanmadı -- onaylanınca kendiliğinden gönderilir'
+                  ELSE NULL
+                END AS GonderilemezSebep";
 
     // Epikriz -- CompositionSyncService ile AYNI tamamlanma kurali (KilitDurumuId=1).
     // SyncLog karsiligi: ResourceType="Composition", PusulaId=ProtokolId.
@@ -342,6 +411,10 @@ public partial class PusulaRepository
                 // AzTime.ToUtc'den gecirilmeli, bkz. PendingWorkService.
                 SonuclanmaTarihi = reader.IsDBNull(2) ? DateTime.MinValue : reader.GetDateTime(2),
                 Aciklama = reader.IsDBNull(3) ? null : reader.GetString(3),
+                // 5. kolon ISTEGE BAGLI: yalnizca gonderim disi sebebini hesaplayan
+                // sorgular dondurur (su an Procedure). Yoksa null kalir.
+                GonderilemezSebep = reader.FieldCount > 4 && !reader.IsDBNull(4)
+                    ? reader.GetString(4) : null,
             });
         }
         return result;
@@ -358,4 +431,10 @@ public class PendingCandidate
     public string Baslik { get; set; } = "";
     public DateTime SonuclanmaTarihi { get; set; }
     public string? Aciklama { get; set; }
+
+    // DOLU ISE: kalem aday taramasinda goruluyor ama GONDERIM LISTESINE girmiyor
+    // (orn. Icbari eslesmesi yok). Boyle bir kalem SyncLog'a hic yazilmadigi icin
+    // "hic denenmemis" gibi gorunur ve sonsuza dek bekler; PendingWorkService onu
+    // bu alana bakarak Takilanlar'a alir (bkz. GetCreatedProceduresAsync basindaki not).
+    public string? GonderilemezSebep { get; set; }
 }
