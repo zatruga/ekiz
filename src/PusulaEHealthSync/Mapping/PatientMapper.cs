@@ -96,6 +96,16 @@ public static class PatientMapper
         if (!hasOwnFin && !isNewborn)
             return new MappingResult.Skipped("TCKimlikNo (FIN icin kullanilacak alan) bos");
 
+        // BICIM DENETIMI GONDERMEDEN ONCE (2026-10-10). Oncesinde deger oldugu gibi
+        // gidiyor, bakanlik az-fin-format kisitiyla HTTP 400 veriyor ve kayit "hatali"
+        // sayilip 3 kez daha deneniyordu. Veri duzeltilmeden hicbir zaman gitmeyecegi
+        // icin dogru sonuc Skipped (bkz. AzFin.BicimHatasi).
+        if (hasOwnFin && AzFin.BicimHatasi(h.TCKimlikNo) is { } finHatasi)
+            return new MappingResult.Skipped(finHatasi);
+
+        if (isNewborn && AzFin.BicimHatasi(h.AnneTCKimlikNo) is { } anneFinHatasi)
+            return new MappingResult.Skipped("Anne FIN'i geçersiz: " + anneFinHatasi);
+
         if (isNewborn && string.IsNullOrWhiteSpace(h.AnneTCKimlikNo))
             return new MappingResult.Skipped("Yenidoğan (IsBizdeDogan) ama kendi FIN'i de anne FIN'i (AnneTCKimlikNo) de bos -- az-newborn-patient icin identifier yok");
 
