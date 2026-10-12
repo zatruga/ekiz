@@ -540,6 +540,39 @@ public class PendingWorkService(
         Dictionary<(string, int), int> ardisikBasarisiz,
         int takilmaEsigi)
     {
+        // ============ ZINCIRIN TEPESI TIKALIYSA ALTI DA TIKALIDIR ============
+        //
+        // OLCULDU (sunucu, 12.10): 393 protokol GUNDE 121 KEZ gonderiliyordu --
+        // Encounter 49.050 satir "Skipped", Patient 49.051 satir "Skipped",
+        // ve hicbiri ilerlemiyordu. Bakanlik HTTP 429 (Too Many Requests)
+        // dondurmeye baslamisti.
+        //
+        // SEBEP: hastanin FIN'i gecersiz/bos -> Patient atlaniyor -> Encounter
+        // atlaniyor -> protokolun altindaki kalemler (islem, tetkik, epikriz) HIC
+        // DENENMIYOR, yani SyncLog'a satirlari yazilmiyor. Asagidaki "hic denenmemis
+        // -> Bekliyor" dali o kalemleri her turda yeniden bekleyen sayiyor ve protokol
+        // kuyrugun basinda sonsuza dek donuyor.
+        //
+        // Bu, 10.10'da islem kalemleri icin duzeltilen ACLIK DONGUSUNUN BIR UST
+        // KATMANDAKI AYNISI (bkz. GetCreatedProceduresAsync): orada tarama ile gonderim
+        // sorgusu ayrisıyordu, burada zincirin tepesi tikaliyken alt kalemler "henuz
+        // denenmedi" gibi gorunuyor.
+        //
+        // KURAL: protokolun MUAYINE'si (Encounter) en son ATLANDIYSA, o protokolun hicbir
+        // kalemi gonderilemez -- hepsi Takilanlar'a. Encounter'in PusulaId'si zaten
+        // ProtokolId oldugu icin arama bedava.
+        //
+        // KENDILIGINDEN DUZELIR: her turda EN SON duruma bakiliyor. FIN duzeltilip
+        // Encounter bir kez basariyla gittiginde kalemler ayni tur ana listeye doner.
+        //
+        // ENCOUNTER'IN KENDISI BU KURALDAN MUAF: onu da takilmis sayarsak protokol
+        // hic denenmez ve kendiliginden duzelme imkani kalmaz. Zaten Encounter kalemi
+        // asagidaki normal dallardan geciyor.
+        if (c.ResourceType != "Encounter"
+            && sent.TryGetValue(("Encounter", c.ProtokolId), out var muayine)
+            && muayine.Status == SyncStatus.Skipped)
+            return KalemDurumu.Takildi;
+
         // GONDERIM LISTESINE HIC GIRMEYEN KALEM -- 2026-10-10'da eklendi.
         //
         // Aday taramasi bir kalemi goruyor ama gonderim sorgusu onu secmiyorsa
