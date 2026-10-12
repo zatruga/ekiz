@@ -491,10 +491,30 @@ public class PendingWorkService(
         // ekrana sigmayan eski bir kalem pencerenin disinda kalir ve bir daha hic
         // gonderilmezdi.
         //
-        // TAKILANLAR DA SAYILIYOR: pencerenin alt siniri onlari da kapsamali, yoksa gunluk
-        // takilan taramasi kendi kayitlarini goremez hale gelir.
+        // TAKILANLAR SAYILMIYOR -- 2026-10-12'de DEGISTI.
+        //
+        // Eskiden takilanlar da bu hesaba giriyordu; gerekce "yoksa gunluk takilan
+        // taramasi kendi kayitlarini goremez" idi. GEREKCE YANLISTI: takilanlar turu
+        // RefreshAsync'i scanDays=null ile cagiriyor, yani TaramaBaslangiciAsync'ten
+        // gelen TAM pencereyi kullaniyor (bkz. AutoSyncWorker, "TAM tarama: takilan
+        // kalemler tanimi geregi eskidir"). O turun bu capaya hic ihtiyaci yok.
+        //
+        // BEDELI AGIRDI: takilanlarin cogu KALICI olarak takili -- Icbari karsiligi hic
+        // olmayacak kalemler (yatak ucreti, CD ucreti), FIN'i hic girilmeyecek hastalar,
+        // bakanlik listesinde bulunmayan yildizli ICD kodlari. Kullanici 2026-10-12'de
+        // bunu soyledi: "takilanlar listesi hicbir zaman bosalmayacaktir". Haklydi --
+        // ve bu, capayi pencerenin basina (01.10) KALICI olarak civiliyordu. Sonuc:
+        // artimli tarama her turda tam pencereye genisliyor, yani HIC CALISMIYORDU.
+        // Olculdu: PendingScan.OldestPending = 2026-10-01T00:07:22, pencerenin ta kendisi.
+        //
+        // TAKILANLAR YINE KAYBOLMUYOR, iki yerden goruluyorlar:
+        //   - gecelik takilanlar turu (saat 04:00) -- tam tarama, bu capadan bagimsiz
+        //   - gunluk tam supurme (saat 03:00) -- tam pencere
+        // Bir takilan kalemin verisi Pusula'da duzeltildiginde kaydi bu iki turdan
+        // birinde, yani bir gun icinde yeniden goruluyor. Artimli pencerenin onu ayrica
+        // tasimasi gerekmiyordu.
         DateTime? enEski = null;
-        foreach (var g in gruplar.Concat(takilanGruplar))
+        foreach (var g in gruplar)
             foreach (var i in g.Items)
                 if (i.SonuclanmaTarihi != DateTime.MinValue && (enEski is null || i.SonuclanmaTarihi < enEski))
                     enEski = i.SonuclanmaTarihi;
