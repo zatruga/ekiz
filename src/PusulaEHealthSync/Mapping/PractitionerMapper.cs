@@ -77,8 +77,9 @@ public static class PractitionerMapper
             {
                 new JsonObject
                 {
-                    ["family"] = d.Soyadi,
-                    ["given"] = new JsonArray { d.Adi },
+                    // TRIM (bakanlik istegi 2026-10-13) -- bkz. AdSoyad.
+                    ["family"] = AdSoyad.Temizle(d.Soyadi),
+                    ["given"] = new JsonArray { AdSoyad.Temizle(d.Adi) },
                 },
             },
         };

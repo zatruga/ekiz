@@ -115,10 +115,12 @@ public static class PatientMapper
         if (!isNewborn && string.IsNullOrWhiteSpace(h.BabaAdi))
             return new MappingResult.Skipped("Pusula'da hastanın baba adı boş. TRƎS bu alanı zorunlu tutuyor -- hasta kaydına baba adı girilmeli.");
 
-        var given = new JsonArray { h.Adi };
+        // TRIM (bakanlik istegi 2026-10-13) -- bakanlik yalnizca doktorda gordu ama
+        // olculdu: 01.10 sonrasi 6.047 hastanin 17'sinde de bosluk var (bkz. AdSoyad).
+        var given = new JsonArray { AdSoyad.Temizle(h.Adi) };
         // az-newborn-patient: Patient.name.given max=1 -- ikinci ad (Adi2) eklenmez.
         if (!isNewborn && !string.IsNullOrWhiteSpace(h.Adi2))
-            given.Add(h.Adi2);
+            given.Add(AdSoyad.Temizle(h.Adi2));
 
         var extensions = new JsonArray
         {
@@ -138,7 +140,8 @@ public static class PatientMapper
             extensions.Add(new JsonObject
             {
                 ["url"] = "http://fhir.az/StructureDefinition/fathersName",
-                ["valueString"] = h.BabaAdi,
+                // Baba adi da bir AD alani -- ayni trim uygulanir.
+                ["valueString"] = AdSoyad.Temizle(h.BabaAdi),
             });
         }
 
@@ -187,7 +190,7 @@ public static class PatientMapper
             {
                 new JsonObject
                 {
-                    ["family"] = h.Soyadi,
+                    ["family"] = AdSoyad.Temizle(h.Soyadi),
                     ["given"] = given,
                 },
             },
