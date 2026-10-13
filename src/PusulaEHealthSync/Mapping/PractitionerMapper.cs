@@ -21,6 +21,14 @@ public static class PractitionerMapper
         if (string.IsNullOrWhiteSpace(d.TCKimlikNo))
             return new MappingResult.Skipped("TCKimlikNo (FIN icin kullanilacak alan) bos");
 
+        // BICIM DENETIMI (2026-10-13) -- PatientMapper'a 10.10'da eklenmisti, doktor
+        // tarafinda atlanmis. Olculdu (sunucu, 13.10): FIN'i gecersiz 11 doktor var ve
+        // sistem her turda yeniden deniyordu -- 222 satir / 11 kayit, yani kayit basina
+        // 20 deneme. Veri duzeltilmeden hicbir zaman gitmeyecegi icin dogru sonuc
+        // Skipped (bkz. AzFin.BicimHatasi).
+        if (AzFin.BicimHatasi(d.TCKimlikNo) is { } finHatasi)
+            return new MappingResult.Skipped("Doktorun " + char.ToLowerInvariant(finHatasi[0]) + finHatasi[1..]);
+
         var practitioner = new JsonObject
         {
             ["resourceType"] = "Practitioner",
