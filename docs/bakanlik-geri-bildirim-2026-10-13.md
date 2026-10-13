@@ -13,7 +13,7 @@ bugünkü davranışı anlatıyor.
 
 | # | Konu | Durum | Not |
 |---|---|---|---|
-| 1 | `Patient.address` | ⬜ **Yapılacak** | Veri %99,6 mevcut, hiç gönderilmiyor |
+| 1 | `Patient.address` | ⚠ **Karar gerekiyor** | Kaynakta adres YOK — yalnızca şehir adı, beş ayrı yazımda |
 | 1b | `Patient.maritalStatus` | ✅ Kod doğru | Pusula'da %12,1 dolu — **veri tarafı** |
 | 2 | Ad/soyad `trim` | ✅ **Yapıldı** (`16e8a24`) | Hastada da vardı, o da düzeltildi |
 | 3a | `Condition.diagnosis-type` | ✅ Kod doğru | **Hata değil** — ön tanıya sıra kodu yazılmıyor |
@@ -239,40 +239,79 @@ Dolu olanların tamamı eşleşiyor. Bu bir Pusula **veri girişi** konusu.
 
 # BÖLÜM C — YAPILACAKLAR
 
-## 1. `Patient.address` — ⬜ sırada
+## 1. `Patient.address` — ⚠ karar gerekiyor
 
 **Bakanlık:** Örneklerde adres bilgisine rastlamadık; kaynak sistemde mevcutsa
 gönderime eklenmesi.
 
-**Durum:** `PatientMapper`'da **hiç adres yok** — alan kurulmamış.
+**Durum:** `PatientMapper`'da hiç adres yok. Ama asıl sorun kodda değil — **kaynakta
+gönderilecek bir adres yok.**
 
-| 01.10 sonrası protokolü olan hasta | 6.047 |
+### ÖLÇÜM DÜZELTMESİ (2026-10-13)
+
+İlk raporda "veri %99,6 mevcut" yazılmıştı. **Teknik olarak doğru, anlamca yanlış:**
+alan dolu, içeriği adres değil.
+
+| `EvAdresi` metninin şekli (6.028 dolu kayıt) | |
 |---|---:|
-| `EvAdresi` dolu | **6.025 (%99,6)** |
-| `IlIdEv` dolu | 6.027 (%99,7) |
-| `IlceIdEv` dolu | 6.025 civarı |
-| `PostaKoduEv` dolu | 6 — **yok sayılmalı** |
+| Ortalama uzunluk | **12 karakter** |
+| 10 karakterden kısa | **4.735 (%78,5)** |
+| En kısa | 2 karakter |
+| Ayrı değer sayısı | 1.274 |
+| Rakam içeren | 707 |
 
-### Nasıl yapılmalı
+En sık geçen değerler — hepsi aynı şehrin farklı yazımı:
 
-1. `HastaRecord`'a `EvAdresi`, `IlIdEv`, `IlceIdEv`, `MahalleIdEv` eklenecek; iki
-   `SELECT` ve `Map` güncellenecek (ModifiedDate'te izlenen desenin aynısı).
-2. **Il/Ilce id'leri ada çözülecek.** Bunlar `smallint` lookup — tabloları bulunup
-   JOIN edilecek. Id göndermek anlamsız; `address.city` / `address.district` metin
-   ister.
-3. FHIR yapısı: `address[0]` = `{ use: "home", type: "physical", text: EvAdresi,
-   city: <Il adı>, district: <Ilce adı>, country: "AZ" }`.
-   `postalCode` **gönderilmeyecek** — 6 kayıtta dolu, anlamsız.
-4. **Önce `az-patient` profili okunacak:** `address` üzerinde slice/zorunlu alt alan
-   var mı? (`AzPhone`'da olduğu gibi profil önce doğrulanmalı.)
-5. Boş/anlamsız adres gönderilmeyecek — `address` `0..*`, uydurma veri yazmaktansa
-   boş bırakmak doğru (`AzPhone` ile aynı ilke).
-6. **Dikkat:** bu değişiklik tüm hastaları yeniden `Update` olarak gönderir.
-   `PatientSyncService`'teki "değişmediyse gönderme" koruması (`7390b19`)
-   `ModifiedDate`'e baktığı için bu yeni alan tek başına yeniden gönderimi
-   tetiklemez — **dağıtım sonrası bir kerelik toplu güncelleme gerekebilir.**
+| Değer | Hasta |
+|---|---:|
+| `BAKI` | 3.292 |
+| `baki` | 903 |
+| `BAKU` | 264 |
+| `BAKU AZERBAYCAN` | 48 |
+| `Bak;` | 22 |
 
-**Zorluk: Orta.** Asıl iş il/ilçe lookup'ı ve profil doğrulaması.
+**4.529 kayıt (%75) "Bakı"nın bir yazımı.** Bu bir posta adresi değil, serbest metin
+şehir adı.
+
+### Diğer adres kaynakları da yok
+
+| Alan | Dolu |
+|---|---:|
+| `KimlikIlId` (kimlik adresi) | 13 |
+| `KimlikIlceId` | 3 |
+| `KimlikKoyMahalle` | 0 |
+| `MahalleIdEv` | 3 |
+
+**İl/ilçe lookup tablosu bulunamadı.** `Sube.Ortak_Il` ve `Sube.Ortak_Ilce` tabloları
+var ama `Sube.Ortak_Il` **boş** (0 satır); `IlIdEv = 6385` (5.994 hastada) hiçbir
+tabloda karşılık bulmuyor. Yani `IlIdEv`/`IlceIdEv` ada çevrilemiyor.
+
+### Profil iki dilim istiyor
+
+`az-patient`, `address`'i **slice** ediyor:
+
+| Dilim | `use` | `type` | Anlam |
+|---|---|---|---|
+| `registered` | `home` | `postal` | Kayıtlı yasal adres |
+| `residence` | `home` | `physical` | Mevcut ikamet adresi |
+
+`use`/`type` serbest değil, dilime birebir uymalı. Alt alanlarda (`city`, `text`,
+`country`…) ek kısıt ya da zorunlu binding yok.
+
+### Seçenekler — kullanıcı kararı bekliyor
+
+**A) Hiç gönderme.** Bakanlığa "kaynak sistemde yapılandırılmış adres tutulmuyor,
+yalnızca şehir adı var" denir. `address` `0..*`, profili bozmaz.
+
+**B) Yalnızca şehir gönder.** Yazımlar normalize edilir (`BAKI`/`baki`/`BAKU`/`Bak;`
+→ `Bakı`), `address:residence` dilimiyle `{ use: home, type: physical, city: <şehir>,
+country: AZ }` gönderilir. Normalize edilemeyen değer **hiç gönderilmez** — `AzPhone`
+ile aynı ilke.
+
+**C) Pusula'da veri girişi düzelene kadar beklenir.**
+
+**Zorluk:** B seçilirse düşük (bir normalizasyon sözlüğü + mapper). Asıl soru teknik
+değil: **şehir adından ibaret bir adres göndermeye değer mi?**
 
 ---
 
