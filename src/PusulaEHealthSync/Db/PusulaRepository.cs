@@ -43,7 +43,7 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
         const string sql = @"
             SELECT Id, Adi, Adi2, Soyadi, BabaAdi, DogumTarihi, CinsiyetId, AktifHastaId,
                    KanGrubuId, MedeniHaliId, GSM, SabitTel, Email, TCKimlikNo, CreatedDate,
-                   IsBizdeDogan, AnneTCKimlikNo
+                   ModifiedDate, IsBizdeDogan, AnneTCKimlikNo
             FROM hasta.hasta
             WHERE Id = @Id";
 
@@ -66,7 +66,7 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
         string sql = $@"
             SELECT TOP (@Top) Id, Adi, Adi2, Soyadi, BabaAdi, DogumTarihi, CinsiyetId, AktifHastaId,
                    KanGrubuId, MedeniHaliId, GSM, SabitTel, Email, TCKimlikNo, CreatedDate,
-                   IsBizdeDogan, AnneTCKimlikNo
+                   ModifiedDate, IsBizdeDogan, AnneTCKimlikNo
             FROM hasta.hasta
             ORDER BY ModifiedDate DESC";
 
@@ -1107,6 +1107,7 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
         Email = GetString(reader, "Email"),
         TCKimlikNo = AzFin.Normalize(GetString(reader, "TCKimlikNo")),
         CreatedDate = GetDateTime(reader, "CreatedDate"),
+        ModifiedDate = GetDateTime(reader, "ModifiedDate"),
         IsBizdeDogan = GetBool(reader, "IsBizdeDogan") ?? false,
         AnneTCKimlikNo = AzFin.Normalize(GetString(reader, "AnneTCKimlikNo")),
     };

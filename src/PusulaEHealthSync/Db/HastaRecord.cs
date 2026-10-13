@@ -18,6 +18,12 @@ public class HastaRecord
     public string? TCKimlikNo { get; set; }
     public DateTime? CreatedDate { get; set; }
 
+    // hasta.hasta.ModifiedDate -- "degismediyse yeniden gonderme" kontrolu icin
+    // (2026-10-13). Olculdu: 01.10 sonrasi 1.794 hastanin 776'sinda dolu, kalaninda
+    // NULL (hic degistirilmemis kayitlar). Bu yuzden okuyan taraf CreatedDate'e
+    // dusuyor -- vital bulgulardaki ayni desen (VitalSignsSyncService).
+    public DateTime? ModifiedDate { get; set; }
+
     // az-newborn-patient icin -- kendi FIN'i henuz atanmamis yenidoganlarda anne FIN'i
     // uzerinden kimliklendirme yapilir, bkz. PatientMapper.
     public bool IsBizdeDogan { get; set; }

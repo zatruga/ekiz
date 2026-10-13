@@ -14,7 +14,31 @@ public class PatientSyncService(
     SyncLogStore syncLog,
     ILogger<PatientSyncService> logger)
 {
-    public async Task<SyncLogEntry> SyncOneAsync(int hastaId, bool liveMode, CancellationToken ct = default)
+    // ZATEN GONDERILMIS VE DEGISMEMISSE YENIDEN GONDERME (2026-10-13).
+    //
+    // KULLANICI: "neden bunlari surekli surekli update olarak gonderiyor sistem?"
+    //
+    // SEBEP: protokol zincirinde islem, tani, tetkik, radyoloji ve patoloji icin
+    // "zaten basariyla gonderildiyse atla" kontrolu VARDI (2026-10-08'de eklendi,
+    // bkz. ProtocolFullSyncService.BasariylaGonderildi) -- ama protokolun UC OMURGA
+    // kaydinda yoktu: Hasta, Muayine, Epikriz. Protokol her islendiginde ucu de
+    // kosulsuz Update olarak gidiyordu.
+    //
+    // Acik bir protokole gun boyunca yeni tetkik/islem geldikce protokol hakli olarak
+    // listeye giriyor ve omurga her seferinde tekrar yollaniyor. Olculdu (13.10, canli):
+    // bir endokrinoloji protokolunde omurga 11 KEZ gonderilmis -- o gun protokole dort
+    // kez yeni kalem gelmis. Ortalama 1,2-1,3 kez; bedeli bakanliga gereksiz Update
+    // trafigi ve HTTP 429 (hiz siniri).
+    //
+    // "GONDERILDI, BIR DAHA BAKMA" DEGIL, "DEGISMEDIYSE BAKMA": hasta kaydi duzeltilir
+    // (FIN, ad), epikriz sonradan yazilir. Olcut Pusula'daki son degisim ani; gonderimden
+    // SONRAYSA yeniden gonderiliyor. Ayni desen vital bulgularda zaten var
+    // (VitalSignsSyncService.DegismedenGonderilmisMiAsync).
+    //
+    // YALNIZCA OTOMATIK YOL ATLAR: ekrandaki "Gonder" dugmesi varsayilan false gecer --
+    // kullanici acikca bastiysa zorlamali.
+    public async Task<SyncLogEntry> SyncOneAsync(
+        int hastaId, bool liveMode, CancellationToken ct = default, bool atlaGonderilmisse = false)
     {
         var hasta = await repository.GetHastaByIdAsync(hastaId, ct);
         if (hasta is null)
@@ -29,6 +53,9 @@ public class PatientSyncService(
             await syncLog.InsertAsync(missing, ct);
             return missing;
         }
+
+        if (atlaGonderilmisse && await DegismedenGonderilmisMiAsync(hasta, ct) is { } oncekiKayit)
+            return oncekiKayit;
 
         var mapping = PatientMapper.Map(hasta);
 
@@ -99,4 +126,30 @@ public class PatientSyncService(
         Fin = hasta.TCKimlikNo,
         RecordOpenedAt = hasta.CreatedDate,
     };
+
+    // Son basarili gonderimden beri degismemisse O KAYDI doner (cagiran taraf
+    // AzResourceId'ye ihtiyac duyabiliyor), degismisse null -- gonderim surer.
+    //
+    // Son kayit BASARISIZSA atlanmaz: hata gecici olabilir. Silme sonrasi da atlanmaz
+    // (Operation=Delete, kayit TRƏS'te yok demektir).
+    private async Task<SyncLogEntry?> DegismedenGonderilmisMiAsync(HastaRecord hasta, CancellationToken ct)
+    {
+        var durumlar = await syncLog.GetLatestByPusulaIdsAsync(
+            "Patient", [hasta.Id], ct, govdeleriGetir: false);
+
+        if (durumlar.GetValueOrDefault(hasta.Id) is not
+            { Status: SyncStatus.Success, Operation: not SyncOperation.Delete } son) return null;
+        if (son.AzResourceId is null) return null;
+
+        // Pusula tarihleri YEREL (Baki), SyncLog UTC saklar -- cevrim sart. Cevrilmeseydi
+        // dort saatlik fark her kaydi "gonderimden sonra degismis" gosterir ve duzeltme
+        // hicbir ise yaramazdi (ayni tuzak VitalSignsSyncService'te de yazili).
+        //
+        // ModifiedDate canli veride %57 NULL (hic degistirilmemis hastalar) -- o zaman
+        // olcut kaydin olusturulma ani.
+        var degisim = hasta.ModifiedDate ?? hasta.CreatedDate;
+        if (degisim is null) return null;              // tarih yoksa guvenli taraf: gonder
+        return AzTime.ToUtc(degisim.Value) <= son.CreatedAtUtc ? son : null;
+    }
 }
+

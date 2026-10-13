@@ -99,7 +99,7 @@ public class ProtocolFullSyncService(
         var azHastaVarMi = await eHealthClient.FindExistingIdAsync(
             "Patient", protokol.HastaId.ToString(), ct);
         if (azHastaVarMi is not null)
-            await patientSyncService.SyncOneAsync(protokol.HastaId, liveMode: true, ct);
+            await patientSyncService.SyncOneAsync(protokol.HastaId, liveMode: true, ct, atlaGonderilmisse: true);
 
         // 1) Muayine -> Tani -> Islem (cascade EncounterSyncService'te)
         var encounter = await encounterSyncService.SyncOneAsync(protokol.ProtokolId, liveMode: true, ct);
@@ -125,7 +125,8 @@ public class ProtocolFullSyncService(
         var epikrizSayi = 0;
         if (encounter.AzResourceId is not null)
         {
-            var epikriz = await compositionSyncService.SyncOneAsync(protokol.ProtokolId, liveMode: true, ct);
+            var epikriz = await compositionSyncService.SyncOneAsync(
+                protokol.ProtokolId, liveMode: true, ct, atlaGonderilmisse: true);
             epikrizSayi = epikriz.Status == SyncStatus.Success ? 1 : 0;
         }
 

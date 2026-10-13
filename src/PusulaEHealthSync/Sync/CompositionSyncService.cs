@@ -20,7 +20,31 @@ public class CompositionSyncService(
     PractitionerSyncService practitionerSyncService,
     ILogger<CompositionSyncService> logger)
 {
-    public async Task<SyncLogEntry> SyncOneAsync(int protokolId, bool liveMode, CancellationToken ct = default)
+    // ZATEN GONDERILMIS VE DEGISMEMISSE YENIDEN GONDERME (2026-10-13).
+    //
+    // KULLANICI: "neden bunlari surekli surekli update olarak gonderiyor sistem?"
+    //
+    // SEBEP: protokol zincirinde islem, tani, tetkik, radyoloji ve patoloji icin
+    // "zaten basariyla gonderildiyse atla" kontrolu VARDI (2026-10-08'de eklendi,
+    // bkz. ProtocolFullSyncService.BasariylaGonderildi) -- ama protokolun UC OMURGA
+    // kaydinda yoktu: Hasta, Muayine, Epikriz. Protokol her islendiginde ucu de
+    // kosulsuz Update olarak gidiyordu.
+    //
+    // Acik bir protokole gun boyunca yeni tetkik/islem geldikce protokol hakli olarak
+    // listeye giriyor ve omurga her seferinde tekrar yollaniyor. Olculdu (13.10, canli):
+    // bir endokrinoloji protokolunde omurga 11 KEZ gonderilmis -- o gun protokole dort
+    // kez yeni kalem gelmis. Ortalama 1,2-1,3 kez; bedeli bakanliga gereksiz Update
+    // trafigi ve HTTP 429 (hiz siniri).
+    //
+    // "GONDERILDI, BIR DAHA BAKMA" DEGIL, "DEGISMEDIYSE BAKMA": hasta kaydi duzeltilir
+    // (FIN, ad), epikriz sonradan yazilir. Olcut Pusula'daki son degisim ani; gonderimden
+    // SONRAYSA yeniden gonderiliyor. Ayni desen vital bulgularda zaten var
+    // (VitalSignsSyncService.DegismedenGonderilmisMiAsync).
+    //
+    // YALNIZCA OTOMATIK YOL ATLAR: ekrandaki "Gonder" dugmesi varsayilan false gecer --
+    // kullanici acikca bastiysa zorlamali.
+    public async Task<SyncLogEntry> SyncOneAsync(
+        int protokolId, bool liveMode, CancellationToken ct = default, bool atlaGonderilmisse = false)
     {
         var protokol = await repository.GetProtokolByIdAsync(protokolId, ct);
         if (protokol is null)
@@ -53,6 +77,12 @@ public class CompositionSyncService(
         }
 
         var genelMuayene = await repository.GetGenelMuayeneByProtokolIdAsync(protokolId, ct);
+
+        // Degismediyse yeniden gonderme -- kontrol muayene okunduktan SONRA, cunku olcut
+        // onun son degisim ani (bkz. metodun basindaki not).
+        if (atlaGonderilmisse && genelMuayene is not null
+            && await DegismedenGonderilmisMiAsync(protokolId, genelMuayene, ct) is { } oncekiKayit)
+            return oncekiKayit;
 
         if (genelMuayene is null)
         {
@@ -198,4 +228,27 @@ public class CompositionSyncService(
         Fin = protokol.Fin,
         RecordOpenedAt = hasta?.CreatedDate,
     };
+
+    // Son basarili gonderimden beri epikriz degismemisse O KAYDI doner, degismisse null.
+    //
+    // OLCUT GenelMuayene.ModifiedDate: epikriz SILINMEZ, DEGISIR -- doktor metni
+    // duzeltince ModifiedDate ilerler ve kayit yeniden gonderilir. Ayni olcut aday
+    // taramasinda da kullaniliyor (GetLockedEpikrizAsync), yani iki taraf ayni seye bakiyor.
+    private async Task<SyncLogEntry?> DegismedenGonderilmisMiAsync(
+        int protokolId, GenelMuayeneRecord muayene, CancellationToken ct)
+    {
+        var durumlar = await syncLog.GetLatestByPusulaIdsAsync(
+            "Composition", [protokolId], ct, govdeleriGetir: false);
+
+        if (durumlar.GetValueOrDefault(protokolId) is not
+            { Status: SyncStatus.Success, Operation: not SyncOperation.Delete } son) return null;
+        if (son.AzResourceId is null) return null;
+
+        // Pusula YEREL saat, SyncLog UTC -- cevrim sart (bkz. AzTime). CreatedDate
+        // null olamaz, bu yuzden ModifiedDate bosken bile bir olcut her zaman var
+        // (VitalSignsSyncService'teki ayni ifade).
+        var degisim = AzTime.ToUtc(muayene.ModifiedDate ?? muayene.CreatedDate);
+        return degisim <= son.CreatedAtUtc ? son : null;
+    }
 }
+
