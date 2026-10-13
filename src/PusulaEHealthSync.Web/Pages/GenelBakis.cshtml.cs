@@ -5,6 +5,7 @@ using Microsoft.Extensions.Caching.Memory;
 using PusulaEHealthSync.Db;
 using PusulaEHealthSync.Persistence;
 using PusulaEHealthSync.Reporting;
+using PusulaEHealthSync.Sync;
 
 namespace PusulaEHealthSync.Web.Pages;
 
@@ -41,6 +42,7 @@ public class GenelBakisModel(
     PusulaRepository pusulaRepository,
     SyncLogStore syncLog,
     ProtokolDurumService protokolDurum,
+    PendingWorkService pendingWork,
     IMemoryCache onbellek,
     ILogger<GenelBakisModel> logger) : PageModel
 {
@@ -53,12 +55,54 @@ public class GenelBakisModel(
     // ayni deseni ayni sure ile kullaniyor.
     private static readonly TimeSpan OnbellekOmru = TimeSpan.FromMinutes(2);
 
+    // "0" Bugün | "7" Son 7 Gün | "30" Son 30 Gün | "ay:yyyy-MM" belirli bir ay
+    // (KULLANICI ISTEGI 2026-10-13: "buraya ay secimi yapacagimiz bir check list olsun,
+    // oradan secilen ayin basi ile sonu listelensin").
     [BindProperty(SupportsGet = true)]
-    public string Donem { get; set; } = "7"; // "0" Bugün, "7" Son 7 Gün, "30" Son 30 Gün
+    public string Donem { get; set; } = "7";
 
     public DateOnly PeriodFromDate { get; private set; }
     public DateOnly PeriodToDate { get; private set; }
     public DateOnly Today => DateOnly.FromDateTime(DateTime.Today);
+
+    // Donem secicide gosterilecek son 12 ay. Ay adlari SABIT LISTEDEN geliyor,
+    // CultureInfo'dan degil: uygulama istek kulturunu ayarlamiyor, dolayisiyla
+    // ToString("MMMM") sunucunun kulturune gore sessizce Ingilizceye dusebilirdi.
+    private static readonly string[] AyAdlari =
+    [
+        "Ocak", "Şubat", "Mart", "Nisan", "Mayıs", "Haziran",
+        "Temmuz", "Ağustos", "Eylül", "Ekim", "Kasım", "Aralık",
+    ];
+
+    public record AySecenegi(string Deger, string Etiket, bool Secili);
+
+    public List<AySecenegi> AylarListesi { get; private set; } = [];
+    public bool AySecili => Donem.StartsWith("ay:", StringComparison.Ordinal);
+
+    // ===================== BEKLEYEN ISLER KAPSAMI (2026-10-13) =====================
+    //
+    // KULLANICI: "genel bakis ile bekleyen isler ekraninda sayilar ortusmuyor, genel
+    // bakista gonderimi yapilan protokol 2936 iken bekleyen islerde 4500."
+    //
+    // ORTUSMEMELERI DOGRU -- IKI AYRI SORU SORULUYOR:
+    //
+    //   Genel Bakis  : SyncLog'a BU PENCEREDE yazilan satirlardan yola cikar.
+    //                  "Bu donemde yaptigimiz gonderimlerin kaci sorunsuz bitti?"
+    //                  HIC DENENMEMIS bir kalemi GOREMEZ -- SyncLog satiri yoktur.
+    //   Bekleyen Isler: Pusula'ya "bu aralikta ne var?" diye sorar, sonra her kalemi
+    //                  SyncLog'da arar. "Pusula'da hazir olanin kaci TRƏS'te tam?"
+    //
+    // Uc fark birden: (a) zaman ekseni -- biri GONDERIM tarihi, digeri SONUCLANMA
+    // tarihi; (b) tanim -- "bu pencerede hata almadi" ile "tek bir kalemi bile eksik
+    // degil" ayni sey degil; (c) aralik -- iki sayfa ayni araligi secmek zorunda degil.
+    //
+    // COZUM AYNI HESABI UCUNCU KEZ YAZMAK DEGIL: PendingWorkService singleton ve
+    // SonSonuc zaten bellekte duruyor (GunSonuRaporService de oradan okuyor). Ayni
+    // NESNE basiliyor, dolayisiyla iki ekran yapisal olarak ayrisamaz.
+    public PendingKapsam? Kapsam { get; private set; }
+    public DateTime? KapsamZamaniUtc { get; private set; }
+    public DateTime? KapsamBaslangic { get; private set; }
+    public DateTime? KapsamBitis { get; private set; }
 
     public BakisOzeti Ozet { get; private set; } = BakisOzeti.Bos;
 
@@ -87,6 +131,9 @@ public class GenelBakisModel(
 
         // -- PUSULA HACMI: donemde ACILAN protokoller (ayri bir soru, ayri bir kume) --
         int AcilanProtokol, int AcilanBugun, double AcilanDegisimYuzde, bool AcilanTabanVar,
+        // Gecmis bir ay secildiginde "bugun acilan" anlamsiz -- o zaman gunluk ortalama
+        // gosteriliyor. BugunDonemde, ekranin hangisini yazacagina karar veriyor.
+        double AcilanGunlukOrtalama, bool BugunDonemde,
 
         // -- GONDERIM SAGLIGI: pencerenin kac gununde hic gonderim var --
         int DoluGun, int PencereGun, DateOnly? SonGonderimGunu,
@@ -105,7 +152,7 @@ public class GenelBakisModel(
     {
         public static readonly BakisOzeti Bos = new(
             0, 0, 0, 0, 0, 0, false, 0, 0, 0,
-            0, 0, 0, false,
+            0, 0, 0, false, 0, true,
             0, 0, null,
             [], [], [], [], [], [],
             0, 0, 0, [], false, false);
@@ -154,12 +201,37 @@ public class GenelBakisModel(
     public async Task OnGetAsync(CancellationToken ct)
     {
         var today = Today;
-        (PeriodFromDate, PeriodToDate) = Donem switch
+
+        // AY LISTESI her istekte kuruluyor -- gun degisince kendiliginden kayiyor.
+        var buAy = new DateOnly(today.Year, today.Month, 1);
+        AylarListesi = Enumerable.Range(0, 12)
+            .Select(i => buAy.AddMonths(-i))
+            .Select(a =>
+            {
+                var deger = $"ay:{a:yyyy-MM}";
+                return new AySecenegi(deger, $"{AyAdlari[a.Month - 1]} {a.Year}", Donem == deger);
+            })
+            .ToList();
+
+        // GECERSIZ AY = VARSAYILAN DONEM. Elle yazilmis bir sorgu dizesi ("ay:abc")
+        // sayfayi patlatmamali; sessizce "Son 7 Gun"e dusuyor.
+        var ay = AyAraligi(Donem, today);
+        if (Donem.StartsWith("ay:", StringComparison.Ordinal) && ay is null) Donem = "7";
+
+        (PeriodFromDate, PeriodToDate) = ay ?? Donem switch
         {
             "0" => (today, today),
             "30" => (today.AddDays(-29), today),
             _ => (today.AddDays(-6), today),
         };
+
+        // BEKLEYEN ISLER KAPSAMI -- ONBELLEGIN DISINDA, bellekteki nesneden okunuyor
+        // (bedeli yok) ve DONEMDEN BAGIMSIZ. Donem onbellegine koysaydik, kullanici
+        // donemi degistirince iki dakika boyunca eski tarama sonucunu gorurdu.
+        Kapsam = pendingWork.SonSonuc?.Kapsam;
+        KapsamZamaniUtc = pendingWork.SonHesaplamaUtc;
+        KapsamBaslangic = pendingWork.SonTaramaBaslangici;
+        KapsamBitis = pendingWork.SonTaramaBitisi;
 
         var anahtar = $"genelbakis|{Donem}|{today:yyyy-MM-dd}";
         Ozet = await onbellek.GetOrCreateAsync(anahtar, async giris =>
@@ -182,9 +254,15 @@ public class GenelBakisModel(
         // ---- 1) PENCERE: donem ILE trend penceresinin birlesimi ----
         // Trend her zaman en az 14 gun gosteriyor; donem daha uzunsa (30 gun) pencere
         // donemle ayni olur. Boylece TEK protokol cozumu iki isi de besliyor.
+        //
+        // PENCERE DONEMIN BITISINDE BITIYOR, BUGUNDE DEGIL -- 2026-10-13'te degisti.
+        // Ay secimi eklenince eski hal (her zaman bugune kadar) gecmis bir ay icin
+        // yanlis oluyordu: Eylul secildiginde trend Eylul basindan BUGUNE kadar
+        // ciziliyor, aradaki Ekim gunleri de "gonderim yapilmamis gun" sayiliyordu.
         var donemGun = PeriodToDate.DayNumber - PeriodFromDate.DayNumber + 1;
         var pencereGun = Math.Max(TrendGun, donemGun);
-        var pencereBas = today.AddDays(-(pencereGun - 1));
+        var pencereSon = PeriodToDate;
+        var pencereBas = pencereSon.AddDays(-(pencereGun - 1));
 
         // DIKKAT -- IKI ZAMAN TABANI (bkz. AzTime): Pusula (SQL Server) YEREL saat,
         // SyncLog (SQLite) UTC. 2026-09-09'da bu kafa karisikligi gun sinirini fiilen
@@ -247,7 +325,7 @@ public class GenelBakisModel(
             gunBasina[gun.Key] = ProtokolleriSinifla(gun.ToList());
 
         var trend = new List<GunNoktasi>();
-        for (var g = pencereBas; g <= today; g = g.AddDays(1))
+        for (var g = pencereBas; g <= pencereSon; g = g.AddDays(1))
         {
             var s = gunBasina.GetValueOrDefault(g);
             trend.Add(new GunNoktasi(g,
@@ -343,6 +421,7 @@ public class GenelBakisModel(
 
         // ---- 10) PUSULA HACMI: donemde ACILAN protokol ----
         var pusulaHatasi = pencere.PusulaHatasi;
+        var bugunDonemde = PeriodToDate >= today;
         var acilan = 0;
         var acilanBugun = 0;
         double acilanDegisim = 0;
@@ -353,19 +432,32 @@ public class GenelBakisModel(
                 donemBasYerel, donemBitYerelHaric, null, ct);
             acilan = donemProtokolListesi.Count;
 
-            var bugunBas = today.ToDateTime(TimeOnly.MinValue);
-            var yarinBas = today.AddDays(1).ToDateTime(TimeOnly.MinValue);
-            acilanBugun = Donem == "0"
-                ? acilan
-                : donemProtokolListesi.Count(p => p.AcilisTarihi >= bugunBas && p.AcilisTarihi < yarinBas);
+            // GECMIS BIR AY SECILDIYSE "bugun" donemin DISINDA: ne "bugun acilan"in
+            // ne de "dune gore" karsilastirmasinin anlami var. Ekran o durumda gunluk
+            // ortalamayi yaziyor (bkz. BakisOzeti.AcilanGunlukOrtalama).
+            //
+            // TUM BLOK KOSULUN ICINDE: ilk yazimda yalnizca degerler sifirlaniyordu,
+            // ama asagidaki "dun" hesabi acilanTabanVar'i hemen ardindan yeniden
+            // yaziyordu. Sonuc tesadufen dogruydu (gecmis bir ayin listesinde dunku
+            // protokol bulunmadigi icin dun = 0 cikiyordu); kosula almak bunu
+            // tesadufen degil kurulus geregi dogru yapiyor ve bir Pusula sorgusunu
+            // da bosuna atmiyor.
+            if (bugunDonemde)
+            {
+                var bugunBas = today.ToDateTime(TimeOnly.MinValue);
+                var yarinBas = today.AddDays(1).ToDateTime(TimeOnly.MinValue);
+                acilanBugun = Donem == "0"
+                    ? acilan
+                    : donemProtokolListesi.Count(p => p.AcilisTarihi >= bugunBas && p.AcilisTarihi < yarinBas);
 
-            var dunBas = today.AddDays(-1).ToDateTime(TimeOnly.MinValue);
-            var dun = donemProtokolListesi.Count(p => p.AcilisTarihi >= dunBas && p.AcilisTarihi < bugunBas);
-            // Donem "Bugün" ise dunku liste elimizde degil, ayrica sorulur.
-            if (Donem == "0")
-                dun = (await pusulaRepository.GetProtokolListAsync(dunBas, bugunBas, null, ct)).Count;
-            acilanTabanVar = dun > 0;
-            acilanDegisim = dun == 0 ? 0 : Math.Round((acilanBugun - dun) * 100.0 / dun, 1);
+                var dunBas = today.AddDays(-1).ToDateTime(TimeOnly.MinValue);
+                var dun = donemProtokolListesi.Count(p => p.AcilisTarihi >= dunBas && p.AcilisTarihi < bugunBas);
+                // Donem "Bugün" ise dunku liste elimizde degil, ayrica sorulur.
+                if (Donem == "0")
+                    dun = (await pusulaRepository.GetProtokolListAsync(dunBas, bugunBas, null, ct)).Count;
+                acilanTabanVar = dun > 0;
+                acilanDegisim = dun == 0 ? 0 : Math.Round((acilanBugun - dun) * 100.0 / dun, 1);
+            }
         }
         catch (Exception ex)
         {
@@ -417,12 +509,30 @@ public class GenelBakisModel(
             dokunulan, tamam, eksik, hatali, tamamYuzde, deltaYuzde, deltaVar,
             kayitToplam, satirToplam, protokolsuz,
             acilan, acilanBugun, acilanDegisim, acilanTabanVar,
+            donemGun == 0 ? 0 : Math.Round((double)acilan / donemGun, 1), bugunDonemde,
             doluGun, pencereGun, sonGonderim,
             trend, turler, hataSebepleri, eksikSebepleri, sonHatalar, bolumSatirlari,
             icbariIslem, icbariGonderilen,
             icbariIslem == 0 ? 0 : Math.Round(icbariGonderilen * 100.0 / icbariIslem, 1),
             icbariListe,
             pencere.Kirpildi, pusulaHatasi);
+    }
+
+    // "ay:2026-10" -> o ayin ilk gunu .. son gunu. Gecerli degilse null.
+    //
+    // ICINDE BULUNULAN AY BUGUNDE KESILIYOR: kesilmeseydi ayin kalan gunleri de
+    // pencereye girer ve "son 31 gunun 18'inde hic gonderim yapilmamis" gibi
+    // her ay basinda kendiliginden kirmizilasan bir uyari cikardi.
+    private static (DateOnly Bas, DateOnly Bit)? AyAraligi(string donem, DateOnly bugun)
+    {
+        if (!donem.StartsWith("ay:", StringComparison.Ordinal)) return null;
+        if (!DateTime.TryParseExact(donem[3..], "yyyy-MM", CultureInfo.InvariantCulture,
+                                    DateTimeStyles.None, out var ay)) return null;
+
+        var bas = new DateOnly(ay.Year, ay.Month, 1);
+        if (bas > bugun) return null;                       // gelecek ay -- veri yok
+        var bit = bas.AddMonths(1).AddDays(-1);
+        return (bas, bit > bugun ? bugun : bit);
     }
 
     // "EN KOTU DURUM KAZANIR" -- hata eksigi, eksik basariyi ezer. Ayni kural:

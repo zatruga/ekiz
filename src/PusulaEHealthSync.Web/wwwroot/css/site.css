@@ -1433,6 +1433,9 @@ input[type="checkbox"].row-check,
 a.kpi-card { text-decoration: none; cursor: pointer; transition: border-color .15s, transform .15s; }
 a.kpi-card:hover { border-color: var(--border-strong); transform: translateY(-1px); }
 
+/* .dash-grid / .bottom-grid : Genel Bakis 2026-10-13'te .gb-split'e gecti (esit iki
+   sutun). Bu iki izgara artik hicbir sayfada kullanilmiyor; .ready-* ile ayni
+   gerekceyle birakildi -- benzer bir oransiz izgara gerekirse hazir. */
 .dash-grid { display: grid; grid-template-columns: 1.6fr 1fr; gap: 18px; align-items: start; margin-bottom: 18px; }
 @media (max-width: 1200px) { .dash-grid { grid-template-columns: 1fr; } }
 
@@ -1904,3 +1907,120 @@ details.akis-grup[open] > summary .akis-grup-ok { transform: rotate(90deg); }
 /* Protokol numarasi sabit genislikte -- gruplar alt alta dizildiginde hasta adlari
    ayni hizadan baslasin. "Protokolsüz" etiketi de bu genislige sigiyor. */
 .akis-grup-no { min-width: 84px; display: inline-block; }
+
+/* ============================================================================
+   GENEL BAKIS -- 2026-10-13 duzeni (.gb-*)
+
+   KULLANICI: "genel bakis ekrani cok sacma kaymis durumda, burayi daha anlasilir,
+   daha goze hitap eden ve duzenli hale getirelim, daha net ve ozet rakamlar olsun."
+
+   UC YAPISAL SORUN VARDI:
+     1) 1.6fr/1fr izgarada solda 220px'lik grafik, sagda ON IKI SATIRLIK tur listesi
+        vardi -- sag sutun solun iki katindan uzundu ve serit egri goruntu veriyordu.
+     2) Her tur satiri UC KATLIYDI (ad satiri + cubuk + yuzde satiri). On iki tur
+        ~700px ediyordu. Artik tek satir: ad | cubuk | oran.
+     3) Sebep kutucuklari (.cat-grid) iki ayri TAM GENISLIK kartta ust uste
+        duruyordu; ikisi de ayni gorsel dili konustugu halde sayfayi gereksiz
+        uzatiyorlardi. Artik yan yana.
+
+   TEK BIR OLCU AILESI: .gb-fig (buyuk rakam + etiket + alt not) hem bekleyen is
+   seridinde hem hastane hacminde kullaniliyor, boylece ayni tur rakam ekranin her
+   yerinde ayni gorunuyor.
+   ============================================================================ */
+
+.gb-bar {
+  display: flex; flex-wrap: wrap; align-items: center; gap: 14px 18px; margin-bottom: 18px;
+}
+.gb-bar form { margin: 0; }
+.gb-ay { display: flex; align-items: center; gap: 8px; }
+.gb-ay label { margin: 0 !important; font-size: 12.5px; color: var(--text-muted); font-weight: 500 !important; }
+.gb-ay select {
+  margin: 0; padding: 8px 12px; font-size: 13.5px; min-width: 150px;
+  border: 1px solid var(--border-strong); border-radius: var(--radius-sm);
+  background: var(--surface); color: var(--text); cursor: pointer;
+}
+.gb-aralik {
+  margin-left: auto; font-family: var(--font-heading); font-size: 13px;
+  color: var(--text); display: flex; align-items: baseline; gap: 8px;
+}
+.gb-aralik-not {
+  font-size: 11px; color: var(--text-faint); background: var(--surface-hover);
+  border-radius: 999px; padding: 2px 9px;
+}
+@media (max-width: 760px) { .gb-aralik { margin-left: 0; } }
+
+/* Bolum basligi -- "su an" seridi ile "secili donem" seridini birbirinden ayiriyor.
+   Ikisinin ayni sayiyi vermemesi DOGRU; bu basliklar hangisinin hangi soruyu
+   cevapladigini soyluyor (bkz. GenelBakis.cshtml.cs, Kapsam notu). */
+.gb-band {
+  font-size: 12px; text-transform: uppercase; letter-spacing: 0.06em;
+  color: var(--text-muted); font-weight: 700; margin: 0 0 10px;
+}
+.gb-band span { text-transform: none; letter-spacing: 0; color: var(--text-faint); font-weight: 500; }
+
+.gb-kapsam { margin-bottom: 26px; border-left: 3px solid var(--primary); }
+
+.gb-figs { display: grid; grid-template-columns: repeat(4, 1fr); gap: 20px; margin-top: 18px; }
+@media (max-width: 900px) { .gb-figs { grid-template-columns: repeat(2, 1fr); } }
+
+.gb-fig { display: flex; flex-direction: column; gap: 4px; text-decoration: none; min-width: 0; }
+a.gb-fig { cursor: pointer; }
+a.gb-fig:hover .gb-fig-value { text-decoration: underline; text-underline-offset: 3px; }
+.gb-fig-label { font-size: 12px; color: var(--text-muted); }
+.gb-fig-value { font-family: var(--font-heading); font-size: 28px; font-weight: 700; color: var(--text); line-height: 1.1; }
+.gb-fig-value.success { color: var(--success); }
+.gb-fig-value.warning { color: var(--warning); }
+.gb-fig-value.danger { color: var(--danger); }
+.gb-fig-sub { font-size: 11.5px; color: var(--text-faint); line-height: 1.45; }
+
+/* Kart ustu: aciklama solda, olcu rakamlari sagda. Hastane hacmi ayri bir serit
+   iken sayilari sagda yalniz kaliyor ve ustteki gonderim kartlariyla
+   karistiriliyordu; trendin yanindayken baglami belli. */
+.gb-kart-ust { display: flex; flex-wrap: wrap; gap: 20px 32px; align-items: flex-start; justify-content: space-between; }
+.gb-hacim { display: flex; gap: 32px; flex-shrink: 0; }
+@media (max-width: 760px) { .gb-hacim { gap: 22px; } }
+
+.gb-split { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; align-items: start; margin-bottom: 18px; }
+@media (max-width: 1100px) { .gb-split { grid-template-columns: 1fr; } }
+
+/* SIKISTIRILMIS LISTE SATIRI: ad | cubuk | oran, hepsi TEK satirda hizali.
+   minmax(0,...) sart -- izgara sutunlari varsayilan olarak min-content'ten
+   kuculmez, uzun bir bolum adi sutunu tasirdi. */
+.gb-satir {
+  display: grid; grid-template-columns: minmax(0, 1.15fr) minmax(70px, 1fr) auto;
+  align-items: center; gap: 14px; padding: 10px 0;
+  border-top: 1px solid var(--border); text-decoration: none;
+}
+.gb-satir:first-of-type { border-top: none; }
+a.gb-satir { cursor: pointer; }
+a.gb-satir:hover { background: var(--surface-hover); }
+.gb-satir-ad {
+  display: flex; flex-direction: column; gap: 2px; min-width: 0;
+  font-size: 13px; font-weight: 600; color: var(--text);
+}
+.gb-satir-alt { font-size: 11px; font-weight: 400; color: var(--text-faint); font-family: var(--font-heading); }
+.gb-satir-sag { display: flex; flex-direction: column; align-items: flex-end; gap: 2px; white-space: nowrap; }
+.gb-satir-pct { font-family: var(--font-heading); font-size: 14px; font-weight: 700; color: var(--text); }
+
+/* SEBEP SATIRI: buyuk rakam solda, aciklama sagda. .cat-tile'in izgara
+   kutucugundan farki, sebep sayisi degisken oldugu icin (9 kategori ya da 2)
+   bos hucre birakmamasi. */
+.gb-sebep {
+  display: grid; grid-template-columns: 74px minmax(0, 1fr); gap: 14px;
+  align-items: start; padding: 11px 0; border-top: 1px solid var(--border); text-decoration: none;
+}
+.gb-sebep:first-of-type { border-top: none; }
+a.gb-sebep { cursor: pointer; }
+a.gb-sebep.warning:hover { background: var(--warning-soft); }
+a.gb-sebep.danger:hover { background: var(--danger-soft); }
+.gb-sebep-sayi {
+  display: flex; flex-direction: column; align-items: flex-end; line-height: 1.1;
+  font-family: var(--font-heading); font-size: 22px; font-weight: 700;
+}
+.gb-sebep.warning .gb-sebep-sayi { color: var(--warning); }
+.gb-sebep.danger .gb-sebep-sayi { color: var(--danger); }
+.gb-sebep-sayi span { font-size: 10.5px; font-weight: 500; color: var(--text-faint); margin-top: 3px; }
+.gb-sebep-metin { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.gb-sebep-ad { font-size: 12.5px; font-weight: 600; color: var(--text); }
+.gb-sebep-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.45; }
+.gb-sebep-alt { font-size: 11px; color: var(--text-faint); font-family: var(--font-heading); margin-top: 2px; }
