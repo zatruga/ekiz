@@ -21,6 +21,10 @@ public class RadiologyReportRecord
     public string? Rapor { get; set; }
     public DateTime? CalismaTarihi { get; set; }
     public DateTime? OnaylanmaTarihi { get; set; }
+
+    // effectiveDateTime YEDEKLERI (bakanlik istegi 2026-10-13) -- bkz. RadiologyReportMapper.
+    public DateTime? KabulTarihi { get; set; }
+    public DateTime? IslemTarihi { get; set; }
     public int? RaporuOnaylayanDoktorId { get; set; }
 
     // AZ DiagnosticReport'ta ZORUNLU procedure-code extension'i icin -- Lab/Islem ile ayni

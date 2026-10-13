@@ -102,8 +102,31 @@ public static class RadiologyReportMapper
         if (!string.IsNullOrWhiteSpace(azEncounterId))
             diagnosticReport["encounter"] = new JsonObject { ["reference"] = $"Encounter/{azEncounterId}" };
 
-        if (report.CalismaTarihi is not null)
-            diagnosticReport["effectiveDateTime"] = ToAzInstant(report.CalismaTarihi.Value);
+        // ===== effectiveDateTime -- YEDEK TARIH ZINCIRI (2026-10-13) =====
+        //
+        // BAKANLIK: "Raporda issued mevcut, ancak effectiveDateTime bulunmuyor. issued
+        // raporun yayimlanma zamani, effectiveDateTime tetkikin ilgili oldugu klinik
+        // zaman." (ornek: DiagnosticReport/01a103b7-9d74-77ed-bf42-467d09d2cbd8)
+        //
+        // KOD ZATEN DOGRUYDU: alan gonderiliyor, ama CalismaTarihi NULL ise hic
+        // cikmiyordu. Olculdu (01.10 sonrasi, 2.608 onayli rapor): 2.187'sinde (%83,9)
+        // dolu, 421'inde (%16,1) bos -- bakanligin ornegi bu %16'ya denk gelmis.
+        //
+        // YEDEK VERIYLE SECILDI, TAHMINLE DEGIL. CalismaTarihi'nin DOLU oldugu 2.187
+        // kayitta adaylarin gercege yakinligi:
+        //   KabulTarihi             : 2.162 ayni gun (%98,9), 21 bir gun, 4 bir hafta ici
+        //   IslemTarihi             : 2.083 ayni gun (%95,2), 67 bir gun, 4 bir haftadan uzak
+        //   OnaylanmaTarihi(issued) : yalnizca 1.138 ayni gun (%52,0)
+        //
+        // ISSUED YEDEK OLAMAZ: neredeyse yarisinda baska bir gune dusuyor. Bakanligin
+        // "ikisi ayni sey degil" uyarisi boylece rakamla da dogrulanmis oluyor.
+        //
+        // Bos olan 421 kaydin 421'inde hem KabulTarihi hem IslemTarihi dolu, yani zincir
+        // pratikte her zaman bir deger buluyor. Ucu de bos kalirsa alan yine hic
+        // gonderilmiyor (0..1) -- uydurma tarih yazmaktansa bos birakmak dogru.
+        var etkinTarih = report.CalismaTarihi ?? report.KabulTarihi ?? report.IslemTarihi;
+        if (etkinTarih is not null)
+            diagnosticReport["effectiveDateTime"] = ToAzInstant(etkinTarih.Value);
 
         if (report.OnaylanmaTarihi is not null)
             diagnosticReport["issued"] = ToAzInstant(report.OnaylanmaTarihi.Value);

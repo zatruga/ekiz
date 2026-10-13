@@ -635,7 +635,10 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
         const string sql = @"
             SELECT rti.Id, rti.ProtokolIslemId, pi.HizmetId, oh.Adi AS HizmetAdi,
                    COALESCE(rti.RaporRtf, rti.Rapor) AS Rapor, rti.CalismaTarihi, rti.OnaylanmaTarihi, rti.RaporuOnaylayanDoktorId,
-                   icb.Kodu AS IcbariKodu, icb.Adi AS IcbariAdi
+                   icb.Kodu AS IcbariKodu, icb.Adi AS IcbariAdi,
+                   -- effectiveDateTime yedekleri (2026-10-13). SONA eklendi: aradaki
+                   -- okuyucu indislerini kaydirmamak icin.
+                   rti.KabulTarihi, pi.IslemTarihi
             FROM RIS.TetkikIslem rti
             INNER JOIN Hasta.ProtokolIslem pi ON pi.Id = rti.ProtokolIslemId
             INNER JOIN Ortak.Hizmet oh ON oh.Id = pi.HizmetId
@@ -673,6 +676,8 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
                 RaporuOnaylayanDoktorId = reader.IsDBNull(7) ? null : reader.GetInt32(7),
                 IcbariKodu = reader.IsDBNull(8) ? null : reader.GetString(8),
                 IcbariAdi = reader.IsDBNull(9) ? (reader.IsDBNull(8) ? null : reader.GetString(8)) : reader.GetString(9),
+                KabulTarihi = reader.IsDBNull(10) ? null : reader.GetDateTime(10),
+                IslemTarihi = reader.IsDBNull(11) ? null : reader.GetDateTime(11),
             });
         }
         return result;
