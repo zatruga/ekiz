@@ -562,7 +562,10 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
     {
         const string sql = @"
             SELECT pi.Id, pi.ProtokolId, pi.HizmetId, oh.Adi AS HizmetAdi, pi.IslemTarihi,
-                   icb.Kodu AS IcbariKodu, icb.Adi AS IcbariAdi
+                   icb.Kodu AS IcbariKodu, icb.Adi AS IcbariAdi,
+                   -- Procedure.performer (2026-10-13). SONA eklendi: aradaki okuyucu
+                   -- indislerini kaydirmamak icin.
+                   pi.UygulayanPersonelId
             FROM Hasta.ProtokolIslem pi
             INNER JOIN Ortak.Hizmet oh ON oh.Id = pi.HizmetId
             OUTER APPLY (
@@ -619,6 +622,7 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
                 IslemTarihi = reader.IsDBNull(4) ? null : reader.GetDateTime(4),
                 IcbariKodu = reader.GetString(5),
                 IcbariAdi = reader.IsDBNull(6) ? reader.GetString(5) : reader.GetString(6),
+                UygulayanPersonelId = reader.IsDBNull(7) ? null : reader.GetInt32(7),
             });
         }
         return result;

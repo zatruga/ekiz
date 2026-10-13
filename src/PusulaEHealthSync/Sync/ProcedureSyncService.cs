@@ -13,13 +13,33 @@ namespace PusulaEHealthSync.Sync;
 // bu yuzden burada ikinci bir Encounter update'i gerekmiyor.
 public class ProcedureSyncService(
     EHealthClient eHealthClient, SyncLogStore syncLog, HizmetMappingStore hizmetMappingStore,
+    PractitionerSyncService practitionerSyncService,
     ILogger<ProcedureSyncService> logger)
 {
+    // ===== PERFORMER DOGRULAMA ONBELLEGI =====
+    //
+    // NEDEN GEREKLI: PerformerCozAsync her ISLEM icin calisiyor ve kayitli bir AZ id
+    // varsa UZAK bir GET atiyor. Onbelleksiz bu, 01.10 sonrasi 36.335 isleme karsilik
+    // 36.335 ek istek demekti -- ve sistem zaten HTTP 429 (hiz siniri) yiyor (13.10'da
+    // bir tur bu yuzden birakildi). Bir doktor gun icinde onlarca islemde geciyor;
+    // ayni kaydi her seferinde yeniden dogrulamak saf israf.
+    //
+    // Servis SINGLETON (bkz. Program.cs), bu yuzden onbellek surecin omru boyunca
+    // yasar -- ConcurrentDictionary, cunku turlar es zamanli donebilir.
+    //
+    // TTL VAR, SINIRSIZ DEGIL: bir Practitioner TRƏS tarafinda silinebilir ve o zaman
+    // referans veren Procedure "HTTP 409: Non-existent reference" ile duser. Bir saat,
+    // "her islemde dogrula" ile "hic dogrulama" arasinda olculu bir orta yol.
+    private static readonly TimeSpan PerformerOnbellekOmru = TimeSpan.FromHours(1);
+    private readonly System.Collections.Concurrent.ConcurrentDictionary<int, (string? AzId, DateTime Zaman)>
+        _performerOnbellek = new();
+
     public async Task<SyncLogEntry> SyncOneAsync(
         IslemRecord islem, ProtokolListItem protokol, string azPatientId, string azEncounterId, bool liveMode, CancellationToken ct = default)
     {
         var eslestirme = await hizmetMappingStore.GetMapAsync(ct);
-        var mapping = ProcedureMapper.Map(islem, azPatientId, azEncounterId, eslestirme);
+        var azPractitionerId = liveMode ? await PerformerCozAsync(islem, ct) : null;
+        var mapping = ProcedureMapper.Map(islem, azPatientId, azEncounterId, eslestirme, azPractitionerId);
         if (mapping is MappingResult.Skipped atlandi)
         {
             var skipEntry = NewEntry(islem, protokol, SyncStatus.Skipped);
@@ -73,6 +93,63 @@ public class ProcedureSyncService(
             logger.LogWarning("Procedure gonderilemedi (ProtokolId={ProtokolId}, Icbari={Kodu}): {Message}", protokol.ProtokolId, islem.IcbariKodu, writeEntry.Message);
 
         return writeEntry;
+    }
+
+    // ===== performer icin Practitioner referansi (2026-10-13) =====
+    //
+    // BURAYA KONDU, CAGIRAN TARAFA DEGIL: ProcedureSyncService'i IKI yer cagiriyor --
+    // EncounterSyncService.SyncProceduresAsync (zincir) ve TekilGonderimService (ekrandaki
+    // "Gonder" dugmesi). Cozumlemeyi cagirana birakmak ayni mantigi iki yere yazmak
+    // olurdu; bu projede o desenin bedeli zaten bir kez odendi (Protokol Detay ile
+    // Aktivite 2026-09-15'te ayri gonderim yolu kullandigi icin ayrismislardi).
+    //
+    // KURAL EncounterSyncService'teki doktor participant'i ile AYNI:
+    //   1) Yalnizca KENDI SyncLog gecmisimize bakilir (uzak arama yok).
+    //   2) Kayitli bir AZ id varsa GET ile DOGRULANIR -- bayat bir id, referans VEREN
+    //      kaydi "HTTP 409: Non-existent reference" ile komple dusururdu.
+    //   3) Hic denenmemisse bir kez gonderilir.
+    //   4) Her sey basarisizsa null doner; Procedure performer'siz gider (0..*).
+    //      Bir referans ugruna islemin kendisini kaybetmek dogru olmazdi.
+    private async Task<string?> PerformerCozAsync(IslemRecord islem, CancellationToken ct)
+    {
+        if (islem.UygulayanPersonelId is not { } personelId) return null;
+
+        if (_performerOnbellek.TryGetValue(personelId, out var onbellek)
+            && DateTime.UtcNow - onbellek.Zaman < PerformerOnbellekOmru)
+            return onbellek.AzId;
+
+        var azId = await PerformerUzaktanCozAsync(islem, personelId, ct);
+        _performerOnbellek[personelId] = (azId, DateTime.UtcNow);
+        return azId;
+    }
+
+    // Onbellege DUSMEYEN yol -- asil is burada.
+    private async Task<string?> PerformerUzaktanCozAsync(IslemRecord islem, int personelId, CancellationToken ct)
+    {
+        var durumlar = await syncLog.GetLatestByPusulaIdsAsync("Practitioner", [personelId], ct);
+        var son = durumlar.GetValueOrDefault(personelId);
+
+        if (son is { Status: SyncStatus.Success, AzResourceId: not null })
+        {
+            var kontrol = await eHealthClient.GetAsync("Practitioner", son.AzResourceId, ct);
+            if (kontrol.Success) return son.AzResourceId;
+
+            logger.LogInformation(
+                "ProtokolIslem.Id={IslemId}: islemi yapan personelin (PersonelId={PersonelId}) "
+                + "kayitli AZ id'si artik gecerli degil, yeniden gonderiliyor",
+                islem.Id, personelId);
+        }
+        else if (son is not null)
+        {
+            // Onceki deneme basarisiz ya da atlanmis (orn. klinik olmayan personel tipi,
+            // FIN bicimi bozuk). BURADA TEKRAR DENENMIYOR -- ayni personel gun icinde
+            // onlarca islemde geciyor, her birinde yeniden denemek bakanliga gereksiz
+            // trafik yaratirdi. Gunluk takilan taramasi bu kayitlari zaten yeniden deniyor.
+            return null;
+        }
+
+        var sonuc = await practitionerSyncService.SyncOneAsync(personelId, liveMode: true, ct);
+        return sonuc.Status == SyncStatus.Success ? sonuc.AzResourceId : null;
     }
 
     private static SyncLogEntry NewEntry(IslemRecord islem, ProtokolListItem protokol, SyncStatus status) => new()

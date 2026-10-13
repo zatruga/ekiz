@@ -12,8 +12,11 @@ public static class PractitionerMapper
 {
     public static MappingResult Map(PersonelRecord d)
     {
-        if (d.PersonelTipiId != PersonelRecord.DoktorTipiId)
-            return new MappingResult.Skipped($"PersonelTipiId={d.PersonelTipiId} -- sadece Doktor (1) Practitioner olarak gonderiliyor");
+        // KLINIK PERSONEL, yalnizca doktor DEGIL (2026-10-13, bkz. PersonelRecord.KlinikTipler).
+        // Procedure.performer eklenince referans verilen kume doktorun otesine gecti.
+        if (!PersonelRecord.KlinikTipler.Contains(d.PersonelTipiId))
+            return new MappingResult.Skipped(
+                $"PersonelTipiId={d.PersonelTipiId} klinik personel degil -- Practitioner olarak gonderilmiyor");
 
         if (string.IsNullOrWhiteSpace(d.Adi) || string.IsNullOrWhiteSpace(d.Soyadi))
             return new MappingResult.Skipped("Ad/soyad eksik");

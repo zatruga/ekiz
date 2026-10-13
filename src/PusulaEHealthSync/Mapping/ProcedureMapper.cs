@@ -17,7 +17,8 @@ public static class ProcedureMapper
 
     public static MappingResult Map(
         IslemRecord islem, string azPatientId, string azEncounterId,
-        IReadOnlyDictionary<int, (string? Kod, bool Gonderilmez)>? eslestirme = null)
+        IReadOnlyDictionary<int, (string? Kod, bool Gonderilmez)>? eslestirme = null,
+        string? azPractitionerId = null)
     {
         // HIZMET ESLESTIRME EKRANININ KARARI (HizmetMappingStore, 2026-09-24).
         // Iki ayri sey soyleyebiliyor:
@@ -67,6 +68,34 @@ public static class ProcedureMapper
 
         if (islem.IslemTarihi is not null)
             procedure["performedDateTime"] = ToAzInstant(islem.IslemTarihi.Value);
+
+        // ===== performer -- ISLEMI YAPAN SAGLIK CALISANI (2026-10-13) =====
+        //
+        // BAKANLIK: "Bu kayit 'İxtisaslı həkim müayinəsi' hizmetini iceriyor. Ancak
+        // performer alaninda muayeneyi gerceklestiren hekime ait referans bulunmuyor."
+        // (ornek: Procedure/01a0fc8f-96a8-7197-931c-089e78adfd33)
+        //
+        // Kaynak Hasta.ProtokolIslem.UygulayanPersonelId (kullanici onayi 2026-10-13).
+        //
+        // 0..* OLDUGU ICIN BOS BIRAKILABILIR ve bu KASITLI bir yol: cozulemeyen ya da
+        // gonderilemeyen bir personel icin UYDURMA referans yazmaktansa alan hic
+        // yazilmiyor. Cagiran taraf (ProcedureSyncService) Practitioner'i once gondermeye
+        // calisir; basarisizsa buraya null gelir ve islem yine de gider -- performer
+        // ugruna butun Procedure'u kaybetmek dogru olmazdi.
+        //
+        // function (islemdeki rol) EKLENMIYOR: Pusula'da rolu soyleyen bir alan yok,
+        // personel TIPI ise rol degil unvan. Uydurma rol kodu gondermektense alan bos
+        // (0..1).
+        if (!string.IsNullOrWhiteSpace(azPractitionerId))
+        {
+            procedure["performer"] = new JsonArray
+            {
+                new JsonObject
+                {
+                    ["actor"] = new JsonObject { ["reference"] = $"Practitioner/{azPractitionerId}" },
+                },
+            };
+        }
 
         return new MappingResult.Success(procedure);
     }

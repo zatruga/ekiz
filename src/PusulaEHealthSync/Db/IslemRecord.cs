@@ -19,4 +19,13 @@ public class IslemRecord
     public DateTime? IslemTarihi { get; set; }
     public required string IcbariKodu { get; set; }
     public required string IcbariAdi { get; set; }
+
+    // ISLEMI YAPAN PERSONEL -> Procedure.performer (bakanlik istegi 2026-10-13).
+    //
+    // KULLANICI ONAYI (2026-10-13): "UygulayanPersonelId dogru data onaylıyorum."
+    // Kullanici once Hizmet.YapanKaynakId'yi isaret etti; o kolon Pusula'da
+    // Hasta.ProtokolIslem.HizmetKaynakId olarak var ama BU HASTANEDE HIC
+    // KULLANILMIYOR -- olculdu (01.10 sonrasi 36.309 islem): sifirinda dolu.
+    // UygulayanPersonelId ise 35.643'unde (%98,2) dolu.
+    public int? UygulayanPersonelId { get; set; }
 }
