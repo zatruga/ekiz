@@ -368,7 +368,7 @@ else
                 <table>
                     <thead>
                         <tr>
-                            <th style="width:92px;">Saat</th>
+                            <th style="width:104px;">Tarih / Saat</th>
                             <th style="width:150px;">Tür</th>
                             <th style="width:110px;">Pusula Id</th>
                             @* Genislik payi verilmezse bu sutun MESAJ sutunuyla yarisiyor
@@ -385,7 +385,16 @@ else
                         @foreach (var e in grup.Kayitlar)
                         {
                             <tr>
-                                <td class="mono text-muted">@AzTime.ToLocal(e.CreatedAtUtc).ToString("HH:mm:ss")</td>
+                                @* TARIH DE YAZIYOR (2026-10-13, kullanici istegi). Yalnizca saat vardi; bir
+                                   grup birden fazla gune yayilabildigi icin (ayni protokole farkli
+                                   gunlerde dokunulur) saat tek basina hangi gun oldugunu soylemiyordu.
+                                   Saat ustte kaliyor -- gun icinde tarama yapan goz onu ariyor; tarih
+                                   altinda, daha kucuk. *@
+                                <td class="mono text-muted">
+                                    @{ var zaman = AzTime.ToLocal(e.CreatedAtUtc); }
+                                    @zaman.ToString("HH:mm:ss")
+                                    <span class="akis-satir-tarih">@zaman.ToString("dd.MM.yyyy")</span>
+                                </td>
                                 <td><span class="badge @SyncLogEntry.ResourceTypeCssClass(e.ResourceType)">@SyncLogEntry.ResourceTypeLabel(e.ResourceType)</span></td>
                                 <td class="mono">@e.PusulaId.ToString(System.Globalization.CultureInfo.InvariantCulture)</td>
                                 <td>

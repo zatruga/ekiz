@@ -1850,6 +1850,16 @@ main.content.content--genis { max-width: none; }
 .akis-grup-sayim { display: flex; align-items: center; gap: 8px; flex-wrap: wrap; }
 .akis-grup-saat { font-size: 12px; }
 
+/* Tablo satirindaki gonderim tarihi -- saatin altinda, bir tik kucuk ve soluk.
+   2026-10-13'te eklendi: sutunda yalnizca saat vardi ve bir grup birden fazla
+   gune yayilabildigi icin hangi gun oldugu belli olmuyordu. */
+.akis-satir-tarih {
+  display: block;
+  font-size: 11px;
+  color: var(--text-faint);
+  margin-top: 2px;
+}
+
 /* Grup tablosu kartin icinde -- kendi kenarligi yok, kart zaten cerceveliyor. */
 .akis-grup-tablo { border: 0; border-radius: 0; }
 .akis-grup-tablo table { min-width: 720px; }
