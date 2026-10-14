@@ -117,6 +117,25 @@ public static class AzAdres
         ["semkir"] = "Şəmkir",
         ["berde"] = "Bərdə",
         ["xirdalan"] = "Xırdalan",
+
+        // ===== Ortak.Il'den GELEN adlar (2026-10-14) =====
+        // Lookup tablosu yazimi karisik tutuyor: "Bakü" (Turkce), "Ganja"/"Shaki"
+        // (Ingilizce), "Sumqayit" (noktasiz). Bakanliga tutarli Azerbaycanca
+        // yazimla gidiyor. Kullanimdaki 27 degerin Azerbaycan'da olanlari:
+        ["ganja"] = "Gəncə",
+        ["shaki"] = "Şəki",
+        ["nakhchivan"] = "Naxçıvan",
+        ["quba"] = "Quba",
+        ["ismailli"] = "İsmayıllı",
+        ["gedebey"] = "Gədəbəy",
+        ["fizuli"] = "Füzuli",
+        ["qabala"] = "Qəbələ",
+        ["salyan"] = "Salyan",
+        ["agdash"] = "Ağdaş",
+        ["zaqatala"] = "Zaqatala",
+        ["jalilabad"] = "Cəlilabad",
+        ["shamkir"] = "Şəmkir",
+        ["lankaran"] = "Lənkəran",
     };
 
     // Baki rayonlari -- "district" olur, sehir Baki yazilir.
@@ -139,35 +158,81 @@ public static class AzAdres
 
     // Gonderilecek bir adres cikmazsa null doner -- cagiran taraf alani hic
     // yazmaz (address 0..*).
-    public static JsonObject? Coz(string? evAdresi)
+    //
+    // SIRA ONEMLI: sehir ONCE LOOKUP'tan (Ortak.Il) alinir, serbest metinden
+    // DEGIL. Lookup yapilandirilmis veri ve %98,3 dolu; metinden sehir cikarmak
+    // ancak lookup bos oldugunda basvurulan yedek yol.
+    public static JsonObject? Coz(string? evAdresi, string? ilAdi = null, string? ilceAdi = null)
     {
         var ham = AdSoyad.Temizle(evAdresi);
-        if (ham is null) return null;
+        var il = AdSoyad.Temizle(ilAdi);
+        var ilce = AdSoyad.Temizle(ilceAdi);
 
-        // 2) ve 3): degerin TAMAMI taninan bir yer adiysa.
-        var anahtar = Anahtar(ham);
-
-        if (Sehirler.TryGetValue(anahtar, out var sehir))
-            return Yap(text: null, city: sehir, district: null);
-
-        if (Rayonlar.TryGetValue(anahtar, out var rayon))
-            return Yap(text: null, city: "Bakı", district: rayon);
-
-        // 1) Uzun ve rakamli -> gercek adres adayi.
-        if (ham.Length >= UzunAdresEsigi && ham.Any(char.IsDigit))
+        // ---- 1) SEHIR: once lookup ----
+        string? sehir = null;
+        var azerbaycanda = false;
+        if (il is not null)
         {
-            // Metinde "bak" geciyorsa sehri de yaziyoruz (688 kaydin 481'inde
-            // geciyor). Gecmiyorsa sehir BOS birakiliyor -- metinden sehir
-            // TAHMIN ETMEK, yanlis sehir yazmak demek olabilirdi.
-            var icindeBaki = anahtar.Contains("bak", StringComparison.Ordinal);
-            return Yap(text: ham, city: icindeBaki ? "Bakı" : null, district: null);
+            if (Sehirler.TryGetValue(Anahtar(il), out var duzgun))
+            {
+                sehir = duzgun;          // taninan AZ sehri -> yazimi duzeltilir
+                azerbaycanda = true;
+            }
+            else
+            {
+                // Taninmayan ad OLDUGU GIBI gider. Kullanimdaki 27 ilin 11'i
+                // yurtdisi (Paris, Moscow, Riyadh, California, Tashkent...);
+                // onlara "AZ" yazmak yanlis olurdu, bu yuzden ulke bos kalir.
+                sehir = il;
+            }
         }
 
-        // Kalan her sey: karalama metin, kurum adi, iki harflik parca -> hicbir sey.
-        return null;
+        // ---- 2) ILCE: yalnizca SEHIRDEN FARKLIYSA ----
+        // Canli veride IlceIdEv fiilen hep 3126 = "BAKÜ", yani ilin tekrari.
+        // Ayni adi hem city hem district olarak gondermek gurultu olurdu.
+        string? rayon = null;
+        if (ilce is not null && (sehir is null || !Anahtar(ilce).Equals(Anahtar(sehir), StringComparison.Ordinal)))
+        {
+            rayon = Rayonlar.TryGetValue(Anahtar(ilce), out var r) ? r : ilce;
+        }
+
+        // ---- 3) SERBEST METIN ----
+        string? metin = null;
+        if (ham is not null)
+        {
+            var anahtar = Anahtar(ham);
+
+            // Metin TAMAMEN bir yer adiysa, zaten lookup'tan gelen bilgiyi
+            // tekrarliyor demektir -- text olarak yazilmaz.
+            var yalnizcaYerAdi = Sehirler.ContainsKey(anahtar) || Rayonlar.ContainsKey(anahtar);
+
+            if (!yalnizcaYerAdi && ham.Length >= UzunAdresEsigi && ham.Any(char.IsDigit))
+                metin = ham;
+
+            // Lookup sehri vermediyse YEDEK YOL: metinden cozmeyi dene.
+            if (sehir is null)
+            {
+                if (Sehirler.TryGetValue(anahtar, out var metinSehri))
+                {
+                    sehir = metinSehri;
+                    azerbaycanda = true;
+                }
+                else if (Rayonlar.TryGetValue(anahtar, out var metinRayonu))
+                {
+                    sehir = "Bakı";
+                    rayon ??= metinRayonu;
+                    azerbaycanda = true;
+                }
+            }
+        }
+
+        // Hicbir parca cikmadiysa adres YAZILMAZ.
+        if (metin is null && sehir is null && rayon is null) return null;
+
+        return Yap(metin, sehir, rayon, azerbaycanda);
     }
 
-    private static JsonObject Yap(string? text, string? city, string? district)
+    private static JsonObject Yap(string? text, string? city, string? district, bool azerbaycanda)
     {
         // az-patient "residence" dilimi: use ve type SABIT.
         var adres = new JsonObject
@@ -180,11 +245,12 @@ public static class AzAdres
         if (city is not null) adres["city"] = city;
         if (district is not null) adres["district"] = district;
 
-        // Ulke yalnizca TANINAN bir yer adi cozuldugunde yaziliyor. Serbest
-        // metin adreste sehir cozulemediyse hastanin Azerbaycan'da oldugu
-        // iddia EDILMIYOR -- UlkeId Pusula'da neredeyse hep bos (ornek kayitta
-        // da bos), yani dogrulayacak bir kaynagimiz yok.
-        if (city is not null) adres["country"] = Ulke;
+        // Ulke yalnizca TANINAN BIR AZERBAYCAN SEHRI cozuldugunde yaziliyor.
+        // Kullanimdaki 27 ilin 11'i yurtdisi (Paris, Moscow, Riyadh, California,
+        // Tashkent, Rostov...) -- onlara "AZ" yazmak duz yanlis olurdu. Hastanin
+        // ulkesini dogrulayacak baska kaynak da yok: Hasta.UlkeId neredeyse hep
+        // bos (kullanicinin ornek verdigi kayitta da bos).
+        if (azerbaycanda) adres["country"] = Ulke;
 
         return adres;
     }

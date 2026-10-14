@@ -30,6 +30,19 @@ public class HastaRecord
     // ayiklama kurallari AzAdres'te, olcumleriyle birlikte.
     public string? EvAdresi { get; set; }
 
+    // Ortak.Il / Ortak.Ilce'den COZULMUS adlar (2026-10-14).
+    //
+    // KULLANICI: "IlIdEv ve IlceIdEv alanlarida var." Haklydi -- ilk taramada bu
+    // tablolar bulunamamisti cunku LOGIN ONLARI sys.objects'te GOREMIYOR; ama
+    // SELECT edilebiliyorlar. (Ayni tuzak projede sys.indexes icin de yazili:
+    // katalog gorunurlugu yetkiye bagli, "0 satir" = "yok" demek degil.)
+    // Pusula'nin kendi Hasta.uv_Hasta view'i de tam bu iki alt sorguyu kullaniyor.
+    //
+    // Olculdu (01.10 sonrasi): IlIdEv 6.030/6.136 dolu (%98,3), 27 ayri deger --
+    // 6.089'u "Bakü". IlceIdEv ise fiilen hep 3126 = "BAKÜ", yani ilin tekrari.
+    public string? IlAdi { get; set; }
+    public string? IlceAdi { get; set; }
+
     // az-newborn-patient icin -- kendi FIN'i henuz atanmamis yenidoganlarda anne FIN'i
     // uzerinden kimliklendirme yapilir, bkz. PatientMapper.
     public bool IsBizdeDogan { get; set; }

@@ -43,7 +43,11 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
         const string sql = @"
             SELECT Id, Adi, Adi2, Soyadi, BabaAdi, DogumTarihi, CinsiyetId, AktifHastaId,
                    KanGrubuId, MedeniHaliId, GSM, SabitTel, Email, TCKimlikNo, CreatedDate,
-                   ModifiedDate, EvAdresi, IsBizdeDogan, AnneTCKimlikNo
+                   ModifiedDate, EvAdresi, IsBizdeDogan, AnneTCKimlikNo,
+                   -- Il/Ilce adlari (2026-10-14). Pusula'nin kendi Hasta.uv_Hasta
+                   -- view'i de birebir bu alt sorgulari kullaniyor.
+                   (SELECT TOP 1 Adi FROM Ortak.Il   WITH (NOLOCK) WHERE Id = hasta.hasta.IlIdEv)   AS IlAdi,
+                   (SELECT TOP 1 Adi FROM Ortak.Ilce WITH (NOLOCK) WHERE Id = hasta.hasta.IlceIdEv) AS IlceAdi
             FROM hasta.hasta
             WHERE Id = @Id";
 
@@ -66,7 +70,11 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
         string sql = $@"
             SELECT TOP (@Top) Id, Adi, Adi2, Soyadi, BabaAdi, DogumTarihi, CinsiyetId, AktifHastaId,
                    KanGrubuId, MedeniHaliId, GSM, SabitTel, Email, TCKimlikNo, CreatedDate,
-                   ModifiedDate, EvAdresi, IsBizdeDogan, AnneTCKimlikNo
+                   ModifiedDate, EvAdresi, IsBizdeDogan, AnneTCKimlikNo,
+                   -- Il/Ilce adlari (2026-10-14). Pusula'nin kendi Hasta.uv_Hasta
+                   -- view'i de birebir bu alt sorgulari kullaniyor.
+                   (SELECT TOP 1 Adi FROM Ortak.Il   WITH (NOLOCK) WHERE Id = hasta.hasta.IlIdEv)   AS IlAdi,
+                   (SELECT TOP 1 Adi FROM Ortak.Ilce WITH (NOLOCK) WHERE Id = hasta.hasta.IlceIdEv) AS IlceAdi
             FROM hasta.hasta
             ORDER BY ModifiedDate DESC";
 
@@ -1118,6 +1126,8 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
         CreatedDate = GetDateTime(reader, "CreatedDate"),
         ModifiedDate = GetDateTime(reader, "ModifiedDate"),
         EvAdresi = GetString(reader, "EvAdresi"),
+        IlAdi = GetString(reader, "IlAdi"),
+        IlceAdi = GetString(reader, "IlceAdi"),
         IsBizdeDogan = GetBool(reader, "IsBizdeDogan") ?? false,
         AnneTCKimlikNo = AzFin.Normalize(GetString(reader, "AnneTCKimlikNo")),
     };

@@ -210,7 +210,7 @@ public static class PatientMapper
         // address 0..* oldugu icin bos birakmak profili bozmaz. Uydurma ya da bozuk
         // bir adres gondermek, hic gondermemekten kotudur -- ayni ilke AzPhone'da da
         // uygulandi (bkz. o dosyanin basi).
-        if (AzAdres.Coz(h.EvAdresi) is { } adres)
+        if (AzAdres.Coz(h.EvAdresi, h.IlAdi, h.IlceAdi) is { } adres)
             patient["address"] = new JsonArray { adres };
 
         // BAKANLIK ISTEGI (2026-09-16): telefonlar tek bicimde, +994 ile gitmeli.
