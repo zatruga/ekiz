@@ -1,7 +1,9 @@
 # Pusula veri işleri — TRƏS gönderimini tıkayan kayıtlar
 
-**Son ölçüm:** 14.10.2026 · sunucu gönderim günlüğü (13.10 07:25 kopyası) ·
-pencere **01.10.2026'dan itibaren**
+**Son ölçüm:** 14.10.2026 · pencere **01.10.2026'dan itibaren**
+
+İcbari rakamları (madde 1) **canlı Pusula'dan**; diğerleri sunucu gönderim
+günlüğünden (13.10 07:25 kopyası, bir günlük).
 
 Bu listedeki maddelerin hiçbiri yazılım hatası değil — hepsi **Pusula'daki veri
 eksikliği**. Gönderim yazılımı bunları kendiliğinden çözemez; kayıt düzeltilene
@@ -17,7 +19,7 @@ kadar o kalemler TRƏS'e gitmez.
 
 | # | Konu | Etkilenen kayıt | Kim düzeltir |
 |---|---|---:|---|
-| 1 | İcbari kodu eşleşmemiş | **6.196** | Hizmet tanımları |
+| 1 | İcbari kodu eşleşmemiş | **8.069** | Hizmet tanımları — **ikiye ayrılıyor** |
 | 2 | Epikriz metni boş | **3.990** | Hekim |
 | 3 | FIN eksik ya da geçersiz | **919** | İK / hasta kayıt |
 | 4 | Tetkik sonucu girilmemiş | **724** | Laboratuvar |
@@ -25,27 +27,75 @@ kadar o kalemler TRƏS'e gitmez.
 | 6 | ICD tanı kodu geçersiz | **133** | Hekim |
 | 7 | İşlem tarihi müayinə dışında | **44** | İşlem kaydı |
 
-Toplam **12.278 kayıt** şu an veri eksikliği yüzünden bekliyor.
+Toplam **14.151 kayıt** şu an veri eksikliği yüzünden bekliyor.
 
 ---
 
-## 1 · İcbari kodu eşleşmemiş — 6.196 kayıt
+## 1 · İcbari kodu eşleşmemiş — 8.069 kalem, 398 hizmet
 
-**En büyük tek kalem.** Hizmetin İcbari Sigorta Fiyat Listesi karşılığı
-girilmediği için işlem TRƏS'e hiç denenmiyor.
+**En büyük tek kalem** — ama tek bir iş değil, **iki ayrı iş.**
 
-Gönderim kuralımız: bir hizmet ancak İcbari karşılığı varsa gönderilir
-(kullanıcı kararı, 25.08.2026). Bu kural, yatak ücreti / CD ücreti gibi tıbbi
-işlem olmayan kalemleri doğal olarak eleyecek şekilde seçilmişti — ama
-eşleştirmesi **unutulmuş** gerçek tıbbi işlemler de aynı kovaya düşüyor.
+Gönderim kuralımız: bir hizmet ancak İcbari karşılığı varsa gönderilir (kullanıcı
+kararı, 25.08.2026). Bu kural, tibbi işlem olmayan kalemleri doğal olarak eleyecek
+şekilde seçilmişti — ama eşleştirmesi **unutulmuş** gerçek tıbbi işlemler de aynı
+kovaya düşüyor. Liste çıkarılınca ikisi net biçimde ayrılıyor.
 
-**Yapılacak:** Hizmet tanımlarında İcbari eşleştirmesi yapılması. Hangi
-hizmetlerin eşleşmediği *Bekleyen İşler → Takılan kalemler* ekranında görünüyor.
+### Ölçüm (canlı Pusula, 01.10 sonrası)
 
-**Not:** Bu eşleştirmeler Pusula'da yapıldığı anda sisteme yansıyor — İcbari
-kodu canlı sorgulanıyor, Excel'den okunmuyor. Ayrıca eşleştirilmeyecek kalemler
-için *Hizmet Eşleştirme* ekranından "gönderilmez" işaretlenebilir; o zaman
-takılanlar listesinden düşerler.
+| | İşlem |
+|---|---:|
+| Toplam | 39.154 |
+| İcbari kodu **var** → gönderilebilir | 31.085 |
+| İcbari kodu **yok** → tıkalı | **8.069** |
+| Bunları tıkayan **ayrı hizmet sayısı** | **398** |
+
+> **Yeni eşleştirmeler yakalanıyor.** 08.10.2026'da Pusula'ya **2.683 yeni İcbari
+> eşleştirmesi** girilmiş; sistem bunları anında gördü — İcbari kodu canlı
+> sorgulanıyor, yeniden dağıtım gerekmiyor. Aşağıdaki 8.069, o eşleştirmelerden
+> **sonra** kalan bakiyedir.
+
+### 1a · Gerçekten tıbbi — eşleştirilmeli
+
+| Hizmet | Tıkalı |
+|---|---:|
+| Həyati funksiyaların monitorda təqibi | 783 |
+| Gündəlik müalicə | 391 |
+| Tibbi müalicə, FTR, onkoloji müalicə planı | 391 |
+| Anti-HİV, kemolüminesans | 323 |
+| Digər immunohistokimyəvi müayinə | 307 |
+| Cross match | 143 |
+| Peyvənd tətbiqi | 137 |
+| Kimyəvi / Hədəf dərman müalicəsi | 135 |
+| Həkimlə ilkin görüş | 118 |
+| Preop Panel 1 | 103 |
+| Diş həkimi müayinəsi | 100 |
+| Port baxımı | 97 |
+| Bilirubin, birbaşa | 82 |
+| Syphilis, sürətli testi | 80 |
+| Kateter sarğı və qulluq | 69 |
+| Ağız baxımı | 65 |
+
+**Yapılacak:** Hizmet tanımlarında İcbari eşleştirmesi. Yapıldığı anda sisteme
+yansır.
+
+### 1b · Tıbbi işlem değil — "gönderilmez" işaretlenmeli
+
+| Hizmet | Tıkalı |
+|---|---:|
+| Xəstə yatağı xidməti, 1-ci dərəcəli | 605 |
+| CD tətbiqi haqqı | 419 |
+| Kafeterya (su, çay, termos çay) | 397 |
+| Müşahidə yatağı ödənişi | 152 |
+| 3 Tesla MRT fərqi | 113 |
+| Əməliyyat otagının açılışı | 105 |
+| Tapşırıq xidməti, general | 100 |
+| Xəstə yaxını, günlük ödəniş | 98 |
+| Gündüz yataq ödənişi | 93 |
+
+**Kafeterya çayı bakanlığa tıbbi işlem olarak gitmemeli.** Bunlar faturalama
+kalemleri; İcbari filtresinin zaten elemesi gereken tür. Doğru hamle eşleştirmek
+değil, *Hizmet Eşleştirme* ekranından **"gönderilmez"** işaretlemek — o zaman
+takılanlar listesinden kalıcı olarak düşerler ve liste gerçekten anlamlı hale gelir.
 
 ## 2 · Epikriz metni boş — 3.990 protokol
 
