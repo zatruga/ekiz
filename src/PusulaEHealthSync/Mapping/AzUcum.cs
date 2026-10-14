@@ -40,11 +40,12 @@ namespace PusulaEHealthSync.Mapping;
 // s\CO (sinyal/cutoff orani, 110), NTU (bulaniklik, 21), Index (9), GPL/MPL
 // (fosfolipid unitesi, 4), unite (4).
 //
-// BUNLARA UCUM KODU UYDURULMUYOR. Kod yazilamiyorsa "code" VE "system" alanlari
-// HIC yazilmiyor, yalnizca "unit" (lokal gosterim) gonderiliyor -- system'siz
-// bir code anlamsiz, uydurma bir code ise duz yanlis olurdu. FHIR'da
-// Quantity.code ve .system 0..1; birim-only bir Quantity gecerli.
-// Ayni ilke AzPhone, AzFin ve PathologyFindingMapper'da da uygulandi.
+// BUNLARA UCUM KODU UYDURULMUYOR: yalnizca "code" alani bos birakiliyor.
+// "system" YAZILMAYA DEVAM EDIYOR, cunku az-lab-result-observation profilinde
+// Quantity.system 1..1 ve degeri sabitlenmis (ayni sekilde Quantity.unit 1..1,
+// Quantity.value 1..1). Uydurma kod gondermemek ile profili bozmak ayri seyler;
+// burada ilki yapiliyor. Ayni ilke AzPhone, AzFin ve PathologyFindingMapper'da da
+// uygulandi.
 //
 // Bu alti ifade bakanliga soruldu (bkz. docs/bakanlik-sorulari.md).
 public static class AzUcum
@@ -186,13 +187,26 @@ public static class AzUcum
             ["unit"] = lokal,
         };
 
-        // UCUM kodu ancak GERCEKTEN varsa yaziliyor; system de onunla birlikte.
-        // Kod yoksa ikisi de yazilmiyor (system'siz code anlamsiz olurdu).
+        // SYSTEM HER ZAMAN YAZILIR -- profil onu ZORUNLU ve SABIT tutuyor.
+        //
+        // DUZELTME (2026-10-14): ilk yazimda, UCUM karsiligi bulunamayan birimlerde
+        // system de yazilmiyordu ("system'siz code anlamsiz" gerekcesiyle). YANLISTI:
+        // az-lab-result-observation profilinde Quantity.system 1..1 ve degeri
+        // "http://unitsofmeasure.org" olarak SABITLENMIS, Quantity.unit de 1..1.
+        // system'i atlamak, bugun sorunsuz giden 704 degeri (COI, NTU, GPL...)
+        // kardinalite hatasiyla reddettirirdi. Profil okunmasaydi bu regresyon
+        // canliya giderdi.
+        //
+        // Ters yon serbest: Quantity.code profilde belirtilmemis (0..1) ve temel
+        // FHIR'in qty-3 kurali yalnizca "kod varsa system de olmali" diyor --
+        // system'in kodsuz durmasi gecerli.
+        quantity["system"] = UcumSystem;
+
+        // KOD ancak GERCEK bir UCUM karsiligi varsa. Karsiligi olmayan sekiz
+        // ifadede (COI, S/Co, s\CO, NTU, Index, GPL, MPL, unite) kod HIC
+        // yazilmiyor -- uydurma kod gondermek duz yanlis olurdu.
         if (Coz(lokal) is { } ucum)
-        {
-            quantity["system"] = UcumSystem;
             quantity["code"] = ucum;
-        }
 
         return quantity;
     }
