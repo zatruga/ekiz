@@ -18,6 +18,7 @@ public static class ConditionMapper
     private const string IcdSystem = "http://fhir.az/CodeSystem/az-icd-10";
     private const string VerificationStatusSystem = "http://terminology.hl7.org/CodeSystem/condition-ver-status";
     private const string CategorySystem = "http://terminology.hl7.org/CodeSystem/condition-category";
+    private const string FirstDiagnosisExtensionUrl = "http://fhir.az/StructureDefinition/first-diagnosis";
     private const string DiagnosisTypeExtensionUrl = "http://fhir.az/StructureDefinition/diagnosis-type";
     private const string DiagnosisTypeSystem = "http://fhir.az/CodeSystem/diagnosis-type";
 
@@ -140,6 +141,40 @@ public static class ConditionMapper
                         new JsonObject { ["system"] = DiagnosisTypeSystem, ["code"] = "1", ["display"] = "Əsas diaqnoz" },
                     },
                 },
+            });
+        }
+
+        // ===== first-diagnosis (2026-10-14) =====
+        //
+        // BAKANLIK IKI KEZ ISTEDI (2026-09-16, 2026-10-13). 16.09'da "bunu yalnizca
+        // kendi gecmisimize gore hesaplamamiz kabul edilir mi?" diye sorduk, cevap
+        // gelmedi ve madde bekler halde kaldi.
+        //
+        // KULLANICI (2026-10-14) hakli olarak sordu: "bunu neden bekliyoruz?"
+        // Beklemeye gerek yokmus -- ARADA ASIMETRI VAR:
+        //
+        //   false -> DOGRULANABILIR OLGU. Ayni hastada ayni ICD'yi gecmiste
+        //            gorduysek, bu tani kesinlikle ILK DEGIL. Iddia edilen sey
+        //            kendi kayitlarimizda duruyor.
+        //   true  -> CIKARIM. Gormemis olmamiz "ilk kez" demek degil: hasta baska
+        //            bir hastanede tani almis ya da tani Pusula oncesi doneme ait
+        //            olabilir. Yanlis "true" gondermek, hic gondermemekten kotu.
+        //
+        // Bu yuzden YALNIZCA false gonderiliyor. Alan 0..1 oldugu icin bilinmeyen
+        // durumda bos birakmak profili bozmaz.
+        //
+        // OLCULDU (01.10 sonrasi 7.445 tani): 3.545'inde (%47,6) gecmis kayit var,
+        // yani neredeyse yarisinda alan artik dolu gidiyor.
+        //
+        // BAKANLIGA SOYLENMELI: yalnizca false gonderdigimiz, cunku gecmisimiz
+        // bu hastaneyle sinirli. Aksi halde "bu hastanede hic ilk tani yok" gibi
+        // yanlis bir izlenim dogar (bkz. docs/bakanlik-sorulari.md).
+        if (tani.DahaOnceKonuldu)
+        {
+            condition["extension"]!.AsArray().Add(new JsonObject
+            {
+                ["url"] = FirstDiagnosisExtensionUrl,
+                ["valueBoolean"] = false,
             });
         }
 

@@ -488,9 +488,22 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
     {
         const string sql = @"
             SELECT pi.Id, pi.ProtokolId, pi.ICDId, ic.Kodu, ic.Adi, pi.IsBirincilTani, pi.IsAnaTani,
-                   pi.MedulaTaniTipiId
+                   pi.MedulaTaniTipiId,
+                   -- first-diagnosis icin: ayni hastaya ayni ICD DAHA ONCE konuldu mu?
+                   -- ICDId uzerinden (kod uzerinden degil) KASITLI: daha dar, yani
+                   -- false iddiasini yalnizca kesin oldugunda uretiyor.
+                   CASE WHEN EXISTS (
+                       SELECT 1
+                       FROM Tedavi.ProtokolICD onceki
+                       INNER JOIN Hasta.Protokol po ON po.Id = onceki.ProtokolId
+                       WHERE onceki.State <> 0
+                         AND onceki.ICDId = pi.ICDId
+                         AND po.HastaId = pr.HastaId
+                         AND po.AcilisTarihi < pr.AcilisTarihi
+                   ) THEN 1 ELSE 0 END AS DahaOnceKonuldu
             FROM Tedavi.ProtokolICD pi
             JOIN Sube.Tedavi_ICD ic ON ic.Id = pi.ICDId
+            JOIN Hasta.Protokol pr ON pr.Id = pi.ProtokolId
             WHERE pi.ProtokolId = @ProtokolId AND pi.State <> 0 AND ic.Kodu IS NOT NULL AND LEN(ic.Kodu) > 0
             ORDER BY CASE WHEN pi.IsBirincilTani = 1 THEN 0 ELSE 1 END, pi.Id";
 
@@ -513,6 +526,7 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
                 IsBirincilTani = !reader.IsDBNull(5) && reader.GetBoolean(5),
                 IsAnaTani = reader.IsDBNull(6) ? null : reader.GetBoolean(6),
                 TaniTipiKodu = reader.IsDBNull(7) ? null : reader.GetString(7).Trim(),
+                DahaOnceKonuldu = !reader.IsDBNull(8) && reader.GetInt32(8) == 1,
             });
         }
         return result;

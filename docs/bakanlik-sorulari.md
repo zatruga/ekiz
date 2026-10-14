@@ -419,3 +419,30 @@ alanlarını boş bırakıp yalnızca `unit` göndermemiz kabul edilebilir mi?
 **Not:** `COI`, `S/Co` ve `NTU` gibi ifadeler oran/indeks bildiriyor; UCUM'da
 birimsiz oran için `1` kullanılabilir, ama bunu doğrulamadan yazmak ölçünün
 anlamını değiştirebilir.
+
+---
+
+## `first-diagnosis` — yalnızca `false` gönderiyoruz (2026-10-14)
+
+Bu alanı iki kez istediniz (16.09 ve 13.10). Pusula'da böyle bir alan yok
+(`IlkTaniTarihi` kolonu var ama 365 günde 186.038 kaydın 99'unda dolu).
+
+16.09'da sorduğumuz soru ("yalnızca kendi geçmişimize göre hesaplamamız kabul
+edilir mi?") cevapsız kaldı. Beklemek yerine **doğrulanabilir yarısını**
+göndermeye başladık:
+
+| | Ne yapıyoruz | Neden |
+|---|---|---|
+| Aynı hastada aynı ICD geçmişte **var** | `first-diagnosis: false` | Kayıtlı bir olgu — bu tanı kesinlikle ilk değil |
+| Geçmişte **yok** | Alan hiç gönderilmiyor | Çıkarım olurdu: hasta başka hastanede tanı almış ya da tanı Pusula öncesi döneme ait olabilir |
+
+Ölçüm (01.10 sonrası 7.445 tanı): **3.545'inde (%47,6)** geçmiş kayıt bulundu,
+alan dolu gidiyor. Kalan 3.900'de boş.
+
+**Önemli not:** Bu yüzden gönderimlerimizde `first-diagnosis` **yalnızca `false`
+değeriyle** görünecek, hiç `true` görmeyeceksiniz. Bu, "bu hastanede hiç ilk tanı
+konulmuyor" anlamına gelmez — geçmişimiz yalnızca bu hastaneyi kapsadığı için
+`true` iddiasında bulunmuyoruz.
+
+**Sorumuz:** Ülke çapında bir tanı geçmişi sorgusu sunuyor musunuz? Varsa `true`
+değerini de doğrulukla gönderebiliriz. Yoksa mevcut yaklaşım uygun mudur?
