@@ -30,9 +30,9 @@ namespace PusulaEHealthSync;
 // ============================ UC KATMAN ============================
 //
 // 1) SERBEST METIN -- EvAdresi'nde ne yaziyorsa "text" olarak OLDUGU GIBI
-//    gidiyor (kullanici karari 2026-10-14: "bu alanda yazan tum veriyi al ve
-//    isle"). Tek istisna, degerin tamamen lookup'tan zaten gelen sehir/rayon
-//    adi olmasi -- o zaman duz tekrar olurdu.
+//    gidiyor, HICBIR ELEME YOK (kullanici karari 2026-10-14: "bu alanda yazan
+//    tum veriyi al ve isle", "evadresi alaninda ne yaziyorsa gonderelim").
+//    Alan dolu olan her kayitta text yaziliyor: 6.028 / 6.150.
 //
 // 2) SEHIR -- degerin TAMAMI taninan bir sehir yazimiysa yalnizca "city".
 //    Ayni sehir bes ayri bicimde yaziliyor (BAKI 3.339, BAKİ 915, baku 269,
@@ -204,18 +204,16 @@ public static class AzAdres
         // Kaynaktaki bozuk veri Pusula'nin veri kalitesi sorunudur ve GORUNUR
         // KALMALIDIR; onu burada maskelemek kullanici adina karar vermek olurdu.
         //
-        // TEK ISTISNA -- YER ADININ TEKRARI: deger tamamen lookup'tan zaten gelen
-        // sehir/rayon adiysa text olarak YAZILMIYOR. Bu bir kalite yargisi degil,
-        // duz tekrar: ayni adi hem "city" hem "text" alaninda gondermek bilgi
-        // eklemez. Canli veride bu 4.713 kaydi etkiliyor (hepsi "BAKI" varyanti).
+        // ISTISNA YOK (2026-10-14, kullanici: "evadresi alaninda ne yaziyorsa
+        // gonderelim"). Ara bir surumde, deger tamamen lookup'tan gelen sehir
+        // adiysa ("BAKI") text yazilmiyordu -- gerekce ayni adi hem city hem text
+        // alaninda gondermenin bilgi eklemedigiydi. Kullanici bunu da kaldirdi:
+        // kaynakta ne yaziyorsa o gidiyor, eleme yok.
         string? metin = null;
         if (ham is not null)
         {
             var anahtar = Anahtar(ham);
-            var yalnizcaYerAdi = Sehirler.ContainsKey(anahtar) || Rayonlar.ContainsKey(anahtar);
-
-            if (!yalnizcaYerAdi)
-                metin = ham;
+            metin = ham;
 
             // Lookup sehri vermediyse YEDEK YOL: metinden cozmeyi dene.
             if (sehir is null)
