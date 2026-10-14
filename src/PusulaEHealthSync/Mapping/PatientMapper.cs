@@ -201,6 +201,18 @@ public static class PatientMapper
         if (h.AktifHastaId is not null)
             patient["active"] = h.AktifHastaId.Value;
 
+        // ===== ADRES (bakanlik istegi 2026-10-13) =====
+        //
+        // Kaynak hasta.hasta.EvAdresi -- SERBEST METIN. Ayiklama ve normalizasyon
+        // kurallari AzAdres'te, olcumleriyle birlikte: uzun+rakamli olanlar "text",
+        // taninan sehir/rayon adlari "city"/"district", geri kalan HIC gonderilmiyor.
+        //
+        // address 0..* oldugu icin bos birakmak profili bozmaz. Uydurma ya da bozuk
+        // bir adres gondermek, hic gondermemekten kotudur -- ayni ilke AzPhone'da da
+        // uygulandi (bkz. o dosyanin basi).
+        if (AzAdres.Coz(h.EvAdresi) is { } adres)
+            patient["address"] = new JsonArray { adres };
+
         // BAKANLIK ISTEGI (2026-09-16): telefonlar tek bicimde, +994 ile gitmeli.
         // AzPhone.Normalize dogrulayamadigi numarayi null dondurur ve o numara HIC
         // gonderilmez -- telecom 0..* oldugu icin profili bozmaz (bkz. AzPhone).

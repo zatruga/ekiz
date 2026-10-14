@@ -24,6 +24,12 @@ public class HastaRecord
     // dusuyor -- vital bulgulardaki ayni desen (VitalSignsSyncService).
     public DateTime? ModifiedDate { get; set; }
 
+    // hasta.hasta.EvAdresi -> Patient.address (bakanlik istegi 2026-10-13,
+    // kullanici karari 2026-10-14: "Evadresi sutununu kullanacagiz").
+    // SERBEST METIN -- icerigi adresten sehir adina, karalamaya kadar degisiyor;
+    // ayiklama kurallari AzAdres'te, olcumleriyle birlikte.
+    public string? EvAdresi { get; set; }
+
     // az-newborn-patient icin -- kendi FIN'i henuz atanmamis yenidoganlarda anne FIN'i
     // uzerinden kimliklendirme yapilir, bkz. PatientMapper.
     public bool IsBizdeDogan { get; set; }
