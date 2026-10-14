@@ -119,8 +119,11 @@ public static partial class LabResultObservationMapper
 
                 var c = new JsonObject { ["code"] = Kodlama(alt.LoincKodu!, alt.TetkikAdi ?? alt.LoincKodu!, loincEslestirme) };
                 Deger(c, alt);
-                if (!Bos(alt.TetkikSonucuReferansDegeri))
-                    c["referenceRange"] = new JsonArray { new JsonObject { ["text"] = alt.TetkikSonucuReferansDegeri } };
+                // Alt parametrenin kendi referans araligi -- bakanlik bunu da
+                // acikca istedi ("Alt parametreler için component[].referenceRange
+                // kullanılabilir"). Sinir ayristirmasi AzReferans'ta.
+                if (AzReferans.Coz(alt.TetkikSonucuReferansDegeri, alt.TetkikSonucuBirimi) is { } altAralik)
+                    c["referenceRange"] = altAralik;
                 bilesenler.Add(c);
             }
 
@@ -142,11 +145,8 @@ public static partial class LabResultObservationMapper
                     "Bu tetkikin sonuç değeri yok -- tek sonuçlu bir Observation olarak gönderilemez");
 
             Deger(observation, anahtar);
-            if (!Bos(anahtar.TetkikSonucuReferansDegeri))
-                observation["referenceRange"] = new JsonArray
-                {
-                    new JsonObject { ["text"] = anahtar.TetkikSonucuReferansDegeri },
-                };
+            if (AzReferans.Coz(anahtar.TetkikSonucuReferansDegeri, anahtar.TetkikSonucuBirimi) is { } ustAralik)
+                observation["referenceRange"] = ustAralik;
         }
 
         return new MappingResult.Success(observation);

@@ -95,13 +95,11 @@ public static partial class LabResultObservationMapper
 
         ApplyValue(observation, lab);
 
-        if (!string.IsNullOrWhiteSpace(lab.TetkikSonucuReferansDegeri))
-        {
-            observation["referenceRange"] = new JsonArray
-            {
-                new JsonObject { ["text"] = lab.TetkikSonucuReferansDegeri },
-            };
-        }
+        // referenceRange: sayisal sinirlar AYRISTIRILABILIYORSA low/high de
+        // yaziliyor (bakanlik istegi 2026-10-13). Kurallar AzReferans'ta --
+        // tek tarafli ifadeler (">60") bilerek ayristirilmiyor.
+        if (AzReferans.Coz(lab.TetkikSonucuReferansDegeri, lab.TetkikSonucuBirimi) is { } aralik)
+            observation["referenceRange"] = aralik;
 
         // interpretation KASITLI OLARAK EKLENMIYOR -- lab.DisindaMi'nin gercek anlami canli
         // veride dogrulanamadi (bkz. LabResultRecord'daki not, 2026-08-29). Yanlis "anormal"

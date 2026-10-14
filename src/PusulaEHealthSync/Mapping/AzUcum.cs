@@ -210,4 +210,26 @@ public static class AzUcum
 
         return quantity;
     }
+
+    // ===== BASIT OLCU (SimpleQuantity) -- referenceRange.low/high icin =====
+    //
+    // Deger()'den FARKI: birim yoksa null DONMEZ, yalnizca value yazar.
+    // Sebep: unit zorunlulugu value[x] icin gecerli (az-lab-result-observation,
+    // Quantity.unit 1..1). Profil referenceRange'i HIC kisitlamiyor, temel FHIR
+    // gecerli ve orada SimpleQuantity'nin tum alt alanlari 0..1. Birimsiz bir
+    // testin (INR gibi) referans araligini, yalnizca birim yok diye dusurmek
+    // gereksiz bir kayip olurdu.
+    public static JsonObject BasitOlcu(decimal sayi, string? birim)
+    {
+        var olcu = new JsonObject { ["value"] = sayi };
+
+        var lokal = birim?.Trim();
+        if (string.IsNullOrEmpty(lokal)) return olcu;
+
+        olcu["unit"] = lokal;
+        olcu["system"] = UcumSystem;
+        if (Coz(lokal) is { } ucum) olcu["code"] = ucum;
+
+        return olcu;
+    }
 }
