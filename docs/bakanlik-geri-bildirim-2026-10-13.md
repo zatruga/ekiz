@@ -13,7 +13,7 @@ bugünkü davranışı anlatıyor.
 
 | # | Konu | Durum | Not |
 |---|---|---|---|
-| 1 | `Patient.address` | ⚠ **Karar gerekiyor** | Kaynakta adres YOK — yalnızca şehir adı, beş ayrı yazımda |
+| 1 | `Patient.address` | ✅ **Yapıldı** (`2282884`) | Kapsam %99,7 — şehir `Ortak.Il` lookup'ından |
 | 1b | `Patient.maritalStatus` | ✅ Kod doğru | Pusula'da %12,1 dolu — **veri tarafı** |
 | 2 | Ad/soyad `trim` | ✅ **Yapıldı** (`16e8a24`) | Hastada da vardı, o da düzeltildi |
 | 3a | `Condition.diagnosis-type` | ✅ Kod doğru | **Hata değil** — ön tanıya sıra kodu yazılmıyor |
@@ -185,6 +185,66 @@ ile görülmedi.
 
 ---
 
+## 1. `Patient.address` — ✅ `cd3807f` + `2167257` + `b8c0b0c` + `2282884`
+
+**Bakanlık:** Örneklerde adres bilgisine rastlamadık.
+
+### İki kez yanıldım, ikisini de kullanıcı düzeltti
+
+**1) "Kaynakta adres yok" dedim — yanlıştı.** `EvAdresi`'ne bakıp ortalama 12 karakter,
+%75,8'i `BAKI` görünce "yapılandırılmış adres yok" sonucuna vardım. Kullanıcı:
+*"IlIdEv ve IlceIdEv alanlarıda var."*
+
+`Ortak.Il` ve `Ortak.Ilce` tablolarını **tam bu adlarla aradım ve 0 satır aldım** —
+çünkü bu login onları `sys.objects`'te **göremİyor**, ama `SELECT` edebiliyor. Projede
+aynı tuzak `sys.indexes` için zaten yazılıydı: **katalogda "0 satır" = "yok" demek
+değil.** Doğru yol katalogda aramak değil, Pusula'nın kendi `Hasta.uv_Hasta`
+view'ini okumaktı — o da birebir bu iki alt sorguyu kullanıyor.
+
+**2) Kalite filtresi koydum — yanlıştı.** Örnek kayıttaki (`Id=8311761`) klavye
+karalamasını görünce "20+ karakter **ve** rakamlı" şartı ekledim. Kaç **gerçek**
+adresi düşürdüğünü ölçmemiştim: 20+ karakterli 1.009 değerin 688'inde rakam var,
+yani **321 uzun değer yalnızca rakamsız diye eleniyordu**. Kullanıcı: *"bu alanda
+yazan tüm veriyi al ve işle"*, ardından *"evadresi alanında ne yazıyorsa
+gönderelim"*. Kaynaktaki bozuk veri Pusula'nın kalite sorunudur ve **görünür
+kalmalıdır**; maskelemek kullanıcı adına karar vermekti.
+
+### Son hal
+
+| Alan | Kaynak |
+|---|---|
+| `text` | `EvAdresi`, **olduğu gibi** — hiçbir eleme yok |
+| `city` | `Ortak.Il.Adi`, Azerbaycanca yazıma düzeltilmiş |
+| `district` | `Ortak.Ilce.Adi`, yalnızca şehirden farklıysa |
+| `country` | `AZ` — yalnızca tanınan Azerbaycan şehrinde |
+| `use` / `type` | `home` / `physical` — profilin `residence` dilimi, **sabit** |
+
+### Kapsam
+
+| | İlk hal | Son hal |
+|---|---:|---:|
+| Şehir + serbest metin | 691 | **1.462** |
+| Yalnız şehir | 5.437 | 4.668 |
+| Adres yazılmıyor | 20 | **20** |
+| **Toplam kapsam** | %88,0 | **%99,7** |
+
+### Üç teknik not
+
+- **ASCII anahtar — 915 kayıtlık kaçak:** ilk yazım `StringComparer.OrdinalIgnoreCase`
+  kullanıyordu. Kaynakta şehir `BAKİ` diye yazılıyor (U+0130) ve .NET'in ordinal
+  katlaması bunu `i`'ye **indirgemez** — 915 kayıt sessizce kaçıyordu. SQL'de fark
+  edilmedi, çünkü SQL Server'ın Türkçe harmanlaması `LOWER('BAKİ')` = `bakı` yapıp
+  eş gösteriyordu.
+- **Yurtdışı koruması:** kullanımdaki 27 ilin **11'i yurtdışı** (Paris, Moscow,
+  Riyadh, California, Tashkent, Rostov, Arkhangelsk, Ghazni, Essonne, Naryn,
+  Rukungiri). `country: AZ` yalnızca tanınan AZ şehirlerine yazılıyor; tanınmayan ad
+  olduğu gibi gidiyor, ülkesiz. `Hasta.UlkeId` neredeyse hep boş, doğrulayacak başka
+  kaynak yok.
+- **İlçe yalnızca şehirden farklıysa:** canlı veride `IlceIdEv` fiilen hep
+  `3126 = BAKÜ`, yani ilin tekrarı.
+
+---
+
 # BÖLÜM B — KOD DEĞİL, CEVAP YAZILACAKLAR
 
 ## 3a. `Condition.diagnosis-type` — hata değil
@@ -238,82 +298,6 @@ Dolu olanların tamamı eşleşiyor. Bu bir Pusula **veri girişi** konusu.
 ---
 
 # BÖLÜM C — YAPILACAKLAR
-
-## 1. `Patient.address` — ⚠ karar gerekiyor
-
-**Bakanlık:** Örneklerde adres bilgisine rastlamadık; kaynak sistemde mevcutsa
-gönderime eklenmesi.
-
-**Durum:** `PatientMapper`'da hiç adres yok. Ama asıl sorun kodda değil — **kaynakta
-gönderilecek bir adres yok.**
-
-### ÖLÇÜM DÜZELTMESİ (2026-10-13)
-
-İlk raporda "veri %99,6 mevcut" yazılmıştı. **Teknik olarak doğru, anlamca yanlış:**
-alan dolu, içeriği adres değil.
-
-| `EvAdresi` metninin şekli (6.028 dolu kayıt) | |
-|---|---:|
-| Ortalama uzunluk | **12 karakter** |
-| 10 karakterden kısa | **4.735 (%78,5)** |
-| En kısa | 2 karakter |
-| Ayrı değer sayısı | 1.274 |
-| Rakam içeren | 707 |
-
-En sık geçen değerler — hepsi aynı şehrin farklı yazımı:
-
-| Değer | Hasta |
-|---|---:|
-| `BAKI` | 3.292 |
-| `baki` | 903 |
-| `BAKU` | 264 |
-| `BAKU AZERBAYCAN` | 48 |
-| `Bak;` | 22 |
-
-**4.529 kayıt (%75) "Bakı"nın bir yazımı.** Bu bir posta adresi değil, serbest metin
-şehir adı.
-
-### Diğer adres kaynakları da yok
-
-| Alan | Dolu |
-|---|---:|
-| `KimlikIlId` (kimlik adresi) | 13 |
-| `KimlikIlceId` | 3 |
-| `KimlikKoyMahalle` | 0 |
-| `MahalleIdEv` | 3 |
-
-**İl/ilçe lookup tablosu bulunamadı.** `Sube.Ortak_Il` ve `Sube.Ortak_Ilce` tabloları
-var ama `Sube.Ortak_Il` **boş** (0 satır); `IlIdEv = 6385` (5.994 hastada) hiçbir
-tabloda karşılık bulmuyor. Yani `IlIdEv`/`IlceIdEv` ada çevrilemiyor.
-
-### Profil iki dilim istiyor
-
-`az-patient`, `address`'i **slice** ediyor:
-
-| Dilim | `use` | `type` | Anlam |
-|---|---|---|---|
-| `registered` | `home` | `postal` | Kayıtlı yasal adres |
-| `residence` | `home` | `physical` | Mevcut ikamet adresi |
-
-`use`/`type` serbest değil, dilime birebir uymalı. Alt alanlarda (`city`, `text`,
-`country`…) ek kısıt ya da zorunlu binding yok.
-
-### Seçenekler — kullanıcı kararı bekliyor
-
-**A) Hiç gönderme.** Bakanlığa "kaynak sistemde yapılandırılmış adres tutulmuyor,
-yalnızca şehir adı var" denir. `address` `0..*`, profili bozmaz.
-
-**B) Yalnızca şehir gönder.** Yazımlar normalize edilir (`BAKI`/`baki`/`BAKU`/`Bak;`
-→ `Bakı`), `address:residence` dilimiyle `{ use: home, type: physical, city: <şehir>,
-country: AZ }` gönderilir. Normalize edilemeyen değer **hiç gönderilmez** — `AzPhone`
-ile aynı ilke.
-
-**C) Pusula'da veri girişi düzelene kadar beklenir.**
-
-**Zorluk:** B seçilirse düşük (bir normalizasyon sözlüğü + mapper). Asıl soru teknik
-değil: **şehir adından ibaret bir adres göndermeye değer mi?**
-
----
 
 ## 5.1. Laboratuvar birimleri → UCUM — ⬜ sırada
 
