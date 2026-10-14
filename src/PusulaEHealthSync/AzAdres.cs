@@ -29,15 +29,10 @@ namespace PusulaEHealthSync;
 //
 // ============================ UC KATMAN ============================
 //
-// 1) UZUN ADRES -- 20+ karakter VE rakam iceriyor: 688 kayit (%11,4).
-//    Bu alt kume gercekten adres: ortalama 60 karakter, %87'si virgulle
-//    ayrilmis, 688'in 665'i benzersiz (tekrar eden etiket degil, gercek adres).
-//    Bu kayitlar "text" olarak oldugu gibi gidiyor.
-//
-//    RAKAM SARTI KASITLI: kullanicinin ornek verdigi kayit (Hasta.Id=8311761)
-//    42 karakter ama icerigi klavye karalamasi ("bakusdf sefdsdf sdf...") ve
-//    RAKAM ICERMIYOR -- bu filtre onu disarida birakiyor. Ev/bina numarasi
-//    olmayan uzun bir metin, adresten cok serbest not olma ihtimali tasiyor.
+// 1) SERBEST METIN -- EvAdresi'nde ne yaziyorsa "text" olarak OLDUGU GIBI
+//    gidiyor (kullanici karari 2026-10-14: "bu alanda yazan tum veriyi al ve
+//    isle"). Tek istisna, degerin tamamen lookup'tan zaten gelen sehir/rayon
+//    adi olmasi -- o zaman duz tekrar olurdu.
 //
 // 2) SEHIR -- degerin TAMAMI taninan bir sehir yazimiysa yalnizca "city".
 //    Ayni sehir bes ayri bicimde yaziliyor (BAKI 3.339, BAKİ 915, baku 269,
@@ -153,9 +148,6 @@ public static class AzAdres
 
     private const string Ulke = "AZ";
 
-    // Uzun adres esigi: bu uzunlugun altindaki serbest metin adres sayilmiyor.
-    private const int UzunAdresEsigi = 20;
-
     // Gonderilecek bir adres cikmazsa null doner -- cagiran taraf alani hic
     // yazmaz (address 0..*).
     //
@@ -197,16 +189,32 @@ public static class AzAdres
         }
 
         // ---- 3) SERBEST METIN ----
+        //
+        // KULLANICI KARARI (2026-10-14): "bu alanda yazan tum veriyi al ve isle."
+        //
+        // ILK YAZIMDA KALITE FILTRESI VARDI, KALDIRILDI. Kural "20+ karakter VE
+        // rakam iceriyor" idi ve gerekcesi, kullanicinin ornek verdigi kayitta
+        // (Id=8311761) gorulen klavye karalamasini ("bakusdf sefdsdf...")
+        // bakanliga gondermemekti. GEREKCE ZAYIFTI: o filtrenin kac GERCEK adresi
+        // dusurdugu hic olculmemisti. Olculdu (01.10 sonrasi): 20+ karakterli
+        // 1.009 degerin 688'inde rakam var, yani 321 uzun deger yalnizca rakamsiz
+        // oldugu icin eleniyordu -- "Yeni Yasamal qesebesi" gibi numarasiz ama
+        // gayet gecerli adresler de o kumede.
+        //
+        // Kaynaktaki bozuk veri Pusula'nin veri kalitesi sorunudur ve GORUNUR
+        // KALMALIDIR; onu burada maskelemek kullanici adina karar vermek olurdu.
+        //
+        // TEK ISTISNA -- YER ADININ TEKRARI: deger tamamen lookup'tan zaten gelen
+        // sehir/rayon adiysa text olarak YAZILMIYOR. Bu bir kalite yargisi degil,
+        // duz tekrar: ayni adi hem "city" hem "text" alaninda gondermek bilgi
+        // eklemez. Canli veride bu 4.713 kaydi etkiliyor (hepsi "BAKI" varyanti).
         string? metin = null;
         if (ham is not null)
         {
             var anahtar = Anahtar(ham);
-
-            // Metin TAMAMEN bir yer adiysa, zaten lookup'tan gelen bilgiyi
-            // tekrarliyor demektir -- text olarak yazilmaz.
             var yalnizcaYerAdi = Sehirler.ContainsKey(anahtar) || Rayonlar.ContainsKey(anahtar);
 
-            if (!yalnizcaYerAdi && ham.Length >= UzunAdresEsigi && ham.Any(char.IsDigit))
+            if (!yalnizcaYerAdi)
                 metin = ham;
 
             // Lookup sehri vermediyse YEDEK YOL: metinden cozmeyi dene.
