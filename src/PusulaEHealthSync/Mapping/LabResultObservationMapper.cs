@@ -128,15 +128,13 @@ public static partial class LabResultObservationMapper
 
         var normalized = lab.TetkikSonucu.Trim().Replace(',', '.');
         if (decimal.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out var numeric)
-            && !string.IsNullOrWhiteSpace(lab.TetkikSonucuBirimi))
+            && AzUcum.Deger(numeric, lab.TetkikSonucuBirimi) is { } quantity)
         {
-            observation["valueQuantity"] = new JsonObject
-            {
-                ["value"] = numeric,
-                ["unit"] = lab.TetkikSonucuBirimi,
-                ["system"] = "http://unitsofmeasure.org",
-                ["code"] = lab.TetkikSonucuBirimi,
-            };
+            // UCUM cevirisi AzUcum'da (bakanlik istegi 2026-10-13). Lokal birim
+            // "unit" alaninda korunuyor, "code" ancak gercek bir UCUM karsiligi
+            // varsa yaziliyor -- karsiligi olmayan COI/NTU/GPL gibi ifadelerde
+            // code ve system HIC yazilmiyor, uydurma kod gonderilmiyor.
+            observation["valueQuantity"] = quantity;
         }
         else
         {

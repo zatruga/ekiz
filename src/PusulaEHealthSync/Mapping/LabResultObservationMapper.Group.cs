@@ -226,15 +226,13 @@ public static partial class LabResultObservationMapper
 
         var normalized = lab.TetkikSonucu!.Trim().Replace(',', '.');
         if (decimal.TryParse(normalized, NumberStyles.Float, CultureInfo.InvariantCulture, out var sayi)
-            && !Bos(lab.TetkikSonucuBirimi))
+            && AzUcum.Deger(sayi, lab.TetkikSonucuBirimi) is { } quantity)
         {
-            hedef["valueQuantity"] = new JsonObject
-            {
-                ["value"] = sayi,
-                ["unit"] = lab.TetkikSonucuBirimi,
-                ["system"] = "http://unitsofmeasure.org",
-                ["code"] = lab.TetkikSonucuBirimi,
-            };
+            // UCUM cevirisi AzUcum'da -- lokal birim artik code alanina
+            // KOPYALANMIYOR (bakanlik istegi 2026-10-13). Birim yoksa Deger null
+            // doner ve valueString'e dusulur: AZ profili valueQuantity'de unit'i
+            // zorunlu tutuyor (2026-08-29 canli hatasi).
+            hedef["valueQuantity"] = quantity;
         }
         else
         {

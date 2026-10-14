@@ -392,3 +392,30 @@ Sorular:
    gönderilmeli -- hançer kodu yoksa? (Ölçüm: 86 tanı, 86 protokol.)
 3. `I84` (hemoroid) ICD-10'un yeni sürümlerinde kaldırılmış; onun
    karşılığı olarak ne beklenmeli?
+
+---
+
+## UCUM karşılığı bulunamayan birimler (2026-10-14)
+
+13.10 geri bildiriminde birim kodlarının UCUM karşılıklarının yazılması istendi.
+56 lokal birim ifadesinin 48'i eşleştirildi (gönderilen değerlerin %99,0'u).
+Kalan 8'inin UCUM'da karşılığı bulunamadı; bunlara **uydurma kod yazılmadı** —
+`code` ve `system` alanları hiç gönderilmiyor, yalnızca `unit` (lokal gösterim).
+
+| Lokal ifade | Adet | Ne olduğunu sanıyoruz |
+|---|---:|---|
+| `COI` | 556 | Cutoff index — bakanlık da bunu sormuştu |
+| `s\CO` | 85 | Sinyal/cutoff oranı, ters bölüyle yazılmış |
+| `S/Co` | 25 | Aynı şey, doğru yazımı |
+| `NTU` | 21 | Nephelometric turbidity unit (bulanıklık) |
+| `Index` | 9 | Hangi indeks olduğu belirsiz |
+| `unite` | 4 | Hangi ünite olduğu belirsiz |
+| `GPL` | 2 | IgG fosfolipid ünitesi |
+| `MPL` | 2 | IgM fosfolipid ünitesi |
+
+**Soru:** Bu ifadeler için beklenen UCUM kodu var mı? Yoksa `code`/`system`
+alanlarını boş bırakıp yalnızca `unit` göndermemiz kabul edilebilir mi?
+
+**Not:** `COI`, `S/Co` ve `NTU` gibi ifadeler oran/indeks bildiriyor; UCUM'da
+birimsiz oran için `1` kullanılabilir, ama bunu doğrulamadan yazmak ölçünün
+anlamını değiştirebilir.
