@@ -1,4 +1,4 @@
-using System.Text.Json.Nodes;
+﻿using System.Text.Json.Nodes;
 using PusulaEHealthSync.Db;
 using PusulaEHealthSync.EHealth;
 using PusulaEHealthSync.Mapping;
@@ -206,6 +206,7 @@ public class PathologyReportSyncService(
         ResourceType = "DiagnosticReport-Patoloji",
         PusulaId = report.ResultId,
         Status = status,
+        ProtokolId = protokol.ProtokolId,
         PatientFullName = protokol.HastaAdiSoyadi,
         Fin = protokol.Fin,
     };
@@ -218,6 +219,7 @@ public class PathologyReportSyncService(
         ResourceType = "Observation-Patoloji",
         PusulaId = finding.IslemReferansNumarasi,
         Status = status,
+        ProtokolId = protokol.ProtokolId,
         PatientFullName = protokol.HastaAdiSoyadi,
         Fin = protokol.Fin,
     };
@@ -229,6 +231,7 @@ public class PathologyReportSyncService(
         ResourceType = "Composition-Patoloji",
         PusulaId = report.ResultId,
         Status = status,
+        ProtokolId = protokol.ProtokolId,
         PatientFullName = protokol.HastaAdiSoyadi,
         Fin = protokol.Fin,
     };

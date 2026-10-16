@@ -1,4 +1,4 @@
-using System.Globalization;
+﻿using System.Globalization;
 using Microsoft.Data.Sqlite;
 
 namespace PusulaEHealthSync.Persistence;
@@ -95,6 +95,35 @@ public class SyncLogStore
                 CREATE INDEX IF NOT EXISTS IX_SyncLog_Ortam ON SyncLog(Ortam, ResourceType, PusulaId);";
             alterCmd.ExecuteNonQuery();
         }
+
+        // PROTOKOL BAGI -- sonradan eklendi (2026-10-16), mevcut kurulumlarda ALTER gerekiyor.
+        //
+        // NEDEN: Aktivite Akisi hasta/protokol bazinda gruplamak icin her kaydin protokolunu
+        // Pusula'ya SORARAK cozuyordu (ProtokolIdleriniCozAsync). Pahali oldugu icin sorgu
+        // 60.000 kayitla kirpiliyordu; hacim buyuyunce tavan devreye girdi ve kartlardaki
+        // hasta sayilari kirpilmis bir kumeden hesaplanir oldu. Sonuc: tarih araligi
+        // GENISLETILDIGINDE hasta sayisi DUSEBILIYORDU (kullanici bildirdi, 2026-10-16:
+        // "10.10 listeliyorum 1800 kusur, 01.10 cekiyorum 1700 kusur -- burasi sacma degil mi").
+        //
+        // Protokol numarasi yazma aninda zaten elimizde (her NewEntry fabrikasi
+        // ProtokolListItem aliyor). Kolona yazilinca gruplama tek SQL'e iniyor, tavana
+        // gerek kalmiyor ve sayilar aralikla tutarli hale geliyor.
+        //
+        // NULL KALABILIR VE BU DOGRU: Patient ve Practitioner protokola bagli degil --
+        // birden cok protokolde kullaniliyorlar. Onlarda NULL anlamlidir, eksik veri degil.
+        using var protokolSutunCmd = conn.CreateCommand();
+        protokolSutunCmd.CommandText = "SELECT COUNT(*) FROM pragma_table_info('SyncLog') WHERE name = 'ProtokolId'";
+        if (Convert.ToInt64(protokolSutunCmd.ExecuteScalar()) == 0)
+        {
+            using var alterCmd = conn.CreateCommand();
+            // Geriye donuk doldurma BURADA YAPILMIYOR: eski satirlarin protokolu ancak
+            // Pusula'ya sorularak bulunur, bu da uygulama acilisini bloklar. Doldurma ayri
+            // ve kesilebilir bir is olarak yurutuluyor (bkz. ProtokolBagiDoldurAsync).
+            alterCmd.CommandText = @"
+                ALTER TABLE SyncLog ADD COLUMN ProtokolId INTEGER NULL;
+                CREATE INDEX IF NOT EXISTS IX_SyncLog_ProtokolId ON SyncLog(ProtokolId, CreatedAtUtc);";
+            alterCmd.ExecuteNonQuery();
+        }
     }
 
     public async Task InsertAsync(SyncLogEntry entry, CancellationToken ct = default)
@@ -105,10 +134,12 @@ public class SyncLogStore
         cmd.CommandText = @"
             INSERT INTO SyncLog
                 (ResourceType, PusulaId, Status, Operation, AzResourceId, Message, RequestJson, ResponseJson,
-                 PatientFullName, FathersName, BirthDate, Gender, Fin, RecordOpenedAt, CreatedAtUtc, Ortam)
+                 PatientFullName, FathersName, BirthDate, Gender, Fin, RecordOpenedAt, CreatedAtUtc, Ortam,
+                 ProtokolId)
             VALUES
                 ($resourceType, $pusulaId, $status, $operation, $azId, $message, $request, $response,
-                 $fullName, $fathersName, $birthDate, $gender, $fin, $recordOpenedAt, $createdAt, $ortam);
+                 $fullName, $fathersName, $birthDate, $gender, $fin, $recordOpenedAt, $createdAt, $ortam,
+                 $protokolId);
             SELECT last_insert_rowid();";
         cmd.Parameters.AddWithValue("$resourceType", entry.ResourceType);
         cmd.Parameters.AddWithValue("$pusulaId", entry.PusulaId);
@@ -125,6 +156,7 @@ public class SyncLogStore
         cmd.Parameters.AddWithValue("$fin", (object?)entry.Fin ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$recordOpenedAt", (object?)entry.RecordOpenedAt?.ToString("O") ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$createdAt", entry.CreatedAtUtc.ToString("O"));
+        cmd.Parameters.AddWithValue("$protokolId", (object?)entry.ProtokolId ?? DBNull.Value);
         // Kayit, O ANKI ortam damgasiyla yaziliyor. Cagiran taraflarin bunu dusunmesi
         // gerekmiyor -- 60'tan fazla cagri yeri var, biri unutulsaydi o kayit ortamsiz
         // kalir ve hicbir sorguya takilmazdi.
@@ -135,7 +167,8 @@ public class SyncLogStore
     }
 
     private const string SelectColumns = @"Id, ResourceType, PusulaId, Status, Operation, AzResourceId, Message,
-            RequestJson, ResponseJson, PatientFullName, FathersName, BirthDate, Gender, Fin, RecordOpenedAt, CreatedAtUtc, Ortam";
+            RequestJson, ResponseJson, PatientFullName, FathersName, BirthDate, Gender, Fin, RecordOpenedAt, CreatedAtUtc, Ortam,
+            ProtokolId";
 
     // fromUtc/toUtcExclusive -- KULLANICI ISTEGI (2026-08-25): "aktivite akisinda tarihe
     // gore listeleme olsun". CreatedAtUtc ISO 8601 metin olarak saklaniyor -- bu formatta
@@ -343,7 +376,8 @@ public class SyncLogStore
     // Ayni kolon sirasi, ama iki agir kolon (gonderilen/donen FHIR govdesi) yerine NULL.
     // Boylece ReadEntry'nin indeksleri degismeden ayni kod iki sorguyu da okuyabiliyor.
     private const string SelectColumnsGovdesiz = @"Id, ResourceType, PusulaId, Status, Operation, AzResourceId, Message,
-            NULL, NULL, PatientFullName, FathersName, BirthDate, Gender, Fin, RecordOpenedAt, CreatedAtUtc, Ortam";
+            NULL, NULL, PatientFullName, FathersName, BirthDate, Gender, Fin, RecordOpenedAt, CreatedAtUtc, Ortam,
+            ProtokolId";
 
     // govdeleriGetir=false: RequestJson/ResponseJson okunmaz (null gelir). Yalnizca DURUM
     // bilgisine bakan, buyuk id listeleriyle calisan cagiranlar icindir -- bkz.
@@ -815,6 +849,169 @@ public class SyncLogStore
         return sonuc;
     }
 
+    // AKTIVITE KARTLARI -- TAVANSIZ, TEK SORGUDA (2026-10-16).
+    //
+    // KULLANICI BILDIRDI: "10.10 tarihli listeliyorum sorunsuz 1800 kusur, 01.10 tarihli
+    // cekiyorum 1700 kusur -- burasi sacma degil mi?" Hakliydi: aralik GENISLEDIGINDE
+    // sayinin DUSMESI mumkun olmamali.
+    //
+    // SEBEP: kart sayilari, 60.000 kayitla KIRPILMIS bir listeden hesaplaniyordu. Kirpma
+    // "en yeni 60.000 kayit" demek ve gunluk canli yazildigi icin o pencere KAYIYOR --
+    // iki sorgu ayni anin fotografi olmuyordu. Ustelik durum "en kotu kazanir" kuraliyla
+    // ARALIK ICINDEKI denemelerden hesaplandigi icin, araligi genisletmek bir kaydi
+    // Sorunsuz'dan Hatali'ya dondurebiliyordu.
+    //
+    // COZUM: kartlar artik ProtokolId sutunundan, tavansiz SQL ile hesaplaniyor. Iki
+    // kademeli toplama: once (ResourceType, PusulaId) basina "en kotu kazanir" durum,
+    // sonra protokol basina kac kayit hangi durumda. Sonuc TEK SATIR doner -- yuz binlerce
+    // grup olsa bile bellege hicbir sey alinmiyor.
+    //
+    // NEDEN ARTIK DUSEMEZ: aralik genisledikce WHERE kosulu daha cok satir kapsar, hicbir
+    // satiri disarida birakmaz. Bir protokol aralikta bir kez sayilir ve sayim kirpmaya
+    // bagli degildir.
+    //
+    // KAPSAM: yalnizca protokola bagli kayitlar. Patient/Practitioner disarida -- onlar
+    // protokol isi degil, zaten ProtokolId'leri NULL (bkz. SyncLogEntry.ProtokolId).
+    // Bagi henuz doldurulmamis eski satirlar da disarida kalir; doldurma ilerledikce
+    // kendiliginden iceri girerler (bkz. ProtokolBagiDoldurmaService).
+    public record AkisKartlari(int Toplam, int Basarili, int Atlanan, int Hatali, int HicGitmedi);
+
+    public async Task<AkisKartlari> AkisKartlariniHesaplaAsync(
+        string? resourceType, DateTime? fromUtc, DateTime? toUtcExclusive, CancellationToken ct = default)
+    {
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+            WITH kayit AS (
+                -- 1. kademe: KAYIT basina tek durum, 'en kotu kazanir'.
+                SELECT ProtokolId,
+                       CASE WHEN SUM(Status = 'Failed')  > 0 THEN 'Failed'
+                            WHEN SUM(Status = 'Skipped') > 0 THEN 'Skipped'
+                            ELSE 'Success' END AS Durum
+                FROM SyncLog
+                WHERE ProtokolId IS NOT NULL AND ProtokolId <> $cozulemedi
+                  AND ($resourceType IS NULL OR ResourceType = $resourceType)
+                  AND ($from IS NULL OR CreatedAtUtc >= $from)
+                  AND ($to IS NULL OR CreatedAtUtc < $to)
+                GROUP BY ResourceType, PusulaId
+            ),
+            grup AS (
+                -- 2. kademe: PROTOKOL basina durum dagilimi.
+                SELECT ProtokolId,
+                       SUM(Durum = 'Success') AS Basarili,
+                       SUM(Durum = 'Skipped') AS Atlanan,
+                       SUM(Durum = 'Failed')  AS Hatali
+                FROM kayit
+                GROUP BY ProtokolId
+            )
+            SELECT COUNT(*),
+                   SUM(CASE WHEN Hatali = 0 AND Atlanan = 0 THEN 1 ELSE 0 END),
+                   SUM(CASE WHEN Hatali = 0 AND Atlanan > 0 THEN 1 ELSE 0 END),
+                   SUM(CASE WHEN Hatali > 0 THEN 1 ELSE 0 END),
+                   SUM(CASE WHEN Basarili = 0 THEN 1 ELSE 0 END)
+            FROM grup";
+        cmd.Parameters.AddWithValue("$cozulemedi", ProtokolCozulemedi);
+        cmd.Parameters.AddWithValue("$resourceType", (object?)resourceType ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$from", (object?)fromUtc?.ToString("O") ?? DBNull.Value);
+        cmd.Parameters.AddWithValue("$to", (object?)toUtcExclusive?.ToString("O") ?? DBNull.Value);
+
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        if (!await reader.ReadAsync(ct) || reader.IsDBNull(0)) return new AkisKartlari(0, 0, 0, 0, 0);
+        return new AkisKartlari(
+            reader.GetInt32(0),
+            reader.IsDBNull(1) ? 0 : reader.GetInt32(1),
+            reader.IsDBNull(2) ? 0 : reader.GetInt32(2),
+            reader.IsDBNull(3) ? 0 : reader.GetInt32(3),
+            reader.IsDBNull(4) ? 0 : reader.GetInt32(4));
+    }
+
+    // ---- PROTOKOL BAGI GERIYE DONUK DOLDURMA (2026-10-16) ----
+    //
+    // Sutun sonradan eklendigi icin eski satirlarda NULL. Doldurma Pusula'ya sormayi
+    // gerektiriyor, bu yuzden acilista degil; otomatik turda parca parca yuruyor
+    // (bkz. ProtokolBagiDoldurmaService). Yarim kalirsa bir sonraki tur kaldigi yerden
+    // devam eder -- is durum bazli, sayac tutulmuyor.
+
+    // Protokola bagli olmasi GEREKEN ama bagi henuz doldurulmamis satir sayisi.
+    // Patient/Practitioner haric: onlarda NULL dogru degerdir, eksik veri degil.
+    public async Task<int> ProtokolBagiEksikSayisiAsync(CancellationToken ct = default)
+    {
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+            SELECT COUNT(*) FROM SyncLog
+            WHERE ProtokolId IS NULL
+              AND ResourceType NOT IN ('Patient', 'Practitioner')";
+        return Convert.ToInt32(await cmd.ExecuteScalarAsync(ct));
+    }
+
+    // Doldurulacak bir sonraki (ResourceType, PusulaId) kumesi. SATIR degil KAYIT
+    // donuyor: ayni kaydin onlarca denemesi ayni protokole ait, Pusula'ya bir kez
+    // sormak yeter.
+    public async Task<List<(string ResourceType, int PusulaId)>> ProtokolBagiEksikKayitlarAsync(
+        int tavan, CancellationToken ct = default)
+    {
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+            SELECT ResourceType, PusulaId FROM SyncLog
+            WHERE ProtokolId IS NULL
+              AND ResourceType NOT IN ('Patient', 'Practitioner')
+            GROUP BY ResourceType, PusulaId
+            LIMIT $tavan";
+        cmd.Parameters.AddWithValue("$tavan", tavan);
+
+        var sonuc = new List<(string, int)>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            sonuc.Add((reader.GetString(0), reader.GetInt32(1)));
+        return sonuc;
+    }
+
+    // Cozulen protokol numaralarini yazar. Tek islemde (transaction) yurur: yarim kalmis
+    // bir parti, bir sonraki turda yeniden cozulup yazilabilir -- zarari yok, ama veri
+    // tabani tutarsiz kalmaz.
+    //
+    // COZULEMEYENLER (-1): Pusula'da karsiligi bulunamayan kayitlar. NULL birakilsaydi
+    // her turda yeniden sorulur, doldurma hic bitmezdi. -1 "soruldu, bulunamadi" demek;
+    // gruplama bunlari protokolsuz sayar, ki zaten oyleler.
+    public const int ProtokolCozulemedi = -1;
+
+    public async Task<int> ProtokolBagiYazAsync(
+        IReadOnlyDictionary<(string ResourceType, int PusulaId), int> cozum,
+        CancellationToken ct = default)
+    {
+        if (cozum.Count == 0) return 0;
+
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+        using var tx = conn.BeginTransaction();
+        var yazilan = 0;
+
+        using var cmd = conn.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = @"
+            UPDATE SyncLog SET ProtokolId = $protokolId
+            WHERE ResourceType = $resourceType AND PusulaId = $pusulaId AND ProtokolId IS NULL";
+        var pProtokol = cmd.Parameters.Add("$protokolId", Microsoft.Data.Sqlite.SqliteType.Integer);
+        var pTip = cmd.Parameters.Add("$resourceType", Microsoft.Data.Sqlite.SqliteType.Text);
+        var pPusula = cmd.Parameters.Add("$pusulaId", Microsoft.Data.Sqlite.SqliteType.Integer);
+
+        foreach (var kv in cozum)
+        {
+            pProtokol.Value = kv.Value;
+            pTip.Value = kv.Key.ResourceType;
+            pPusula.Value = kv.Key.PusulaId;
+            yazilan += await cmd.ExecuteNonQueryAsync(ct);
+        }
+
+        tx.Commit();
+        return yazilan;
+    }
+
     private static SyncLogEntry ReadEntry(SqliteDataReader reader) => new()
     {
         Id = reader.GetInt64(0),
@@ -850,5 +1047,8 @@ public class SyncLogStore
         // Eski kayitlarda NULL olabilir (sutun 2026-10-05'te eklendi); o satirlarin tamami
         // sandbox'a gitmisti, bu yuzden varsayilan Test.
         Ortam = reader.FieldCount > 16 && !reader.IsDBNull(16) ? reader.GetString(16) : "Test",
+        // Sutun 2026-10-16'da eklendi; geriye donuk doldurma ayri bir is oldugu icin eski
+        // satirlarda NULL olabilir. Patient/Practitioner'da ZATEN her zaman NULL'dur.
+        ProtokolId = reader.FieldCount > 17 && !reader.IsDBNull(17) ? reader.GetInt32(17) : null,
     };
 }

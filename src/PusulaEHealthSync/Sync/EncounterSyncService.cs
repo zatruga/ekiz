@@ -1,4 +1,4 @@
-using PusulaEHealthSync.Db;
+﻿using PusulaEHealthSync.Db;
 using PusulaEHealthSync.EHealth;
 using PusulaEHealthSync.Mapping;
 using PusulaEHealthSync.Persistence;
@@ -452,6 +452,7 @@ public class EncounterSyncService(
         ResourceType = "Encounter",
         PusulaId = protokol.ProtokolId,
         Status = status,
+        ProtokolId = protokol.ProtokolId,
         PatientFullName = protokol.HastaAdiSoyadi,
         FathersName = hasta?.BabaAdi,
         BirthDate = hasta?.DogumTarihi is null ? null : DateOnly.FromDateTime(hasta.DogumTarihi.Value),

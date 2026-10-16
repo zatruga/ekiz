@@ -1,4 +1,4 @@
-using PusulaEHealthSync.Db;
+﻿using PusulaEHealthSync.Db;
 using PusulaEHealthSync.EHealth;
 using PusulaEHealthSync.Mapping;
 using PusulaEHealthSync.Persistence;
@@ -71,6 +71,7 @@ public class ConditionSyncService(EHealthClient eHealthClient, SyncLogStore sync
         ResourceType = "Condition",
         PusulaId = tani.Id,
         Status = status,
+        ProtokolId = protokol.ProtokolId,
         PatientFullName = protokol.HastaAdiSoyadi,
         Fin = protokol.Fin,
     };

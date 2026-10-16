@@ -220,6 +220,26 @@ public class AutoSyncWorker(
 
         // 3) (Iptal senkronu artik turun BASINDA calisiyor -- bkz. 0. adim.)
 
+        // 4) PROTOKOL BAGI DOLDURMA -- SyncLog'daki eski satirlar icin, parca parca.
+        //
+        // Gonderime ve silmeye dokunmuyor: yalnizca kendi gunlugumuzdeki bir sutunu
+        // dolduruyor, bakanlik sistemine hicbir cagri yapmiyor. Bu yuzden Durdur kapisina
+        // da bagli degil -- Durdur "bakanlik sistemine yazma" demek, "kendi gunlugunu
+        // duzenleme" demek degil.
+        //
+        // Is bitince kendiliginden susuyor (doldurulacak satir kalmayinca 0 doner ve bir
+        // daha hicbir sey yapmaz), yani kalici bir maliyet degil.
+        try
+        {
+            await sp.GetRequiredService<ProtokolBagiDoldurmaService>().BirParcaDoldurAsync(ct);
+        }
+        catch (Exception ex)
+        {
+            // Doldurma YARDIMCI bir is. Patlarsa tur ozeti yazilmadan dusmemeli --
+            // gonderim ve silme zaten basariyla tamamlandi.
+            logger.LogWarning(ex, "Protokol bagi doldurma bu turda calisamadi.");
+        }
+
         // SON TURUN IZINI BIRAK. Ayarlar sayfasindaki durum kutusu bunu gosteriyor: "acik"
         // yazan bir anahtar dongunun gercekten calistigini kanitlamaz, son tur saati
         // kanitlar. Hata halinde de yaziliyor (asagidaki catch), yoksa olmus bir dongu

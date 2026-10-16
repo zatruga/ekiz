@@ -1,4 +1,4 @@
-using PusulaEHealthSync.Db;
+﻿using PusulaEHealthSync.Db;
 using PusulaEHealthSync.EHealth;
 using PusulaEHealthSync.Mapping;
 using PusulaEHealthSync.Persistence;
@@ -76,6 +76,7 @@ public class RadiologyReportSyncService(EHealthClient eHealthClient, SyncLogStor
         ResourceType = "DiagnosticReport",
         PusulaId = report.TetkikIslemId,
         Status = status,
+        ProtokolId = protokol.ProtokolId,
         PatientFullName = protokol.HastaAdiSoyadi,
         Fin = protokol.Fin,
     };

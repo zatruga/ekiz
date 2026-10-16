@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Authentication.Cookies;
+﻿using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
 using PusulaEHealthSync.Config;
 using PusulaEHealthSync.Db;
@@ -75,6 +75,7 @@ builder.Services.AddSingleton<TekilGonderimService>();
 builder.Services.AddSingleton<ProtocolFullSyncService>();
 builder.Services.AddSingleton<PendingWorkService>();
 builder.Services.AddSingleton<CancellationSyncService>();
+builder.Services.AddSingleton<ProtokolBagiDoldurmaService>();
 
 // Gun sonu raporu + e-posta gonderici (2026-10-05). MailSender Ayarlar'daki Mail.*
 // alanlarini okuyor -- o alanlar 2026-08'den beri duruyordu ama hicbir sey gondermiyordu.

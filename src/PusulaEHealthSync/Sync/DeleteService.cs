@@ -92,6 +92,10 @@ public class DeleteService(EHealthClient eHealthClient, PusulaRepository reposit
         PusulaId = source.PusulaId,
         Status = status,
         Operation = SyncOperation.Delete,
+        // Protokol bagi silme kaydina da TASINIR: aksi halde Aktivite Akisi'nda silmeler
+        // protokolsuz kalir ve hasta grubuna hic dusmezdi -- yani bir protokolun en onemli
+        // olayi (TRƏS'ten silinmesi) ekranda o hastanin altinda gorunmezdi.
+        ProtokolId = source.ProtokolId,
         PatientFullName = source.PatientFullName,
         FathersName = source.FathersName,
         BirthDate = source.BirthDate,

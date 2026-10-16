@@ -431,6 +431,7 @@ public class CancellationSyncService(
         {
             ResourceType = "Encounter",
             PusulaId = protokolId,
+            ProtokolId = protokolId,   // Encounter'da ikisi ayni sey
             Status = sonuc.Success ? SyncStatus.Success : SyncStatus.Failed,
             Operation = SyncOperation.Update,
             AzResourceId = azEncounterId,

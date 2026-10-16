@@ -1,4 +1,4 @@
-@page
+﻿@page
 @model PusulaEHealthSync.Web.Pages.AktiviteModel
 @using PusulaEHealthSync.Persistence
 @{
@@ -129,14 +129,28 @@
     <div class="alert @(Model.IslemBasarili ? "alert-success" : "alert-danger")">@Model.IslemMesaji</div>
 }
 
-@* Sessizce eksik sayi gostermek, hic gostermemekten kotu -- taban asildiginda
-   kullanici bunu BILMEK zorunda, cunku karttaki "toplam hasta" artik eksik. *@
+@* KIRPMA ARTIK YALNIZCA LISTEYI ETKILIYOR (2026-10-16). Kart sayilari tavansiz SQL'den
+   geliyor, yani aralik genisleyince dusemezler. Banner bu yuzden "sayilar eksik" demiyor;
+   yalnizca asagidaki listenin tamam olmadigini soyluyor. *@
 @if (Model.Ozet.Kirpildi)
 {
     <div class="alert alert-warning">
-        Bu tarih aralığında <strong>60.000'den fazla farklı kayıt</strong> var; hasta grupları en yeni
-        60.000 kayda göre çıkarıldı. Üstteki <strong>kayıt sayıları etkilenmez</strong> (doğrudan
-        veritabanı toplamından gelir); yalnızca hasta sayısı eksik kalabilir. Tam liste için aralığı daraltın.
+        Bu tarih aralığında <strong>60.000'den fazla farklı kayıt</strong> var;
+        <strong>aşağıdaki liste</strong> en yeni 60.000 kayda göre çıkarıldı.
+        Üstteki <strong>kartlar etkilenmez</strong> — hepsi doğrudan veritabanı toplamından gelir.
+        Listenin tamamı için aralığı daraltın.
+    </div>
+}
+@* DOLDURMA SURERKEN SUSMAK YANLIS OLUR: kart sayilari protokol bagina dayaniyor ve
+   bag henuz doldurulmamis eski satirlar sayima girmiyor. Is bitince bu uyari kendiliginden
+   kaybolur (bkz. ProtokolBagiDoldurmaService). *@
+@if (Model.Ozet.BagiEksikSatir > 0)
+{
+    <div class="alert alert-warning">
+        Geçmiş kayıtların protokol bağlantısı hâlâ <strong>dolduruluyor</strong>
+        (@Model.Ozet.BagiEksikSatir.ToString("N0") satır kaldı). Bu süre boyunca üstteki
+        kart sayıları eski kayıtları <strong>henüz içermiyor</strong>; doldurma ilerledikçe
+        kendiliğinden tamamlanır. Kayıt sayıları bundan etkilenmez.
     </div>
 }
 @if (Model.Ozet.PusulaHatasi)

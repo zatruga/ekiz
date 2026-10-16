@@ -1,4 +1,4 @@
-using PusulaEHealthSync.Db;
+﻿using PusulaEHealthSync.Db;
 using PusulaEHealthSync.EHealth;
 using PusulaEHealthSync.Mapping;
 using PusulaEHealthSync.Persistence;
@@ -131,6 +131,7 @@ public class LabResultSyncService(
         ResourceType = "Observation",
         PusulaId = lab.LabaratuarSonucId,
         Status = status,
+        ProtokolId = protokol.ProtokolId,
         PatientFullName = protokol.HastaAdiSoyadi,
         Fin = protokol.Fin,
     };

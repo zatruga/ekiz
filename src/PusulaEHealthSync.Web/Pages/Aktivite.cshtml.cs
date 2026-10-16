@@ -1,4 +1,4 @@
-using Microsoft.AspNetCore.Mvc;
+﻿using Microsoft.AspNetCore.Mvc;
 using Microsoft.AspNetCore.Mvc.RazorPages;
 using Microsoft.Extensions.Caching.Memory;
 using PusulaEHealthSync.Db;
@@ -258,6 +258,15 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
         var durumSayilari = await syncLog.GetStatusCountsAsync(
             ResourceType, fromUtc, toUtcExclusive, ct);
 
+        // KART SAYILARI AYRI VE TAVANSIZ -- ozet listesinden bagimsiz.
+        var kartlar = await syncLog.AkisKartlariniHesaplaAsync(
+            ResourceType, fromUtc, toUtcExclusive, ct);
+
+        // Protokol bagi henuz doldurulmamis satir sayisi. Doldurma surerken kart
+        // sayilari eksik kalir; ekranin bunu SOYLEMESI gerekiyor, sessizce eksik
+        // sayi gostermemesi.
+        var bagiEksik = await syncLog.ProtokolBagiEksikSayisiAsync(ct);
+
         var kirpildi = satirlar.Count >= OzetTavani;
         if (satirlar.Count == 0) return AkisOzeti.Bos;
 
@@ -392,10 +401,19 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
             BasariliKayit: durumSayilari.GetValueOrDefault(nameof(SyncStatus.Success)),
             AtlananKayit: durumSayilari.GetValueOrDefault(nameof(SyncStatus.Skipped)),
             HataliKayit: durumSayilari.GetValueOrDefault(nameof(SyncStatus.Failed)),
-            HastaToplam: hastaGruplari.Count,
-            HastaBasarili: hastaGruplari.Count(g => g.Hatali == 0 && g.Atlanan == 0),
-            HastaAtlanan: hastaGruplari.Count(g => g.Hatali == 0 && g.Atlanan > 0),
-            HastaHatali: hastaGruplari.Count(g => g.Hatali > 0),
+            // KART SAYILARI ARTIK TAVANSIZ SQL'DEN (2026-10-16). Eskiden bunlar da
+            // kirpilmis listeden (hastaGruplari) sayiliyordu; kirpma devreye girdiginde
+            // tarih araligi GENISLETILINCE sayi DUSEBILIYORDU -- kullanici bildirdi.
+            // Ayrintili gerekce SyncLogStore.AkisKartlariniHesaplaAsync'te.
+            //
+            // Liste (gruplar) hala kirpili: o bir SAYFALANMIS GORUNUM, sayi degil.
+            // Kirpma orada zararsiz; kart sayilarina artik hic karismiyor.
+            HastaToplam: kartlar.Toplam,
+            HastaBasarili: kartlar.Basarili,
+            HastaAtlanan: kartlar.Atlanan,
+            HastaHatali: kartlar.Hatali,
+            HastaHicGitmediSql: kartlar.HicGitmedi,
+            BagiEksikSatir: bagiEksik,
             Kirpildi: kirpildi,
             PusulaHatasi: pusulaHatasi);
 
@@ -560,9 +578,11 @@ public record AkisOzeti(
     Dictionary<int, ProtokolListItem> Protokoller,
     int ToplamKayit, int BasariliKayit, int AtlananKayit, int HataliKayit,
     int HastaToplam, int HastaBasarili, int HastaAtlanan, int HastaHatali,
+    int HastaHicGitmediSql, int BagiEksikSatir,
     bool Kirpildi, bool PusulaHatasi)
 {
-    public static readonly AkisOzeti Bos = new([], new(), 0, 0, 0, 0, 0, 0, 0, 0, false, false);
+    public static readonly AkisOzeti Bos =
+        new([], new(), 0, 0, 0, 0, 0, 0, 0, 0, 0, 0, false, false);
 
     // HIC GONDERILEMEYEN: tek bir kaydi bile basariyla gitmemis hastalar.
     //
@@ -571,7 +591,8 @@ public record AkisOzeti(
     // soyledigi seyin kokten farkli olmasi: 40 kaydindan 39'u giden bir hasta ile
     // hicbiri gitmeyen bir hasta ayni kartta ayni agirlikta goruruyor, oysa ikincisi
     // bakanlik tarafinda HIC VAR OLMAYAN bir hasta demek.
-    public int HastaHicGitmedi => Gruplar.Count(g => g.HicGitmedi);
+    // SQL'den geliyor (tavansiz); liste kirpili oldugu icin Gruplar'dan sayilamaz.
+    public int HastaHicGitmedi => HastaHicGitmediSql;
     public int HicGitmeyenKayit => Gruplar.Where(g => g.HicGitmedi).Sum(g => g.Kayitlar.Count);
 }
 

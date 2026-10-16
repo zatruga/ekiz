@@ -1,4 +1,4 @@
-namespace PusulaEHealthSync.Persistence;
+﻿namespace PusulaEHealthSync.Persistence;
 
 public enum SyncStatus { Success, Skipped, Failed }
 public enum SyncOperation { Validate, Create, Update, Delete }
@@ -28,6 +28,21 @@ public class SyncLogEntry
     public string? RequestJson { get; set; }                  // gonderilen payload (debug/dashboard icin)
     public string? ResponseJson { get; set; }                 // sunucudan donen ham yanit
     public DateTime CreatedAtUtc { get; set; } = DateTime.UtcNow;
+
+    // BU KAYDIN PROTOKOLU (2026-10-16'da eklendi).
+    //
+    // NEDEN GEREKLI: SyncLog'da protokol bagi yoktu -- her kaynak tipi kendi id uzayini
+    // kullaniyor (Observation'da LabaratuarSonucId, Procedure'de ProtokolIslem.Id ...).
+    // Aktivite Akisi hasta bazinda gruplamak icin her kaydin protokolunu Pusula'ya
+    // sorarak cozuyor, bu pahali oldugu icin de sorgu 60.000 kayitla kirpiliyordu.
+    // Kirpma devreye girince kartlardaki hasta sayilari kirpilmis bir kumeden hesaplanir
+    // hale geldi ve tarih araligi genisletildiginde DUSEBILIR oldu.
+    //
+    // Deger yazma aninda zaten elimizde: her NewEntry fabrikasi ProtokolListItem aliyor.
+    //
+    // NULL ANLAMLI: Patient ve Practitioner protokola bagli degil -- birden cok protokolde
+    // kullaniliyorlar. Onlarda NULL "eksik veri" degil, "protokol-disi kayit" demektir.
+    public int? ProtokolId { get; set; }
 
     // Bu deneme HANGI ORTAMA gitti: "Test" (sandbox) ya da "Live". 2026-10-05'te eklendi.
     // Sandbox'a gonderilmis bir kaydin canli ortamda "gonderilmis" sayilmasi, canliya
