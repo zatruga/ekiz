@@ -446,3 +446,41 @@ konulmuyor" anlamına gelmez — geçmişimiz yalnızca bu hastaneyi kapsadığ�
 
 **Sorumuz:** Ülke çapında bir tanı geçmişi sorgusu sunuyor musunuz? Varsa `true`
 değerini de doğrulukla gönderebiliriz. Yoksa mevcut yaklaşım uygun mudur?
+
+---
+
+## `ImagingStudy` — `identifier:studyInstanceUID` zorunluluğu (2026-10-16)
+
+`az-imaging-study` profili `identifier:studyInstanceUID` alanını **1..1 (Must
+Support)** yapıyor. Bu alan DICOM çalışmasının PACS içindeki kimliğidir.
+
+**Durumumuz ölçülerek belirlendi:** Bu değer hastane bilgi sistemine (Pusula)
+hiç ulaşmıyor. Pusula ile PACS arasındaki HL7 entegrasyonu **tek yönlü** —
+Pusula görüntüleme isteğini ve rapor metnini PACS'a gönderiyor, PACS'tan hiçbir
+mesaj geri dönmüyor (194.619 mesajın tamamı giden yön). Study Instance UID'yi
+modalite, çekim anında üretip PACS'a yazıyor; dolayısıyla UID yalnızca PACS
+arşivinde var.
+
+PACS'a salt-okunur sorgu erişimi için hastane içinde talep açtık (accession
+numarası → Study Instance UID). Erişim gelene kadar `ImagingStudy`
+gönderemiyoruz, çünkü **uydurma bir UID üretmek** DICOM açısından yanlış veri
+olur: o UID hiçbir gerçek çalışmayı işaret etmez ve ileride arşivle
+eşleştirilemez.
+
+**Sorularımız:**
+
+1. `identifier:studyInstanceUID` sizin tarafta **ne için kullanılıyor?** TRƏS
+   hastanenin PACS arşivine erişmiyorsa, bu UID yalnızca bir benzersiz anahtar
+   işlevi görüyor olabilir. Öyleyse accession numarası (`BAK` + numara) temelli
+   başka bir kimlik kabul edilir mi?
+2. Kabul edilmiyorsa: PACS erişimi gecikirse `ImagingStudy` gönderimini
+   **bekletmemiz** mi, yoksa diğer alanları gönderip bu alanı boş bırakmamız mı
+   tercih edilir? (Profil 1..1 olduğu için ikincisi doğrulamadan geçmez; bu
+   yüzden soruyoruz.)
+3. `ImagingStudy` bizden **hangi öncelikte** bekleniyor? 01.10.2026 sonrası
+   3.257 onaylı radyoloji raporu birikti; bunların `DiagnosticReport`'ları
+   gidiyor, yalnızca `ImagingStudy` bağlantısı eksik.
+
+**Not:** Diğer tüm zorunlu alanlar hazır — accession numarası (%100), modalite
+(%100, DICOM kodlu), hasta, müayinə, tarih ve görüntü sayısı. Eksik olan tek
+alan budur.
