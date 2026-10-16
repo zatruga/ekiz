@@ -31,3 +31,9 @@ Thumbs.db
 # Scratch/throwaway exploration project - not part of the shipped solution
 src/ConnTest/*.json
 publish/
+
+# Playwright MCP arac ciktisi - sayfa snapshotlari hasta verisi icerebilir
+.playwright-mcp/
+
+# Windows/Git Bash cokme dokumu
+*.stackdump
