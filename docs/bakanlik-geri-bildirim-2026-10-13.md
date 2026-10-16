@@ -17,13 +17,21 @@ bugünkü davranışı anlatıyor.
 | 1b | `Patient.maritalStatus` | ✅ Kod doğru | Pusula'da %12,1 dolu — **veri tarafı** |
 | 2 | Ad/soyad `trim` | ✅ **Yapıldı** (`16e8a24`) | Hastada da vardı, o da düzeltildi |
 | 3a | `Condition.diagnosis-type` | ✅ Kod doğru | **Hata değil** — ön tanıya sıra kodu yazılmıyor |
-| 3b | `Condition.first-diagnosis` | ⛔ **Bloke** | 16.09'da sorduk, cevap gelmedi |
+| 3b | `Condition.first-diagnosis` | ✅ **Kısmen yapıldı** (`f16b41e`) | Doğrulanabilir yarısı gidiyor (%47,6); `true` için soru duruyor |
 | 4 | `Procedure.performer` | ✅ **Yapıldı** (`6213bba`) | Practitioner klinik personele genişletildi |
-| 5.1 | Lab birim → UCUM | ⬜ **Yapılacak** | 56 ayrı birim, 43'ü düzeltilecek |
-| 5.2 | Sayısal sonuç → `valueQuantity` | ⬜ **Yapılacak** | 3.528 değer — profil çelişkisi var |
-| 5.3 | `referenceRange.low/high` | ⬜ **Yapılacak** | 71.565 kayıt — **en riskli madde** |
+| 5.1 | Lab birim → UCUM | ✅ **Yapıldı** (`38a666c` + `412b5aa`) | 56 birimin 48'i eşleşti (%99,0 değer kapsamı) |
+| 5.2 | Sayısal sonuç → `valueQuantity` | ✅ **Yapıldı** (`88f901a`) | Birimsizler `valueString`'e düşürüldü |
+| 5.3 | `referenceRange.low/high` | ✅ **Yapıldı** (`fd80e15`) | %96,2 kapsam; yalnızca kesin iki taraflı aralıklar |
 | 6.1 | `DiagnosticReport.effectiveDateTime` | ✅ **Yapıldı** (`235a85e`) | Kod zaten doğruydu, veri eksikti |
-| 6.2 | `ImagingStudy` bağlantısı | ⛔ **Bloke** | PACS erişimi — mapper hazır, bağlanmamış |
+| 6.2 | `ImagingStudy` bağlantısı | ⛔ **Bloke — kanıtlandı** | PACS erişimi. Engel 16.10'da kesinleştirildi, aşağıya bakın |
+
+> **Tablo güncellendi: 16.10.2026.** Bölüm C'deki üç laboratuvar maddesi (5.1, 5.2,
+> 5.3) ve 3b o tarihten sonra tamamlandı; başlıklarındaki "⬜ sırada" ibareleri
+> eskidir. **Kod tarafında bakanlığın tek açık maddesi 6.2'dir** ve o bizim
+> elimizde değil.
+>
+> ⚠️ **Hepsi commit'li ve push'lu, ama sunucuya henüz dağıtılmadı.** Bakanlık
+> *Güncelle* sayfasından dağıtım yapılana kadar eski davranışı görmeye devam eder.
 
 ---
 
@@ -469,13 +477,55 @@ referans veriliyor.
 `docs/pacs-imagingstudy-erisim-talebi.md` dosyasında; 16.09 geri bildiriminde de
 "Engelli" olarak işaretlenmişti.
 
+### 16.10.2026 — engel yeniden ölçüldü ve **kanıtlandı**
+
+"Engelli" demek yetmez; eski gerekçe kolon adı taramasına dayanıyordu ve bu
+veritabanında o yöntem güvenilmez. Üç katmanda ölçüldü:
+
+| Kontrol | Sonuç |
+|---|---|
+| Sunucudaki **altı veritabanının tamamı** tarandı (`Dicom`, `SOPInstance`, `SeriesUid`, `Accession`, `Pacs`) | UID kolonu yok. En yakın aday `Aktarim.DicomGoruntuAktarim.DicomNo` → `nvarchar(30)`, bir UID'yi tutamaz, **tablo boş** |
+| PACS izi taşıyan **5 tablo** | beşi de **0 satır** |
+| `Ortak.Hl7Mesaj` — **194.619** `FUJIPACSMP` mesajı (bugün 15:21'e kadar canlı) | **tamamını Pusula gönderiyor**; `TransferTipi` 0 ve 1 iki ayrı *giden* kanal, **gelen yön yok** |
+| Mesaj gövdelerinde `ZDS` / `IPC` segmenti, `1.2.` / `1.3.` UID kalıbı | **sıfır** |
+
+**Mimari sonuç:** entegrasyon **tek yönlü** — Pusula isteği (`ORM`) ve rapor
+metnini (`ORU`) PACS'a yazıyor, karşılığında hiçbir mesaj almıyor. Study Instance
+UID'yi modalite çekim anında üretip PACS'a yazar. Yani UID Pusula'da
+*bulunamıyor* değil, **bulunması mümkün değil.**
+
+### Buna karşılık talep **tek alana** indi
+
+Eski talep PACS'tan iki şey istiyordu (UID + modalite). Modalite artık Pusula'dan
+geliyor: **`RIS.Tetkik.PACSModaliteTipiId`**, 01.10 sonrası 3.257 onaylı raporda
+**%100 dolu** ve zaten DICOM kodlu (US, CR, CT, MR, XA, MG, BMD, ECG, OT). 6
+satırlık bir eşleştirme yeterli (`EC`→`US`, `SFT`/`EEG`/`EMG`/`XX`/`PTA`→`OT`).
+
+| `az-imaging-study` zorunlu alanı | Durum |
+|---|---|
+| `identifier:accessionNumber` | ✅ %100 — `BAK` + `TetkikIslem.Id`, canlı HL7'den teyitli |
+| `modality` | ✅ %100 — Pusula'dan |
+| `subject` · `encounter` · `started` | ✅ |
+| `numberOfInstances` | ✅ %66 (`0..1`, zorunlu değil) |
+| **`identifier:studyInstanceUID`** | ❌ **tek eksik alan** |
+
 ### Nasıl yapılmalı
 
 1. **Önce PACS erişimi.** Study Instance UID olmadan `ImagingStudy` gönderilemez —
-   mapper'daki DICOM UID biçim denetimi uydurma UID'yi zaten reddeder.
-2. Erişim gelince: `ImagingStudySyncService` yazılacak, `SyncRadiologyReportsAsync`
+   mapper'daki DICOM UID biçim denetimi uydurma UID'yi zaten reddeder. Talep tek
+   cümleye indi: *"accession verince Study Instance UID döndüren salt-okunur
+   sorgu."* C-FIND standart bir DICOM hizmeti; Fujifilm tarafında geliştirme
+   değil **yetki** işi.
+2. Paralel olarak **bakanlığa soruldu** (`docs/bakanlik-sorulari.md`, 16.10): bu
+   alanı ne için kullanıyorlar, accession temelli bir kimlik kabul edilir mi?
+   Engeli karşı taraftan açabilecek tek soru bu.
+3. Erişim gelince: `ImagingStudySyncService` yazılacak, `SyncRadiologyReportsAsync`
    zincirine **DiagnosticReport'tan önce** eklenecek (referans sırası).
-3. `DiagnosticReport.imagingStudy` alanı `RadiologyReportMapper`'a eklenecek.
+4. `DiagnosticReport.imagingStudy` alanı `RadiologyReportMapper`'a eklenecek.
+
+**Servis şimdi yazılmadı, bilerek:** bugün yazılsa 3.257 kaydın %100'ü
+`Skipped("UID yok")` üretir — takılanlar listesini şişirir, hiçbir şeyi
+hızlandırmaz. Erişim geldiğinde 2–3 saatlik iş.
 
 **Zorluk: Yüksek + dış bağımlılık.** Kod işi orta; engel kurum dışı.
 
