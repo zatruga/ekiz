@@ -98,6 +98,29 @@ public class AutoSyncWorker(
         var batchSize = await settings.GetIntAsync(
             SettingsStore.AutoSendBatchSizeKey, SettingsStore.AutoSendBatchSizeDefault, ct);
 
+        // 0) IPTAL SENKRONU EN BASTA -- silme, gonderimden ONCE gelir.
+        //
+        // KULLANICI KARARI (2026-10-16): "silinenler protokol vs var ise onlara ait herseyi
+        // is akisa siraya alip hatta onlara ONCELIK verip otomatik silmeli."
+        //
+        // NEDEN SIRA ONEMLI: eskiden bu adim turun EN SONUNDAYDI. Buyuk bir parti
+        // (varsayilan 5000) bir turu saatlerce surdurebiliyor; o sure boyunca Pusula'da
+        // silinmis bir protokol bakanlik sisteminde KAYITLI kalmaya devam ediyordu. Daha
+        // kotusu, parti ortasinda Durdur'a basilirsa silme adimina HIC sira gelmiyordu --
+        // yani silme, gonderimin kuyrugunda rehin kaliyordu.
+        //
+        // Gonderim idempotent: bir tur gecikse bir sonraki turda aynen gonderilir. Silme
+        // ise gecikdigi her dakika boyunca devlet sisteminde YANLIS veri birakir. Oncelik
+        // dogru tarafa verildi.
+        //
+        // DURDUR BURAYA DA GECIYOR (KULLANICI KARARI 2026-10-05: "durdur tum gonderim ve
+        // silmeler icin gecerli olsun"). Kapi HER SILMEDEN ONCE soruluyor
+        // (bkz. CancellationSyncService.RunAsync), yani tur ortasinda durdurma da gecer.
+        // Ayarlar okumasi ucuz: SettingsStore 3 sn'lik anlik goruntu onbellegi tutuyor.
+        var iptal = await cancellationSync.RunAsync(
+            scanDays: null, ct,
+            devamEdilsinMi: c => settings.GetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, false, c));
+
         // 1) Bekleyenleri hesapla. maxProtocols parti boyutundan BUYUK tutuluyor ki
         //    Bekleyen Isler sayfasi anlamli bir liste gosterebilsin.
         //
@@ -195,22 +218,7 @@ public class AutoSyncWorker(
         // 2) TAKILANLAR -- gunde bir kez, kendi turunda (bkz. TakilanlariDeneAsync).
         await TakilanlariDeneAsync(sp, settings, ct);
 
-        // 3) Iptal senkronu -- Pusula'da silinmis olanlari TRƏS'ten de sil.
-        //
-        // DURDUR BURAYA DA GECIYOR (KULLANICI KARARI 2026-10-05: "durdur tum gonderim ve
-        // silmeler icin gecerli olsun").
-        //
-        // Eskiden yalnizca ustteki gonderim dongusu kesiliyordu; tur ortasinda Durdur'a
-        // basilsa bile bu satir calisiyor ve bakanlik sisteminden KALICI kayit siliyordu.
-        // Gonderim idempotent -- yanlissa tekrar gonderilir; silme degil. Asimetri tam da
-        // yanlis taraftaydi.
-        //
-        // Kapi HER SILMEDEN ONCE soruluyor (bkz. CancellationSyncService.RunAsync), yani
-        // tur ortasinda durdurma da geciyor. Ayarlar okumasi ucuz: SettingsStore 3 sn'lik
-        // anlik goruntu onbellegi tutuyor.
-        var iptal = await cancellationSync.RunAsync(
-            scanDays: null, ct,
-            devamEdilsinMi: c => settings.GetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, false, c));
+        // 3) (Iptal senkronu artik turun BASINDA calisiyor -- bkz. 0. adim.)
 
         // SON TURUN IZINI BIRAK. Ayarlar sayfasindaki durum kutusu bunu gosteriyor: "acik"
         // yazan bir anahtar dongunun gercekten calistigini kanitlamaz, son tur saati
@@ -222,9 +230,10 @@ public class AutoSyncWorker(
         await settings.SetStringAsync(SettingsStore.AutoSendLastRunOzetKey, ozet, ct);
         logger.LogInformation(
             "Otomatik gonderim turu bitti: {Basarili} basarili, {Basarisiz} basarisiz. " +
-            "Iptal senkronu: {IptalProtokol} protokol / {IptalIslem} islem / {IptalRadyoloji} radyoloji "
-            + "tarandi, {Silinen} kayit silindi, {Hata} hata.",
-            basarili, basarisiz,
+            "Iptal senkronu: {Supurulen} silinmis protokol supuruldu, {IptalProtokol} protokol / "
+            + "{IptalIslem} islem / {IptalRadyoloji} radyoloji tarandi, {Silinen} kayit silindi, "
+            + "{Hata} hata.",
+            basarili, basarisiz, iptal.SupurulenProtokol,
             iptal.IptalProtokol, iptal.IptalIslem, iptal.IptalRadyoloji, iptal.Silinen, iptal.Hata);
     }
 

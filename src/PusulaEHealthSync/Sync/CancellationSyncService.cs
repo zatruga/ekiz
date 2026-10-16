@@ -69,15 +69,24 @@ public class CancellationSyncService(
             return false;
         }
 
+        // 0) ONCELIKLI SUPURME -- silinmis protokoller her seyden once gider.
+        //    Ayrintili gerekce SilinmisProtokolSupurmesiAsync'te.
+        var supurme = await SilinmisProtokolSupurmesiAsync(ct, Devam);
+        silinen += supurme.Silinen; hata += supurme.Hata;
+
         // 1) IPTAL EDILMIS PROTOKOLLER -- butun zincir gecersiz.
         var iptalProtokoller = await repository.GetCancelledProtokollerAsync(fromLocal, ct);
         foreach (var p in iptalProtokoller)
         {
             if (!await Devam()) break;
+            // 0. adimda zaten temizlendiyse tekrar denenmez -- aksi halde her hedef icin
+            // bir SyncLog okumasi yapilip hepsi "zaten silinmis" diye atlanirdi.
+            if (supurme.Islenen.Contains(p.ProtokolId)) continue;
             var (ok, err) = await DeleteProtocolChainAsync(p.ProtokolId, ct: ct);
             silinen += ok; hata += err;
         }
         var iptalProtokolIdSet = iptalProtokoller.Select(p => p.ProtokolId).ToHashSet();
+        iptalProtokolIdSet.UnionWith(supurme.Islenen);
 
         // 2) IPTAL EDILMIS TEK ISLEMLER -- protokolu ayakta ama islem iptal edilmis.
         //    Protokolu zaten iptal olanlar 1. adimda toptan halledildi, tekrar denenmez.
@@ -111,7 +120,87 @@ public class CancellationSyncService(
         }
 
         return new CancellationRunResult(
-            iptalProtokoller.Count, iptalIslemler.Count, iptalRadyoloji.Count, silinen, hata);
+            iptalProtokoller.Count, iptalIslemler.Count, iptalRadyoloji.Count, silinen, hata,
+            supurme.Islenen.Count);
+    }
+
+    // SILINMIS PROTOKOL SUPURMESI -- 0. adim, TARIH PENCERESI YOK (2026-10-16).
+    //
+    // NEDEN AYRI BIR ADIM: 1. adimdaki GetCancelledProtokollerAsync tarih pencereli
+    // (ModifiedDate >= @From OR KapanisTarihi/AcilisTarihi >= @From). Gonderildikten
+    // uzun sure SONRA silinen -- ya da ModifiedDate'i pencerenin disinda kalan -- bir
+    // protokol o sorgudan duser ve otomatik yola HIC girmez. Ana Sayfa'daki "Pusula'da
+    // silinmis ama TRƏS'te hala kayitli" paneli tam da bunlari gosteriyordu: otomatik
+    // yolun yapisal olarak ulasamadigi, elle silinmeyi bekleyen kayitlar.
+    //
+    // KULLANICI KARARI (2026-10-16): "silinenler protokol vs var ise onlara ait herseyi
+    // is akisa siraya alip hatta onlara oncelik verip otomatik silmeli bana sormamasi
+    // gerek yada benim bir islem yapmam gerekmemeli."
+    //
+    // AYNI SORU TEK YERDE CEVAPLANIYOR: bu adim panelin KULLANDIGI KAYNAGIN AYNISINI
+    // kullaniyor (GetActiveSentEncounterEntriesAsync + GetStatesByIdsAsync). Ayri bir
+    // sorgu yazilsaydi ikisi kacinilmaz olarak birbirinden ayrisirdi -- bu projede
+    // tekrar eden kusur tam olarak budur. Panel bundan sonra yalnizca bir GOSTERGEDIR:
+    // dolu kalmasi, bu adimin calismadigi anlamina gelir.
+    //
+    // ZINCIRIN TAMAMI SILINIR: DeleteProtocolChainAsync cagriliyor -- raporlar, vital
+    // bulgular, epikriz, islemler, tanilar, en sonda Muayine. Yalnizca Encounter silmek
+    // yetmez: cocuklar hala referans verdigi icin FHIR 409 doner, donmese cocuklar
+    // bakanlikta YETIM kalirdi.
+    private async Task<(HashSet<int> Islenen, int Silinen, int Hata)> SilinmisProtokolSupurmesiAsync(
+        CancellationToken ct, Func<Task<bool>> devam)
+    {
+        var islenen = new HashSet<int>();
+        int silinen = 0, hata = 0;
+
+        var gonderilmis = await syncLog.GetActiveSentEncounterEntriesAsync(ct);
+        if (gonderilmis.Count == 0) return (islenen, silinen, hata);
+
+        var protokolIdler = gonderilmis.Select(e => e.PusulaId).Distinct().ToList();
+        var durumlar = await repository.GetStatesByIdsAsync(protokolIdler, ct);
+
+        // TOPLU YANLIS SILME KORUMASI -- ters kontroldeki iki kapinin aynisi, ayni
+        // gerekceyle: silme bakanlik sisteminden KALICI veri cikarir.
+        if (durumlar.Count == 0)
+        {
+            logger.LogError(
+                "Silinmis protokol supurmesi DURDURULDU: gonderilmis {Adet} protokolun HICBIRI "
+                + "Pusula'dan okunamadi. Bu hepsinin silindigi anlamina gelmez -- cok daha buyuk "
+                + "ihtimalle sorgu ya da baglanti sorunu. Silme yapilmadi.", protokolIdler.Count);
+            return (islenen, silinen, hata + 1);
+        }
+
+        var silinmisler = durumlar.Where(d => d.Value == 0).Select(d => d.Key).ToList();
+        if (silinmisler.Count == 0) return (islenen, silinen, hata);
+
+        var oran = (double)silinmisler.Count / durumlar.Count;
+        if (silinmisler.Count >= KayipTabani && oran > KayipOraniEsigi)
+        {
+            logger.LogError(
+                "Silinmis protokol supurmesi DURDURULDU: okunan {Adet} protokolun {Silinmis} tanesi "
+                + "({Oran:P1}) Pusula'da State=0 -- esik %{Esik}. Bu kadar coklu silme beklenmez, "
+                + "veri/sorgu sorunu varsayildi. Silme yapilmadi.",
+                durumlar.Count, silinmisler.Count, oran, KayipOraniEsigi * 100);
+            return (islenen, silinen, hata + 1);
+        }
+
+        foreach (var protokolId in silinmisler)
+        {
+            if (!await devam()) break;
+            var (ok, err) = await DeleteProtocolChainAsync(
+                protokolId, $"silinmis protokol {protokolId} (oncelikli supurme)", ct);
+            silinen += ok; hata += err;
+            // Durdurulsa bile islenen olarak isaretlenmez degil -- zincir denendi, 1. adimin
+            // ayni protokolu tekrar denemesi gereksiz is olurdu.
+            islenen.Add(protokolId);
+        }
+
+        logger.LogInformation(
+            "Oncelikli supurme: {Adet} gonderilmis protokol kontrol edildi, {Silinmis} tanesi "
+            + "Pusula'da silinmis -> {Silinen} kayit silindi, {Hata} hata.",
+            durumlar.Count, silinmisler.Count, silinen, hata);
+
+        return (islenen, silinen, hata);
     }
 
     // TERS YONLU KONTROL (2026-09-29, kullanici istegi uzerine patoloji/epikriz/islem/
@@ -440,4 +529,5 @@ public class CancellationSyncService(
 }
 
 public record CancellationRunResult(
-    int IptalProtokol, int IptalIslem, int IptalRadyoloji, int Silinen, int Hata);
+    int IptalProtokol, int IptalIslem, int IptalRadyoloji, int Silinen, int Hata,
+    int SupurulenProtokol = 0);

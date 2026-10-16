@@ -21,7 +21,7 @@ public class IndexModel(
     SyncLogStore syncLog,
     SettingsStore settings,
     ProtocolFullSyncService protocolFullSync,
-    DeleteService deleteService,
+    CancellationSyncService cancellationSyncService,
     ILogger<IndexModel> logger) : PageModel
 {
     private const int PageSize = 30;
@@ -312,10 +312,17 @@ public class IndexModel(
 
     // Pusula'da State=0'a dusmus (iptal/silinmis) ama TRƏS'te hala kayitli gorunen
     // Encounter'lari bulur (bkz. konusma, 2026-08-20: "gonderimi yapilan bir protokol
-    // silinirse gonderimler de silinsin"). Otomatik/sessiz silmiyoruz -- kullaniciya
-    // ayri bir uyari panelinde gosterip, tek onayla toplu silme sunuyoruz (mevcut Sil
-    // ozelligiyle ayni guvenlik yaklasimi: her zaman gorunur ve geri donusu olmayan bir
-    // islem oldugu icin acikca tetiklenmeli).
+    // silinirse gonderimler de silinsin").
+    //
+    // ARTIK OTOMATIK (2026-10-16): bu panel eskiden tek eylem yoluydu -- kullanici gorup
+    // elle silmek zorundaydi. Kullanici karari: "onlara ait herseyi is akisa siraya alip
+    // hatta onlara oncelik verip otomatik silmeli, benim bir islem yapmam gerekmemeli."
+    // Otomatik tur artik AYNI kaynagi kullanan oncelikli bir supurme adimiyla basliyor
+    // (CancellationSyncService.SilinmisProtokolSupurmesiAsync).
+    //
+    // PANEL NEDEN DURUYOR: artik bir GOSTERGE. Dolu kalmasi supurmenin calismadigini
+    // soyler -- otomatik gonderim kapali, toplu-silme korumasi devreye girmis ya da
+    // zincirde bir hata var. Elle silme dugmesi de yedek yol olarak kaliyor.
     private async Task LoadVoidedButSentAsync(CancellationToken ct)
     {
         var sentEntries = await syncLog.GetActiveSentEncounterEntriesAsync(ct);
@@ -328,6 +335,18 @@ public class IndexModel(
             .ToList();
     }
 
+    // ZINCIRIN TAMAMINI SILER (2026-10-16'da DUZELTILDI).
+    //
+    // ESKI DAVRANIS HATALIYDI: bu metot yalnizca Encounter kaydini siliyordu. Oysa o
+    // protokolun raporlari, vital bulgulari, epikrizi, islemleri ve tanilari TRƏS'te
+    // duruyor ve hepsi Encounter'a referans veriyor. FHIR, hala referans edilen bir
+    // kaydi HTTP 409 ile reddeder -- yani dugme ya hic calismiyor, ya da (referanslar
+    // cozulmusse) cocuklari bakanlikta YETIM birakiyordu. Kullanici "sildim" sanirdi.
+    //
+    // Ayni ekranin "Tümünü Sil" dugmesi (Protokol Detay) ve otomatik supurme zaten
+    // DeleteProtocolChainAsync cagiriyordu; yalnizca bu yol ayrisik kalmisti. Silme
+    // sirasi (distan ice) ve "Patient bilerek silinmez" karari tek kopya halinde
+    // CancellationSyncService'te durur.
     public async Task<IActionResult> OnPostBulkSilIptalAsync(List<long> selectedLogIds, CancellationToken ct)
     {
         int ok = 0, failed = 0;
@@ -336,13 +355,14 @@ public class IndexModel(
             var entry = await syncLog.GetByIdAsync(logId, ct);
             if (entry is null) continue;
 
-            var result = await deleteService.DeleteAsync(entry, ct);
-            if (result.Status == SyncStatus.Success) ok++; else failed++;
+            var (zincirOk, zincirErr) = await cancellationSyncService.DeleteProtocolChainAsync(
+                entry.PusulaId, $"silinmis protokol {entry.PusulaId} (elle)", ct);
+            ok += zincirOk; failed += zincirErr;
         }
 
         BulkResultMessage = selectedLogIds.Count == 0
             ? "Hiçbir kayıt seçilmedi."
-            : $"{selectedLogIds.Count} iptal edilmiş protokolün TRƏS kaydı silinmeye çalışıldı -- {ok} silindi, {failed} hata.";
+            : $"{selectedLogIds.Count} silinmiş protokolün TRƏS zinciri temizlenmeye çalışıldı -- {ok} kayıt silindi, {failed} hata.";
 
         return RedirectToPage("/Index", new { From, To, Search, HastaDurumu, ProtokolDurumu, IcbariSadece, P });
     }
