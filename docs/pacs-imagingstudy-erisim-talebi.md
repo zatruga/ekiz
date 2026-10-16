@@ -3,7 +3,20 @@
 **Amaç:** Azerbaycan e-Health'e `az-imaging-study` kaynağı gönderebilmek. Profil iki
 kimliği de **zorunlu** kılıyor ve bunlardan biri Pusula'da yok.
 
-**Tarih:** 2026-09-11 · **Durum:** PACS ekibinden erişim bekleniyor
+**Tarih:** 2026-09-11 · **Son güncelleme:** 2026-10-16 · **Durum:** PACS ekibinden erişim bekleniyor
+
+> ### 16.10.2026 — talep **tek alana** indi
+>
+> Bu tarihte yapılan ölçümler iki şeyi değiştirdi:
+>
+> 1. **Modality artık Pusula'dan geliyor.** `RIS.Tetkik.PACSModaliteTipiId` **%100
+>    dolu** ve zaten DICOM kodu taşıyor (US, CR, CT, MR, XA, MG, BMD, ECG, OT).
+>    PACS'tan modalite **istemiyoruz** — talep ikiye değil **bire** indi.
+> 2. **UID'nin Pusula'da olmadığı artık kanıtlı** (aşağıdaki bölüm). Önceki
+>    "bulunamadı" ifadesi kolon adı taramasına dayanıyordu; bu zayıf kanıttı.
+>
+> **Tek istenen:** accession numarası verilince **Study Instance UID** döndüren
+> salt-okunur bir sorgu.
 
 > **KAPSAM KARARI (kullanıcı, 2026-09-14):** *"Radyoloji sadece study/imaj bilgisi,
 > görüntü yok."* Yani e-Health'e yalnızca `ImagingStudy` **meta verisi** gidecek --
@@ -22,14 +35,30 @@ kimliği de **zorunlu** kılıyor ve bunlardan biri Pusula'da yok.
 | Alan | Kardinalite | Kaynak | Durum |
 |---|---|---|---|
 | `identifier` (ACSN -- Accession Number) | 1..1 | Pusula | ✅ **Var** |
-| `identifier` (UID -- Study Instance UID, `urn:dicom:uid`) | 1..1 | **PACS** | ❌ Pusula'da yok |
-| `modality` | 1..* | **PACS** | ❌ Pusula kolonu boş |
+| `identifier` (UID -- Study Instance UID, `urn:dicom:uid`) | 1..1 | **PACS** | ❌ **Tek eksik alan** |
+| `modality` | 1..* | Pusula (`RIS.Tetkik.PACSModaliteTipiId`) | ✅ **%100 dolu** (16.10.2026) |
 | `subject` (Patient) | 1..1 | Pusula | ✅ Var |
 | `extension:local-system-unique-id` | 1..1 | Kendimiz üretiyoruz | ✅ |
-| `numberOfInstances` | 0..1 | Pusula (`GoruntuSayisi`) | ✅ %79 dolu |
+| `numberOfInstances` | 0..1 | Pusula (`EMR.Radiology.Result.ImageCount`) | ✅ %66 dolu |
 | `encounter`, `started` | 0..1 | Pusula | ✅ Var |
 
-Yani PACS'tan yalnızca **iki şey** gerekiyor: **Study Instance UID** ve **modalite**.
+Yani PACS'tan **tek bir şey** gerekiyor: **Study Instance UID**.
+
+### Modality nasıl çözüldü (16.10.2026)
+
+Daha önce "Pusula kolonu boş" yazıyordu; yanlıştı. Pusula, PACS'a gönderdiği HL7
+`ORM` mesajının `OBR-24` alanına modaliteyi **DICOM kodu olarak** yazıyor — yani
+bu kodu bir yerde tutuyor. Kaynak: `RIS.Tetkik.PACSModaliteTipiId`.
+
+01.10.2026 sonrası onaylı 3.257 radyoloji raporunda **tek bir boş değer yok**:
+
+| Kod | Adet | DICOM'da durumu |
+|---|---:|---|
+| US · CR · CT · MR · XA · MG · BMD · ECG · OT | **2.812** | Geçerli — olduğu gibi gider |
+| EC (ekokardiyografi) | 278 | DICOM'da *emekli* kod → `US` olarak gönderilecek |
+| SFT · EEG · EMG · XX · PTA | 167 | DICOM'da yok → `OT` (Other) |
+
+Yani 6 satırlık bir eşleştirme tablosuyla modality **%100 çözülüyor**.
 
 ---
 
@@ -57,6 +86,84 @@ anlık birleştiriyor. Biz de aynı şekilde üretebiliyoruz.)
 **Sonuç:** Accession Number'ı Pusula'dan üretebiliyoruz; PACS'a bununla sorup
 Study Instance UID'yi alabiliriz. Bulanık eşleştirmeye (hasta + tarih + modalite)
 gerek yok.
+
+**16.10.2026 teyidi — artık çıkarsama değil.** Canlı HL7 trafiğinden iki gerçek
+mesaj okundu; ikisinde de accession numarası tam beklediğimiz biçimde:
+
+| Mesaj | Hedef | `ORC-2` / `OBR-2` | `OBR-24` (modalite) |
+|---|---|---|---|
+| `ORM^O01` | `FUJIPACSMP` | `BAK404447` | `MR` |
+| `ORU^R01` | `TELETIP` | `BAK404568` | `EC` |
+
+`BAK` + `TetkikIslem.Id` formülü üç bağımsız kaynaktan doğrulandı: Pusula
+veritabanı, Synapse viewer bağlantısı (`.../AccessionNumber=`) ve canlı HL7 mesajı.
+
+---
+
+## Study Instance UID Pusula'da YOK — bu artık kanıtlı (16.10.2026)
+
+Önceki sürümde bu, **kolon adı taramasına** dayanıyordu. O yöntem bu veritabanında
+güvenilmez: login bazı nesneleri katalog görünümlerinde göremiyor (`Ortak.Il`
+örneği), ve tarama veritabanı öneki içermediği için **yalnızca `PusulaHBYS_BAK`'ı**
+görmüştü. Üç katmanda yeniden ölçüldü:
+
+### 1 · Altı veritabanının tamamı tarandı
+
+Sunucudaki her kullanıcı veritabanı ayrı ayrı tarandı (`PusulaHBYS_BAK`,
+`COMED.LIS_BAK`, `MERKEZDB`, `MERKEZ_COMED`, `PusulaFile_BAK`,
+`PusulaFile_MERKEZDB`) ve arama `Uid`/`Study` ile sınırlı tutulmayıp `Dicom`,
+`SOPInstance`, `SeriesUid`, `Accession`, `Pacs` kalıplarına genişletildi.
+
+Çıkan 48 kolonun hiçbiri Study Instance UID değil. En yakın aday
+`Aktarim.DicomGoruntuAktarim.DicomNo` idi — ama `nvarchar(30)` (bir UID'yi
+tutamaz) ve **tablo boş**.
+
+### 2 · PACS izi taşıyan beş tablonun hepsi boş
+
+| Tablo | Satır |
+|---|---:|
+| `RIS.PACSWorkList` | 0 |
+| `Aktarim.DicomGoruntuAktarim` | 0 |
+| `Aktarim.TetkikIslemAktarim` | 0 |
+| `RIS.TetkikIslemStmSorgulamaSonucu` | 0 |
+| `EMR.Shared.DocumentForDeviceReportingLog` | 0 |
+
+### 3 · Belirleyici kanıt: entegrasyon **tek yönlü**
+
+`Ortak.Hl7Mesaj` tablosu PACS trafiğinin tamamını tutuyor — 2022'den bugüne
+**194.619** `FUJIPACSMP` mesajı, bugün 15:21'e kadar canlı. 01.10.2026 sonrası
+pencerede mesajların **gönderen uygulaması okundu**:
+
+| `TransferTipi` | Gönderen | Mesaj tipi | Adet |
+|---|---|---|---:|
+| 1 | **PUSULA** | `ORM` (istek) | 3.696 |
+| 1 | **PUSULA** | `ORU` (sonuç) | 3.472 |
+| 0 | **PUSULA** | `ORM` (istek) | 2.118 |
+
+**Hepsini Pusula gönderiyor.** `TransferTipi` 0 ve 1 iki ayrı giden kanal (biri
+kuyruk, biri gönderilmiş); **gelen yön diye bir şey yok.** PACS'tan Pusula'ya tek
+bir mesaj dönmüyor.
+
+Aynı pencerede mesaj gövdeleri UID kalıplarına karşı tarandı:
+
+| Aranan | Bulunan |
+|---|---:|
+| `ZDS` segmenti (Fujifilm UID taşıyıcısı) | 0 |
+| `IPC` segmenti (HL7 v2.5.1 UID taşıyıcısı) | 0 |
+| `1.2.` ile başlayan DICOM UID | 0 |
+| `1.3.` ile başlayan DICOM UID | 0 |
+
+**Mimari sonuç:** Study Instance UID'yi modalite, çalışma yapıldığı anda üretir ve
+PACS'a yazar. Pusula bu bilgiyi hiç almıyor, çünkü **dönüş kanalı yok**. Yani UID
+Pusula'da bulunamıyor değil — **bulunması mümkün değil.** PACS'a sormaktan başka
+yol yoktur.
+
+> Bunu kapatmanın iki yolu var; ikisi de PACS/Pusula tarafında bir iş:
+>
+> - **(tercih)** PACS'a salt-okunur sorgu yetkisi — aşağıdaki talep.
+> - Ya da Pusula'nın PACS'tan **gelen** mesajları da işlemesi (MPPS / `ORU` ile
+>   dönen UID'yi `RIS.TetkikIslem`'e yazması). Bu bir Pusula geliştirmesi olur ve
+>   bizim kapsamımız dışında.
 
 ---
 
@@ -190,12 +297,25 @@ kendi asıl işi olan Modality Worklist sorgusu da dahil.
 **Özet:** Ağda erişebildiğimiz **çalışan bir DICOM sorgu ucu yok**. Elimizdeki üç
 uçtan biri bozuk, biri HL7, biri erişilemez.
 
-> ### 🔑 İki somut talep
+> ### 🔑 Talep tek cümleye indi (16.10.2026)
 >
-> 1. **Synapse'in AE Title'ı** -- `10.10.204.194:6600` portu açık, C-FIND denemesi
->    hemen yapılabilir (görüntü indirme gerekmiyor, yalnızca sorgu).
-> 2. **Synapse Mobility API kimlik bilgisi** -- `/viewer/api` mevcut; servis hesabı
->    ya da token üretme yöntemi. (1. madde çalışırsa buna gerek kalmayabilir.)
+> **"Accession numarası (`BAK` + numara) verildiğinde Study Instance UID döndüren
+> salt-okunur bir sorgu."**
+>
+> Modalite artık Pusula'dan geliyor; PACS'tan **başka hiçbir alan istenmiyor.**
+> Görüntü indirme (C-MOVE / C-GET / WADO-RS) hiçbir senaryoda gerekmiyor.
+>
+> Bunu sağlamanın üç yolundan **biri** yeterli:
+>
+> 1. **C-FIND yetkisi** — AE Title'ımızın (`PUSULA_EHEALTH`) Synapse'te tanımlanması
+>    ve Synapse'in AE Title'ı + doğru sorgu portu. Standart DICOM hizmeti, Fujifilm
+>    tarafında geliştirme gerektirmez.
+> 2. **DICOMweb (QIDO-RS)** erişimi — base URL + servis hesabı.
+> 3. **Synapse Mobility API** kimlik bilgisi — `/viewer/api` mevcut (302 dönüyor,
+>    404 değil), token üretme yöntemi ya da servis hesabı.
+>
+> Üçü de olmazsa geriye tek seçenek kalır: Pusula'nın PACS'tan **gelen** mesajları
+> işleyip UID'yi `RIS.TetkikIslem`'e yazması (yukarıdaki not).
 
 > ### Eski not: tek kalan engel Synapse'in AE Title'ı
 >
@@ -218,12 +338,14 @@ Yapacağımız tek sorgu tipi:
 
 ```http
 GET {base}/studies?AccessionNumber=BAK393439
-     &includefield=0020000D      # StudyInstanceUID
-     &includefield=00080061      # ModalitiesInStudy
-     &includefield=00201206      # NumberOfStudyRelatedSeries
-     &includefield=00201208      # NumberOfStudyRelatedInstances
+     &includefield=0020000D      # StudyInstanceUID  <-- tek ihtiyacimiz bu
 Accept: application/dicom+json
 ```
+
+> **16.10.2026:** `ModalitiesInStudy` (00080061) artık istenmiyor — modalite
+> Pusula'dan geliyor. `NumberOfStudyRelatedInstances` da gerekmiyor; görüntü
+> sayısını `EMR.Radiology.Result.ImageCount` veriyor. Sorgunun döndürmesini
+> istediğimiz alan **yalnızca `StudyInstanceUID`**.
 
 **Sadece okuma yeterli.** `WADO-RS` (görüntü indirme) veya `STOW-RS` (yazma)
 istemiyoruz -- görüntülerin kendisini taşımıyoruz.
@@ -265,14 +387,20 @@ Sorgu: *Study Root Query/Retrieve Information Model – FIND*, anahtar
 
 Hastanede üç entegrasyon canlı görünüyor (`Ortak.Hl7Mesaj`, hepsinde bugün trafik):
 
-| Entegrasyon | Mesaj sayısı |
-|---|---:|
-| `FUJIPACSMP` (Fuji PACS) | 768.148 |
-| `TELETIP` | 298.547 |
-| `VNA` (Vendor Neutral Archive) | 6.077 |
+| Entegrasyon | Mesaj sayısı | Yön |
+|---|---:|---|
+| `FUJIPACSMP` (Fuji PACS) | 787.889 | **tamamı giden** |
+| `TELETIP` | 305.962 | giden |
+| `VNA` (Vendor Neutral Archive) | 6.274 | giden |
+
+(Sayımlar 16.10.2026, `Ortak.Hl7Mesaj`; üçünde de bugün trafik var.)
 
 **Sorulacak:** Study Instance UID sorgusu için hangisi doğru uç nokta -- Fuji PACS mı,
 VNA mı? Uzun vadeli arşiv VNA ise sorguyu oraya yöneltmek daha doğru olabilir.
+
+**Ayrıca bildirilmeli:** üç entegrasyonun **hiçbirinde gelen mesaj yok**. Hastane
+PACS'a istek ve rapor gönderiyor, karşılığında hiçbir şey almıyor. UID sorunumuzun
+kökü bu; ama aynı zamanda PACS ekibinin bilmesi gereken genel bir durum.
 
 ### 5. Doğrulama için bir örnek
 
@@ -289,11 +417,14 @@ Erişim açıldığında test edebilmek için bilinen bir accession numarası ye
 
 ## Erişim geldikten sonra bizde yapılacaklar
 
-1. `PacsClient` (QIDO-RS ya da C-FIND) -- accession → Study Instance UID + modalite
-2. `ImagingStudyMapper` -- `az-imaging-study` kaynağını üretir
-3. `RadiologyReportSyncService` içine bağlanır: rapor gönderilirken ImagingStudy de
+1. `PacsClient` (QIDO-RS ya da C-FIND) -- accession → Study Instance UID
+   (**yalnızca bu alan**; modalite PACS'tan sorulmuyor)
+2. `AzModalite` -- `PACSModaliteTipiId` → DICOM modality eşleştirmesi
+   (`EC`→`US`, `SFT`/`EEG`/`EMG`/`XX`/`PTA`→`OT`, gerisi olduğu gibi)
+3. `ImagingStudyMapper` -- `az-imaging-study` kaynağını üretir
+4. `RadiologyReportSyncService` içine bağlanır: rapor gönderilirken ImagingStudy de
    gönderilir, `DiagnosticReport.imagingStudy` ile ilişkilendirilir
-4. UID bulunamayan tetkikler **atlanır** (uydurma UID gönderilmez) ve senkron
+5. UID bulunamayan tetkikler **atlanır** (uydurma UID gönderilmez) ve senkron
    günlüğüne nedeni yazılır -- projedeki diğer zorunlu alan kurallarıyla aynı ilke
 
 **Not:** Bakanlığa "ImagingStudy bizden bekleniyor mu, bekleniyorsa görüntülerin
