@@ -65,6 +65,34 @@ public class AutoSyncWorker(
                 // cevap vermek. Bu yuzden "hic gonderim yapilmadi" da raporlanabilir bir
                 // sonuc (bkz. GunSonuRaporu.HicDenenmedi).
                 await GunSonuRaporuDeneAsync(scope.ServiceProvider, settings, stoppingToken);
+
+                // PROTOKOL BAGI DOLDURMA -- ANAHTARIN DISINDA, BILEREK (2026-10-19'da
+                // DUZELTILDI).
+                //
+                // ONCE RunOnceAsync ICINDEYDI VE BU HATALIYDI: o metot yalnizca otomatik
+                // gonderim ACIKKEN cagriliyor. Anahtar kapaliyken doldurma hic calismaz,
+                // dolayisiyla Aktivite kartlari eski kayitlari ASLA icermez hale gelirdi --
+                // yani kapali bir anahtar, ilgisiz bir ekrani kalici olarak yanlis
+                // gosterirdi.
+                //
+                // Burasi dogru yer cunku bu is bakanlik sistemine HICBIR SEY yazmiyor:
+                // yalnizca kendi SQLite gunlugumuzdeki bir sutunu dolduruyor. "Durdur"
+                // bakanliga yazmayi durdurur, kendi gunlugumuzu duzenlemeyi degil.
+                // Gun sonu raporu da ayni gerekceyle anahtarin disinda duruyor.
+                //
+                // Is bitince kendiliginden susuyor: doldurulacak satir kalmayinca sorgu
+                // bos doner ve hicbir sey yapilmaz.
+                try
+                {
+                    await scope.ServiceProvider.GetRequiredService<ProtokolBagiDoldurmaService>()
+                        .BirParcaDoldurAsync(stoppingToken);
+                }
+                catch (OperationCanceledException) { throw; }
+                catch (Exception ex)
+                {
+                    // YARDIMCI bir is: patlarsa donguyu dusurmemeli.
+                    logger.LogWarning(ex, "Protokol bagi doldurma bu turda calisamadi.");
+                }
             }
             catch (OperationCanceledException) { return; }
             catch (Exception ex)
@@ -219,26 +247,7 @@ public class AutoSyncWorker(
         await TakilanlariDeneAsync(sp, settings, ct);
 
         // 3) (Iptal senkronu artik turun BASINDA calisiyor -- bkz. 0. adim.)
-
-        // 4) PROTOKOL BAGI DOLDURMA -- SyncLog'daki eski satirlar icin, parca parca.
-        //
-        // Gonderime ve silmeye dokunmuyor: yalnizca kendi gunlugumuzdeki bir sutunu
-        // dolduruyor, bakanlik sistemine hicbir cagri yapmiyor. Bu yuzden Durdur kapisina
-        // da bagli degil -- Durdur "bakanlik sistemine yazma" demek, "kendi gunlugunu
-        // duzenleme" demek degil.
-        //
-        // Is bitince kendiliginden susuyor (doldurulacak satir kalmayinca 0 doner ve bir
-        // daha hicbir sey yapmaz), yani kalici bir maliyet degil.
-        try
-        {
-            await sp.GetRequiredService<ProtokolBagiDoldurmaService>().BirParcaDoldurAsync(ct);
-        }
-        catch (Exception ex)
-        {
-            // Doldurma YARDIMCI bir is. Patlarsa tur ozeti yazilmadan dusmemeli --
-            // gonderim ve silme zaten basariyla tamamlandi.
-            logger.LogWarning(ex, "Protokol bagi doldurma bu turda calisamadi.");
-        }
+        // 4) (Protokol bagi doldurma ANAHTARIN DISINDA calisiyor -- bkz. ExecuteAsync.)
 
         // SON TURUN IZINI BIRAK. Ayarlar sayfasindaki durum kutusu bunu gosteriyor: "acik"
         // yazan bir anahtar dongunun gercekten calistigini kanitlamaz, son tur saati

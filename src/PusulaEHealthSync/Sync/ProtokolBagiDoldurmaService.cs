@@ -23,10 +23,18 @@ public class ProtokolBagiDoldurmaService(
     PusulaRepository repository,
     ILogger<ProtokolBagiDoldurmaService> logger)
 {
-    // Tur basina cozulecek KAYIT sayisi (satir degil -- ayni kaydin denemeleri tek
-    // sorguyla hallediliyor). 2.000 kayit, Pusula'ya birkac toplu sorgu demek; otomatik
-    // turu gozle gorulur sekilde uzatmadan makul bir hizda ilerliyor.
-    private const int TurBasinaKayit = 2_000;
+    // Tur basina cozulecek KAYIT sayisi (satir degil -- ayni kaydin onlarca denemesi tek
+    // sorguyla hallediliyor).
+    //
+    // 2026-10-19'da 2.000'den yukseltildi. Ilk dagitimda 623.603 satir doldurulmayi
+    // bekliyordu; 2.000'lik partiyle bu, 15 dakikalik tur araliginda yarim gunu buluyordu
+    // ve o sure boyunca Aktivite kartlari eski kayitlari gostermiyordu. Ekranin yarim gun
+    // eksik sayi gostermesi kabul edilebilir degil.
+    //
+    // SORGULARI BUYUTMUYOR: ProtokolIdleriniCozAsync zaten kendi icinde 1.000'lik
+    // parcalara boluyor (bkz. PusulaRepository.ProtokolCozum). Buradaki sayiyi artirmak
+    // tur basina daha COK parca calistirmak demek, daha BUYUK sorgu degil.
+    private const int TurBasinaKayit = 10_000;
 
     public async Task<int> BirParcaDoldurAsync(CancellationToken ct = default)
     {
