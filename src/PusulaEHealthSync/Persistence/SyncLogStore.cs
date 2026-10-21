@@ -924,17 +924,39 @@ public class SyncLogStore
         using var cmd = conn.CreateCommand();
         cmd.CommandText = @"
             WITH kayit AS (
-                -- 1. kademe: KAYIT basina tek durum, 'en kotu kazanir'.
-                SELECT ProtokolId,
-                       CASE WHEN SUM(Status = 'Failed')  > 0 THEN 'Failed'
-                            WHEN SUM(Status = 'Skipped') > 0 THEN 'Skipped'
-                            ELSE 'Success' END AS Durum
+                -- 1. kademe: KAYIT basina tek durum, 'SON DENEME KAZANIR'
+                -- (2026-10-21, kullanici karari).
+                --
+                -- ONCE 'EN KOTU KAZANIR' IDI VE SAYILARI OYNATIYORDU: durum aralik
+                -- ICINDEKI denemelerden hesaplandigi icin, araligi genisletmek bir kaydi
+                -- Sorunsuz'dan Hatali'ya cevirebiliyordu -- 3.10'da hata alip 18.10'da
+                -- basariyla giden bir kayit, 15.10'dan bakinca Sorunsuz, 1.10'dan bakinca
+                -- Hatali gorunuyordu. Olculdu: ic ice dort aralikta Sorunsuz/Eksik/
+                -- HicGitmedi kartlari sistematik olarak ihlal veriyordu.
+                --
+                -- Son deneme kuralinda bu kalkiyor: iki aralik da ayni tarihte bittigi
+                -- icin bir kaydin son denemesi ARALIKTAN BAGIMSIZ ayni satirdir.
+                -- Sezgisel olarak da dogru olan bu: yeniden denenip basariyla giden bir
+                -- kayit 'Hatali' degildir.
+                --
+                -- MAX(Id) ILE CIPLAK KOLON: SQLite'ta min/max kullanildiginda ciplak
+                -- kolonlar O satirdan gelir -- belgelenmis ve guvenilir bir davranis.
+                -- ProtokolId gruplama anahtarinda oldugu icin o da belirli.
+                SELECT ProtokolId, Status AS Durum, MAX(Id) AS SonId
                 FROM SyncLog
                 WHERE ProtokolId IS NOT NULL AND ProtokolId <> $cozulemedi
                   AND ($resourceType IS NULL OR ResourceType = $resourceType)
                   AND ($from IS NULL OR CreatedAtUtc >= $from)
                   AND ($to IS NULL OR CreatedAtUtc < $to)
-                GROUP BY ResourceType, PusulaId
+                -- ProtokolId DE GRUPLAMA ANAHTARINDA (2026-10-21 duzeltmesi).
+                --
+                -- Once yalnizca (ResourceType, PusulaId) ile gruplanip ProtokolId ciplak
+                -- seciliyordu. SQLite boyle bir kolon icin RASTGELE bir satirinkini alir
+                -- ve hangisini aldigi ARALIGA GORE DEGISIR -- olculdu: ayni kayit genis
+                -- aralikta protokol 111'e, dar aralikta 222'ye atandi. Kayitlar
+                -- protokoller arasinda yeniden dagilinca toplam her iki yone de
+                -- kayabiliyordu; kullanici dar araligin genisten BUYUK ciktigini bildirdi.
+                GROUP BY ResourceType, PusulaId, ProtokolId
             ),
             grup AS (
                 -- 2. kademe: PROTOKOL basina durum dagilimi.
