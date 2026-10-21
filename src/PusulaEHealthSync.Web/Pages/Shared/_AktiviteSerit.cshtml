@@ -1,0 +1,76 @@
+@model PusulaEHealthSync.Web.Pages.CanliSerit
+@{
+    var s = Model;
+    var tr = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+    var (durumCss, durumMetni) =
+        s.Durduruluyor ? ("eksik", "Durduruluyor — elindeki protokolü bitiriyor")
+        : s.Acik && s.TurSuruyor ? ("ok", "Gönderim çalışıyor")
+        : s.Acik ? ("ok", "Tur arası")
+        : ("yok", "Otomatik gönderim kapalı");
+}
+@* CANLI GONDERIM SERIDI (onaylanan "D" tasarimi, C'den tek satira indirilmis).
+   Sayfanin geri kalani "aralikta ne oldu" sorusunu cevapliyor; serit "SU AN ne oluyor"
+   sorusunu. Ikisi ayri hizda degisiyor: serit 15 sn'de bir kendini tazeliyor
+   (bkz. Aktivite.cshtml, akisSeritTazele), liste ise yalnizca kullanici isteyince.
+
+   Tur no / ilerleme / bekleyen AutoSyncWorker'in ayara yazdigi degerler. Ilk tur
+   bitmeden once hic yazilmamis olabilirler -- o zaman ilgili parca hic gosterilmez,
+   "0 / 0" gibi yaniltici bir sey yazilmaz. *@
+<section class="akis-serit" id="akis-serit" aria-label="Otomatik gönderimin şu anki durumu" aria-live="polite">
+    <span class="akis-serit-durum">
+        <span class="akis-serit-nokta akis-serit-nokta--@durumCss @(s.Acik && s.TurSuruyor ? "akis-serit-nokta--canli" : "")" aria-hidden="true"></span>
+        @durumMetni
+    </span>
+
+    @if (s.TurNo > 0)
+    {
+        <span class="akis-serit-bilgi">tur #@s.TurNo.ToString("N0", tr)</span>
+    }
+
+    @if (s.TurSuruyor)
+    {
+        <div class="akis-serit-ilerleme">
+            <div class="akis-serit-cubuk" role="progressbar" aria-label="Turun ilerlemesi"
+                 aria-valuemin="0" aria-valuemax="@s.Hedef" aria-valuenow="@s.Islenen">
+                <span style="width:@s.Yuzde.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)%"></span>
+            </div>
+            <span class="akis-serit-bilgi">@s.Islenen.ToString("N0", tr) / @s.Hedef.ToString("N0", tr) protokol</span>
+        </div>
+    }
+    else
+    {
+        <span class="akis-serit-bosluk"></span>
+        @if (s.Acik && s.SonrakiTurUtc is { } sonraki)
+        {
+            <span class="akis-serit-bilgi">sıradaki tur @AzTime.ToLocal(sonraki).ToString("HH:mm")</span>
+        }
+        @if (s.SonTurUtc is { } son)
+        {
+            @* Son tur hata ile bittiyse susmuyoruz: acik ama surekli patlayan bir dongu,
+               ekranda saglikli gorunmemeli. *@
+            <span class="akis-serit-bilgi @(s.SonTurHatali ? "akis-serit-bilgi--hata" : "")" title="@s.SonTurOzet">
+                son tur @AzTime.ToLocal(son).ToString("dd.MM HH:mm")@(s.SonTurHatali ? " · hata verdi" : "")
+            </span>
+        }
+    }
+
+    @if (s.Bekleyen > 0)
+    {
+        <span class="akis-serit-bilgi" title="Son turun başında gönderime uygun bekleyen protokol sayısı">bekleyen @s.Bekleyen.ToString("N0", tr)</span>
+    }
+    <span class="akis-serit-bilgi @(s.Canli ? "akis-serit-bilgi--canli" : "")">ortam @(s.Canli ? "Canlı" : "Test")</span>
+
+    @if (s.Acik)
+    {
+        <form method="post" asp-page="/Aktivite" asp-page-handler="Durdur" class="akis-serit-eylem"
+              onsubmit="return confirm('Otomatik gönderim durdurulsun mu? Süren tur elindeki protokolü bitirip duracak.') && (pusulaLockSubmit(this), true)">
+            <button type="submit" class="btn btn-outline btn-sm">Durdur</button>
+        </form>
+    }
+    else
+    {
+        @* BASLAT BURADA YOK -- canliya yazmaya baslamak Ayarlar'daki onayli dugmenin isi
+           (bkz. AktiviteModel.OnPostDurdurAsync). *@
+        <a asp-page="/Ayarlar" class="btn btn-outline btn-sm akis-serit-eylem">Ayarlar'dan başlat</a>
+    }
+</section>

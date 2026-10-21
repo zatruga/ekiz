@@ -90,6 +90,11 @@ builder.Services.AddSingleton<PusulaEHealthSync.Reporting.ProtokolDurumService>(
 // Saatlik otomatik gonderim. VARSAYILAN KAPALI -- Ayarlar'daki "Otomatik gonderim"
 // acilmadan tek kayit bile gondermez (bkz. AutoSyncWorker).
 builder.Services.AddHostedService<AutoSyncWorker>();
+
+// Protokol bagi doldurma -- gonderim turundan BAGIMSIZ (2026-10-21). Turun arkasindayken
+// tur hic bitmedigi icin bir kez bile calismadi (bkz. ProtokolBagiDoldurmaWorker).
+// Bakanliga hicbir sey yazmiyor; gonderim anahtarindan etkilenmez.
+builder.Services.AddHostedService<ProtokolBagiDoldurmaWorker>();
 builder.Services.AddSingleton<IPasswordHasher<object>, PasswordHasher<object>>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

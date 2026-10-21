@@ -66,33 +66,14 @@ public class AutoSyncWorker(
                 // sonuc (bkz. GunSonuRaporu.HicDenenmedi).
                 await GunSonuRaporuDeneAsync(scope.ServiceProvider, settings, stoppingToken);
 
-                // PROTOKOL BAGI DOLDURMA -- ANAHTARIN DISINDA, BILEREK (2026-10-19'da
-                // DUZELTILDI).
-                //
-                // ONCE RunOnceAsync ICINDEYDI VE BU HATALIYDI: o metot yalnizca otomatik
-                // gonderim ACIKKEN cagriliyor. Anahtar kapaliyken doldurma hic calismaz,
-                // dolayisiyla Aktivite kartlari eski kayitlari ASLA icermez hale gelirdi --
-                // yani kapali bir anahtar, ilgisiz bir ekrani kalici olarak yanlis
-                // gosterirdi.
-                //
-                // Burasi dogru yer cunku bu is bakanlik sistemine HICBIR SEY yazmiyor:
-                // yalnizca kendi SQLite gunlugumuzdeki bir sutunu dolduruyor. "Durdur"
-                // bakanliga yazmayi durdurur, kendi gunlugumuzu duzenlemeyi degil.
-                // Gun sonu raporu da ayni gerekceyle anahtarin disinda duruyor.
-                //
-                // Is bitince kendiliginden susuyor: doldurulacak satir kalmayinca sorgu
-                // bos doner ve hicbir sey yapilmaz.
-                try
-                {
-                    await scope.ServiceProvider.GetRequiredService<ProtokolBagiDoldurmaService>()
-                        .BirParcaDoldurAsync(stoppingToken);
-                }
-                catch (OperationCanceledException) { throw; }
-                catch (Exception ex)
-                {
-                    // YARDIMCI bir is: patlarsa donguyu dusurmemeli.
-                    logger.LogWarning(ex, "Protokol bagi doldurma bu turda calisamadi.");
-                }
+                // (PROTOKOL BAGI DOLDURMA ARTIK BURADA DEGIL -- 2026-10-21'den beri kendi
+                // dongusunde, bkz. ProtokolBagiDoldurmaWorker. Burada turun ARKASINDAYDI ve
+                // tur bir bucuk gunu astigi icin hic sira gelmiyordu.)
+
+                // SIRADAKI TUR SAATI -- Aktivite Akisi'ndaki canli serit gosteriyor. Anahtar
+                // kapaliyken de yaziliyor: dongu o saatte uyanip anahtari yeniden okuyacak.
+                await settings.SetStringAsync(SettingsStore.AutoSendNextRunUtcKey,
+                    DateTime.UtcNow.AddMinutes(Math.Max(1, intervalMinutes)).ToString("O"), stoppingToken);
             }
             catch (OperationCanceledException) { return; }
             catch (Exception ex)
@@ -194,53 +175,75 @@ public class AutoSyncWorker(
             SettingsStore.DevreKesiciSiniriKey, SettingsStore.DevreKesiciSiniriDefault, ct));
         int ustUsteIstisna = 0;
 
-        foreach (var p in uygun)
+        // TUR ICI ILERLEME (bkz. SettingsStore.AutoSendTurHedefKey). Bekleyen sayisi
+        // partiye sigmayanlari da iceriyor -- seritteki "bekleyen" kuyrugun TAMAMI.
+        var turNo = await settings.GetIntAsync(SettingsStore.AutoSendTurNoKey, 0, ct) + 1;
+        await settings.SetIntAsync(SettingsStore.AutoSendTurNoKey, turNo, ct);
+        await settings.SetIntAsync(SettingsStore.AutoSendTurBekleyenKey, pending.ToplamProtokolSayisi, ct);
+        await settings.SetIntAsync(SettingsStore.AutoSendTurIslenenKey, 0, ct);
+        await settings.SetIntAsync(SettingsStore.AutoSendTurHedefKey, uygun.Count, ct);
+
+        try
         {
-            if (ct.IsCancellationRequested) break;
-
-            // "DURDUR" TUR ICINDE DE GECERLI (2026-10-05). Anahtar eskiden yalnizca tur
-            // BASINDA okunuyordu: kullanici Ayarlar'dan Durdur'a bastiginda icinde bulunulan
-            // tur sonuna kadar gonderime devam ediyordu. Buyuk protokollerle bir tur bir
-            // saati bulabildigi icin bu, "durdurdum" denildikten sonra bir saat daha canli
-            // veri yazmak demekti. Devlet kayit sistemine yazan bir dongude Durdur, DURDUR
-            // anlamina gelmeli.
-            //
-            // Okuma ucuz: SettingsStore 3 sn'lik anlik goruntu onbellegi tutuyor, yani bu
-            // kontrol protokol basina bir SQLite sorgusu degil.
-            if (!await settings.GetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, false, ct))
+            foreach (var p in uygun)
             {
-                logger.LogWarning(
-                    "Otomatik gonderim tur ortasinda DURDURULDU. {Gonderilen}/{Toplam} protokol gonderilmisti; "
-                    + "kalanlar bir sonraki acilista yeniden siraya girer.",
-                    basarili + basarisiz, uygun.Count);
-                break;
-            }
+                if (ct.IsCancellationRequested) break;
 
-            try
-            {
-                // Otomatik dongu de TAM zinciri gondermeli -- eskiden yalnizca Encounter
-                // cascade'i cagriliyordu, yani dongu acilsaydi hicbir protokolun epikrizi,
-                // laboratuvari ve patolojisi gitmeyecekti (2026-09-15'te toplu gonderimde
-                // ayni eksik canli olarak yakalandi).
-                var tam = await protocolFullSync.SyncAllAsync(p.Protokol, ct);
-                if (tam.EncounterStatus == SyncStatus.Success) basarili++; else basarisiz++;
-                ustUsteIstisna = 0;
-            }
-            catch (Exception ex)
-            {
-                basarisiz++;
-                ustUsteIstisna++;
-                logger.LogWarning(ex, "Otomatik gonderim: protokol {Id} gonderilemedi.", p.Protokol.ProtokolId);
-
-                if (ustUsteIstisna >= ustUsteIstisnaSiniri)
+                // "DURDUR" TUR ICINDE DE GECERLI (2026-10-05). Anahtar eskiden yalnizca tur
+                // BASINDA okunuyordu: kullanici Ayarlar'dan Durdur'a bastiginda icinde bulunulan
+                // tur sonuna kadar gonderime devam ediyordu. Buyuk protokollerle bir tur bir
+                // saati bulabildigi icin bu, "durdurdum" denildikten sonra bir saat daha canli
+                // veri yazmak demekti. Devlet kayit sistemine yazan bir dongude Durdur, DURDUR
+                // anlamina gelmeli.
+                //
+                // Okuma ucuz: SettingsStore 3 sn'lik anlik goruntu onbellegi tutuyor, yani bu
+                // kontrol protokol basina bir SQLite sorgusu degil.
+                if (!await settings.GetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, false, ct))
                 {
-                    logger.LogError(
-                        "Otomatik gonderim: ust uste {Sayi} protokolde istisna olustu -- baglanti/kimlik "
-                        + "sorunu varsayiliyor, bu tur birakiliyor. Kalan {Kalan} protokol bir sonraki turda denenecek.",
-                        ustUsteIstisna, uygun.Count - (basarili + basarisiz));
+                    logger.LogWarning(
+                        "Otomatik gonderim tur ortasinda DURDURULDU. {Gonderilen}/{Toplam} protokol gonderilmisti; "
+                        + "kalanlar bir sonraki acilista yeniden siraya girer.",
+                        basarili + basarisiz, uygun.Count);
                     break;
                 }
+
+                try
+                {
+                    // Otomatik dongu de TAM zinciri gondermeli -- eskiden yalnizca Encounter
+                    // cascade'i cagriliyordu, yani dongu acilsaydi hicbir protokolun epikrizi,
+                    // laboratuvari ve patolojisi gitmeyecekti (2026-09-15'te toplu gonderimde
+                    // ayni eksik canli olarak yakalandi).
+                    var tam = await protocolFullSync.SyncAllAsync(p.Protokol, ct);
+                    if (tam.EncounterStatus == SyncStatus.Success) basarili++; else basarisiz++;
+                    ustUsteIstisna = 0;
+                }
+                catch (Exception ex)
+                {
+                    basarisiz++;
+                    ustUsteIstisna++;
+                    logger.LogWarning(ex, "Otomatik gonderim: protokol {Id} gonderilemedi.", p.Protokol.ProtokolId);
+
+                    if (ustUsteIstisna >= ustUsteIstisnaSiniri)
+                    {
+                        logger.LogError(
+                            "Otomatik gonderim: ust uste {Sayi} protokolde istisna olustu -- baglanti/kimlik "
+                            + "sorunu varsayiliyor, bu tur birakiliyor. Kalan {Kalan} protokol bir sonraki turda denenecek.",
+                            ustUsteIstisna, uygun.Count - (basarili + basarisiz));
+                        break;
+                    }
+                }
+
+                // Protokol basina bir SQLite yazimi -- protokol basina saniyeler suren bir
+                // zincirin yaninda ihmal edilebilir.
+                await settings.SetIntAsync(SettingsStore.AutoSendTurIslenenKey, basarili + basarisiz, ct);
             }
+        }
+        finally
+        {
+            // HER CIKISTA SIFIRLA: normal bitis, Durdur, devre kesici ya da istisna. ct
+            // DEGIL None: uygulama kapanirken de "tur suruyor" izi asili kalmamali.
+            try { await settings.SetIntAsync(SettingsStore.AutoSendTurHedefKey, 0, CancellationToken.None); }
+            catch (Exception ex) { logger.LogWarning(ex, "Tur ilerlemesi sifirlanamadi."); }
         }
 
         // 2) TAKILANLAR -- gunde bir kez, kendi turunda (bkz. TakilanlariDeneAsync).

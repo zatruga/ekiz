@@ -114,6 +114,21 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
     [BindProperty(SupportsGet = true)]
     public int P { get; set; } = 1;
 
+    // ARAMA (2026-10-21, "D" tasarimi): hasta adi, FIN ya da protokol numarasi. Ozetin
+    // uzerinde, bellekte -- protokol bilgileri ozet hesabinda zaten okunmus durumda,
+    // aramak icin Pusula'ya yeniden gidilmiyor. Kartlari etkilemiyor, yalnizca listeyi.
+    [BindProperty(SupportsGet = true)]
+    public string? Q { get; set; }
+
+    // SIRALAMA: "son" (en son denenen, varsayilan) | "deneme" (en cok deneme) |
+    // "tarih" (protokol acilis tarihi, yeniden eskiye).
+    [BindProperty(SupportsGet = true)]
+    public string? Sira { get; set; }
+
+    // Canli gonderim seridi -- ONBELLEGE ALINMIYOR: "su an ne oluyor" sorusunun
+    // cevabi iki dakika bayat olamaz. Ayar okumalari ucuz (bkz. SettingsStore).
+    public CanliSerit Serit { get; set; } = CanliSerit.Bos;
+
     // Tekil gonderimde kaydin hangi protokole ait oldugu -- formdan gelir (akis protokole
     // gore grupli, yani ekran bunu zaten biliyor). Tahmin edilmez.
     [BindProperty]
@@ -180,11 +195,16 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
         var kategoriSuzgeci = seciliDurum == SyncStatus.Failed && !string.IsNullOrWhiteSpace(Kategori)
             ? Kategori : null;
 
+        Serit = await SeritOkuAsync(ct);
+
+        var aranan = Normalize(Q);
         var listelenen = Ozet.Gruplar
             .Where(g => !hicbiriSuzgeci || g.HicGitmedi)
             .Where(g => seciliDurum is null || g.Sinif == seciliDurum)
             .Where(g => kategoriSuzgeci is null || g.Kayitlar.Any(r => r.HataKategorisi == kategoriSuzgeci))
+            .Where(g => aranan is null || AramayaUyar(g, aranan))
             .ToList();
+        listelenen = Sirala(listelenen);
         ListelenenGrupSayisi = listelenen.Count;
 
         var sayfaGruplari = listelenen.Skip((PageNumber - 1) * PageSize).Take(PageSize).ToList();
@@ -199,7 +219,7 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
             .Select(g => (Grup: g, Kimlikler: g.Kayitlar
                 .Where(r => seciliDurum is null || r.Durum == seciliDurum)
                 .Where(r => kategoriSuzgeci is null || r.HataKategorisi == kategoriSuzgeci)
-                .Select(r => (r.ResourceType, r.PusulaId)).ToList()))
+                .Select(r => (r.ResourceType, r.PusulaId)).Distinct().ToList()))
             .ToList();
 
         // DENEMELER BURADA OKUNUYOR. Ozet kayit basina tek satir tasiyor; tablonun
@@ -278,16 +298,26 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
         if (satirlar.Count == 0) return AkisOzeti.Bos;
 
         // ---- 1) PROTOKOL COZUMU ----
-        // SyncLog'da protokol bagi YOK -- her kaynak tipi kendi id uzayini kullaniyor.
-        // Protokol numarasini Pusula'ya sorarak cozuyoruz (bkz. ProtokolIdleriniCozAsync).
+        // ONCE SyncLog.ProtokolId (2026-10-21): bag yazma aninda kaydediliyor, eski satirlar
+        // da ProtokolBagiDoldurmaService ile dolduruluyor. Kartlar da bu sutundan sayiyor --
+        // listenin ayni kaynaktan gruplanmasi, kartta yazan protokolun listede de ayni
+        // protokol olmasinin tek garantisi.
         //
-        // PUSULA ERISILEMEZSE SAYFA YINE ACILIR: bu sayfa bugune kadar HIC Pusula'ya
-        // baglanmiyordu, yalnizca SyncLog okuyordu. Gruplama ugruna "Pusula yoksa senkron
+        // Pusula'ya YALNIZCA bagi henuz doldurulmamis (NULL) satirlar soruluyor. Doldurma
+        // bitince bu adim pratikte hic calismaz. -1 "soruldu, bulunamadi" demek: o satirlar
+        // yeniden sorulmaz, dogrudan kimliksiz kovaya duser.
+        //
+        // PUSULA ERISILEMEZSE SAYFA YINE ACILIR: gruplama ugruna "Pusula yoksa senkron
         // gunlugu de yok" durumuna dusmek yanlis olurdu -- gunluk, tam da Pusula'ya
         // erisilemedigi anda en cok ihtiyac duyulan sey.
         var esleme = new Dictionary<(string, int), int>();
+        foreach (var k in satirlar)
+            if (k.ProtokolId is int bag and > 0) esleme[(k.ResourceType, k.PusulaId)] = bag;
+
         var pusulaHatasi = false;
-        foreach (var tip in satirlar.GroupBy(k => k.ResourceType))
+        foreach (var tip in satirlar
+                     .Where(k => k.ProtokolId is null && k.ResourceType is not ("Patient" or "Practitioner"))
+                     .GroupBy(k => k.ResourceType))
         {
             try
             {
@@ -434,18 +464,102 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
         // Grup ozeti. Satirlar en yeniden eskiye; her satirin durumu VE (hatali ise)
         // hata kategorisi birlikte tasiniyor -- suzme artik SQL'de degil burada
         // yapildigi icin ikisine de sonradan ihtiyac var.
+        //
+        // AYNI KAYIT IKI SATIR GELEBILIR: sorgu ProtokolId ile de grupladigi icin, bagi
+        // doldurulmamis eski denemeler (NULL) ile yeni denemeler (dolu) ayri satir doner.
+        // Burada tek kayda katlaniyor -- durum ve mesaj SON denemeden, deneme sayisi toplam.
+        // Katlanmasaydi kayit grupta iki kez sayilir, denemeleri de tabloda iki kez cikardi.
         static AkisGrupOzeti Grup(int? protokolId, bool hastaGrubu, List<SyncLogStore.OzetSatiri> k)
         {
-            var kayitlar = k.OrderByDescending(x => x.SonId)
-                .Select(x => new AkisKayitRef(x.ResourceType, x.PusulaId, x.Status, x.DenemeSayisi,
-                    x.Status == SyncStatus.Failed ? SyncLogEntry.ErrorCategory(x.HataMesaji).Label : null))
+            var kayitlar = k.GroupBy(x => (x.ResourceType, x.PusulaId))
+                .Select(g =>
+                {
+                    var son = g.MaxBy(x => x.SonId)!;
+                    return (Son: son, Deneme: g.Sum(x => x.DenemeSayisi));
+                })
+                .OrderByDescending(x => x.Son.SonId)
+                .Select(x => new AkisKayitRef(x.Son.ResourceType, x.Son.PusulaId, x.Son.Status, x.Deneme,
+                    x.Son.Status == SyncStatus.Failed ? SyncLogEntry.ErrorCategory(x.Son.HataMesaji).Label : null,
+                    x.Son.HataMesaji))
                 .ToList();
             return new AkisGrupOzeti(protokolId, hastaGrubu, kayitlar,
-                k.Count(x => x.Status == SyncStatus.Success),
-                k.Count(x => x.Status == SyncStatus.Skipped),
-                k.Count(x => x.Status == SyncStatus.Failed),
+                kayitlar.Count(x => x.Durum == SyncStatus.Success),
+                kayitlar.Count(x => x.Durum == SyncStatus.Skipped),
+                kayitlar.Count(x => x.Durum == SyncStatus.Failed),
                 k.Max(x => x.SonId));
         }
+    }
+
+    // ------------------------------------------------------------------ ARAMA / SIRALAMA
+
+    private static readonly System.Globalization.CultureInfo Tr =
+        System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+
+    // tr-TR buyuk harfe cevirerek: "i" -> "İ", "ı" -> "I". Invariant ile yapilsaydi
+    // "irade" araması "İRADƏ" adini bulamazdi.
+    private static string? Normalize(string? s) =>
+        string.IsNullOrWhiteSpace(s) ? null : s.Trim().ToUpper(Tr);
+
+    private bool AramayaUyar(AkisGrupOzeti g, string aranan)
+    {
+        if (g.ProtokolId is not { } pid) return false;
+        if (pid.ToString(System.Globalization.CultureInfo.InvariantCulture).Contains(aranan)) return true;
+        if (!Ozet.Protokoller.TryGetValue(pid, out var pr)) return false;
+        return (pr.Fin?.ToUpper(Tr).Contains(aranan) ?? false)
+            || (pr.HastaAdiSoyadi?.ToUpper(Tr).Contains(aranan) ?? false);
+    }
+
+    private List<AkisGrupOzeti> Sirala(List<AkisGrupOzeti> gruplar) => Sira switch
+    {
+        "deneme" => gruplar.OrderByDescending(g => g.Kayitlar.Sum(k => k.DenemeSayisi)).ToList(),
+        // Protokol bilgisi okunamayan gruplar (tarih yok) en sonda.
+        "tarih" => gruplar
+            .OrderByDescending(g => g.ProtokolId is { } pid && Ozet.Protokoller.TryGetValue(pid, out var pr)
+                ? pr.AcilisTarihi ?? DateTime.MinValue : DateTime.MinValue)
+            .ToList(),
+        // Varsayilan zaten en son denenen (ozet bu sirayla geliyor).
+        _ => gruplar,
+    };
+
+    // ------------------------------------------------------------------ CANLI SERIT
+    //
+    // Yalnizca AYAR okuyor -- dongunun kendisine dokunmuyor. Degerleri AutoSyncWorker
+    // yaziyor (bkz. SettingsStore.AutoSendTurHedefKey). Sayfa acikken serit 15 saniyede
+    // bir kendini tazeliyor (OnGetSeritAsync), sayfanin geri kalani degil.
+    private async Task<CanliSerit> SeritOkuAsync(CancellationToken ct)
+    {
+        static DateTime? Zaman(string s) => DateTime.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.RoundtripKind, out var t) ? t : null;
+
+        return new CanliSerit(
+            Acik: await settings.GetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, false, ct),
+            TurNo: await settings.GetIntAsync(SettingsStore.AutoSendTurNoKey, 0, ct),
+            Hedef: await settings.GetIntAsync(SettingsStore.AutoSendTurHedefKey, 0, ct),
+            Islenen: await settings.GetIntAsync(SettingsStore.AutoSendTurIslenenKey, 0, ct),
+            Bekleyen: await settings.GetIntAsync(SettingsStore.AutoSendTurBekleyenKey, 0, ct),
+            SonrakiTurUtc: Zaman(await settings.GetStringAsync(SettingsStore.AutoSendNextRunUtcKey, "", ct)),
+            SonTurUtc: Zaman(await settings.GetStringAsync(SettingsStore.AutoSendLastRunUtcKey, "", ct)),
+            SonTurOzet: await settings.GetStringAsync(SettingsStore.AutoSendLastRunOzetKey, "", ct),
+            Canli: await settings.GetStringAsync(SettingsStore.EHealthEnvironmentKey,
+                SettingsStore.EHealthEnvironmentDefault, ct) == "Live");
+    }
+
+    // Seridin kendini tazelemesi: yalnizca serit parcasini dondurur.
+    public async Task<IActionResult> OnGetSeritAsync(CancellationToken ct) =>
+        Partial("_AktiviteSerit", await SeritOkuAsync(ct));
+
+    // DURDUR -- Ayarlar'daki Durdur ile AYNI anahtar, ayni etki: dongu bir sonraki
+    // protokolden once durur (bkz. AutoSyncWorker, tur ici kontrol).
+    //
+    // BASLAT BURADA YOK, BILEREK: baslatmak canli sisteme yazmaya baslamak demek ve
+    // Ayarlar'daki dugme ortami ve parti boyutunu yazan bir onayla korunuyor. Durdurmak
+    // ise her zaman guvenli -- en kotu ihtimalle gonderim bir tur gecikir.
+    public async Task<IActionResult> OnPostDurdurAsync(CancellationToken ct)
+    {
+        await settings.SetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, false, ct);
+        logger.LogWarning("Otomatik gonderim DURDURULDU (Aktivite Akisi seridinden).");
+        Sonuclandir(true, "Otomatik gönderim durduruldu. Süren tur, elindeki protokolü bitirince duracak.");
+        return GeriDon();
     }
 
     // =========================== GONDERME VE SILME ===========================
@@ -537,6 +651,48 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
         return GeriDon();
     }
 
+    // SECILENLERI GONDER (2026-10-21, "D" tasarimi) -- GrupGonder'in toplu hali, ayni
+    // servisle (ProtocolFullSyncService). Ayri bir toplu gonderim yolu YAZILMADI: bu
+    // projede toplu gonderimin kendi zincirini tasimasi bir kez epikriz/lab/patolojinin
+    // hic gitmemesine yol acti (bkz. yukaridaki not).
+    //
+    // TAVAN BIR SAYFA (25): istek tarayici beklerken suruyor ve her protokol tam zincir
+    // demek. Daha buyugu otomatik dongunun isi; bu dugme "su gordugum takilanlari simdi
+    // dene" icin.
+    public async Task<IActionResult> OnPostTopluGonderAsync(List<int> protokolIds, CancellationToken ct)
+    {
+        var hedefler = protokolIds.Distinct().Take(PageSize).ToList();
+        if (hedefler.Count == 0)
+        {
+            Sonuclandir(false, "Gönderilecek protokol seçilmedi.");
+            return GeriDon();
+        }
+
+        int basarili = 0, basarisiz = 0;
+        var bulunamayan = new List<int>();
+        foreach (var pid in hedefler)
+        {
+            var protokol = await repository.GetProtokolByIdAsync(pid, ct);
+            if (protokol is null) { bulunamayan.Add(pid); continue; }
+            try
+            {
+                var sonuc = await protocolFullSync.SyncAllAsync(protokol, ct);
+                if (sonuc.EncounterStatus == SyncStatus.Failed) basarisiz++; else basarili++;
+            }
+            catch (Exception ex)
+            {
+                basarisiz++;
+                logger.LogWarning(ex, "Aktivite toplu gonderim: protokol {Id} gonderilemedi.", pid);
+            }
+        }
+
+        Sonuclandir(basarisiz == 0 && bulunamayan.Count == 0,
+            $"{hedefler.Count} protokol yeniden gönderildi: {basarili} başarılı, {basarisiz} başarısız"
+            + (bulunamayan.Count > 0 ? $", {bulunamayan.Count} tanesi Pusula'da bulunamadı." : ".")
+            + " Ayrıntı satırın zincir rozetlerinde.");
+        return GeriDon();
+    }
+
     private void Sonuclandir(bool basarili, string? mesaj)
     {
         IslemBasarili = basarili;
@@ -552,7 +708,7 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
     // islemden sonra kullanici sayfa 1'e duserdi -- tam da kacinmak istedigimiz sey.
     private IActionResult GeriDon() => RedirectToPage("/Aktivite", new
     {
-        Status, ResourceType, Kategori, P = P < 1 ? 1 : P,
+        Status, ResourceType, Kategori, Q, Sira, P = P < 1 ? 1 : P,
         From = From?.ToString("yyyy-MM-dd"),
         To = To?.ToString("yyyy-MM-dd"),
     });
@@ -609,23 +765,100 @@ public record AkisOzeti(
 //
 // SATIR DEGIL KAYIT: ayni kaydin onlarca denemesini ozette tasimak, tarih araligi genis
 // oldugunda tavani doldurup baslangic tarihini etkisiz kiliyordu (bkz. OzetTavani).
+// Mesaj: son denemenin mesaji, yalnizca basarisizsa -- takilan satirin altindaki sebep
+// metni buradan uretiliyor.
 public record AkisKayitRef(string ResourceType, int PusulaId, SyncStatus Durum,
-                           int DenemeSayisi, string? HataKategorisi);
+                           int DenemeSayisi, string? HataKategorisi, string? Mesaj);
 
 // Tek bir grubun (hasta/protokol) ozeti.
 public record AkisGrupOzeti(int? ProtokolId, bool HastaGrubu, List<AkisKayitRef> Kayitlar,
     int Basarili, int Atlanan, int Hatali, long EnYeniKayitId)
 {
+    // SINIFLANDIRMAYA GIREN KAYITLAR -- kartlarla ayni kume (bkz.
+    // SyncLogStore.AkisKartlariniHesaplaAsync). Kartlar protokolu siniflarken Hasta
+    // kaydini saymiyor (ProtokolId'si NULL); liste sayarsa bir hastasi hata alan protokol
+    // kartta "Sorunsuz", listede "Hatali" cikar ve karta tiklayan onu bulamaz.
+    // Yalnizca Hasta kaydindan olusan grupta (HastaGrubu) siniflanacak baska sey yok.
+    private IEnumerable<AkisKayitRef> Siniflanan => ProtokolId is null
+        ? Kayitlar
+        : Kayitlar.Where(k => k.ResourceType != "Patient");
+
     // Tek bir kaydi bile gitmemis mi? Kaydi olmayan grup "gitmedi" SAYILMAZ --
     // gonderilecek bir sey yoksa gonderilememis de denmez.
-    public bool HicGitmedi => Basarili == 0 && Kayitlar.Count > 0;
+    public bool HicGitmedi => Siniflanan.Any() && Siniflanan.All(k => k.Durum != SyncStatus.Success);
 
-    // HASTANIN SINIFI, "EN KOTU DURUM KAZANIR" KURALIYLA. Ust karttaki sayilar da,
-    // bir karta tiklandiginda listelenecek hastalar da bu tek kuraldan geliyor --
-    // boylece kartta yazan sayi ile listelenen hasta sayisi birbirini tutuyor.
-    public SyncStatus Sinif => Hatali > 0 ? SyncStatus.Failed
-        : Atlanan > 0 ? SyncStatus.Skipped
+    // PROTOKOLUN SINIFI, "EN KOTU KAYIT KAZANIR" KURALIYLA (kaydin kendi durumu ise son
+    // denemeden). Ust karttaki sayilar da, bir karta tiklandiginda listelenecek
+    // protokoller de bu tek kuraldan geliyor -- kartta yazan sayi ile listelenen protokol
+    // sayisi birbirini tutuyor.
+    public SyncStatus Sinif => Siniflanan.Any(k => k.Durum == SyncStatus.Failed) ? SyncStatus.Failed
+        : Siniflanan.Any(k => k.Durum == SyncStatus.Skipped) ? SyncStatus.Skipped
         : SyncStatus.Success;
+
+    // ---- GONDERIM ZINCIRI (2026-10-21, onaylanan "D" tasarimi) ----
+    //
+    // Satirin ayirt edici ozelligi: zincirin HANGI HALKASINDA takildigi tek bakista
+    // gorunsun. Rozet sirasi gonderim sirasi -- hasta yazilmadan muayine, muayine
+    // yazilmadan tani/islem gidemez; soldan ilk sorunlu halka cogu zaman asil sebep.
+    //
+    // Vital ve Patoloji YALNIZCA VARSA: cogu protokolde hic yoklar, her satirda bos rozet
+    // olarak durmalari zinciri okunmaz kilardi. Digerleri bossa da gorunur ("bu protokolde
+    // radyoloji yok" da bir bilgi).
+    private static readonly (string Ad, string Baslik, string[] Turler, bool HepGoster)[] Halkalar =
+    [
+        ("Hasta",   "Hasta",                       ["Patient"],          true),
+        ("Muayinə", "Müayinə",                     ["Encounter"],        true),
+        ("Tanı",    "Tanı",                        ["Condition"],        true),
+        ("İşlem",   "İşlem",                       ["Procedure"],        true),
+        ("Lab",     "Laboratuvar tetkiki",         ["Observation"],      true),
+        ("Vital",   "Vital bulgu",                 ["Observation-Vital"], false),
+        ("Rad",     "Radyoloji raporu",            ["DiagnosticReport"], true),
+        ("Epikriz", "Epikriz",                     ["Composition"],      true),
+        ("Patoloji", "Patoloji raporu / belgesi / bulgusu",
+            ["DiagnosticReport-Patoloji", "Composition-Patoloji", "Observation-Patoloji"], false),
+    ];
+
+    public List<ZincirHalkasi> Zincir()
+    {
+        var sonuc = new List<ZincirHalkasi>();
+        foreach (var (ad, baslik, turler, hepGoster) in Halkalar)
+        {
+            var k = Kayitlar.Where(x => turler.Contains(x.ResourceType)).ToList();
+            if (k.Count == 0 && !hepGoster) continue;
+            var hatali = k.Count(x => x.Durum == SyncStatus.Failed);
+            var eksik = k.Count(x => x.Durum == SyncStatus.Skipped);
+            sonuc.Add(new ZincirHalkasi(ad, baslik, k.Count, hatali, eksik,
+                hatali > 0 ? HalkaDurumu.Hatali
+                : eksik > 0 ? HalkaDurumu.Eksik
+                : k.Count > 0 ? HalkaDurumu.Tamam
+                : HalkaDurumu.Yok));
+        }
+        return sonuc;
+    }
+}
+
+public enum HalkaDurumu { Yok, Tamam, Eksik, Hatali }
+
+public record ZincirHalkasi(string Ad, string Baslik, int Adet, int Hatali, int Eksik, HalkaDurumu Durum)
+{
+    public int Takilan => Hatali + Eksik;
+
+    public string Css => Durum switch
+    {
+        HalkaDurumu.Tamam => "ok",
+        HalkaDurumu.Eksik => "eksik",
+        HalkaDurumu.Hatali => "hata",
+        _ => "yok",
+    };
+
+    // Rozetin title'i -- rengi gormeyen (renk korlugu, ekran okuyucu) icin ayni bilgi metin olarak.
+    public string Aciklama => Durum switch
+    {
+        HalkaDurumu.Yok => $"{Baslik}: bu protokolde yok",
+        HalkaDurumu.Tamam => $"{Baslik}: {Adet} kayıt, hepsi gönderildi",
+        _ => $"{Baslik}: {Adet} kayıttan {Takilan} tanesi takıldı"
+             + (Hatali > 0 && Eksik > 0 ? $" ({Hatali} hatalı, {Eksik} eksik verili)" : ""),
+    };
 }
 
 // Aktivite akisinda tek bir grubun o sayfada GOSTERILEN kayitlari.
@@ -660,6 +893,56 @@ public record AktiviteGrubu(AkisGrupOzeti Ozet, ProtokolListItem? Protokol, List
 
     public bool Suzulmus => Kayitlar.Count < ToplamDeneme;
 
+    public List<ZincirHalkasi> Zincir { get; } = Ozet.Zincir();
+
+    public (string Css, string Etiket) DurumGosterimi => Ozet.Sinif switch
+    {
+        SyncStatus.Failed => ("hata", "Hatalı"),
+        SyncStatus.Skipped => ("eksik", "Eksik verili"),
+        _ => ("ok", "Sorunsuz"),
+    };
+
+    // ---- TAKILMA SEBEBI -- satirin altinda, aramaya gerek kalmasin ----
+    //
+    // Baslik NEYIN takildigini sayar ("9 işlem, 1 epikriz takıldı"), metin NEDEN takildigini
+    // soyler: takilan kayitlarin en sik iki mesaji, kullanici diline cevrilmis haliyle.
+    // Hepsini yazmak satiri paragraf yapardi; ayrintinin tamami satir acilinca tabloda.
+    //
+    // HASTA TAKILDIYSA AYRI BASLIK: Hasta yazilamazsa zincirin geri kalani hic denenmez.
+    // "1 hasta takıldı" bunu anlatmiyor -- bir protokolun neden bos gorundugunu soyleyen
+    // sey "en basta durdu" bilgisi.
+    public string? SebepBaslik
+    {
+        get
+        {
+            var takilan = Zincir.Where(h => h.Takilan > 0).ToList();
+            if (takilan.Count == 0) return null;
+
+            var hasta = Zincir.FirstOrDefault(h => h.Ad == "Hasta");
+            if (hasta is { Takilan: > 0 } && Zincir.All(h => h.Ad == "Hasta" || h.Durum != HalkaDurumu.Tamam))
+                return "Zincir en başta durdu";
+
+            var tr = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+            return string.Join(", ", takilan.Select(h => $"{h.Takilan} {h.Ad.ToLower(tr)}")) + " takıldı";
+        }
+    }
+
+    public string? SebepMetni
+    {
+        get
+        {
+            var sebepler = Ozet.Kayitlar
+                .Where(k => k.Durum != SyncStatus.Success)
+                .GroupBy(k => SyncLogEntry.FriendlyError(k.Mesaj))
+                .OrderByDescending(g => g.Count())
+                .Select(g => g.Key)
+                .ToList();
+            if (sebepler.Count == 0) return null;
+            var metin = string.Join(" · ", sebepler.Take(2));
+            return sebepler.Count > 2 ? $"{metin} (+{sebepler.Count - 2} farklı sebep daha)" : metin;
+        }
+    }
+
     // Grup basligindaki saat -- gruptaki EN YENI kayit (akis en yeniden eskiye okunuyor).
     public DateTime SonZamanYerel => AzTime.ToLocal(Kayitlar.Max(k => k.CreatedAtUtc));
 
@@ -682,4 +965,23 @@ public record AktiviteGrubu(AkisGrupOzeti Ozet, ProtokolListItem? Protokol, List
         : Protokol?.Fin is { Length: > 0 } f
             ? f
             : Kayitlar.Select(k => k.Fin).FirstOrDefault(a => !string.IsNullOrWhiteSpace(a));
+}
+
+// Canli gonderim seridinin anlik goruntusu (bkz. AktiviteModel.SeritOkuAsync).
+public record CanliSerit(bool Acik, int TurNo, int Hedef, int Islenen, int Bekleyen,
+    DateTime? SonrakiTurUtc, DateTime? SonTurUtc, string SonTurOzet, bool Canli)
+{
+    public static readonly CanliSerit Bos = new(false, 0, 0, 0, 0, null, null, "", false);
+
+    // Hedef > 0 = bir tur SURUYOR. Dongu her cikista sifirliyor (bkz. AutoSyncWorker).
+    public bool TurSuruyor => Hedef > 0;
+
+    // Anahtar kapatildi ama tur elindeki protokolu henuz bitirmedi -- "Durdurdum ama
+    // hala gonderiyor" sorusunun cevabi ekranda olsun.
+    public bool Durduruluyor => !Acik && TurSuruyor;
+
+    public double Yuzde => Hedef > 0 ? Math.Clamp(100.0 * Islenen / Hedef, 0, 100) : 0;
+
+    // Son tur hata ile bittiyse dongu bunu "HATA: ..." onekiyle yaziyor.
+    public bool SonTurHatali => SonTurOzet.StartsWith("HATA", StringComparison.Ordinal);
 }

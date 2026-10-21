@@ -268,7 +268,7 @@ public class SyncLogStore
 
     // Gruplama ve sayim icin gereken asgari alanlar -- SATIR degil KAYIT basina bir tane.
     public record OzetSatiri(long SonId, string ResourceType, int PusulaId, SyncStatus Status,
-                             int DenemeSayisi, string? HataMesaji);
+                             int DenemeSayisi, string? HataMesaji, int? ProtokolId);
 
     // TARIH ARALIGINDAKI KAYITLAR (2026-10-09'da SATIR bazindan KAYIT bazina cevrildi).
     //
@@ -286,8 +286,20 @@ public class SyncLogStore
     // tavan pratikte hic devreye girmiyor. Denemelerin kendisi, yalnizca ekranda GORUNEN
     // gruplar icin ayrica okunuyor (bkz. GetByRecordsAsync).
     //
-    // DURUM "EN KOTU KAZANIR": kaydin denemelerinden biri hata aldiysa kayit hatali
-    // sayilir -- Genel Bakis ve Aktivite Akisi ayni kurali kullansin diye.
+    // DURUM "SON DENEME KAZANIR" (2026-10-21) -- AkisKartlariniHesaplaAsync ile AYNI kural.
+    //
+    // Once burasi "en kotu kazanir" idi. Kartlar ayni gun son denemeye gecince liste ile
+    // kartlar AYRI kural kullanir hale geldi: "Hatali" kartinda 34 yazarken karta
+    // tiklamak, bir zamanlar hata alip sonradan giden yuzlerce protokolu de listeliyordu.
+    // Kartta yazan sayi ile tiklayinca gelen liste ayni kuraldan cikmak zorunda.
+    //
+    // ProtokolId DE GRUPLAMA ANAHTARINDA -- kartlarla ayni gerekce (bkz.
+    // AkisKartlariniHesaplaAsync). Liste artik protokolu once bu sutundan okuyor;
+    // Pusula'ya yalnizca bagi henuz doldurulmamis satirlar soruluyor.
+    //
+    // MESAJ: son denemenin mesaji, yalnizca basarisizsa (Failed VE Skipped). Takilan
+    // protokolun satirinin altinda sebep yazabilmek icin eksik verili kayitlarin da
+    // mesaji lazim; basarili kayitlarda NULL (bellek israfi olmasin).
     //
     // ORTAM FILTRESI YOK: QueryAsync/GetStatusCountsAsync ile ayni bilincli karar.
     public async Task<List<OzetSatiri>> QueryOzetAsync(
@@ -297,20 +309,19 @@ public class SyncLogStore
         using var conn = new SqliteConnection(_connectionString);
         await conn.OpenAsync(ct);
         using var cmd = conn.CreateCommand();
+        // MAX(Id) ILE CIPLAK KOLON: SQLite'ta min/max kullanildiginda ciplak kolonlar
+        // (Status, Message) O satirdan gelir -- yani son denemenin kendisinden.
         cmd.CommandText = @"
             SELECT MAX(Id) AS SonId, ResourceType, PusulaId,
-                   CASE WHEN SUM(Status = 'Failed')  > 0 THEN 'Failed'
-                        WHEN SUM(Status = 'Skipped') > 0 THEN 'Skipped'
-                        ELSE 'Success' END AS Durum,
+                   Status AS Durum,
                    COUNT(*) AS Deneme,
-                   -- Kategori suzgeci icin bir hata mesaji ornegi; yalnizca hatali
-                   -- kayitlarda dolu, digerlerinde NULL (bellek israfi olmasin).
-                   MAX(CASE WHEN Status = 'Failed' THEN Message END) AS HataMesaji
+                   CASE WHEN Status <> 'Success' THEN Message END AS HataMesaji,
+                   ProtokolId
             FROM SyncLog
             WHERE ($resourceType IS NULL OR ResourceType = $resourceType)
               AND ($from IS NULL OR CreatedAtUtc >= $from)
               AND ($to IS NULL OR CreatedAtUtc < $to)
-            GROUP BY ResourceType, PusulaId
+            GROUP BY ResourceType, PusulaId, ProtokolId
             ORDER BY SonId DESC
             LIMIT $tavan";
         cmd.Parameters.AddWithValue("$resourceType", (object?)resourceType ?? DBNull.Value);
@@ -325,7 +336,8 @@ public class SyncLogStore
                 reader.GetInt64(0), reader.GetString(1), reader.GetInt32(2),
                 Enum.Parse<SyncStatus>(reader.GetString(3)),
                 reader.GetInt32(4),
-                reader.IsDBNull(5) ? null : reader.GetString(5)));
+                reader.IsDBNull(5) ? null : reader.GetString(5),
+                reader.IsDBNull(6) ? null : reader.GetInt32(6)));
         return result;
     }
 

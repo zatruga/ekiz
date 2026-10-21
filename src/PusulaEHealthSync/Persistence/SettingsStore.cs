@@ -89,6 +89,22 @@ public class SettingsStore
     public const string AutoSendLastRunUtcKey = "AutoSend.LastRunUtc";
     public const string AutoSendLastRunOzetKey = "AutoSend.LastRunOzet";
 
+    // TUR ICI ILERLEME (2026-10-21) -- Aktivite Akisi'nin canli gonderim seridi icin.
+    //
+    // Son tur izi turun BITTIGINI soyluyor; bu alanlar turun NEREDE oldugunu. Ikisi
+    // ayri: bir tur parti boyutuna gore saatlerce surebiliyor ve o sure boyunca "son tur
+    // 2 saat once" yazan bir ekran, dongu calisirken olmus gibi gorunur.
+    //
+    // Hedef = 0 "su an tur yok" demek: tur bitince (normal, Durdur ya da hata) SIFIRLANIR.
+    // Sifirlanmazsa serit, biten turu sonsuza kadar "312/500" diye gostermeye devam ederdi.
+    public const string AutoSendTurNoKey = "AutoSend.Tur.No";
+    public const string AutoSendTurHedefKey = "AutoSend.Tur.Hedef";
+    public const string AutoSendTurIslenenKey = "AutoSend.Tur.Islenen";
+    // Turun basinda gonderime UYGUN olan protokol sayisi -- partiye sigmayanlar dahil.
+    public const string AutoSendTurBekleyenKey = "AutoSend.Tur.Bekleyen";
+    // Bir sonraki turun planlanan baslangici; dongu beklemeye girmeden hemen once yazilir.
+    public const string AutoSendNextRunUtcKey = "AutoSend.NextRunUtc";
+
     // -- Bekleyen is taramasi araligi -----------------------------------------------------
     // KULLANICI ISTEGI (2026-09-28): "bu tarama tum data degil, Ayarlar kismina alan
     // ekleyelim; orada girilen tarihten itibaren datayi al; bir de son 1 ay / son 3 ay

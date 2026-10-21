@@ -3,123 +3,108 @@
 @using PusulaEHealthSync.Persistence
 @{
     ViewData["Title"] = "Aktivite Akışı";
-    ViewData["Genis"] = true;   // 10+ sutunlu veri tablosu -- genislik sinirindan muaf
-}
-
-<p class="breadcrumb"><a asp-page="/Index">Protokol Listesi</a> / Aktivite Akışı</p>
-<div class="page-header">
-    <div>
-        <h1 class="page-title">Aktivite Akışı</h1>
-        <p class="page-subtitle">Her senkron denemesinin ham, teknik kaydı &mdash; hastaya göre gruplanmış, kaynak türüne göre filtrelenebilir</p>
-    </div>
-</div>
-
-@{
+    ViewData["Genis"] = true;   // zincir rozetleri + islemler -- genislik sinirindan muaf
+    var tr = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
     var fromIso = Model.EffectiveFrom.ToString("yyyy-MM-dd");
     var toIso = Model.EffectiveTo.ToString("yyyy-MM-dd");
+    var hicbiri = PusulaEHealthSync.Web.Pages.AktiviteModel.HicbiriAnahtari;
 }
 
-<form method="get" class="filter-bar">
-    <label for="from">Başlangıç</label>
-    <input type="date" id="from" name="From" value="@fromIso" onchange="this.form.submit()" />
-    <label for="to">Bitiş</label>
-    <input type="date" id="to" name="To" value="@toIso" onchange="this.form.submit()" />
-    <input type="hidden" name="Status" value="@Model.Status" />
-    <input type="hidden" name="Kategori" value="@Model.Kategori" />
-    <select name="ResourceType" onchange="this.form.submit()">
-        <option value="">Tüm kayıt türleri</option>
-        <option value="Patient" selected="@(Model.ResourceType == "Patient")">@SyncLogEntry.ResourceTypeLabel("Patient")</option>
-        <option value="Encounter" selected="@(Model.ResourceType == "Encounter")">@SyncLogEntry.ResourceTypeLabel("Encounter")</option>
-        <option value="Practitioner" selected="@(Model.ResourceType == "Practitioner")">@SyncLogEntry.ResourceTypeLabel("Practitioner")</option>
-        <option value="Composition" selected="@(Model.ResourceType == "Composition")">@SyncLogEntry.ResourceTypeLabel("Composition")</option>
-        <option value="Condition" selected="@(Model.ResourceType == "Condition")">@SyncLogEntry.ResourceTypeLabel("Condition")</option>
-        <option value="Procedure" selected="@(Model.ResourceType == "Procedure")">@SyncLogEntry.ResourceTypeLabel("Procedure")</option>
-        <option value="Observation" selected="@(Model.ResourceType == "Observation")">@SyncLogEntry.ResourceTypeLabel("Observation")</option>
-        <option value="DiagnosticReport" selected="@(Model.ResourceType == "DiagnosticReport")">@SyncLogEntry.ResourceTypeLabel("DiagnosticReport")</option>
-        <option value="DiagnosticReport-Patoloji" selected="@(Model.ResourceType == "DiagnosticReport-Patoloji")">@SyncLogEntry.ResourceTypeLabel("DiagnosticReport-Patoloji")</option>
-        <option value="Composition-Patoloji" selected="@(Model.ResourceType == "Composition-Patoloji")">@SyncLogEntry.ResourceTypeLabel("Composition-Patoloji")</option>
-        <option value="Observation-Patoloji" selected="@(Model.ResourceType == "Observation-Patoloji")">@SyncLogEntry.ResourceTypeLabel("Observation-Patoloji")</option>
-    </select>
-</form>
+@* ==== ONAYLANAN TASARIM: "D · PROTOKOL LISTESI ODAKLI (BIRLESIK)" (2026-10-21) ====
+   Kullanici dort yon arasindan bunu secti ("evet bunu sevdim"). Yukaridan asagi:
+     1. canli gonderim seridi   -- su an ne oluyor (kendini tazeliyor)
+     2. baslik + filtreler      -- tarih, arama, kayit turu
+     3. donem ozeti             -- kutular TIKLANABILIR SUZGEC
+     4. protokol listesi        -- sayfanin asil isi; her satirda gonderim zinciri
 
-@* ==== KARTLAR HASTA SAYAR, SATIR DEGIL (KULLANICI ISTEGI 2026-10-07) ====
-   "hasta sayilari tam gelsin, sayfa listelemesi icindeki hizmetlere gore degil hastayi
-   saysin."
+   ESKI EKRANIN SORUNU: adi "akis" ama zaman ekseni yoktu ve bes kart esit agirlikta
+   duruyordu -- oysa "Hic gonderilemeyen" digerlerinin ALT KUMESI. Kullanici "sanki bir
+   seyler olmadi" dedi. Yeni ekranda ozet tek satirlik bir suzgec, agirlik listede.
 
-   Buyuk rakam HASTA/PROTOKOL sayisi, altindaki kucuk satir o hastalarin kac SyncLog
-   kaydina karsilik geldigi. Ikisi de duruyor cunku iki ayri soruya cevap veriyorlar:
-   "kac hastayi ilgilendiriyor" (is yuku) ve "kac deneme yapildi" (teknik hacim).
+   RENKLER OLCULDU (dataviz dogrulayicisi, alti denetim de gecti; bkz. site.css
+   --akis-ok/--akis-eksik/--akis-hata). Renk hicbir yerde TEK BASINA anlam tasimiyor:
+   her rozetin adi ve sayisi yazili, durumun etiketi yazili. *@
 
-   EN KOTU DURUM KAZANIR: bir hastanin 40 kaydindan biri hata aldiysa o hasta Hatalı
-   sayilir. Bu kart "hangi hastalarda sorun var" diye tiklaniyor; 39 kaydi gectigi icin
-   basarili saymak kullaniciyi yanlis yere gotururdu. Kategoriler ortusmuyor,
-   toplamlari Toplam'a esit.
+<partial name="_AktiviteSerit" model="Model.Serit" />
 
-   SAYILAR ARALIGIN TAMAMI ICIN -- goruntulenen sayfaya bagli degil. Sayfalar arasinda
-   gezerken degismemeleri icin aralik ozeti iki dakika onbellekte tutuluyor. *@
-<div class="stat-grid stat-grid--5">
-    <a asp-page="/Aktivite" asp-route-Status="" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" class="stat-card @(string.IsNullOrEmpty(Model.Status) ? "active" : "")">
-        <div class="stat-top">
-            <span class="stat-label">Toplam Hasta</span>
-            <span class="stat-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M16 21v-2a4 4 0 0 0-4-4H6a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M22 21v-2a4 4 0 0 0-3-3.87"/></svg>
-            </span>
+<header class="akis-bas">
+    <div>
+        <p class="breadcrumb" style="margin:0 0 4px;"><a asp-page="/Index">Protokol Listesi</a> / Aktivite Akışı</p>
+        <h1 class="page-title" style="margin:0;">Aktivite Akışı</h1>
+    </div>
+
+    <form method="get" class="akis-filtre">
+        <input type="hidden" name="Status" value="@Model.Status" />
+        <input type="hidden" name="Kategori" value="@Model.Kategori" />
+        <input type="hidden" name="Sira" value="@Model.Sira" />
+        <div class="akis-filtre-tarih">
+            <label for="from">Başlangıç</label>
+            <input type="date" id="from" name="From" value="@fromIso" onchange="this.form.submit()" />
+            <span aria-hidden="true">→</span>
+            <label for="to">Bitiş</label>
+            <input type="date" id="to" name="To" value="@toIso" onchange="this.form.submit()" />
         </div>
-        <span class="stat-value">@Model.Ozet.HastaToplam</span>
-        <span class="stat-foot">@Model.Ozet.ToplamKayit kayıt</span>
-    </a>
-    <a asp-page="/Aktivite" asp-route-Status="Success" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" class="stat-card success @(Model.Status == "Success" ? "active" : "")">
-        <div class="stat-top">
-            <span class="stat-label">Sorunsuz</span>
-            <span class="stat-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 6 9 17l-5-5"/></svg>
-            </span>
-        </div>
-        <span class="stat-value success">@Model.Ozet.HastaBasarili</span>
-        <span class="stat-foot">@Model.Ozet.BasariliKayit kayıt başarılı</span>
-    </a>
-    <a asp-page="/Aktivite" asp-route-Status="Skipped" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" class="stat-card warning @(Model.Status == "Skipped" ? "active" : "")">
-        <div class="stat-top">
-            <span class="stat-label">Eksik verili</span>
-            <span class="stat-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="10"/><path d="M12 8v4"/><path d="M12 16h.01"/></svg>
-            </span>
-        </div>
-        <span class="stat-value warning">@Model.Ozet.HastaAtlanan</span>
-        <span class="stat-foot">@Model.Ozet.AtlananKayit kayıt atlandı</span>
-    </a>
-    <a asp-page="/Aktivite" asp-route-Status="Failed" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Kategori="@Model.Kategori" class="stat-card danger @(Model.Status == "Failed" ? "active" : "")">
-        <div class="stat-top">
-            <span class="stat-label">Hatalı</span>
-            <span class="stat-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M18 6 6 18"/><path d="m6 6 12 12"/></svg>
-            </span>
-        </div>
-        <span class="stat-value danger">@Model.Ozet.HastaHatali</span>
-        <span class="stat-foot">@Model.Ozet.HataliKayit kayıt hata aldı</span>
+        <label for="q" class="sr-only">Ara</label>
+        <input type="search" id="q" name="Q" value="@Model.Q" placeholder="Hasta adı, FIN veya protokol no" class="akis-filtre-ara" />
+        <label for="tur" class="sr-only">Kayıt türü</label>
+        <select id="tur" name="ResourceType" onchange="this.form.submit()">
+            <option value="">Tüm kayıt türleri</option>
+            @foreach (var t in new[] { "Patient", "Encounter", "Practitioner", "Composition", "Condition", "Procedure", "Observation", "Observation-Vital", "DiagnosticReport", "DiagnosticReport-Patoloji", "Composition-Patoloji", "Observation-Patoloji" })
+            {
+                <option value="@t" selected="@(Model.ResourceType == t)">@SyncLogEntry.ResourceTypeLabel(t)</option>
+            }
+        </select>
+        <button type="submit" class="btn btn-outline btn-sm">Ara</button>
+    </form>
+</header>
+
+@* ==== DONEM OZETI -- KUTULAR SUZGEC ====
+   Sayilar PROTOKOL sayar, kayit degil (alt satirda kayit). Araligin TAMAMI icin, sayfaya
+   ve aramaya bagli degil; tavansiz SQL'den geliyor (bkz. AkisKartlariniHesaplaAsync).
+
+   Uc durum kutusu birbirini disliyor, toplamlari "Donemde"ye esit. "Hic gonderilemeyen"
+   onlarin UZERINE biniyor (Eksik verili + Hatali'nin alt kumesi) -- bu yuzden kesik
+   cizgili ve ayri duruyor, ayni agirlikta bir dorduncu kova gibi gorunmesin. *@
+<section class="akis-ozet" aria-label="Dönem özeti">
+    <a asp-page="/Aktivite" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira"
+       class="akis-ozet-toplam @(string.IsNullOrEmpty(Model.Status) ? "active" : "")" title="Tüm protokolleri listele">
+        <span class="akis-ozet-etiket">Dönemde</span>
+        <span class="akis-ozet-sayi">@Model.Ozet.HastaToplam.ToString("N0", tr)</span>
+        <span class="akis-ozet-alt">protokol · @Model.Ozet.ToplamKayit.ToString("N0", tr) kayıt</span>
     </a>
 
-    @* HIC GONDERILEMEYEN -- KULLANICI ISTEGI (2026-10-10).
-       DIGER DORDUNUN ALT KUMESI, BESINCI BIR KOVA DEGIL. Soldaki dort kart
-       birbirini disliyor ve toplamlari "Toplam Hasta"ya esit; bu kart onlarin
-       UZERINE biniyor. Ayri durmasinin sebebi soyledigi seyin kokten farkli
-       olmasi: 40 kaydindan 39'u giden bir hasta da, hicbiri gitmeyen bir hasta
-       da "Eksik verili" kartinda ayni agirlikta gorunuyordu -- oysa ikincisi
-       bakanlik tarafinda HIC VAR OLMAYAN bir hasta demek. *@
-    <a asp-page="/Aktivite" asp-route-Status="@PusulaEHealthSync.Web.Pages.AktiviteModel.HicbiriAnahtari"
-       asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso"
-       class="stat-card danger @(Model.Status == PusulaEHealthSync.Web.Pages.AktiviteModel.HicbiriAnahtari ? "active" : "")"
-       title="Tek bir kaydı bile TRƏS'e ulaşmamış hastalar — yukarıdaki &ldquo;Eksik verili&rdquo; ve &ldquo;Hatalı&rdquo; içinden">
-        <div class="stat-top">
-            <span class="stat-label">Hiç gönderilemeyen</span>
-            <span class="stat-icon">
-                <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M4.9 4.9 19.1 19.1"/><circle cx="12" cy="12" r="10"/></svg>
+    @foreach (var (durum, css, ad, sayi, alt) in new[]
+    {
+        ("Success", "ok", "Sorunsuz", Model.Ozet.HastaBasarili, $"{Model.Ozet.BasariliKayit.ToString("N0", tr)} kayıt başarılı"),
+        ("Skipped", "eksik", "Eksik verili", Model.Ozet.HastaAtlanan, $"{Model.Ozet.AtlananKayit.ToString("N0", tr)} kayıt atlandı"),
+        ("Failed", "hata", "Hatalı", Model.Ozet.HastaHatali, $"{Model.Ozet.HataliKayit.ToString("N0", tr)} kayıt hata aldı"),
+    })
+    {
+        <a asp-page="/Aktivite" asp-route-Status="@durum" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira"
+           asp-route-Kategori="@(durum == "Failed" ? Model.Kategori : null)"
+           class="akis-ozet-kutu akis-ozet-kutu--@css @(Model.Status == durum ? "active" : "")"
+           aria-current="@(Model.Status == durum ? "true" : null)">
+            <span class="akis-kare akis-kare--@css" aria-hidden="true"></span>
+            <span class="akis-ozet-kutu-metin">
+                <span class="akis-ozet-etiket">@ad</span>
+                <span class="akis-ozet-sayi akis-ozet-sayi--kucuk">@sayi.ToString("N0", tr)</span>
+                <span class="akis-ozet-alt">@alt</span>
             </span>
-        </div>
-        <span class="stat-value danger">@Model.Ozet.HastaHicGitmedi</span>
-        <span class="stat-foot">@Model.Ozet.HicGitmeyenKayit kayıt &middot; hiçbiri ulaşmadı</span>
+        </a>
+    }
+
+    <a asp-page="/Aktivite" asp-route-Status="@hicbiri" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira"
+       class="akis-ozet-kutu akis-ozet-kutu--altkume @(Model.Status == hicbiri ? "active" : "")"
+       aria-current="@(Model.Status == hicbiri ? "true" : null)"
+       title="Tek bir kaydı bile TRƏS'e ulaşmamış protokoller — Eksik verili ve Hatalı içinden">
+        <svg width="14" height="14" viewBox="0 0 16 16" aria-hidden="true" fill="none" stroke="currentColor" stroke-width="1.6"><circle cx="8" cy="8" r="6.2"/><path d="M4 12 12 4"/></svg>
+        <span class="akis-ozet-kutu-metin">
+            <span class="akis-ozet-etiket">Hiç gönderilemeyen · alt küme</span>
+            <span class="akis-ozet-sayi akis-ozet-sayi--kucuk">@Model.Ozet.HastaHicGitmedi.ToString("N0", tr)</span>
+            <span class="akis-ozet-alt">@Model.Ozet.HicGitmeyenKayit.ToString("N0", tr) kayıt · hiçbiri ulaşmadı</span>
+        </span>
     </a>
-</div>
+</section>
 
 @* ISLEM SONUCU -- gonderme/silme POST-REDIRECT-GET ile bittigi icin TempData'dan
    geliyor. Sessiz basari yok: devlet kayit sistemine yazan bir dugmeye basan kisi
@@ -129,41 +114,35 @@
     <div class="alert @(Model.IslemBasarili ? "alert-success" : "alert-danger")">@Model.IslemMesaji</div>
 }
 
-@* KIRPMA ARTIK YALNIZCA LISTEYI ETKILIYOR (2026-10-16). Kart sayilari tavansiz SQL'den
-   geliyor, yani aralik genisleyince dusemezler. Banner bu yuzden "sayilar eksik" demiyor;
-   yalnizca asagidaki listenin tamam olmadigini soyluyor. *@
+@* KIRPMA YALNIZCA LISTEYI ETKILIYOR (2026-10-16). Ozet sayilari tavansiz SQL'den
+   geliyor, yani aralik genisleyince dusemezler. *@
 @if (Model.Ozet.Kirpildi)
 {
     <div class="alert alert-warning">
         Bu tarih aralığında <strong>60.000'den fazla farklı kayıt</strong> var;
         <strong>aşağıdaki liste</strong> en yeni 60.000 kayda göre çıkarıldı.
-        Üstteki <strong>kartlar etkilenmez</strong> — hepsi doğrudan veritabanı toplamından gelir.
+        Üstteki <strong>özet etkilenmez</strong> — doğrudan veritabanı toplamından gelir.
         Listenin tamamı için aralığı daraltın.
     </div>
 }
-@* DOLDURMA SURERKEN SUSMAK YANLIS OLUR: kart sayilari protokol bagina dayaniyor ve
-   bag henuz doldurulmamis eski satirlar sayima girmiyor. Is bitince bu uyari kendiliginden
-   kaybolur (bkz. ProtokolBagiDoldurmaService). *@
+@* DOLDURMA SURERKEN SUSMAK YANLIS OLUR: ozet sayilari protokol bagina dayaniyor ve
+   bag henuz doldurulmamis eski satirlar sayima girmiyor (bkz. ProtokolBagiDoldurmaService). *@
 @if (Model.Ozet.BagiEksikSatir > 0)
 {
     <div class="alert alert-warning">
         Geçmiş kayıtların protokol bağlantısı hâlâ <strong>dolduruluyor</strong>
-        (@Model.Ozet.BagiEksikSatir.ToString("N0") satır kaldı). Bu süre boyunca üstteki
-        kart sayıları eski kayıtları <strong>henüz içermiyor</strong>; doldurma ilerledikçe
+        (@Model.Ozet.BagiEksikSatir.ToString("N0", tr) satır kaldı). Bu süre boyunca üstteki
+        protokol sayıları eski kayıtları <strong>henüz içermiyor</strong>; doldurma ilerledikçe
         kendiliğinden tamamlanır. Kayıt sayıları bundan etkilenmez.
     </div>
 }
 @if (Model.Ozet.PusulaHatasi)
 {
-    @* SAYI GUVENILMEZ OLDUGUNDA BUNU SOYLEMEK ZORUNDAYIZ. Kullanici ayni veri icin bir
-       seferinde 340, digerinde 650 hasta gordu; aradaki fark Pusula'ya erisilemedigi an
-       protokole baglanamayan kayitlardi. Yumusak bir not yeterli degil -- karttaki rakam
-       o an YANLIS, ve yanlis yonu YUKARI. *@
+    @* SAYI GUVENILMEZ OLDUGUNDA BUNU SOYLEMEK ZORUNDAYIZ -- yanlis yonu YUKARI. *@
     <div class="alert alert-danger">
-        <strong>Hasta sayıları eksik.</strong> Pusula'ya erişilemediği için bazı kayıtların hangi
+        <strong>Liste eksik.</strong> Pusula'ya erişilemediği için bazı kayıtların hangi
         protokole ait olduğu çözülemedi; onlar listenin sonundaki <strong>kimliği çözülemeyen</strong>
-        grupta duruyor. Üstteki hasta sayılarını bu haliyle başka bir ölçümle karşılaştırmayın &mdash;
-        sayfayı yenileyip tekrar deneyin. (Kayıt sayıları etkilenmez, onlar doğrudan veritabanından gelir.)
+        grupta duruyor. Sayfayı yenileyip tekrar deneyin.
     </div>
 }
 
@@ -172,385 +151,351 @@
     <div class="filter-chip-bar">
         <span class="filter-chip">
             Kategori: <strong>@Model.Kategori</strong>
-            <a asp-page="/Aktivite" asp-route-Status="Failed" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" class="filter-chip-x" title="Kategori filtresini kaldır">&times;</a>
+            <a asp-page="/Aktivite" asp-route-Status="Failed" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" class="filter-chip-x" title="Kategori filtresini kaldır">&times;</a>
         </span>
     </div>
 }
 
-@if (Model.Entries.Count == 0)
-{
-    <div class="table-wrap empty-state">
-        <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
-        <p>Bu filtreye uyan senkron kaydı yok.</p>
+<section class="card akis-liste" aria-label="Protokoller">
+    @* SECILENLERI GONDER -- satirlardaki kutular bu forma form="akis-toplu" ile bagli.
+       Ic ice form HTML'de yasak; satirlarin kendi Gonder/Sil formlari var. *@
+    <form id="akis-toplu" method="post" asp-page-handler="TopluGonder"
+          asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType"
+          asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira"
+          asp-route-P="@Model.PageNumber" asp-route-From="@fromIso" asp-route-To="@toIso"
+          onsubmit="return akisTopluOnay(this)"></form>
+
+    <div class="akis-liste-arac">
+        <h2 class="akis-liste-baslik">Protokoller</h2>
+        <span class="akis-liste-bilgi">
+            @if (Model.ListelenenGrupSayisi == 0)
+            {
+                <text>0 protokol</text>
+            }
+            else
+            {
+                <text>@Model.ListelenenGrupSayisi.ToString("N0", tr) protokol · @Model.IlkSira–@Model.SonSira arası</text>
+            }
+        </span>
+
+        <div class="akis-liste-eylem">
+            <form method="get" class="akis-sirala">
+                <input type="hidden" name="Status" value="@Model.Status" />
+                <input type="hidden" name="Kategori" value="@Model.Kategori" />
+                <input type="hidden" name="ResourceType" value="@Model.ResourceType" />
+                <input type="hidden" name="Q" value="@Model.Q" />
+                <input type="hidden" name="From" value="@fromIso" />
+                <input type="hidden" name="To" value="@toIso" />
+                <label for="sira">Sırala</label>
+                <select id="sira" name="Sira" onchange="this.form.submit()">
+                    <option value="son" selected="@(Model.Sira is null or "son")">En son denenen</option>
+                    <option value="deneme" selected="@(Model.Sira == "deneme")">En çok deneme</option>
+                    <option value="tarih" selected="@(Model.Sira == "tarih")">Protokol tarihi</option>
+                </select>
+            </form>
+            <button type="button" class="btn btn-outline btn-sm" onclick="akisSorunlulariSec()">Takılanları seç</button>
+            <button type="submit" form="akis-toplu" class="btn btn-primary btn-sm" id="akis-toplu-dugme" disabled>Seçilenleri gönder</button>
+        </div>
     </div>
-}
-else
-{
-    @* ==== PROTOKOLE GORE GRUPLAMA (KULLANICI ISTEGI 2026-10-05) ====
-       "tek tek tum islemler ve gonderimler icin tek tek satir yapmasin, protokole gore
-       gruplayip yapsin, protokol bilgisi vs gosterilsin."
 
-       Tek bir protokolun gonderimi onlarca satir uretiyor (bir hemogram paneli 50 satira
-       kadar cikabiliyor); duz listede neyin hangi hastaya ait oldugu kayboluyordu.
-
-       Hasta demografisi (ad, FIN, bolum, tarihler) artik GRUP BASLIGINDA, satirlarda
-       degil -- protokol icinde sabit olan bir bilgiyi her satirda tekrarlamak tablonun
-       1650px genisliginin asil sebebiydi. Satira ozgu kalan bilgi iceride duruyor.
-
-       SAYFALAMA ARTIK GRUP BAZLI (2026-10-07): sayfa basina 25 HASTA/PROTOKOL. Eskiden
-       60 SATIR cekiliyordu ve gruplama ondan sonra yapiliyordu -- tek bir yatan hastanin
-       gunluk laboratuvari 60 satiri doldurabildigi icin 7.554 denemelik bir gun listede
-       iki hasta olarak gorunuyordu. Bir grubun kayitlari artik iki sayfaya BOLUNMEZ. *@
-    @* ==== ACILIR/KAPANIR GRUPLAR (KULLANICI ISTEGI 2026-10-06) ====
-       Native <details>/<summary>: JavaScript gerektirmiyor, klavyeyle calisiyor, ekran
-       okuyucular durumu kendiliginden bildiriyor.
-
-       VARSAYILAN DURUM SORUNA GORE: hatali ya da eksik verili gruplar ACIK gelir, tamami
-       basarili olanlar KAPALI. Bu sayfa pratikte "neyin yanlis gittigini" aramak icin
-       aciliyor; 60 kayitlik bir sayfada sorunsuz protokollerin tamamini acik tutmak,
-       aranan iki satiri kaydirmayla aratiyordu. Asagidaki "Tümünü aç/kapat" dugmesi
-       varsayilani her an ezebiliyor, yani kimse kapali bir gruba mahkum kalmiyor. *@
-    <div class="filter-bar" style="justify-content:flex-end; margin-bottom:10px;">
-        <button type="button" class="btn btn-outline btn-sm" onclick="akisTumunuAyarla(true)">Tümünü aç</button>
-        <button type="button" class="btn btn-outline btn-sm" onclick="akisTumunuAyarla(false)">Tümünü kapat</button>
-    </div>
-
-    @foreach (var grup in Model.Gruplar)
+    @if (Model.Gruplar.Count == 0)
     {
-        @* open="@bool": Razor, degeri false olan bool nitelikleri CIKTIYA HIC YAZMAZ.
-           HTML'de "open" niteliginin VARLIGI grubu acar -- open="false" yazilsaydi grup
-           yine acik gelirdi. *@
-        @* Suzgec aciksa grup da acik gelir: kullanici zaten "bu durumdaki satirlari
-           goster" dedi, hepsini tek tek acmasini istemek anlamsiz olurdu. *@
-        <details class="card akis-grup" open="@(grup.Suzulmus || grup.Hatali > 0 || grup.Atlanan > 0)">
-            <summary class="akis-grup-bas">
-                @* Ok KIMLIK BLOGUNUN ICINDE: dogrudan summary'nin cocugu oldugunda
-                   justify-content:space-between UC ogeyi dagitiyor ve kimlik ORTAYA
-                   itiliyordu. Ici boslukta yuzen basliklar bu yuzden olusmustu. *@
-                <div class="akis-grup-kimlik">
-                    <span class="akis-grup-ok" aria-hidden="true"></span>
-                    @if (grup.ProtokolId is { } pid)
-                    {
-                        @* stopPropagation: baglanti <summary> icinde oldugu icin tiklama
-                           hem gezinti hem ac/kapat tetikleyebilirdi. Numaraya tiklamak
-                           detaya gider, basligin bos yerine tiklamak acip kapatir. *@
-                        <a asp-page="/Protokol" asp-route-id="@pid" class="akis-grup-no"
-                           title="Protokol detayını aç" onclick="event.stopPropagation()">
-                            @pid.ToString(System.Globalization.CultureInfo.InvariantCulture)
-                        </a>
-                    }
-                    else if (grup.HastaGrubu)
-                    {
-                        @* HASTA GRUBU: protokolu yok ama kisi belli (aralikta protokol
-                           gonderimi olmayan bir Hasta kaydi). Eskiden bu satirlar da
-                           "Protokolsüz" kovasina dusuyordu; gunde protokol sayisi kadar
-                           Hasta kaydi yazildigi icin o kova tek basina yuzlerce farkli
-                           hastayi yutuyor ve "kac hasta" sayisini anlamsiz kiliyordu. *@
-                        <span class="akis-grup-no akis-grup-no--yok" title="Hasta kaydı — bu aralıkta protokol gönderimi yok">
-                            Hasta
-                        </span>
-                    }
-                    else
-                    {
-                        <span class="akis-grup-no akis-grup-no--yok" title="Doktor kayıtları ve protokolü çözülemeyen satırlar">
-                            Kimliksiz
-                        </span>
-                    }
+        <div class="empty-state">
+            <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 15a2 2 0 0 1-2 2H7l-4 4V5a2 2 0 0 1 2-2h14a2 2 0 0 1 2 2z"/></svg>
+            <p>Bu filtreye uyan protokol yok.</p>
+        </div>
+    }
+    else
+    {
+        <div class="akis-sutunlar" aria-hidden="true">
+            <span></span>
+            <span>Hasta · protokol</span>
+            <span>Gönderim zinciri</span>
+            <span>Durum</span>
+            <span class="akis-sag">Kayıt · deneme</span>
+            <span></span>
+        </div>
 
-                    <div class="akis-grup-metin">
-                        <div class="akis-grup-hasta">
+        @foreach (var grup in Model.Gruplar)
+        {
+            var (durumCss, durumEtiket) = grup.DurumGosterimi;
+            var sebep = grup.SebepBaslik;
+
+            @* SATIR = <details>. Kapali haliyle tasarimdaki satir (kimlik, zincir, durum,
+               sebep); acilinca eski ekranin deneme tablosu -- tekil Gonder/Sil/Detay orada.
+               Kullanici 2026-10-08'de "tek tek, toplu, hasta bazli, hepsi" demisti; yeni
+               gorunum bunlarin hicbirini geri almiyor.
+
+               HEPSI KAPALI GELIR: takilan protokolun sebebi artik satirin altinda yaziyor,
+               aramak icin acmak gerekmiyor. Suzgecle gelinmisse (Hatali'ya tiklandi) acik:
+               kullanici zaten "bu satirlari goster" dedi. *@
+            <details class="akis-satir akis-satir--@durumCss" open="@(grup.Suzulmus && !string.IsNullOrEmpty(Model.Kategori))">
+                <summary>
+                    <span class="akis-satir-sec" onclick="event.stopPropagation()">
+                        @if (grup.ProtokolId is { } secPid)
+                        {
+                            <input type="checkbox" name="protokolIds" value="@secPid" form="akis-toplu"
+                                   aria-label="Protokol @secPid seç" data-sorunlu="@(durumCss != "ok" ? "1" : "0")"
+                                   onchange="akisSecimSay()" />
+                        }
+                    </span>
+
+                    <span class="akis-satir-kimlik">
+                        <span class="akis-satir-ad">
+                            <span class="akis-grup-ok" aria-hidden="true"></span>
                             @if (grup.Kimliksiz)
                             {
-                                @* Bu grupta FARKLI kisilerin kayitlari var -- tek bir isim
-                                   yazmak yanlis bilgi olurdu (bkz. AktiviteGrubu.HastaAdi). *@
+                                @* FARKLI kisilerin kayitlari -- tek isim yanlis bilgi olurdu
+                                   (bkz. AktiviteGrubu.HastaAdi). *@
                                 <text>Kimliği çözülemeyen kayıtlar</text>
                             }
                             else
                             {
                                 @(string.IsNullOrWhiteSpace(grup.HastaAdi) ? "—" : grup.HastaAdi)
-                                @if (!string.IsNullOrWhiteSpace(grup.Fin))
-                                {
-                                    <span class="mono akis-grup-fin">@grup.Fin</span>
-                                }
                             }
-                        </div>
-                        <div class="akis-grup-alt">
-                            @if (grup.Protokol is { } pr)
+                            @if (!string.IsNullOrWhiteSpace(grup.Fin))
                             {
-                                @if (!string.IsNullOrWhiteSpace(pr.BolumAdi)) { <span>@pr.BolumAdi</span> }
-                                @if (!string.IsNullOrWhiteSpace(pr.DoktorAdiSoyadi)) { <span>@pr.DoktorAdiSoyadi</span> }
-                                <span>@(pr.GelisTipiId == "Y" ? "Yatan" : pr.GelisTipiId == "G" ? "Günübirlik" : "Ayaktan")</span>
-                                @if (pr.AcilisTarihi is { } ac)
-                                {
-                                    <span class="mono">@ac.ToString("dd.MM.yyyy")@(pr.KapanisTarihi is { } kp ? " – " + kp.ToString("dd.MM.yyyy") : " – açık")</span>
-                                }
+                                <span class="akis-satir-fin">@grup.Fin</span>
                             }
-                            else if (grup.ProtokolId is not null)
-                            {
-                                <span class="text-faint">Protokol bilgisi okunamadı</span>
-                            }
-                            else if (grup.HastaGrubu)
-                            {
-                                <span class="text-faint">Hasta kaydı &mdash; bu tarih aralığında bu hastaya ait protokol gönderimi yok</span>
-                            }
-                            else
-                            {
-                                <span class="text-faint">Doktor kayıtları ve protokolü çözülemeyen satırlar &mdash; her satırın kimliği kendi içeriğinde</span>
-                            }
-                        </div>
-                    </div>
-                </div>
-
-                <div class="akis-grup-sayim">
-                    @if (grup.Basarili > 0)
-                    {
-                        <span class="badge success" title="@grup.Basarili kayıt gönderildi"><span class="badge-dot"></span>@grup.Basarili</span>
-                    }
-                    @if (grup.Hatali > 0)
-                    {
-                        <span class="badge danger" title="@grup.Hatali kayıt hata aldı"><span class="badge-dot"></span>@grup.Hatali</span>
-                    }
-                    @if (grup.Atlanan > 0)
-                    {
-                        <span class="badge warning" title="@grup.Atlanan kayıt eksik veri yüzünden gönderilemedi"><span class="badge-dot"></span>@grup.Atlanan</span>
-                    }
-                    <span class="mono text-muted akis-grup-saat">@grup.SonZamanYerel.ToString("dd.MM.yyyy HH:mm:ss")</span>
-                    @* SUZGEC ACIKKEN KACTAN KACI: rozetler hastanin aralikta yaptigi
-                       HER SEYI sayiyor, tablo ise yalnizca suzgece uyan satirlari
-                       gosteriyor. Bu satir ikisi arasindaki farki aciklar -- yoksa
-                       "3 basarili rozeti var ama tabloda 1 satir" celiski gibi gorunur. *@
-                    @* HASTA BAZLI TOPLU ISLEMLER. <summary> icinde oldugu icin
-                       stopPropagation sart -- yoksa dugmeye basmak grubu da acip
-                       kapatirdi. Yalnizca protokolu BELLI gruplarda var: hasta kaydi
-                       ve kimliksiz gruplarda gonderilecek/silinecek bir zincir yok,
-                       o satirlarin kendi dugmeleri iceride duruyor. *@
-                    @if (grup.ProtokolId is { } grupPid)
-                    {
-                        <span class="akis-grup-islem" onclick="event.stopPropagation()">
-                            @* PROTOKOL DETAY DUGMESI -- KULLANICI ISTEGI (2026-10-10):
-                               "protokol bilgisinin yazdigi alana protokol detay butonu mu koysak".
-                               Soldaki protokol numarasi zaten detaya gidiyordu ama bir rakam
-                               gibi duruyordu, tiklanabildigi belli degildi. Islem dugmelerinin
-                               yaninda, ayni gorsel dille duran bir dugme bunu acik ediyor.
-                               Yeni sekmede aciliyor: kisi akis listesindeki yerini kaybetmesin. *@
-                            <a asp-page="/Protokol" asp-route-id="@grupPid" class="btn btn-outline btn-sm"
-                               target="_blank" rel="noopener"
-                               title="Protokol detayını yeni sekmede aç">Protokol detayı</a>
-                            <form method="post" asp-page-handler="GrupGonder" asp-route-protokolId="@grupPid"
-                                  asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType"
-                                  asp-route-Kategori="@Model.Kategori" asp-route-P="@Model.PageNumber"
-                                  asp-route-From="@fromIso" asp-route-To="@toIso"
-                                  onsubmit="pusulaLockSubmit(this)">
-                                <button type="submit" class="btn btn-outline btn-sm"
-                                        title="Bu protokolün tüm zincirini yeniden gönder (müayinə, tanı, işlem, epikriz, laboratuvar, radyoloji, patoloji)">
-                                    Tümünü gönder
-                                </button>
-                            </form>
-                            <form method="post" asp-page-handler="GrupSil" asp-route-protokolId="@grupPid"
-                                  asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType"
-                                  asp-route-Kategori="@Model.Kategori" asp-route-P="@Model.PageNumber"
-                                  asp-route-From="@fromIso" asp-route-To="@toIso"
-                                  data-onay="Protokol @grupPid: bu hastanın TRƏS'e gönderilmiş TÜM kayıtları silinecek."
-                                  onsubmit="return pusulaSilOnayi(this)"
-                                  title="Hasta kaydı silinmez -- başka protokollerde de kullanılıyor">
-                                <button type="submit" class="btn btn-outline btn-sm alt-serit-sil">Tümünü sil</button>
-                            </form>
                         </span>
-                    }
-                    @* KAYIT ile DENEME ayri: bir kayit birden cok kez denenmis olabilir,
-                       tablo denemeleri gosteriyor ama rozetler ve ust kart KAYIT sayiyor.
-                       Ikisi farkliysa ikisi de yaziliyor, yoksa "3 kayit" basligi altinda
-                       30 satir gormek celiski gibi duruyordu. *@
-                    <span class="akis-grup-adet">
-                        @if (grup.Suzulmus)
+                        @if (grup.Protokol is { } pr)
                         {
-                            <text>@grup.ToplamDeneme denemeden @grup.Kayitlar.Count tanesi</text>
+                            <span class="akis-satir-alt">
+                                @string.Join(" · ", new[] { pr.BolumAdi, pr.DoktorAdiSoyadi }.Where(x => !string.IsNullOrWhiteSpace(x)))
+                            </span>
+                            <span class="akis-satir-alt akis-mono">
+                                protokol @pr.ProtokolId.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                                @if (pr.AcilisTarihi is { } ac) { <text> · @ac.ToString("dd.MM.yyyy")</text> }
+                                · @(pr.GelisTipiId == "Y" ? "Yatan" : pr.GelisTipiId == "G" ? "Günübirlik" : "Ayaktan")
+                            </span>
                         }
-                        else if (grup.ToplamDeneme > grup.ToplamKayit)
+                        else if (grup.ProtokolId is { } bilgisizPid)
                         {
-                            <text>@grup.ToplamKayit kayıt &middot; @grup.ToplamDeneme deneme</text>
+                            <span class="akis-satir-alt akis-mono">protokol @bilgisizPid.ToString(System.Globalization.CultureInfo.InvariantCulture) · bilgisi okunamadı</span>
+                        }
+                        else if (grup.HastaGrubu)
+                        {
+                            <span class="akis-satir-alt">Hasta kaydı — bu aralıkta protokol gönderimi yok</span>
                         }
                         else
                         {
-                            <text>@grup.ToplamKayit kayıt</text>
+                            <span class="akis-satir-alt">Doktor kayıtları ve protokolü çözülemeyen satırlar</span>
                         }
                     </span>
-                </div>
-            </summary>
 
-            <div class="table-wrap akis-grup-tablo">
-                <table>
-                    <thead>
-                        <tr>
-                            <th style="width:104px;">Tarih / Saat</th>
-                            <th style="width:150px;">Tür</th>
-                            <th style="width:110px;">Pusula Id</th>
-                            @* Genislik payi verilmezse bu sutun MESAJ sutunuyla yarisiyor
-                               ve kisa degerler bile ("Nevrologiya · Ayaktan") iki satira
-                               sariyordu. *@
-                            <th style="width:26%;">Gönderim içeriği</th>
-                            <th style="width:130px;">Durum</th>
-                            <th style="width:80px;">İşlem</th>
-                            <th>Mesaj</th>
-                            <th style="width:72px;"></th>
-                        </tr>
-                    </thead>
-                    <tbody>
-                        @foreach (var e in grup.Kayitlar)
+                    @* GONDERIM ZINCIRI -- hangi halka gitti, hangisi takildi. Kimliksiz grupta
+                       yok: farkli protokollerin kayitlari tek bir zincir olusturmuyor. *@
+                    <span class="akis-zincir">
+                        @if (!grup.Kimliksiz)
                         {
+                            @foreach (var h in grup.Zincir)
+                            {
+                                <span class="akis-halka akis-halka--@h.Css" title="@h.Aciklama">
+                                    <span class="akis-kare akis-kare--@h.Css" aria-hidden="true"></span>
+                                    @h.Ad
+                                    @if (h.Adet > 0)
+                                    {
+                                        @* Takilan varsa "takilan/toplam" -- 9 islemden 2'si mi,
+                                           9'u mu, rozetten okunsun. *@
+                                        <span class="akis-halka-adet">@(h.Takilan > 0 ? $"{h.Takilan}/{h.Adet}" : h.Adet.ToString(tr))</span>
+                                    }
+                                </span>
+                            }
+                        }
+                    </span>
+
+                    <span class="akis-satir-durum">
+                        <span class="akis-kare akis-kare--@durumCss" aria-hidden="true"></span>
+                        <span>
+                            @durumEtiket
+                            @if (grup.Ozet.HicGitmedi)
+                            {
+                                <span class="akis-satir-hic">hiç gitmedi</span>
+                            }
+                        </span>
+                    </span>
+
+                    @* KAYIT ile DENEME ayri: bir kayit birden cok kez denenmis olabilir. *@
+                    <span class="akis-satir-sayac akis-mono" title="@grup.ToplamKayit kayıt, @grup.ToplamDeneme deneme@(grup.Suzulmus ? $" — süzgece uyan {grup.Kayitlar.Count} deneme gösteriliyor" : "")">
+                        @grup.ToplamKayit · @grup.ToplamDeneme
+                        <span class="akis-satir-saat">@grup.SonZamanYerel.ToString("dd.MM HH:mm")</span>
+                    </span>
+
+                    @* PROTOKOL BAZLI ISLEMLER. <summary> icinde: stopPropagation sart, yoksa
+                       dugmeye basmak satiri da acip kapatirdi. *@
+                    <span class="akis-satir-eylem" onclick="event.stopPropagation()">
+                        @if (grup.ProtokolId is { } grupPid)
+                        {
+                            @* Yeni sekmede: kisi listedeki yerini kaybetmesin (2026-10-10). *@
+                            <a asp-page="/Protokol" asp-route-id="@grupPid" class="btn btn-outline btn-sm"
+                               target="_blank" rel="noopener" title="Protokol detayını yeni sekmede aç">Detay</a>
+                            <form method="post" asp-page-handler="GrupGonder" asp-route-protokolId="@grupPid"
+                                  asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType"
+                                  asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira"
+                                  asp-route-P="@Model.PageNumber" asp-route-From="@fromIso" asp-route-To="@toIso"
+                                  onsubmit="pusulaLockSubmit(this)">
+                                <button type="submit" class="btn btn-primary btn-sm"
+                                        title="Bu protokolün tüm zincirini yeniden gönder (müayinə, tanı, işlem, epikriz, laboratuvar, radyoloji, patoloji)">Gönder</button>
+                            </form>
+                            <form method="post" asp-page-handler="GrupSil" asp-route-protokolId="@grupPid"
+                                  asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType"
+                                  asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira"
+                                  asp-route-P="@Model.PageNumber" asp-route-From="@fromIso" asp-route-To="@toIso"
+                                  data-onay="Protokol @grupPid: bu hastanın TRƏS'e gönderilmiş TÜM kayıtları silinecek."
+                                  onsubmit="return pusulaSilOnayi(this)">
+                                <button type="submit" class="btn btn-outline btn-sm alt-serit-sil"
+                                        title="Hasta kaydı silinmez -- başka protokollerde de kullanılıyor">Sil</button>
+                            </form>
+                        }
+                    </span>
+
+                    @if (sebep is not null)
+                    {
+                        <span class="akis-satir-sebep">
+                            <strong class="akis-renk--@durumCss">@sebep</strong>
+                            @if (grup.SebepMetni is { } metin)
+                            {
+                                <text> — @metin</text>
+                            }
+                        </span>
+                    }
+                </summary>
+
+                <div class="table-wrap akis-grup-tablo">
+                    <table>
+                        <thead>
                             <tr>
-                                @* TARIH DE YAZIYOR (2026-10-13, kullanici istegi). Yalnizca saat vardi; bir
-                                   grup birden fazla gune yayilabildigi icin (ayni protokole farkli
-                                   gunlerde dokunulur) saat tek basina hangi gun oldugunu soylemiyordu.
-                                   Saat ustte kaliyor -- gun icinde tarama yapan goz onu ariyor; tarih
-                                   altinda, daha kucuk. *@
-                                <td class="mono text-muted">
-                                    @{ var zaman = AzTime.ToLocal(e.CreatedAtUtc); }
-                                    @zaman.ToString("HH:mm:ss")
-                                    <span class="akis-satir-tarih">@zaman.ToString("dd.MM.yyyy")</span>
-                                </td>
-                                <td><span class="badge @SyncLogEntry.ResourceTypeCssClass(e.ResourceType)">@SyncLogEntry.ResourceTypeLabel(e.ResourceType)</span></td>
-                                <td class="mono">@e.PusulaId.ToString(System.Globalization.CultureInfo.InvariantCulture)</td>
-                                <td>
-                                    @* GONDERIM ICERIGI: id'nin insan okunur karsiligi. Hasta
-                                       kayitlarinda ad zaten SyncLog'da tasiniyor, digerleri
-                                       Pusula'dan toplu cozuluyor. Cozulemezse bos birakiliyor --
-                                       uydurma metin yazmaktansa bos birakmak dogru. *@
-                                    @* MUAYINE: PusulaId = ProtokolId oldugu icin Pusula'ya
-                                       ayri sorgu gerekmiyor -- bolum bilgisi grubun protokol
-                                       kaydindan geliyor (zaten okunmus durumda).
-                                       Baslikta da yaziyor ama satir kendi basina
-                                       okunabilir olmali: filtreyle tek tur suzuldugunde
-                                       ya da satir kopyalandiginda baslik gorunmuyor. *@
-                                    @if (e.ResourceType == "Encounter" && grup.Protokol?.BolumAdi is { Length: > 0 } muayineBolum)
-                                    {
-                                        <span>@muayineBolum</span>
-                                        @if (grup.Protokol?.GelisTipiId is { } gt)
+                                <th style="width:104px;">Tarih / Saat</th>
+                                <th style="width:150px;">Tür</th>
+                                <th style="width:110px;">Pusula Id</th>
+                                <th style="width:26%;">Gönderim içeriği</th>
+                                <th style="width:130px;">Durum</th>
+                                <th style="width:80px;">İşlem</th>
+                                <th>Mesaj</th>
+                                <th style="width:72px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var e in grup.Kayitlar)
+                            {
+                                <tr>
+                                    @* Saat ustte, tarih altinda (2026-10-13): bir grup birden fazla
+                                       gune yayilabiliyor. *@
+                                    <td class="mono text-muted">
+                                        @{ var zaman = AzTime.ToLocal(e.CreatedAtUtc); }
+                                        @zaman.ToString("HH:mm:ss")
+                                        <span class="akis-satir-tarih">@zaman.ToString("dd.MM.yyyy")</span>
+                                    </td>
+                                    <td><span class="badge @SyncLogEntry.ResourceTypeCssClass(e.ResourceType)">@SyncLogEntry.ResourceTypeLabel(e.ResourceType)</span></td>
+                                    <td class="mono">@e.PusulaId.ToString(System.Globalization.CultureInfo.InvariantCulture)</td>
+                                    <td>
+                                        @* GONDERIM ICERIGI: id'nin insan okunur karsiligi. Cozulemezse
+                                           bos -- uydurma metin yazmaktansa bos birakmak dogru. *@
+                                        @if (e.ResourceType == "Encounter" && grup.Protokol?.BolumAdi is { Length: > 0 } muayineBolum)
                                         {
-                                            @* Ayirici ile tek satirda okunuyor; bos
-                                               span'la yan yana koyunca iki satira sariyordu. *@
-                                            <span class="text-muted">&nbsp;&middot; @(gt == "Y" ? "Yatan" : gt == "G" ? "Günübirlik" : "Ayaktan")</span>
+                                            <span>@muayineBolum</span>
+                                            @if (grup.Protokol?.GelisTipiId is { } gt)
+                                            {
+                                                <span class="text-muted">&nbsp;&middot; @(gt == "Y" ? "Yatan" : gt == "G" ? "Günübirlik" : "Ayaktan")</span>
+                                            }
                                         }
-                                    }
-                                    else if (e.ResourceType == "Patient")
-                                    {
-                                        <span>@(string.IsNullOrWhiteSpace(e.PatientFullName) ? "—" : e.PatientFullName)</span>
-                                        @if (!string.IsNullOrWhiteSpace(e.Fin))
+                                        else if (e.ResourceType == "Patient")
                                         {
-                                            <span class="mono text-muted" style="margin-left:6px;">@e.Fin</span>
+                                            <span>@(string.IsNullOrWhiteSpace(e.PatientFullName) ? "—" : e.PatientFullName)</span>
+                                            @if (!string.IsNullOrWhiteSpace(e.Fin))
+                                            {
+                                                <span class="mono text-muted" style="margin-left:6px;">@e.Fin</span>
+                                            }
                                         }
-                                    }
-                                    else if (Model.Aciklamalar.TryGetValue((e.ResourceType, e.PusulaId), out var icerik))
-                                    {
-                                        @* Epikrizde onek var cunku deger EPIKRIZIN KENDISI degil,
-                                           onu YAZAN doktor. Oneksiz birakilsaydi Doktor
-                                           satirlarindan ayirt edilemezdi. *@
-                                        @if (e.ResourceType == "Composition")
+                                        else if (Model.Aciklamalar.TryGetValue((e.ResourceType, e.PusulaId), out var icerik))
                                         {
-                                            <span class="text-muted">Yazan:</span> <span>@icerik</span>
+                                            @* Epikrizde onek: deger epikrizin kendisi degil, YAZAN doktor. *@
+                                            @if (e.ResourceType == "Composition")
+                                            {
+                                                <span class="text-muted">Yazan:</span> <span>@icerik</span>
+                                            }
+                                            else
+                                            {
+                                                <span>@icerik</span>
+                                            }
                                         }
                                         else
                                         {
-                                            <span>@icerik</span>
+                                            <span class="text-faint">—</span>
                                         }
-                                    }
-                                    else
-                                    {
-                                        <span class="text-faint">—</span>
-                                    }
-                                </td>
-                                <td>
-                                    @{
-                                        var (aBadgeClass, aBadgeLabel) = SyncLogEntry.StatusBadge(e);
-                                    }
-                                    <span class="badge @aBadgeClass"><span class="badge-dot"></span>@aBadgeLabel</span>
-                                </td>
-                                <td class="text-muted">@(e.Operation?.ToString() ?? "-")</td>
-                                <td class="cell-wide text-muted">
-                                    @if (e.Status == SyncStatus.Failed && e.Message is not null)
-                                    {
-                                        <span title="@e.Message">@SyncLogEntry.FriendlyError(e.Message)</span>
-                                    }
-                                    else
-                                    {
-                                        @(e.Message ?? "-")
-                                    }
-                                </td>
-                                @* fromProtokol TASINIYOR (2026-10-08). Detay sayfasindaki
-                                   "Tekrar gonder", Tani/Islem/Lab/Radyoloji turlerinde
-                                   Encounter baglamina (azPatientId/azEncounterId) ihtiyac
-                                   duyuyor ve o baglam yalnizca protokol biliniyorsa
-                                   cozulebiliyor. Bu baglanti onu tasimadigi icin Aktivite
-                                   Akisi'ndan gelen kullanici "desteklenmiyor, Protokol
-                                   sayfasina gidin" mesajiyla karsilasiyordu -- oysa akis
-                                   artik protokole gore grupli, protokol numarasi elimizde. *@
-                                <td>
-                                    <div class="akis-satir-islem">
-                                        <a asp-page="/Detail" asp-route-id="@e.Id"
-                                           asp-route-fromProtokol="@grup.ProtokolId"
-                                           class="btn btn-outline btn-sm">Detay</a>
-
-                                        @* TEKIL GONDERIM. ProtokolId gizli alanla gidiyor:
-                                           Tani/Islem/Lab/Radyoloji/Patoloji gonderimi
-                                           Encounter baglamina ihtiyac duyuyor ve o baglam
-                                           ancak protokol biliniyorsa cozuluyor. Grup
-                                           basligindan geldigi icin TAHMIN yok. *@
-                                        <form method="post" asp-page-handler="Gonder" asp-route-kayitId="@e.Id"
-                                              asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType"
-                                              asp-route-Kategori="@Model.Kategori" asp-route-P="@Model.PageNumber"
-                                              asp-route-From="@fromIso" asp-route-To="@toIso"
-                                              onsubmit="pusulaLockSubmit(this)">
-                                            <input type="hidden" name="ProtokolId" value="@grup.ProtokolId" />
-                                            <button type="submit" class="btn btn-outline btn-sm" title="Bu kaydı yeniden gönder">Gönder</button>
-                                        </form>
-
-                                        @* SILME DUGMESI YALNIZCA TRƏS'TE KARSILIGI OLAN
-                                           KAYITTA. AzResourceId bossa kayit yalnizca
-                                           $validate edilmis demektir -- silinecek bir sey
-                                           yok, dugmeyi gostermek yaniltici olurdu. *@
-                                        @if (e.AzResourceId is not null)
+                                    </td>
+                                    <td>
+                                        @{ var (aBadgeClass, aBadgeLabel) = SyncLogEntry.StatusBadge(e); }
+                                        <span class="badge @aBadgeClass"><span class="badge-dot"></span>@aBadgeLabel</span>
+                                    </td>
+                                    <td class="text-muted">@(e.Operation?.ToString() ?? "-")</td>
+                                    <td class="cell-wide text-muted">
+                                        @if (e.Status == SyncStatus.Failed && e.Message is not null)
                                         {
-                                            <form method="post" asp-page-handler="Sil" asp-route-kayitId="@e.Id"
-                                                  asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType"
-                                                  asp-route-Kategori="@Model.Kategori" asp-route-P="@Model.PageNumber"
-                                                  asp-route-From="@fromIso" asp-route-To="@toIso"
-                                                  data-onay="@SyncLogEntry.ResourceTypeLabel(e.ResourceType) kaydı (Pusula @e.PusulaId) TRƏS'ten silinecek."
-                                                  onsubmit="return pusulaSilOnayi(this)">
-                                                <button type="submit" class="btn btn-outline btn-sm alt-serit-sil">Sil</button>
-                                            </form>
+                                            <span title="@e.Message">@SyncLogEntry.FriendlyError(e.Message)</span>
                                         }
-                                    </div>
-                                </td>
-                            </tr>
-                        }
-                    </tbody>
-                </table>
-            </div>
-        </details>
-    }
+                                        else
+                                        {
+                                            @(e.Message ?? "-")
+                                        }
+                                    </td>
+                                    @* fromProtokol TASINIYOR (2026-10-08): Detay'daki "Tekrar gonder"
+                                       Encounter baglamina ihtiyac duyuyor. *@
+                                    <td>
+                                        <div class="akis-satir-islem">
+                                            <a asp-page="/Detail" asp-route-id="@e.Id"
+                                               asp-route-fromProtokol="@grup.ProtokolId"
+                                               class="btn btn-outline btn-sm">Detay</a>
+                                            <form method="post" asp-page-handler="Gonder" asp-route-kayitId="@e.Id"
+                                                  asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType"
+                                                  asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira"
+                                                  asp-route-P="@Model.PageNumber" asp-route-From="@fromIso" asp-route-To="@toIso"
+                                                  onsubmit="pusulaLockSubmit(this)">
+                                                <input type="hidden" name="ProtokolId" value="@grup.ProtokolId" />
+                                                <button type="submit" class="btn btn-outline btn-sm" title="Bu kaydı yeniden gönder">Gönder</button>
+                                            </form>
+                                            @* Sil yalnizca TRƏS'te karsiligi olan kayitta. *@
+                                            @if (e.AzResourceId is not null)
+                                            {
+                                                <form method="post" asp-page-handler="Sil" asp-route-kayitId="@e.Id"
+                                                      asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType"
+                                                      asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira"
+                                                      asp-route-P="@Model.PageNumber" asp-route-From="@fromIso" asp-route-To="@toIso"
+                                                      data-onay="@SyncLogEntry.ResourceTypeLabel(e.ResourceType) kaydı (Pusula @e.PusulaId) TRƏS'ten silinecek."
+                                                      onsubmit="return pusulaSilOnayi(this)">
+                                                    <button type="submit" class="btn btn-outline btn-sm alt-serit-sil">Sil</button>
+                                                </form>
+                                            }
+                                        </div>
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+        }
 
-    <div class="pagination">
-        <span class="text-muted" style="margin-right:auto; font-size:13px;">
-            @Model.ListelenenGrupSayisi hastanın @Model.IlkSira&ndash;@Model.SonSira arası gösteriliyor
-        </span>
-        @if (Model.PageNumber > 1)
-        {
-            <a class="btn btn-outline btn-sm" asp-page="/Aktivite" asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Kategori="@Model.Kategori" asp-route-P="@(Model.PageNumber - 1)">&larr; Önceki</a>
-        }
-        @if (Model.HasNextPage)
-        {
-            <a class="btn btn-outline btn-sm" asp-page="/Aktivite" asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Kategori="@Model.Kategori" asp-route-P="@(Model.PageNumber + 1)">Sonraki &rarr;</a>
-        }
-    </div>
-}
+        <div class="pagination akis-sayfalama">
+            <span class="text-muted akis-mono" style="margin-right:auto; font-size:12px;">
+                @Model.IlkSira–@Model.SonSira / @Model.ListelenenGrupSayisi.ToString("N0", tr)
+            </span>
+            @if (Model.PageNumber > 1)
+            {
+                <a class="btn btn-outline btn-sm" asp-page="/Aktivite" asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-P="@(Model.PageNumber - 1)">&larr; Önceki</a>
+            }
+            @if (Model.HasNextPage)
+            {
+                <a class="btn btn-outline btn-sm" asp-page="/Aktivite" asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-P="@(Model.PageNumber + 1)">Sonraki &rarr;</a>
+            }
+        </div>
+    }
+</section>
 
 <script>
-    // SILME ONAYI. Silme, bakanligin sistemine KALICI yaziyor ve geri alinamiyor; bu ekran
-    // ise 25 gruplu, filtrelenebilen bir gunluk -- yanlis tiklamanin en kolay oldugu yer.
-    // Onaydan sonra dugme kilitleniyor (cift gonderim olmasin).
-    // Mesaj data-onay niteliginden okunuyor, onsubmit'in icine gomulmuyor: kayit adinda
-    // bir kesme isareti ("Müayinə'nin" gibi) JS dizesini bozardi ve dugme sessizce
-    // calismaz hale gelirdi. Nitelikte Razor kodlamayi kendi yapiyor.
+    // SILME ONAYI. Silme bakanligin sistemine KALICI yaziyor ve geri alinamiyor.
+    // Mesaj data-onay niteliginden okunuyor: kayit adindaki bir kesme isareti
+    // ("Müayinə'nin") onsubmit icine gomulu bir JS dizesini bozardi.
     function pusulaSilOnayi(form) {
         var mesaj = form.getAttribute('data-onay') || 'Bu kayıt TRƏS\'ten silinecek.';
         if (!confirm(mesaj + '\n\nBu işlem geri alınamaz. Devam edilsin mi?')) { return false; }
@@ -558,9 +503,56 @@ else
         return true;
     }
 
-    // Toplu ac/kapat -- varsayilani ezer. Sunucu tarafi varsayilani "sorunlu olanlar acik"
-    // oldugu icin kullanicinin tam tersini isteyebilecegi durum her zaman var.
-    function akisTumunuAyarla(acik) {
-        document.querySelectorAll('details.akis-grup').forEach(function (d) { d.open = acik; });
+    function akisSecilenler() {
+        return document.querySelectorAll('input[name="protokolIds"]:checked');
     }
+
+    // Dugme secim yokken kapali ve kac protokol gidecegini yaziyor -- toplu gonderim
+    // canli sisteme yazar, "kac tane" sorusu dugmeye basmadan cevaplanmali.
+    function akisSecimSay() {
+        var n = akisSecilenler().length;
+        var d = document.getElementById('akis-toplu-dugme');
+        if (!d) { return; }
+        d.disabled = n === 0;
+        d.textContent = n === 0 ? 'Seçilenleri gönder' : n + ' protokolü gönder';
+    }
+
+    // "Takilanlari sec": Eksik verili ve Hatali satirlar. Ikinci basis secimi kaldirir.
+    function akisSorunlulariSec() {
+        var kutular = document.querySelectorAll('input[name="protokolIds"][data-sorunlu="1"]');
+        var hepsiSecili = kutular.length > 0 && Array.prototype.every.call(kutular, function (k) { return k.checked; });
+        kutular.forEach(function (k) { k.checked = !hepsiSecili; });
+        akisSecimSay();
+    }
+
+    function akisTopluOnay(form) {
+        var n = akisSecilenler().length;
+        if (n === 0) { return false; }
+        if (!confirm(n + ' protokolün tüm zinciri yeniden gönderilecek. Bu, protokol başına birkaç saniye sürebilir; sayfa bitene kadar bekleyin.\n\nDevam edilsin mi?')) { return false; }
+        pusulaLockSubmit(form);
+        var d = document.getElementById('akis-toplu-dugme');
+        if (d) { d.disabled = true; d.textContent = 'Gönderiliyor…'; }
+        return true;
+    }
+
+    // CANLI SERIT 15 SN'DE BIR TAZELENIR -- yalnizca serit, liste degil. Liste kendiliginden
+    // degisseydi kullanicinin bakmakta oldugu satir elinin altindan kayardi.
+    // Sekme arka plandayken sorulmuyor; hata olursa sessizce eski serit kaliyor (bir
+    // sonraki deneme 15 sn sonra).
+    (function akisSeritTazele() {
+        setInterval(function () {
+            if (document.hidden) { return; }
+            var mevcut = document.getElementById('akis-serit');
+            if (!mevcut || mevcut.querySelector('button[disabled]')) { return; }
+            fetch('?handler=Serit', { headers: { 'X-Requested-With': 'fetch' } })
+                .then(function (r) { return r.ok ? r.text() : null; })
+                .then(function (html) {
+                    if (!html) { return; }
+                    // DOMParser: ayristirilan belge betik calistirmaz, sayfaya eklenen yalnizca serit.
+                    var yeni = new DOMParser().parseFromString(html, 'text/html').getElementById('akis-serit');
+                    if (yeni) { mevcut.replaceWith(yeni); }
+                })
+                .catch(function () { });
+        }, 15000);
+    })();
 </script>
