@@ -1,4 +1,4 @@
-using Microsoft.Data.Sqlite;
+﻿using Microsoft.Data.Sqlite;
 
 namespace PusulaEHealthSync.Persistence;
 
@@ -52,6 +52,18 @@ public class SettingsStore
     // sabit Test/sandbox degerleri) duser -- bu yuzden mevcut davranis hicbir sey
     // girilmeden de calismaya devam eder.
     public const string EHealthEnvironmentKey = "EHealth.Environment"; // "Test" | "Live"
+
+    // Protokol bagi doldurmasinda KALAN satir sayisi (2026-10-21).
+    //
+    // NEDEN AYARDA TUTULUYOR: Aktivite Akisi bu sayiyi bir uyari satirinda gosteriyor.
+    // Her sayfa acilisinda SQL ile saymak, tarih filtresi OLMAYAN bir COUNT(*) demekti --
+    // yani milyonlarca satirlik tablonun tamamini taramak, hem de yalnizca bir uyarinin
+    // metni icin. Sayfa gozle gorulur sekilde yavasladi (kullanici bildirdi).
+    //
+    // Doldurma zaten her turda kalani hesapliyor; oraya yazip buradan okumak sayfayi
+    // O(1) yapiyor. Deger birkac dakika bayat olabilir -- bir ilerleme gostergesi icin
+    // bu tamamen yeterli.
+    public const string ProtokolBagiKalanKey = "ProtokolBagi.KalanSatir";
     public const string EHealthEnvironmentDefault = "Test";
     public const string EHealthTestBaseUrlKey = "EHealth.Test.BaseUrl";
     public const string EHealthTestUserNameKey = "EHealth.Test.UserName";

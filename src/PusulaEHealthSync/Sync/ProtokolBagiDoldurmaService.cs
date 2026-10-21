@@ -1,3 +1,4 @@
+﻿using System.Globalization;
 using PusulaEHealthSync.Db;
 using PusulaEHealthSync.Persistence;
 
@@ -21,6 +22,7 @@ namespace PusulaEHealthSync.Sync;
 public class ProtokolBagiDoldurmaService(
     SyncLogStore syncLog,
     PusulaRepository repository,
+    SettingsStore settings,
     ILogger<ProtokolBagiDoldurmaService> logger)
 {
     // Tur basina cozulecek KAYIT sayisi (satir degil -- ayni kaydin onlarca denemesi tek
@@ -39,7 +41,13 @@ public class ProtokolBagiDoldurmaService(
     public async Task<int> BirParcaDoldurAsync(CancellationToken ct = default)
     {
         var kayitlar = await syncLog.ProtokolBagiEksikKayitlarAsync(TurBasinaKayit, ct);
-        if (kayitlar.Count == 0) return 0;
+        if (kayitlar.Count == 0)
+        {
+            // IS BITTI: kalani SIFIRLA. Yazilmasaydi ekrandaki "doldurma suruyor"
+            // uyarisi, is bittikten sonra da son bilinen sayiyla asili kalirdi.
+            await settings.SetStringAsync(SettingsStore.ProtokolBagiKalanKey, "0", ct);
+            return 0;
+        }
 
         var cozum = new Dictionary<(string, int), int>();
 
@@ -72,7 +80,13 @@ public class ProtokolBagiDoldurmaService(
         if (cozum.Count == 0) return 0;
 
         var yazilan = await syncLog.ProtokolBagiYazAsync(cozum, ct);
+
+        // KALANI BURADA HESAPLA VE SAKLA. Pahali olan sorgu bu (tarih filtresi yok,
+        // tablonun tamamina bakar) -- turda BIR kez calisiyor. Aktivite sayfasi artik
+        // kendisi saymiyor, bu degeri okuyor.
         var kalan = await syncLog.ProtokolBagiEksikSayisiAsync(ct);
+        await settings.SetStringAsync(
+            SettingsStore.ProtokolBagiKalanKey, kalan.ToString(CultureInfo.InvariantCulture), ct);
 
         logger.LogInformation(
             "Protokol bagi doldurma: {Kayit} kayit cozuldu, {Satir} satir guncellendi. "

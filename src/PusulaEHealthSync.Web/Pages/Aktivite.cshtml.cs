@@ -43,7 +43,7 @@ namespace PusulaEHealthSync.Web.Pages;
 public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
     IMemoryCache cache, TekilGonderimService tekilGonderim, DeleteService deleteService,
     ProtocolFullSyncService protocolFullSync, CancellationSyncService cancellationSync,
-    ILogger<AktiviteModel> logger) : PageModel
+    SettingsStore settings, ILogger<AktiviteModel> logger) : PageModel
 {
     public List<SyncLogEntry> Entries { get; set; } = [];
     public List<AktiviteGrubu> Gruplar { get; set; } = [];
@@ -262,10 +262,17 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
         var kartlar = await syncLog.AkisKartlariniHesaplaAsync(
             ResourceType, fromUtc, toUtcExclusive, ct);
 
-        // Protokol bagi henuz doldurulmamis satir sayisi. Doldurma surerken kart
-        // sayilari eksik kalir; ekranin bunu SOYLEMESI gerekiyor, sessizce eksik
-        // sayi gostermemesi.
-        var bagiEksik = await syncLog.ProtokolBagiEksikSayisiAsync(ct);
+        // Protokol bagi henuz doldurulmamis satir sayisi -- AYARDAN OKUNUYOR, SAYILMIYOR.
+        //
+        // 2026-10-21 DUZELTMESI: burasi eskiden ProtokolBagiEksikSayisiAsync cagiriyordu.
+        // O sorgunun TARIH FILTRESI YOK; her sayfa acilisinda milyonlarca satirlik tablonun
+        // tamamini tariyordu -- hem de yalnizca bir uyari satirindaki sayi icin. Sayfa
+        // gozle gorulur sekilde yavasladi (kullanici bildirdi: "cok uzun suredir beni
+        // bekletiyor").
+        //
+        // Degeri doldurma isi zaten her turda hesapliyor; buradan okumak O(1).
+        // Birkac dakika bayat olabilir, ki bir ilerleme gostergesi icin fazlasiyla yeterli.
+        var bagiEksik = await settings.GetIntAsync(SettingsStore.ProtokolBagiKalanKey, 0, ct);
 
         var kirpildi = satirlar.Count >= OzetTavani;
         if (satirlar.Count == 0) return AkisOzeti.Bos;

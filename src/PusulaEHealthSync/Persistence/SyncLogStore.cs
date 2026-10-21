@@ -124,6 +124,46 @@ public class SyncLogStore
                 CREATE INDEX IF NOT EXISTS IX_SyncLog_ProtokolId ON SyncLog(ProtokolId, CreatedAtUtc);";
             alterCmd.ExecuteNonQuery();
         }
+
+        // KART SORGUSU ICIN KAPSAYICI INDEKS (2026-10-21).
+        //
+        // NEDEN AYRI BIR BLOKTA: yukaridaki blok yalnizca sutun YOKKEN calisiyor. Bu indeks
+        // sutundan sonra eklendigi icin, 16.10 dagitimini almis kurulumlarda o blok bir daha
+        // hic calismaz ve indeks olusmazdi.
+        //
+        // NEDEN GEREKLI: kart sorgusu CreatedAtUtc'ye gore SUZUYOR ama ResourceType+PusulaId'ye
+        // gore GRUPLUYOR. Mevcut indekslerden hicbiri ikisini birden karsilamiyordu: ya tarih
+        // indeksiyle araligi tarayip her satir icin tabloya gidip sonra siralamak, ya da
+        // gruplama indeksiyle tarayip her satir icin tarihi tablodan okumak gerekiyordu.
+        // Sayfa gozle gorulur sekilde yavasladi (kullanici bildirdi, 2026-10-21).
+        //
+        // KOLON SIRASI OLCULEREK SECILDI -- ilk denemem YANLISTI.
+        //
+        // Once (ResourceType, PusulaId) onculu yazilmisti: "indeks zaten grup sirasinda
+        // olur, siralama kalkar" diye. OLCULDU, PLANLAYICI O INDEKSI HIC SECMEDI --
+        // sorgu plani birebir ayni kaldi (800.000 satirlik sentetik gunluk: 8,46 sn ->
+        // 8,89 sn, yani fark olcum gurultusu). Sebep: suzgec CreatedAtUtc ARALIGI
+        // uzerinde; baslangic kolonu aralik suzgecini karsilamayan bir indeks aralik
+        // taramasi icin kullanilamaz.
+        //
+        // CreatedAtUtc onculu hali kullaniliyor (EXPLAIN: "USING COVERING INDEX") ve
+        // olculen kazanc gercek:
+        //     genis aralik (3 hafta): 8,46 sn -> 1,97 sn
+        //     dar aralik   (1 hafta): 4,18 sn -> 0,69 sn
+        //
+        // Kalan kolonlar (ResourceType, PusulaId, Status, ProtokolId) sorgunun okudugu
+        // her seyi kapsiyor: aralik taranirken tabloya HIC gidilmiyor. Gruplama icin
+        // siralama yine gerekiyor -- indeks bunu kaldiramaz, is zaten 800.000 satiri
+        // once ~400.000 kayda, sonra ~60.000 protokole indirgemek.
+        //
+        // ILK OLUSTURMA UZUN SURER: milyonlarca satirda dakikalar alabilir, acilista bir
+        // kez olur, tekrarlamaz.
+        using var kartIndeksCmd = conn.CreateCommand();
+        kartIndeksCmd.CommandText = @"
+            DROP INDEX IF EXISTS IX_SyncLog_Kart;
+            CREATE INDEX IF NOT EXISTS IX_SyncLog_Kart2
+            ON SyncLog(CreatedAtUtc, ResourceType, PusulaId, Status, ProtokolId);";
+        kartIndeksCmd.ExecuteNonQuery();
     }
 
     public async Task InsertAsync(SyncLogEntry entry, CancellationToken ct = default)
