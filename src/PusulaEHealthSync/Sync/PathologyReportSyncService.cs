@@ -32,12 +32,13 @@ public class PathologyReportSyncService(
 {
     public async Task<SyncLogEntry> SyncOneAsync(
         PathologyReportRecord report, ProtokolListItem protokol, string azPatientId, string? azEncounterId,
-        string? azProcedureId, string? azPractitionerId, bool liveMode, CancellationToken ct = default)
+        string? azProcedureId, string? azPractitionerId, bool liveMode, CancellationToken ct = default,
+        bool atlaGonderilmisse = false)
     {
         // 1) Kodlanmis bulgular. Neoplazi olmayan raporlarda (canli veride %75) bu liste BOS
         //    doner -- sorgu "0000/x" satirlarini zaten eliyor (gerekce:
         //    GetPathologyFindingsByResultIdAsync). Bos liste bir hata degil, normal yol.
-        var (azCompositionId, chainWarning) = await SyncChainAsync(report, protokol, azPatientId, azEncounterId, azPractitionerId, liveMode, ct);
+        var (azCompositionId, chainWarning) = await SyncChainAsync(report, protokol, azPatientId, azEncounterId, azPractitionerId, liveMode, atlaGonderilmisse, ct);
 
         // 2) DiagnosticReport -- zincir kurulabildiyse ust halkayi da tasiyarak.
         var mapping = PathologyReportMapper.Map(report, azPatientId, azEncounterId, azProcedureId, azPractitionerId, azCompositionId);
@@ -67,16 +68,35 @@ public class PathologyReportSyncService(
     // (kurulamadiysa null -- o zaman DiagnosticReport v1'deki gibi tek basina gider).
     private async Task<(string? CompositionId, string? Warning)> SyncChainAsync(
         PathologyReportRecord report, ProtokolListItem protokol, string azPatientId, string? azEncounterId,
-        string? azPractitionerId, bool liveMode, CancellationToken ct)
+        string? azPractitionerId, bool liveMode, bool atlaGonderilmisse, CancellationToken ct)
     {
         var findings = await repository.GetPathologyFindingsByResultIdAsync(report.ResultId, ct);
         if (findings.Count == 0)
             return (null, null);   // neoplazi yok -- normal yol, uyari degil
 
+        // ZATEN GITMIS HALKALAR YENIDEN GONDERILMEZ (2026-10-23, kullanici bildirdi:
+        // "gonderilenleri de tekrar tekrar gonderiyor"). Rapor hata verdikce her turda
+        // yeniden deneniyor ve zincir her seferinde bastan kuruluyordu -- basariyla gitmis
+        // bulgu ve belge her denemede bir Update daha yiyordu. Otomatik/toplu gonderimde
+        // (atlaGonderilmisse) basarili halkanin gunlukteki AZ id'si kullanilir. Tekil
+        // "Gönder" dugmesi bunu gecmiyor -- bilerek yeniden gondermek hala mumkun.
+        var atla = liveMode && atlaGonderilmisse;
+        var bulguDurumlari = atla
+            ? await syncLog.GetLatestByPusulaIdsAsync("Observation-Patoloji",
+                findings.Select(f => f.IslemReferansNumarasi).ToList(), ct, govdeleriGetir: false)
+            : new Dictionary<int, SyncLogEntry>();
+
         var failedFindings = 0;
+        var yeniBulguGitti = false;
         var azFindingIds = new List<string>();
         foreach (var finding in findings)
         {
+            if (BasariliAzId(bulguDurumlari.GetValueOrDefault(finding.IslemReferansNumarasi)) is { } mevcutBulguId)
+            {
+                azFindingIds.Add(mevcutBulguId);
+                continue;
+            }
+
             var mapping = PathologyFindingMapper.Map(finding, azPatientId, azEncounterId, azPractitionerId);
             if (mapping is MappingResult.Skipped skip)
             {
@@ -112,10 +132,25 @@ public class PathologyReportSyncService(
             // $validate referansin var olup olmadigina bakmaz, yapiyi dogrular. Canli modda
             // ise sunucunun dondurdugu gercek id kullanilir.
             azFindingIds.Add(liveMode ? entry.AzResourceId ?? localId : localId);
+            yeniBulguGitti = true;
         }
 
         if (azFindingIds.Count == 0)
             return (null, $"DİKKAT: bu raporun {findings.Count} kodlanmış bulgusunun hiçbiri gönderilemedi -- rapor yalnızca serbest metin olarak gitti, ICD-O-3 bulgu bilgisi TRƏS'te YOK. Ayrıntı için Aktivite akışında \"Patoloji Bulgusu\" kayıtlarına bakın.");
+
+        var partial = failedFindings > 0
+            ? $"DİKKAT: {findings.Count} bulgudan {failedFindings} tanesi gönderilemedi, kalanı gönderildi."
+            : null;
+
+        // Belge yalnizca bulgu kumesi DEGISMEDIYSE (bu turda yeni bulgu gitmediyse) atlanir:
+        // yeni bir bulgu gittiyse belgenin ona referans vermesi icin yeniden yazilmasi sart.
+        if (atla && !yeniBulguGitti)
+        {
+            var belgeDurumu = await syncLog.GetLatestByPusulaIdsAsync("Composition-Patoloji",
+                [report.ResultId], ct, govdeleriGetir: false);
+            if (BasariliAzId(belgeDurumu.GetValueOrDefault(report.ResultId)) is { } mevcutBelgeId)
+                return (mevcutBelgeId, partial);
+        }
 
         var compositionMapping = PathologyCompositionMapper.Map(report, azFindingIds, azPatientId, azEncounterId, azPractitionerId);
         if (compositionMapping is MappingResult.Skipped compositionSkip)
@@ -137,11 +172,13 @@ public class PathologyReportSyncService(
             return (null, "DİKKAT: bulgular gönderildi ama onları bir arada tutan patoloji belgesi (Composition) gönderilemedi -- rapor bulgulara bağlanamadı.");
         }
 
-        var partial = failedFindings > 0
-            ? $"DİKKAT: {findings.Count} bulgudan {failedFindings} tanesi gönderilemedi, kalanı gönderildi."
-            : null;
         return (liveMode ? compositionEntry.AzResourceId : compositionLocalId, partial);
     }
+
+    private static string? BasariliAzId(SyncLogEntry? durum) =>
+        durum is { Status: SyncStatus.Success, AzResourceId: { } id } && durum.Operation is SyncOperation.Create or SyncOperation.Update
+            ? id
+            : null;
 
     // Uc kaynak tipinin de ortak gonderim akisi: test modunda $validate, canli modda
     // local-system-unique-id ile once arayip Create/Update. Onceden bu blok sadece

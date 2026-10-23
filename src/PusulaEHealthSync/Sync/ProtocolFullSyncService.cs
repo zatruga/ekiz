@@ -293,7 +293,8 @@ public class ProtocolFullSyncService(
                 : null;
 
             var r = await pathologyReportSyncService.SyncOneAsync(
-                report, protokol, azPatientId, azEncounterId, azProcedureId, azPractitionerId, liveMode: true, ct);
+                report, protokol, azPatientId, azEncounterId, azProcedureId, azPractitionerId, liveMode: true, ct,
+                atlaGonderilmisse: true);
             if (r.Status == SyncStatus.Success) n++;
         }
         return n;

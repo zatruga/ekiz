@@ -368,7 +368,8 @@ public class EncounterSyncService(
                 }
             }
 
-            await pathologyReportSyncService.SyncOneAsync(report, protokol, azPatientId, azEncounterId, azProcedureId, azPractitionerId, liveMode: true, ct);
+            await pathologyReportSyncService.SyncOneAsync(report, protokol, azPatientId, azEncounterId, azProcedureId, azPractitionerId, liveMode: true, ct,
+                atlaGonderilmisse: true);
         }
     }
 
