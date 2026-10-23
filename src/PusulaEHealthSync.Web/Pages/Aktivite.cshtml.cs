@@ -156,6 +156,37 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
     // suzgeci devre disi kalir -- tam istenen davranis (bkz. OnGetAsync).
     public const string HicbiriAnahtari = "HicGitmedi";
 
+    // PUSULA TARIHI (2026-10-23, kullanici istegi: "satirda pusuladaki tarih ve saat
+    // bilgisi de yazsin"). Gonderilen govdenin kendi klinik tarihi -- sonuc onayi, islem
+    // zamani, muayene baslangici vb. Ayri bir sutunda saklanmiyor: govde zaten gunlukte ve
+    // eski satirlar icin de calisiyor. Mapper'lar bu alanlari Baku saatiyle (+04:00)
+    // yaziyor, yani saat kismi oldugu gibi yerel saattir.
+    //
+    // Oncelik: issued (rapor onayi) > effectiveDateTime > performedDateTime > period.start
+    // > recordedDate > date. Govdesi olmayan (atlanan) satirda null.
+    private static readonly string[] PusulaTarihAlanlari =
+        ["issued", "effectiveDateTime", "performedDateTime", "period", "recordedDate", "date"];
+
+    public static DateTime? PusulaTarihi(SyncLogEntry e)
+    {
+        if (string.IsNullOrEmpty(e.RequestJson) || e.ResourceType is "Patient" or "Practitioner") return null;
+        try
+        {
+            using var doc = System.Text.Json.JsonDocument.Parse(e.RequestJson);
+            foreach (var alan in PusulaTarihAlanlari)
+            {
+                if (!doc.RootElement.TryGetProperty(alan, out var deger)) continue;
+                if (alan == "period" && !deger.TryGetProperty("start", out deger)) continue;
+                if (deger.ValueKind == System.Text.Json.JsonValueKind.String
+                    && DateTimeOffset.TryParse(deger.GetString(), System.Globalization.CultureInfo.InvariantCulture,
+                        System.Globalization.DateTimeStyles.None, out var t))
+                    return t.DateTime;
+            }
+        }
+        catch (System.Text.Json.JsonException) { /* bozuk govde -- tarih gosterilmez */ }
+        return null;
+    }
+
     public DateOnly EffectiveFrom { get; set; }
     public DateOnly EffectiveTo { get; set; }
 

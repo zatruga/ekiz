@@ -484,3 +484,14 @@ eşleştirilemez.
 **Not:** Diğer tüm zorunlu alanlar hazır — accession numarası (%100), modalite
 (%100, DICOM kodlu), hasta, müayinə, tarih ve görüntü sayısı. Eksik olan tek
 alan budur.
+
+## Patoloji raporu kategori gösterimi sandbox ile canlıda farklı (2026-10-23)
+
+`az-pathology-diagnostic-report` profili `category[0]` alanını pattern ile sabitliyor ve
+pattern display'i de içeriyor. İki sunucu farklı metin istiyor (ikisi de HTTP 400 ile ölçüldü):
+
+- Sandbox: `"display":"Pathology (gross & histopath, not surgical)"`
+- Canlı: `"display":"Pathology"`
+
+Bugün metin ortama göre seçiliyor (`PathologyReportMapper.KategoriGosterimi`). Soru:
+hangisi doğru sürüm, sandbox canlıyla eşitlenecek mi?

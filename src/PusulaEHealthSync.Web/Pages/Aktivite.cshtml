@@ -388,6 +388,7 @@
                                 <th style="width:104px;">Tarih / Saat</th>
                                 <th style="width:150px;">Tür</th>
                                 <th style="width:110px;">Pusula Id</th>
+                                <th style="width:104px;" title="Kaydın Pusula'daki tarihi: sonuç onayı, işlem zamanı, muayene başlangıcı…">Pusula Tarihi</th>
                                 <th style="width:26%;">Gönderim içeriği</th>
                                 <th style="width:130px;">Durum</th>
                                 <th style="width:80px;">İşlem</th>
@@ -408,6 +409,14 @@
                                     </td>
                                     <td><span class="badge @SyncLogEntry.ResourceTypeCssClass(e.ResourceType)">@SyncLogEntry.ResourceTypeLabel(e.ResourceType)</span></td>
                                     <td class="mono">@e.PusulaId.ToString(System.Globalization.CultureInfo.InvariantCulture)</td>
+                                    <td class="mono text-muted">
+                                        @if (PusulaEHealthSync.Web.Pages.AktiviteModel.PusulaTarihi(e) is { } pt)
+                                        {
+                                            @pt.ToString("HH:mm:ss")
+                                            <span class="akis-satir-tarih">@pt.ToString("dd.MM.yyyy")</span>
+                                        }
+                                        else { <span class="text-faint">—</span> }
+                                    </td>
                                     <td>
                                         @* GONDERIM ICERIGI: id'nin insan okunur karsiligi. Cozulemezse
                                            bos -- uydurma metin yazmaktansa bos birakmak dogru. *@

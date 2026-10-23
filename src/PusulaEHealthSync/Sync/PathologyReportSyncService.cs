@@ -28,6 +28,7 @@ public class PathologyReportSyncService(
     EHealthClient eHealthClient,
     PusulaRepository repository,
     SyncLogStore syncLog,
+    SettingsStore settings,
     ILogger<PathologyReportSyncService> logger)
 {
     public async Task<SyncLogEntry> SyncOneAsync(
@@ -41,7 +42,9 @@ public class PathologyReportSyncService(
         var (azCompositionId, chainWarning) = await SyncChainAsync(report, protokol, azPatientId, azEncounterId, azPractitionerId, liveMode, atlaGonderilmisse, ct);
 
         // 2) DiagnosticReport -- zincir kurulabildiyse ust halkayi da tasiyarak.
-        var mapping = PathologyReportMapper.Map(report, azPatientId, azEncounterId, azProcedureId, azPractitionerId, azCompositionId);
+        var sandbox = await settings.GetStringAsync(SettingsStore.EHealthEnvironmentKey,
+            SettingsStore.EHealthEnvironmentDefault, ct) != "Live";
+        var mapping = PathologyReportMapper.Map(report, azPatientId, azEncounterId, azProcedureId, azPractitionerId, azCompositionId, sandbox);
         if (mapping is MappingResult.Skipped skip)
         {
             var skipEntry = NewEntry(report, protokol, SyncStatus.Skipped);

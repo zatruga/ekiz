@@ -45,7 +45,18 @@ public static class PathologyReportMapper
     // yazilmaz ve rapor v1'deki gibi tek basina gecerli kalir. URL IG'den dogrulandi.
     private const string CompositionExtensionUrl = "http://fhir.az/StructureDefinition/diagnostic-report-composition";
 
-    public static MappingResult Map(PathologyReportRecord report, string azPatientId, string? azEncounterId, string? azProcedureId, string? azPractitionerId, string? azCompositionId = null)
+    // KATEGORI GOSTERIMI ORTAMA GORE (2026-10-23, iki ortamda da HTTP 400 ile olculdu).
+    // Profil category'yi pattern ile sabitliyor ve pattern display'i de iceriyor -- ama iki
+    // sunucuda profilin FARKLI surumu kurulu:
+    //   - Sandbox: "Pathology (gross & histopath, not surgical)" (v2-0074'un resmi gosterimi)
+    //   - Canli:   "Pathology"
+    // Biri digerinde reddediliyor; tek bir metin ikisini birden gecemez. Sandbox profili
+    // canliyla esitlenirse bu ayrim kaldirilabilir (bkz. docs/bakanlik-sorulari.md).
+    public static string KategoriGosterimi(bool sandbox) =>
+        sandbox ? "Pathology (gross & histopath, not surgical)" : "Pathology";
+
+    public static MappingResult Map(PathologyReportRecord report, string azPatientId, string? azEncounterId, string? azProcedureId, string? azPractitionerId, string? azCompositionId = null,
+        bool sandbox = false)
     {
         if (string.IsNullOrWhiteSpace(report.IcbariKodu))
             return new MappingResult.Skipped("Bu raporun İcbari Sigorta Fiyat Listesi'nde karşılığı bulunamadı. TRƎS her kayıtta hizmet kodu istiyor; eşleştirme yapılmadan gönderilemez.");
@@ -92,11 +103,7 @@ public static class PathologyReportMapper
                 {
                     ["coding"] = new JsonArray
                     {
-                        // DISPLAY HARFI HARFINE BU OLMALI (2026-10-23, canli HTTP 400): profil
-                        // category'yi pattern ile sabitliyor ve pattern display'i de iceriyor.
-                        // "Pathology" yazinca TRƏS "kategori bekledigi degerle uyusmuyor" diye
-                        // reddediyordu. Metin v2-0074'teki resmi PAT gosterimi.
-                        new JsonObject { ["system"] = CategorySystem, ["code"] = "PAT", ["display"] = "Pathology (gross & histopath, not surgical)" },
+                        new JsonObject { ["system"] = CategorySystem, ["code"] = "PAT", ["display"] = KategoriGosterimi(sandbox) },
                     },
                 },
             },
