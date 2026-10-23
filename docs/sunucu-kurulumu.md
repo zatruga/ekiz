@@ -156,6 +156,15 @@ cp "$B/Data/synclog.db" /tmp/sunucu-synclog.db
      gönderim, ilk güncellemeye kadar hiç başlamaz.
    - Kurtarma: çökmede yeniden başlat --
      `sc failure PusulaSyncWorker reset= 86400 actions= restart/60000/restart/60000/restart/300000`
+   - **Güncelleyicinin hesabına servisi yönetme izni** (2026-10-23'e kadar eksikti).
+     Güncelleyici `svc-pusulasync` ile çalışıyor ve bu izin olmadan servisi ne
+     dağıtımdan sonra başlatabilir ne de paneldeki "yeniden başlat" ile yönetebilir:
+     hata `Access is denied` olur. Yönetici Komut İstemi'nde (PowerShell gerekmez):
+     1. `wmic useraccount where name="svc-pusulasync" get sid` -- SID'i al
+     2. `sc sdshow PusulaSyncWorker` -- mevcut izinleri al ve **not et** (geri dönüş için)
+     3. Çıktının başındaki `D:` ifadesinin hemen arkasına `(A;;RPWPLCLORC;;;<SID>)` ekleyip
+        `sc sdset PusulaSyncWorker "<birleştirilmiş satır>"` çalıştır.
+     Eklenen hak yalnızca başlat (RP), durdur (WP), durum sorgula (LC/LO) ve izin oku (RC).
 6. Panelden ilk kullanıcıyı oluştur, Ayarlar sayfasından bağlantıları doğrula
 
 **Gönderim döngüsü yalnızca `PusulaSyncWorker`'da çalışır, Web'de değil.** 2026-09-10 ile
