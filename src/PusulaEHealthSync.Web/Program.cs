@@ -49,6 +49,8 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizePage("/Ayarlar", "AdminOnly");
     options.Conventions.AuthorizePage("/Kullanicilar", "AdminOnly");
     options.Conventions.AuthorizePage("/Guncelle", "AdminOnly");
+    // Servisi yeniden baslatabiliyor -- yalnizca yonetici.
+    options.Conventions.AuthorizePage("/ServisDurumu", "AdminOnly");
 }).AddMvcOptions(options =>
 {
     // Ayarlar sayfasindaki bircok alan (SMTP kullanici adi/sifresi, Canli ortam

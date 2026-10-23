@@ -17,4 +17,11 @@
     <PackageReference Include="Microsoft.Extensions.Hosting.WindowsServices" Version="10.0.11" />
     <PackageReference Include="System.ServiceProcess.ServiceController" Version="10.0.11" />
   </ItemGroup>
+
+  <!-- Servis bekcisi (2026-10-23) icin: SettingsStore (nabiz, uyari ayarlari) ve MailSender
+       (SMTP) ana projeden, e-posta gondermenin ve ayar okumanin ikinci bir kopyasi
+       yazilmasin. Ana proje kendi appsettings dosyalarini referans verenlere tasimiyor. -->
+  <ItemGroup>
+    <ProjectReference Include="..\PusulaEHealthSync\PusulaEHealthSync.csproj" />
+  </ItemGroup>
 </Project>

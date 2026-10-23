@@ -68,6 +68,7 @@ public static class ServisKayitlari
 
         services.AddSingleton<GunSonuRaporService>();
         services.AddSingleton<MailSender>();
+        services.AddSingleton<MailAyarlari>();
         services.AddSingleton<ProtokolDurumService>();
         return services;
     }

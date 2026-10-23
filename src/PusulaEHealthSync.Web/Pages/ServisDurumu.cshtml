@@ -1,0 +1,161 @@
+@page
+@model PusulaEHealthSync.Web.Pages.ServisDurumuModel
+@{
+    ViewData["Title"] = "Servis Durumu";
+    var b = Model.Bekci;
+    string Zaman(DateTime? utc) => utc is { } t ? AzTime.ToLocal(t).ToString("dd.MM.yyyy HH:mm:ss") : "—";
+    string Once(DateTime? utc)
+    {
+        if (utc is not { } t) return "";
+        var s = DateTime.UtcNow - t;
+        return s.TotalMinutes < 1 ? "az önce" : s.TotalHours < 1 ? $"{(int)s.TotalMinutes} dk önce"
+             : s.TotalDays < 1 ? $"{(int)s.TotalHours} saat önce" : $"{(int)s.TotalDays} gün önce";
+    }
+
+    // GENEL HUKUM -- nabiz once: bekci olu olsa bile gonderim servisinin kendi izi bu.
+    var (hukumCss, hukum, aciklama) =
+        Model.NabizBayat
+            ? ("hata", "Gönderim servisi çalışmıyor",
+               b?.Sorun ?? (Model.NabizUtc is null ? "Servis hiç nabız yazmadı." : $"Son nabız {Once(Model.NabizUtc)}."))
+        : !Model.OtomatikAcik
+            ? ("eksik", "Servis çalışıyor, otomatik gönderim KAPALI",
+               "Servis ayakta ama gönderim yapmıyor. Açmak için Ayarlar → Otomatik gönderim.")
+        : ("ok", "Gönderim servisi çalışıyor", $"Son nabız {Once(Model.NabizUtc)}.");
+}
+
+<p class="breadcrumb">Sistem / Servis Durumu</p>
+<div class="page-header">
+    <div>
+        <h1 class="page-title">Servis Durumu</h1>
+        <p class="page-subtitle">Otomatik gönderim servisinin (PusulaSyncWorker) durumu, yeniden başlatma ve uyarı e-postası</p>
+    </div>
+</div>
+
+@if (!string.IsNullOrWhiteSpace(Model.IslemMesaji))
+{
+    <div class="alert @(Model.IslemBasarili ? "alert-success" : "alert-danger")">@Model.IslemMesaji</div>
+}
+
+@* GENEL HUKUM + TEK EYLEM. Yeniden baslatma her durumda sunuluyor: "calisiyor" gorunen
+   ama takilmis bir servis de var (nabiz bayat, Windows "Running" diyor). *@
+<section class="card card-pad sd-hukum sd-hukum--@hukumCss" aria-live="polite">
+    <div class="sd-hukum-metin">
+        <span class="akis-kare akis-kare--@hukumCss" aria-hidden="true"></span>
+        <div>
+            <h2 class="sd-hukum-baslik">@hukum</h2>
+            <p class="sd-hukum-aciklama">@aciklama</p>
+        </div>
+    </div>
+    <form method="post" asp-page-handler="YenidenBaslat"
+          onsubmit="return confirm('PusulaSyncWorker servisi yeniden başlatılacak.\n\nSüren bir gönderim turu varsa yarıda kesilir; kesilen protokoller bir sonraki turda yeniden gönderilir.\n\nDevam edilsin mi?') && (pusulaLockSubmit(this), true)">
+        <button type="submit" class="btn btn-primary" disabled="@(Model.IstekBekliyor || !Model.BekciCanli)"
+                title="@(!Model.BekciCanli ? "Bekçi çalışmıyor -- istek işlenmez" : Model.IstekBekliyor ? "Bir istek zaten bekliyor" : "")">
+            @(Model.IstekBekliyor ? "İstek bekliyor…" : "Servisi yeniden başlat")
+        </button>
+    </form>
+</section>
+
+@if (!Model.BekciCanli)
+{
+    @* BEKCI YOKSA BUNU SOYLEMEK SART: yeniden baslatma dugmesi ve uyari e-postasi onun isi.
+       Sessiz kalsak kullanici "uyari gelmedi, demek ki sorun yok" sanar. *@
+    <div class="alert alert-warning">
+        <strong>Bekçi çalışmıyor.</strong>
+        @(b is null
+            ? "Güncelleyici servisi (PusulaSyncUpdater) henüz hiç durum yazmadı -- büyük ihtimalle eski sürüm çalışıyor ve bir kez elle güncellenmesi gerekiyor."
+            : $"Güncelleyici servisinin son kontrolü {Once(b.KontrolUtc)}.")
+        Bu sürede <strong>uyarı e-postası gitmez</strong> ve yeniden başlatma düğmesi çalışmaz.
+        Aşağıdaki nabız bilgisi yine doğrudur.
+    </div>
+}
+
+<div class="sd-izgara">
+    <section class="card card-pad">
+        <p class="section-title">Gönderim servisi · @(b?.ServisAdi is { Length: > 0 } ad ? ad : "PusulaSyncWorker")</p>
+        <dl class="sd-liste">
+            <dt>Windows durumu</dt>
+            <dd>
+                @if (b is null || !Model.BekciCanli) { <span class="text-faint">bilinmiyor (bekçi yok)</span> }
+                else
+                {
+                    <span class="rchip @(b.WindowsDurumu == "Running" ? "success" : "danger")">@(b.WindowsDurumu switch
+                        {
+                            "Running" => "Çalışıyor",
+                            "Stopped" => "Durmuş",
+                            "Bulunamadi" => "Kurulu değil",
+                            "StartPending" => "Başlıyor",
+                            "StopPending" => "Duruyor",
+                            var x => x,
+                        })</span>
+                }
+            </dd>
+            <dt>Başlangıç türü</dt>
+            <dd>
+                @if (b is null || !Model.BekciCanli || b.WindowsDurumu == "Bulunamadi") { <span class="text-faint">—</span> }
+                else
+                {
+                    @(b.BaslangicTuru switch { "Automatic" => "Otomatik", "Manual" => "Elle (Manual)", "Disabled" => "Devre dışı", var x => x })
+                    @if (b.BaslangicTuru != "Automatic")
+                    {
+                        @* Manual'da sunucu yeniden basladiginda gonderim baslamaz -- 23.10'a
+                           kadar sunucudaki ayar tam buydu. *@
+                        <span class="rchip warning">Automatic olmalı</span>
+                    }
+                }
+            </dd>
+            <dt>Son nabız</dt>
+            <dd>@Zaman(Model.NabizUtc) <span class="text-faint">@Once(Model.NabizUtc)</span></dd>
+            <dt>Otomatik gönderim</dt>
+            <dd>@(Model.OtomatikAcik ? "Açık" : "Kapalı") · ortam @(Model.Canli ? "Canlı" : "Test")</dd>
+            <dt>Süren tur</dt>
+            <dd>@(Model.TurHedef > 0 && !Model.NabizBayat ? $"#{Model.TurNo} · {Model.TurIslenen} / {Model.TurHedef} protokol" : "yok")</dd>
+            <dt>Son tamamlanan tur</dt>
+            <dd>@Zaman(Model.SonTurUtc) <span class="text-faint">@Model.SonTurOzet</span></dd>
+        </dl>
+    </section>
+
+    <section class="card card-pad">
+        <p class="section-title">Uyarı e-postası</p>
+        <dl class="sd-liste">
+            <dt>Durum</dt>
+            <dd>
+                @if (Model.UyariAyari is { } u)
+                {
+                    <span class="rchip @(u.Acik && u.Alicilar.Count > 0 ? "success" : "warning")">
+                        @(!u.Acik ? "Kapalı" : u.Alicilar.Count == 0 ? "Açık ama alıcı yok" : $"Açık · {u.Alicilar.Count} alıcı")
+                    </span>
+                }
+                <a asp-page="/Ayarlar" asp-fragment="mt-ServisDurdu" class="sd-link">Ayarlar'da düzenle</a>
+            </dd>
+            <dt>Şu anki sorun</dt>
+            <dd>
+                @if (b?.Sorun is { } sorun && Model.BekciCanli)
+                {
+                    <span>@sorun</span>
+                    <span class="text-faint">· @Once(b.SorunBaslangicUtc) başladı@(b.SorunMailiGitti ? " · uyarı gönderildi" : " · bekleme süresi dolunca uyarı gidecek")</span>
+                }
+                else { <span class="text-faint">yok</span> }
+            </dd>
+            <dt>Son uyarı</dt>
+            <dd>@Zaman(b?.SonUyariUtc) <span class="text-faint">@b?.SonUyariSonucu</span></dd>
+            <dt>Son yeniden başlatma</dt>
+            <dd>
+                @if (b?.SonYenidenBaslatma is { } y)
+                {
+                    <span class="rchip @(y.Basarili ? "success" : "danger")">@(y.Basarili ? "Başarılı" : "Başarısız")</span>
+                    <span>@Zaman(y.Utc) · @y.Isteyen</span>
+                    <span class="text-faint">@y.Mesaj</span>
+                }
+                else { <span class="text-faint">—</span> }
+            </dd>
+            <dt>Bekçinin son kontrolü</dt>
+            <dd>@Zaman(b?.KontrolUtc) <span class="text-faint">@Once(b?.KontrolUtc)</span></dd>
+        </dl>
+    </section>
+</div>
+
+<script>
+    // 15 sn'de bir tazelen -- yeniden baslatma sonucunu beklerken elle yenilemek gerekmesin.
+    // Onay penceresi acikken tazelenmez (confirm zaten sayfayi bloke ediyor).
+    setInterval(function () { if (!document.hidden) { location.reload(); } }, 15000);
+</script>

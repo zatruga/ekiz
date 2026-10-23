@@ -1,4 +1,4 @@
-@page
+﻿@page
 @model PusulaEHealthSync.Web.Pages.AyarlarModel
 @{
     ViewData["Title"] = "Ayarlar";
@@ -528,109 +528,207 @@
         </section>
 
         <!-- 4. MAİL BİLGİLENDİRME -->
+        @* ==== E-POSTA (2026-10-23 yeniden duzenlendi) ====
+           KULLANICI: "her bilgi maili icin tanimlama yapilacak bir alan olmali; mail icerigi ve
+           gonderilecek kisileri secim yapmam gerekli" + "zamanlama ayarlari da olmali" +
+           "mail gonderimini gercekten test etmedik".
+           Uc katman, her biri kendi formu ve Kaydet'iyle: SMTP -> KISILER -> TURLER.
+           Her kartin sonucu (kaydedildi / test sonucu / hata) KENDI altinda gorunur. *@
+        @{
+            void Sonuc(string yer)
+            {
+                if (Model.MailSonucYeri == yer && Model.MailSonucMetni is { } m)
+                {
+                    <div class="alert @(Model.MailSonucBasarili ? "alert-success" : "alert-danger")" style="margin:12px 0 0;">@m</div>
+                }
+            }
+        }
         <section class="settings-panel" id="panel-mail">
             <div class="settings-grid">
-                <div class="card card-pad settings-card span-2">
-                    <p class="section-title">Gün Sonu Maili</p>
-                    <p class="card-desc">
-                        Her sabah belirlenen saatte <strong>bir önceki günün</strong> gönderim bilançosunu aşağıdaki
-                        alıcılara e-posta ile gönderir: kaç protokol denendi, kaçı başarılı, kaçı hatalı, ve
-                        gönderilemeyen kayıtların Türkçe sebebiyle listesi.
-                        <span class="field-hint">Sorun olmayan günlerde de gelir &mdash; mail gelmediği gün sistemin
-                        çalışmadığı anlaşılır. Raporda hasta adı ve FİN bilgisi bilinçli olarak yer almaz, yalnızca
-                        protokol numarası yazar.</span>
-                    </p>
+
+                @* ---- 1) SMTP ---- *@
+                <div class="card card-pad settings-card">
+                    <p class="section-title">1 · SMTP bağlantısı</p>
+                    <p class="card-desc">Bütün e-postalar bu sunucu üzerinden gider. Kaydettikten sonra sağdaki
+                        <strong>bağlantı testi</strong> ile gerçekten çalıştığını doğrulayın.</p>
                     <form method="post" asp-page-handler="Mail" style="display:flex; flex-direction:column; flex:1;">
-                        <div class="toggle-row">
-                            <input type="checkbox" id="mailEnabled" asp-for="MailEnabled" />
-                            <label for="mailEnabled">Gün sonu mailini gönder</label>
-                        </div>
-
-                        <div class="field-row-2">
-                            <div class="field-row-21">
-                                <div class="field"><label for="smtpHost">SMTP sunucu adresi</label>
-                                    <input type="text" id="smtpHost" asp-for="MailSmtpHost" /></div>
-                                <div class="field"><label for="smtpPort">Port</label>
-                                    <input type="number" id="smtpPort" asp-for="MailSmtpPort" min="1" max="65535" /></div>
-                            </div>
-                            <div class="field-row-2">
-                                <div class="field"><label for="mailUser">Kullanıcı adı <span class="field-hint">(opsiyonel)</span></label>
-                                    <input type="text" id="mailUser" asp-for="MailUsername" autocomplete="off" /></div>
-                                <div class="field"><label for="mailPass">Şifre</label>
-                                    <input type="password" id="mailPass" asp-for="MailPassword" autocomplete="new-password" /></div>
-                            </div>
-                        </div>
-
-                        <div class="toggle-row" style="max-width:220px;">
-                            <input type="checkbox" id="mailTls" asp-for="MailUseTls" />
-                            <label for="mailTls">TLS/SSL kullan</label>
-                        </div>
-
                         <div class="field-row-21">
+                            <div class="field"><label for="smtpHost">SMTP sunucu adresi</label>
+                                <input type="text" id="smtpHost" asp-for="MailSmtpHost" /></div>
+                            <div class="field"><label for="smtpPort">Port</label>
+                                <input type="number" id="smtpPort" asp-for="MailSmtpPort" min="1" max="65535" /></div>
+                        </div>
+                        <div class="field-row-2">
+                            <div class="field"><label for="mailUser">Kullanıcı adı <span class="field-hint">(opsiyonel)</span></label>
+                                <input type="text" id="mailUser" asp-for="MailUsername" autocomplete="off" /></div>
+                            <div class="field"><label for="mailPass">Şifre</label>
+                                <input type="password" id="mailPass" asp-for="MailPassword" autocomplete="new-password" /></div>
+                        </div>
+                        <div class="field-row-2">
                             <div class="field"><label for="mailFrom">Gönderen adres (From)</label>
                                 <input type="email" id="mailFrom" asp-for="MailFromAddress" /></div>
-                            <div class="field"><label for="mailHour">Gönderim saati (0-23)</label>
-                                <input type="number" id="mailHour" asp-for="MailSendHour" min="0" max="23" />
-                                <span class="field-hint">Bu saatte dünün raporu gider. 7 = sabah işe gelindiğinde
-                                gelen kutusunda hazır.</span></div>
-                            @* Tavan 2026-10-09'da ekrana geldi; koda gomuluydu (300). *@
-                            <div class="field"><label for="mailTavan">Mailde en fazla kaç hatalı kalem listelensin?</label>
-                                <input type="number" id="mailTavan" asp-for="MailHataliKalemTavani" min="1" max="5000" />
-                                <span class="field-hint">Toplam sayı her zaman yazılır; bu yalnızca listenin uzunluğunu sınırlar,
-                                mailin okunamaz hale gelmemesi için.</span></div>
+                            <div class="toggle-row" style="align-self:end;">
+                                <input type="checkbox" id="mailTls" asp-for="MailUseTls" />
+                                <label for="mailTls">TLS/SSL kullan</label>
+                            </div>
                         </div>
-
-                        <div class="field">
-                            <label for="mailRecipients">Alıcılar <span class="field-hint">(virgül veya yeni satırla ayırın)</span></label>
-                            <textarea id="mailRecipients" asp-for="MailRecipients" rows="2" placeholder="ornek1@livhospital.com, ornek2@livhospital.com"></textarea>
-                        </div>
-
                         <div class="card-actions">
                             <button type="submit" class="btn btn-primary">Kaydet</button>
-                            @if (Model.Saved && Model.SavedSection == "mail")
-                            {
-                                <span class="rchip success">Kaydedildi</span>
-                            }
                         </div>
                     </form>
-
-                    @* ==== ON IZLEME + TEST GONDERIMI (2026-10-05) ====
-                       SMTP yapilandirmasinin dogru olup olmadigini sabah 07:00'de ogrenmek
-                       kotu bir tasarim: yanlissa o gunun raporu kaybedilmis olur ve kimse
-                       fark etmez. Iki ayri dugme cunku iki ayri soruya cevap veriyorlar:
-                         "Rapor nasil gorunuyor?"  -> On izleme (mail GONDERMEZ)
-                         "SMTP calisiyor mu?"      -> Test maili (gercek gonderim)
-                       Test maili AYRI BIR FORM: ustteki formla ayni Kaydet dugmesine
-                       baglansaydi, bir ayari degistirip kaydetmek istedigimizde mail de
-                       giderdi. *@
-                    <div style="margin-top:18px; padding-top:16px; border-top:1px solid var(--border);">
-                        <p class="card-desc" style="margin-bottom:10px;">
-                            <strong>Göndermeden önce kontrol edin.</strong> Ön izleme raporu tarayıcıda açar, mail
-                            göndermez. Test maili, kayıtlı alıcılara gerçek bir mail atar &mdash; SMTP ayarlarının
-                            çalıştığını kanıtlamanın tek yolu.
-                        </p>
-                        <div class="card-actions">
-                            <a class="btn btn-outline" asp-page="/GunSonuRaporu" target="_blank" rel="noopener">
-                                Dünün raporunu ön izle
-                            </a>
-                            <form method="post" asp-page-handler="TestMaili" style="display:inline;"
-                                  onsubmit="pusulaLockSubmit(this)">
-                                <button type="submit" class="btn btn-outline"
-                                        onclick="return confirm('Kayıtlı alıcılara GERÇEK bir test maili gönderilecek.
-
-İçerik dünün gün sonu raporu olacak.
-
-Emin misiniz?')">
-                                    Test maili gönder
-                                </button>
-                            </form>
-                            @if (Model.MailTestSonucu is { } ts)
-                            {
-                                <span class="rchip @(Model.MailTestBasarili ? "success" : "danger")">@ts</span>
-                            }
-                        </div>
-                    </div>
                 </div>
+
+                <div class="card card-pad settings-card">
+                    <p class="section-title">SMTP bağlantı testi</p>
+                    <p class="card-desc">Seçtiğiniz adrese <strong>gerçek</strong> bir deneme e-postası gönderir. Gitmezse
+                        SMTP sunucusunun verdiği hata aynen burada görünür. Önce SMTP ayarlarını kaydedin.</p>
+                    <form method="post" asp-page-handler="SmtpTest" onsubmit="pusulaLockSubmit(this)"
+                          style="display:flex; flex-direction:column; flex:1;">
+                        <div class="field">
+                            <label for="smtpTestAdres">Alıcı</label>
+                            <input type="email" id="smtpTestAdres" name="adres" list="mailKisiListesi"
+                                   placeholder="kişilerden seçin ya da adres yazın" />
+                            <datalist id="mailKisiListesi">
+                                @foreach (var k in Model.MailKisileri)
+                                {
+                                    <option value="@k.Eposta">@k.Ad</option>
+                                }
+                            </datalist>
+                        </div>
+                        <div class="card-actions">
+                            <button type="submit" class="btn btn-outline">Test e-postası gönder</button>
+                        </div>
+                    </form>
+                    @{ Sonuc("smtp"); }
+                </div>
+
+                @* ---- 2) KISILER ---- *@
+                <div class="card card-pad settings-card span-2">
+                    <p class="section-title">2 · Kişiler</p>
+                    <p class="card-desc">E-posta alabilecek kişiler. Burada bir kez tanımlanır, aşağıdaki her e-posta türünde
+                        kimin alacağı işaretlenerek seçilir. Satır başına bir kişi:
+                        <code>Ad Soyad &lt;adres@ornek.com&gt;</code> ya da yalnızca adres.</p>
+                    <form method="post" asp-page-handler="Kisiler" style="display:flex; flex-direction:column;">
+                        <div class="field">
+                            <label for="kisilerMetni" class="sr-only">Kişiler</label>
+                            <textarea id="kisilerMetni" name="kisilerMetni" rows="@Math.Max(3, Model.MailKisileri.Count + 1)"
+                                      placeholder="Ferhat Erçetin <ferhat@livhospital.com>">@string.Join("\n", Model.MailKisileri.Select(k => string.IsNullOrWhiteSpace(k.Ad) ? k.Eposta : $"{k.Ad} <{k.Eposta}>"))</textarea>
+                            <span class="field-hint">Listeden çıkarılan bir kişi, seçili olduğu türlerden de düşer.</span>
+                        </div>
+                        <div class="card-actions">
+                            <button type="submit" class="btn btn-primary">Kişileri kaydet</button>
+                        </div>
+                    </form>
+                    @{ Sonuc("kisiler"); }
+                </div>
+
+                @* ---- 3) TURLER ---- *@
+                @foreach (var tur in PusulaEHealthSync.Reporting.MailTurleri.Hepsi)
+                {
+                    var ayar = Model.MailTurAyarlari.GetValueOrDefault(tur.Kod)
+                               ?? new PusulaEHealthSync.Reporting.MailAyarlari.TurAyari(false, [], tur.VarsayilanKonu, tur.VarsayilanMesaj);
+                    var id = "mt-" + tur.Kod;
+                    // Kisi listesinde olmayan ama secili kalmis adresler de gosteriliyor
+                    // (ornegin eski alici listesinden gelen) -- sessizce dusmesinler.
+                    var secenekler = Model.MailKisileri
+                        .Concat(ayar.Alicilar
+                            .Where(a => !Model.MailKisileri.Any(k => k.Eposta.Equals(a, StringComparison.OrdinalIgnoreCase)))
+                            .Select(a => new PusulaEHealthSync.Reporting.MailAyarlari.Kisi("(listede yok)", a)))
+                        .ToList();
+
+                    <div class="card card-pad settings-card span-2 mail-tur" id="@id">
+                        <div class="mail-tur-bas">
+                            <p class="section-title" style="margin:0;">3 · @tur.Ad</p>
+                            <span class="rchip @(ayar.Acik ? "success" : "disabled")">@(ayar.Acik ? "Açık" : "Kapalı")</span>
+                            <span class="rchip neutral">@ayar.Alicilar.Count alıcı</span>
+                        </div>
+                        <p class="card-desc">@tur.Aciklama</p>
+
+                        <form method="post" asp-page-handler="MailTuru" style="display:flex; flex-direction:column;">
+                            <input type="hidden" name="kod" value="@tur.Kod" />
+                            <div class="toggle-row">
+                                <input type="checkbox" id="@(id)-acik" name="acik" value="true" checked="@ayar.Acik" />
+                                <label for="@(id)-acik">Bu e-postayı gönder</label>
+                            </div>
+
+                            <fieldset class="mail-alicilar">
+                                <legend>Alıcılar</legend>
+                                @if (secenekler.Count == 0)
+                                {
+                                    <span class="field-hint">Önce yukarıdaki <strong>Kişiler</strong> listesine en az bir kişi ekleyin.</span>
+                                }
+                                @foreach (var k in secenekler)
+                                {
+                                    var cid = $"{id}-a-{k.Eposta.GetHashCode():x}";
+                                    <label for="@cid" class="mail-alici">
+                                        <input type="checkbox" id="@cid" name="alicilar" value="@k.Eposta"
+                                               checked="@ayar.Alicilar.Contains(k.Eposta, StringComparer.OrdinalIgnoreCase)" />
+                                        <span>@(string.IsNullOrWhiteSpace(k.Ad) ? k.Eposta : k.Ad)</span>
+                                        @if (!string.IsNullOrWhiteSpace(k.Ad)) { <span class="mail-alici-adres">@k.Eposta</span> }
+                                    </label>
+                                }
+                            </fieldset>
+
+                            @* ZAMANLAMA -- yalnizca zamanlamasi olan turlerde. *@
+                            @if (tur.Kod == PusulaEHealthSync.Reporting.MailTurleri.GunSonu)
+                            {
+                                <div class="field-row-2">
+                                    <div class="field"><label for="@(id)-saat">Gönderim saati (0-23)</label>
+                                        <input type="number" id="@(id)-saat" name="saat" value="@Model.MailSendHour" min="0" max="23" required />
+                                        <span class="field-hint">Bu saatte dünün raporu gider. 7 = sabah işe gelindiğinde hazır.</span></div>
+                                    <div class="field"><label for="@(id)-tavan">En fazla kaç hatalı kalem listelensin?</label>
+                                        <input type="number" id="@(id)-tavan" name="tavan" value="@Model.MailHataliKalemTavani" min="1" max="5000" required />
+                                        <span class="field-hint">Toplam sayı her zaman yazılır; bu yalnızca listenin uzunluğu.</span></div>
+                                </div>
+                            }
+                            else if (tur.Kod == PusulaEHealthSync.Reporting.MailTurleri.ServisDurdu)
+                            {
+                                <div class="field-row-2">
+                                    <div class="field"><label for="@(id)-tol">Kaç dakika sürerse uyarılsın?</label>
+                                        <input type="number" id="@(id)-tol" name="tolerans" value="@Model.UyariToleransDakika" min="1" max="1440" required />
+                                        <span class="field-hint">Elle yeniden başlatma gibi kısa kesintiler e-posta üretmesin.</span></div>
+                                    <div class="field"><label for="@(id)-tekrar">Sorun sürdükçe kaç saatte bir hatırlatılsın?</label>
+                                        <input type="number" id="@(id)-tekrar" name="tekrar" value="@Model.UyariTekrarSaat" min="1" max="168" required /></div>
+                                </div>
+                            }
+
+                            <div class="field">
+                                <label for="@(id)-konu">Konu</label>
+                                <input type="text" id="@(id)-konu" name="konu" value="@ayar.Konu" required />
+                            </div>
+                            <div class="field">
+                                <label for="@(id)-mesaj">Mesaj</label>
+                                <textarea id="@(id)-mesaj" name="mesaj" rows="5">@ayar.Mesaj</textarea>
+                                <span class="field-hint">Düz metin; boş satır yeni paragraf.
+                                    @if (tur.Kod == PusulaEHealthSync.Reporting.MailTurleri.GunSonu)
+                                    {
+                                        <text>Raporun tablosu mesajın altına kendiliğinden eklenir; mesaj boş bırakılabilir.</text>
+                                    }
+                                </span>
+                            </div>
+                            <div class="mail-degiskenler">
+                                <span class="field-hint">Kullanılabilecek değişkenler (tıklayınca mesaja eklenir):</span>
+                                @foreach (var d in tur.Degiskenler)
+                                {
+                                    <button type="button" class="mail-degisken" title="@d.Aciklama — örnek: @d.Ornek"
+                                            onclick="mailDegiskenEkle('@(id)-mesaj', '{@d.Ad}')">{@d.Ad}</button>
+                                }
+                            </div>
+
+                            <div class="card-actions">
+                                <button type="submit" class="btn btn-primary">Kaydet</button>
+                                <a class="btn btn-outline" asp-page="/Ayarlar" asp-page-handler="MailOnizle" asp-route-kod="@tur.Kod"
+                                   target="_blank" rel="noopener" title="Kayıtlı ayarla, e-posta göndermeden tarayıcıda gösterir">Ön izle</a>
+                                <button type="submit" class="btn btn-outline" form="@(id)-test">Test gönder</button>
+                            </div>
+                        </form>
+                        @* Test AYRI FORM: Kaydet'e bagli olsaydi her kayitta e-posta giderdi. Kayitli
+                           ayarla gider -- degisiklik yaptiysaniz once Kaydet. *@
+                        <form id="@(id)-test" method="post" asp-page-handler="MailTuruTest" asp-route-kod="@tur.Kod"
+                              onsubmit="return confirm('Bu türün seçili alıcılarına GERÇEK bir test e-postası gönderilecek (kayıtlı ayarlarla).\n\nDevam edilsin mi?') && (pusulaLockSubmit(this), true)"></form>
+                        @{ Sonuc(tur.Kod); }
+                    </div>
+                }
             </div>
         </section>
     </div>
@@ -652,3 +750,15 @@ Emin misiniz?')">
 {
     <script>document.addEventListener('DOMContentLoaded', function () { pusulaSettingsNavClick('@savedTab'); });</script>
 }
+
+<script>
+    // E-posta sablonu: degisken dugmesi imlecin oldugu yere {degisken} ekler.
+    function mailDegiskenEkle(alanId, metin) {
+        var t = document.getElementById(alanId);
+        if (!t) { return; }
+        var bas = t.selectionStart ?? t.value.length, son = t.selectionEnd ?? t.value.length;
+        t.value = t.value.slice(0, bas) + metin + t.value.slice(son);
+        t.focus();
+        t.selectionStart = t.selectionEnd = bas + metin.length;
+    }
+</script>

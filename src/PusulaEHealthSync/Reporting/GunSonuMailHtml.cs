@@ -62,6 +62,19 @@ public static class GunSonuMailHtml
         return $"[{ortam}] TRƏS gun sonu {gun} -- {N(r.BasariliProtokol)} protokol tamam, sorun yok";
     }
 
+    // E-posta turu sablonunun degiskenleri (bkz. MailTurleri.GunSonu). {otomatik_konu}
+    // yukaridaki akilli konu -- kullanici kendi metniyle sarabilsin diye degisken.
+    public static Dictionary<string, string> Degerler(GunSonuRaporu r) => new()
+    {
+        ["otomatik_konu"] = Konu(r),
+        ["tarih"] = r.Gun.ToString("dd.MM.yyyy", Tr),
+        ["ortam"] = r.Ortam == "Live" ? "CANLI" : "Test",
+        ["denenen"] = N(r.DenenenProtokol),
+        ["basarili"] = N(r.BasariliProtokol),
+        ["hatali"] = N(r.HataliProtokol),
+        ["eksik"] = N(r.EksikVeriliProtokol),
+    };
+
     public static string Govde(GunSonuRaporu r)
     {
         var sb = new StringBuilder(32 * 1024);

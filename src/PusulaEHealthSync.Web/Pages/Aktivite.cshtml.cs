@@ -978,11 +978,9 @@ public record CanliSerit(bool Acik, int TurNo, int Hedef, int Islenen, int Bekle
     public static readonly CanliSerit Bos = new(false, 0, 0, 0, 0, null, null, "", false, null, 5);
 
     // SERVIS YANIT VERMIYOR MU? (2026-10-23) Dongu her tur basinda ve her protokolden sonra
-    // nabiz yaziyor. Esik: tur araliginin 3 kati, en az 30 dk -- tek bir agir adim
-    // (bekleyen is taramasi, iptal senkronu) birkac dakika surebiliyor, yanlis alarm olmasin.
-    // Nabiz HIC yoksa da durgun: servis ya hic baslatilmadi ya da eski surum calisiyor.
-    public bool ServisDurgun => NabizUtc is not { } n
-        || DateTime.UtcNow - n > TimeSpan.FromMinutes(Math.Max(30, 3 * AralikDakika));
+    // nabiz yaziyor. Kural bekciyle ORTAK (bkz. ServisDurumu.NabizBayat): seritte kirmizi
+    // gorunen durum ile e-posta uyarisi ayni esikten cikiyor.
+    public bool ServisDurgun => ServisDurumu.NabizBayat(NabizUtc, AralikDakika, DateTime.UtcNow);
 
     // Hedef > 0 = bir tur SURUYOR. Dongu her cikista sifirliyor (bkz. AutoSyncWorker).
     public bool TurSuruyor => Hedef > 0;

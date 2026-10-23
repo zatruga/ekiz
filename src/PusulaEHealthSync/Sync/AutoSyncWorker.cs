@@ -299,7 +299,8 @@ public class AutoSyncWorker(
         {
             // Mail kapaliysa raporu HESAPLAMIYORUZ bile -- hesap Pusula'ya protokol cozum
             // sorgulari atiyor, karsiliginda hicbir yere gitmeyecek bir rapor uretmek icin.
-            if (!await settings.GetBoolAsync(SettingsStore.MailEnabledKey, false, ct)) return;
+            var mailAyarlari = sp.GetRequiredService<MailAyarlari>();
+            if (!(await mailAyarlari.OkuAsync(MailTurleri.GunSonu, ct)).Acik) return;
 
             var saat = await settings.GetIntAsync(
                 SettingsStore.MailSendHourKey, SettingsStore.MailSendHourDefault, ct);
@@ -326,8 +327,10 @@ public class AutoSyncWorker(
             var gun = DateOnly.FromDateTime(simdi.AddDays(-1));
             var rapor = await raporServisi.OlusturAsync(gun, ct);
 
-            var sonuc = await mail.GonderAsync(
-                GunSonuMailHtml.Konu(rapor), GunSonuMailHtml.Govde(rapor), ct);
+            // Konu ve mesaj kullanicinin sablonundan (Ayarlar → Mail → Gun sonu raporu);
+            // raporun tablosu sablonun altina eklenir.
+            var sonuc = await mailAyarlari.GonderAsync(
+                mail, MailTurleri.GunSonu, GunSonuMailHtml.Degerler(rapor), GunSonuMailHtml.Govde(rapor), ct: ct);
 
             // ISARET YALNIZCA BASARILI GONDERIMDEN SONRA ILERLER: SMTP gecici olarak
             // yanit vermediyse bir sonraki tur (bir saat sonra) yeniden dener. Isareti

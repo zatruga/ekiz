@@ -17,6 +17,7 @@ public class AyarlarModel(
     SettingsStore settings,
     GunSonuRaporService gunSonuRapor,
     MailSender mailSender,
+    MailAyarlari mailAyarlari,
     ILogger<AyarlarModel> logger) : PageModel
 {
     public bool Saved { get; set; }
@@ -157,8 +158,6 @@ public class AyarlarModel(
     [Range(1, 100, ErrorMessage = "1 ile 100 arasında bir sayı girin.")]
     public int DevreKesiciSiniri { get; set; }
 
-    [BindProperty]
-    [Range(1, 5000, ErrorMessage = "1 ile 5000 arasında bir sayı girin.")]
     public int MailHataliKalemTavani { get; set; }
 
     [BindProperty]
@@ -166,9 +165,9 @@ public class AyarlarModel(
     [BindProperty]
     public bool VitalSignsSendEnabled { get; set; }
 
-    // -- Gunluk e-posta raporu -------------------------------------------------------------
-    [BindProperty]
-    public bool MailEnabled { get; set; }
+    // -- E-posta: SMTP baglantisi ---------------------------------------------------------
+    // (2026-10-23) Ac/kapa, alicilar ve saat artik E-POSTA TURLERINDE (bkz. MailTurleri);
+    // bu form yalnizca SMTP'yi kaydediyor.
     [BindProperty]
     public string MailSmtpHost { get; set; } = "";
     [BindProperty]
@@ -183,11 +182,18 @@ public class AyarlarModel(
     [BindProperty]
     [EmailAddress]
     public string MailFromAddress { get; set; } = "";
-    [BindProperty]
-    [Range(0, 23)]
+
+    // -- E-posta: kisiler ve turler (ekranda gosterim icin; kayit handler parametreleriyle) --
+    public List<MailAyarlari.Kisi> MailKisileri { get; set; } = [];
+    public Dictionary<string, MailAyarlari.TurAyari> MailTurAyarlari { get; set; } = [];
     public int MailSendHour { get; set; }
-    [BindProperty]
-    public string MailRecipients { get; set; } = "";
+    public int UyariToleransDakika { get; set; }
+    public int UyariTekrarSaat { get; set; }
+
+    // Hangi kartta hangi sonuc gosterilecek: "smtp", "kisiler" ya da bir tur kodu.
+    public string? MailSonucYeri { get; private set; }
+    public string? MailSonucMetni { get; private set; }
+    public bool MailSonucBasarili { get; private set; }
 
     public async Task OnGetAsync(CancellationToken ct) => await LoadAsync(ct);
 
@@ -368,55 +374,160 @@ public class AyarlarModel(
         return await SavedAsync("tanislem", ct);
     }
 
+    // ==== E-POSTA (2026-10-23 yeniden duzenlendi) ====
+    // KULLANICI ISTEGI: "her bilgi maili icin tanimlama yapilacak bir alan olmali; mail
+    // icerigi ve gonderilecek kisileri secim yapmam gerekli" + "zamanlama ayarlari da".
+    // Uc katman: SMTP (ortak) -> KISILER (bir kez) -> TURLER (her biri kendi ac/kapa,
+    // alicilar, konu, mesaj, zamanlama). Her katmanin kendi formu ve Kaydet'i var: bir
+    // turun mesajini duzeltmek SMTP sifresini yeniden istemesin.
+
     public async Task<IActionResult> OnPostMailAsync(CancellationToken ct)
     {
         if (!ModelState.IsValid) { await LoadAsync(ct, skipMail: true); return Page(); }
-        await settings.SetBoolAsync(SettingsStore.MailEnabledKey, MailEnabled, ct);
         await settings.SetStringAsync(SettingsStore.MailSmtpHostKey, Clean(MailSmtpHost), ct);
         await settings.SetIntAsync(SettingsStore.MailSmtpPortKey, MailSmtpPort, ct);
         await settings.SetBoolAsync(SettingsStore.MailUseTlsKey, MailUseTls, ct);
         await settings.SetStringAsync(SettingsStore.MailUsernameKey, Clean(MailUsername), ct);
         await settings.SetStringAsync(SettingsStore.MailPasswordKey, MailPassword ?? "", ct);
         await settings.SetStringAsync(SettingsStore.MailFromAddressKey, Clean(MailFromAddress), ct);
-        await settings.SetIntAsync(SettingsStore.MailSendHourKey, MailSendHour, ct);
-        await settings.SetIntAsync(SettingsStore.MailHataliKalemTavaniKey, MailHataliKalemTavani, ct);
-        await settings.SetStringAsync(SettingsStore.MailRecipientsKey, Clean(MailRecipients), ct);
-        return await SavedAsync("mail", ct);
+        return await MailSonucuAsync("smtp", true, "SMTP ayarları kaydedildi.", ct);
     }
 
-    // ---- GUN SONU MAILI TEST GONDERIMI (2026-10-05) ---------------------------------
-    // NEDEN GEREKLI: SMTP yapilandirmasi yanlissa bunu sabah 07:00'de, rapor gitmedigi
-    // icin ogrenirdik -- ve kimse fark etmezdi, cunku "mail gelmedi" ile "sorun yok"
-    // birbirinden ayirt edilemez. Test dugmesi bu belirsizligi aninda cozuyor.
-    //
-    // AYRI HANDLER, AYRI FORM: ustteki Kaydet'e baglansaydi bir ayari degistirmek
-    // istedigimizde mail de giderdi. Ayni gerekce otomatik gonderim Baslat/Durdur
-    // dugmelerinde de uygulandi.
-    public string? MailTestSonucu { get; private set; }
-    public bool MailTestBasarili { get; private set; }
-
-    public async Task<IActionResult> OnPostTestMailiAsync(CancellationToken ct)
+    // SMTP BAGLANTI TESTI -- herhangi bir ture bagli degil. "SMTP calisiyor mu?" sorusunu
+    // tek basina cevaplar; yazdigi hata SMTP'nin kendi mesaji (sifre yanlis, port kapali...).
+    public async Task<IActionResult> OnPostSmtpTestAsync(string? adres, CancellationToken ct)
     {
+        var alici = MailSender.AlicilariAyristir(adres);
+        if (alici.Count != 1)
+            return await MailSonucuAsync("smtp", false, "Test için tek bir geçerli e-posta adresi seçin ya da yazın.", ct);
+
+        MailSender.Sonuc sonuc;
         try
         {
-            // Icerik GERCEK rapor, uydurma bir ornek degil: SMTP'nin calistigini
-            // kanitlamanin yani sira raporun kendi bicimi de gorulmus olsun.
-            var rapor = await gunSonuRapor.OlusturAsync(DateOnly.FromDateTime(DateTime.Now.AddDays(-1)), ct);
-            var sonuc = await mailSender.GonderAsync(
-                "[TEST] " + GunSonuMailHtml.Konu(rapor), GunSonuMailHtml.Govde(rapor), ct);
-
-            MailTestBasarili = sonuc.Basarili;
-            MailTestSonucu = sonuc.Mesaj;
+            sonuc = await mailSender.GonderAsync(
+                "[TEST] Pusula → TRƏS SMTP bağlantı testi",
+                "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:14px\">"
+                + "<p>Bu e-posta Pusula → TRƏS Senkron Paneli'nin <strong>SMTP bağlantı testidir</strong>.</p>"
+                + $"<p>Gönderim: {DateTime.Now:dd.MM.yyyy HH:mm:ss} · isteyen: {System.Net.WebUtility.HtmlEncode(User.Identity?.Name)}</p>"
+                + "<p>Bu e-postayı aldıysanız SMTP ayarları çalışıyor.</p></div>",
+                alici, ct);
         }
         catch (Exception ex)
         {
-            logger.LogError(ex, "Gun sonu maili test gonderimi basarisiz.");
-            MailTestBasarili = false;
-            MailTestSonucu = "Hata: " + ex.Message;
+            logger.LogError(ex, "SMTP testi basarisiz.");
+            sonuc = MailSender.Sonuc.Hata("Hata: " + ex.Message);
+        }
+        return await MailSonucuAsync("smtp", sonuc.Basarili,
+            sonuc.Basarili ? $"Test e-postası {alici[0]} adresine gönderildi. Gelen kutusunu (ve gereksiz klasörünü) kontrol edin." : sonuc.Mesaj, ct);
+    }
+
+    // KISILER -- satir basina bir kisi: "Ad Soyad <adres>" ya da yalnizca adres.
+    public async Task<IActionResult> OnPostKisilerAsync(string? kisilerMetni, CancellationToken ct)
+    {
+        var kisiler = new List<MailAyarlari.Kisi>();
+        var hatalar = new List<string>();
+        foreach (var satir in (kisilerMetni ?? "").Split('\n').Select(s => s.Trim()).Where(s => s.Length > 0))
+        {
+            var m = System.Text.RegularExpressions.Regex.Match(satir, @"^(?<ad>.*?)\s*<(?<e>[^>]+)>\s*$");
+            var (ad, eposta) = m.Success ? (m.Groups["ad"].Value.Trim(), m.Groups["e"].Value.Trim()) : ("", satir);
+            if (!new EmailAddressAttribute().IsValid(eposta)) { hatalar.Add(satir); continue; }
+            if (kisiler.Any(k => k.Eposta.Equals(eposta, StringComparison.OrdinalIgnoreCase))) continue;
+            kisiler.Add(new(ad, eposta));
+        }
+        if (hatalar.Count > 0)
+            return await MailSonucuAsync("kisiler", false,
+                "Kaydedilmedi -- şu satırlar geçerli bir e-posta adresi değil: " + string.Join(" · ", hatalar), ct);
+
+        await mailAyarlari.KisileriYazAsync(kisiler, ct);
+        return await MailSonucuAsync("kisiler", true, $"{kisiler.Count} kişi kaydedildi.", ct);
+    }
+
+    public async Task<IActionResult> OnPostMailTuruAsync(
+        string kod, bool acik, List<string>? alicilar, string? konu, string? mesaj,
+        int? saat, int? tavan, int? tolerans, int? tekrar, CancellationToken ct)
+    {
+        var tanim = MailTurleri.Bul(kod);
+        if (string.IsNullOrWhiteSpace(konu))
+            return await MailSonucuAsync(kod, false, "Konu boş bırakılamaz.", ct);
+
+        // ZAMANLAMA -- turun kendi alanlari; aralik disi deger kaydedilmez, sebebi yazilir.
+        if (kod == MailTurleri.GunSonu)
+        {
+            if (saat is not (>= 0 and <= 23)) return await MailSonucuAsync(kod, false, "Gönderim saati 0-23 arası olmalı.", ct);
+            if (tavan is not (>= 1 and <= 5000)) return await MailSonucuAsync(kod, false, "Listelenecek kalem sayısı 1-5000 arası olmalı.", ct);
+            await settings.SetIntAsync(SettingsStore.MailSendHourKey, saat.Value, ct);
+            await settings.SetIntAsync(SettingsStore.MailHataliKalemTavaniKey, tavan.Value, ct);
+        }
+        else if (kod == MailTurleri.ServisDurdu)
+        {
+            if (tolerans is not (>= 1 and <= 1440)) return await MailSonucuAsync(kod, false, "Bekleme süresi 1-1440 dakika arası olmalı.", ct);
+            if (tekrar is not (>= 1 and <= 168)) return await MailSonucuAsync(kod, false, "Hatırlatma aralığı 1-168 saat arası olmalı.", ct);
+            await settings.SetIntAsync(SettingsStore.UyariToleransDakikaKey, tolerans.Value, ct);
+            await settings.SetIntAsync(SettingsStore.UyariTekrarSaatKey, tekrar.Value, ct);
         }
 
+        var secilen = MailSender.AlicilariAyristir(string.Join(",", alicilar ?? []));
+        await mailAyarlari.YazAsync(kod, new(acik, secilen, konu, mesaj ?? ""), ct);
+        return await MailSonucuAsync(kod, true,
+            acik && secilen.Count == 0
+                ? $"Kaydedildi -- ama \"{tanim.Ad}\" açık ve hiç alıcı seçilmedi; bu e-posta kimseye gitmez."
+                : "Kaydedildi.", ct);
+    }
+
+    // TURU TEST ET -- kayitli ayarla, turun SECILI alicilarina gercek bir e-posta.
+    // Gun sonu raporunda icerik GERCEK dunku rapor; digerlerinde ornek degerler.
+    // Tur kapali olsa da gider (kapali bir turu acmadan once denemek mumkun olsun).
+    public async Task<IActionResult> OnPostMailTuruTestAsync(string kod, CancellationToken ct)
+    {
+        MailSender.Sonuc sonuc;
+        try
+        {
+            var (degerler, ek) = await OrnekIcerikAsync(kod, ct);
+            sonuc = await mailAyarlari.GonderAsync(mailSender, kod, degerler, ek, test: true, ct: ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogError(ex, "E-posta turu testi basarisiz: {Kod}", kod);
+            sonuc = MailSender.Sonuc.Hata("Hata: " + ex.Message);
+        }
+        return await MailSonucuAsync(kod, sonuc.Basarili,
+            sonuc.Basarili ? $"Test e-postası {sonuc.AliciSayisi} alıcıya gönderildi." : sonuc.Mesaj, ct);
+    }
+
+    // ON IZLEME -- e-posta GONDERMEZ, tarayicida gosterir. Gidecek govdenin AYNISI.
+    public async Task<IActionResult> OnGetMailOnizleAsync(string kod, CancellationToken ct)
+    {
+        var ayar = await mailAyarlari.OkuAsync(kod, ct);
+        var (degerler, ek) = await OrnekIcerikAsync(kod, ct);
+        var konu = MailTurleri.Doldur(ayar.Konu, degerler);
+        var govde = MailAyarlari.Govde(ayar, degerler, ek, test: false);
+        var baslik = "<div style=\"font-family:Segoe UI,Arial,sans-serif;font-size:13px;background:#15181D;color:#F6F7F9;padding:10px 16px\">"
+            + $"<strong>Ön izleme</strong> · Konu: {System.Net.WebUtility.HtmlEncode(konu)} · "
+            + $"Alıcılar: {System.Net.WebUtility.HtmlEncode(ayar.Alicilar.Count == 0 ? "(seçilmedi)" : string.Join(", ", ayar.Alicilar))}"
+            + (ayar.Acik ? "" : " · <span style=\"color:#FF9AA2\">bu e-posta türü KAPALI</span>")
+            + "</div>";
+        var body = govde.IndexOf("<body", StringComparison.OrdinalIgnoreCase);
+        var kapanis = body < 0 ? -1 : govde.IndexOf('>', body);
+        return Content(kapanis > 0 ? govde.Insert(kapanis + 1, baslik) : baslik + govde, "text/html; charset=utf-8");
+    }
+
+    private async Task<(Dictionary<string, string> Degerler, string? Ek)> OrnekIcerikAsync(string kod, CancellationToken ct)
+    {
+        if (kod == MailTurleri.GunSonu)
+        {
+            var rapor = await gunSonuRapor.OlusturAsync(DateOnly.FromDateTime(DateTime.Now.AddDays(-1)), ct);
+            return (GunSonuMailHtml.Degerler(rapor), GunSonuMailHtml.Govde(rapor));
+        }
+        return (MailTurleri.OrnekDegerler(kod), null);
+    }
+
+    private async Task<IActionResult> MailSonucuAsync(string yer, bool basarili, string metin, CancellationToken ct)
+    {
         await LoadAsync(ct);
         SavedSection = "mail";
+        MailSonucYeri = yer;
+        MailSonucBasarili = basarili;
+        MailSonucMetni = metin;
         return Page();
     }
 
@@ -525,17 +636,28 @@ public class AyarlarModel(
 
         if (!skipMail)
         {
-            MailEnabled = await settings.GetBoolAsync(SettingsStore.MailEnabledKey, false, ct);
             MailSmtpHost = await settings.GetStringAsync(SettingsStore.MailSmtpHostKey, SettingsStore.MailSmtpHostDefault, ct);
             MailSmtpPort = await settings.GetIntAsync(SettingsStore.MailSmtpPortKey, SettingsStore.MailSmtpPortDefault, ct);
             MailUseTls = await settings.GetBoolAsync(SettingsStore.MailUseTlsKey, false, ct);
             MailUsername = await settings.GetStringAsync(SettingsStore.MailUsernameKey, "", ct);
             MailPassword = await settings.GetStringAsync(SettingsStore.MailPasswordKey, "", ct);
             MailFromAddress = await settings.GetStringAsync(SettingsStore.MailFromAddressKey, SettingsStore.MailFromAddressDefault, ct);
+        }
+
+        // Kisiler, turler ve zamanlama -- her zaman yuklenir (SMTP dogrulamasi patlasa da
+        // turler ekranda bos gorunmesin).
+        {
             MailSendHour = await settings.GetIntAsync(SettingsStore.MailSendHourKey, SettingsStore.MailSendHourDefault, ct);
-        MailHataliKalemTavani = await settings.GetIntAsync(
-            SettingsStore.MailHataliKalemTavaniKey, SettingsStore.MailHataliKalemTavaniDefault, ct);
-            MailRecipients = await settings.GetStringAsync(SettingsStore.MailRecipientsKey, "", ct);
+            MailHataliKalemTavani = await settings.GetIntAsync(
+                SettingsStore.MailHataliKalemTavaniKey, SettingsStore.MailHataliKalemTavaniDefault, ct);
+            UyariToleransDakika = await settings.GetIntAsync(
+                SettingsStore.UyariToleransDakikaKey, SettingsStore.UyariToleransDakikaDefault, ct);
+            UyariTekrarSaat = await settings.GetIntAsync(
+                SettingsStore.UyariTekrarSaatKey, SettingsStore.UyariTekrarSaatDefault, ct);
+            MailKisileri = await mailAyarlari.KisileriOkuAsync(ct);
+            MailTurAyarlari = [];
+            foreach (var t in MailTurleri.Hepsi)
+                MailTurAyarlari[t.Kod] = await mailAyarlari.OkuAsync(t.Kod, ct);
         }
     }
 }

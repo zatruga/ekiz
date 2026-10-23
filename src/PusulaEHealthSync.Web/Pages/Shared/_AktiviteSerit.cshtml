@@ -32,8 +32,8 @@
             @(s.NabizUtc is { } n
                 ? $"son nabız {AzTime.ToLocal(n):dd.MM HH:mm}"
                 : "hiç nabız gelmedi")
-            · sunucuda PusulaSyncWorker servisini kontrol edin
         </span>
+        <a asp-page="/ServisDurumu" class="btn btn-outline btn-sm akis-serit-eylem">Servis Durumu</a>
     }
 
     @if (s.TurNo > 0)

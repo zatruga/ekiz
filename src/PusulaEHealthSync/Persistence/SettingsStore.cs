@@ -250,6 +250,21 @@ public class SettingsStore
 
     // Gun sonu mailinde listelenecek azami hatali kalem -- mailin okunamaz hale gelmesini
     // onluyor. Oncesinde koda gomuluydu (300).
+    // SERVIS UYARISI (2026-10-23, kullanici istegi: "otomatik gonderim durduysa bunu
+    // uygulama acik olmasa bile bilmem gerekli, mail ile bildirebilir").
+    //
+    // Uyariyi GUNCELLEYICI servisi (PusulaSyncUpdater) atiyor -- olen bir gonderim servisi
+    // kendi olumunu haber veremez. Ac/kapa, alicilar, konu ve mesaj e-posta turunun
+    // ayarinda (bkz. MailTurleri.ServisDurdu); burada yalnizca ZAMANLAMA.
+    //
+    // Tolerans: sorun bu kadar dakika surmeden uyari gitmez -- elle yeniden baslatma ya da
+    // Windows'un kurtarma eylemi gibi kisa kesintiler e-posta uretmesin.
+    public const string UyariToleransDakikaKey = "Uyari.ToleransDakika";
+    public const int UyariToleransDakikaDefault = 10;
+    // Sorun surdukce kac saatte bir hatirlatilsin.
+    public const string UyariTekrarSaatKey = "Uyari.TekrarSaat";
+    public const int UyariTekrarSaatDefault = 6;
+
     public const string MailHataliKalemTavaniKey = "Mail.HataliKalemTavani";
     public const int MailHataliKalemTavaniDefault = 300;
 

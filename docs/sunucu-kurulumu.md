@@ -39,6 +39,26 @@ F:\Apps\PusulaEHealthSync\
 (Worker) ve güncelleyici (Updater). Güncelleme Web ve Worker'ı yeniler; Updater
 kendini güncellemez (çalışırken kendi dosyalarını değiştiremeyeceği için).
 
+### Güncelleyiciyi elle güncelleme
+
+2026-10-23'ten beri güncelleyici aynı zamanda **servis bekçisi**: gönderim servisinin
+durumunu izler, panelden gelen "yeniden başlat" isteğini işler ve gönderim durunca
+e-posta atar. Bekçi kodu değiştiğinde güncelleyicinin elle yenilenmesi gerekir. Önce
+panelden normal güncellemeyi yapın (bu `Repo\` klasörünü de günceller), sonra sunucuda
+**yönetici** olarak:
+
+```
+cd F:\Apps\PusulaEHealthSync\Repo
+dotnet publish src\PusulaEHealthSync.Updater -c Release -o F:\Apps\PusulaEHealthSync\Staging\Updater
+sc stop PusulaSyncUpdater
+robocopy F:\Apps\PusulaEHealthSync\Staging\Updater F:\Apps\PusulaEHealthSync\Updater /E /XF appsettings.Production.json
+sc start PusulaSyncUpdater
+```
+
+`/XF appsettings.Production.json` şart: o dosya sunucuya özel yolları tutar, üzerine
+yazılmamalı. Doğrulama: panelde **Servis Durumu** sayfasında "Bekçinin son kontrolü"
+30 saniye içinde güncellenmeli.
+
 ## `Data\synclog.db` içeriği
 
 Uygulamanın **kendi** veritabanı. Pusula'ya hiçbir şey yazılmadığı için kalıcı
