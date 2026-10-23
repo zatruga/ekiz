@@ -92,7 +92,11 @@ public static class PathologyReportMapper
                 {
                     ["coding"] = new JsonArray
                     {
-                        new JsonObject { ["system"] = CategorySystem, ["code"] = "PAT", ["display"] = "Pathology" },
+                        // DISPLAY HARFI HARFINE BU OLMALI (2026-10-23, canli HTTP 400): profil
+                        // category'yi pattern ile sabitliyor ve pattern display'i de iceriyor.
+                        // "Pathology" yazinca TRƏS "kategori bekledigi degerle uyusmuyor" diye
+                        // reddediyordu. Metin v2-0074'teki resmi PAT gosterimi.
+                        new JsonObject { ["system"] = CategorySystem, ["code"] = "PAT", ["display"] = "Pathology (gross & histopath, not surgical)" },
                     },
                 },
             },

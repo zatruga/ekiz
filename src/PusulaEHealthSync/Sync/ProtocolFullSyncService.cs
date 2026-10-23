@@ -102,7 +102,15 @@ public class ProtocolFullSyncService(
             await patientSyncService.SyncOneAsync(protokol.HastaId, liveMode: true, ct, atlaGonderilmisse: true);
 
         // 1) Muayine -> Tani -> Islem (cascade EncounterSyncService'te)
-        var encounter = await encounterSyncService.SyncOneAsync(protokol.ProtokolId, liveMode: true, ct);
+        //
+        //    CASCADE RADYOLOJI VE PATOLOJIYI DE GONDERIYOR -- asagidaki SendAllRadiology /
+        //    SendAllPathology ayni raporlari bir kez daha ele aliyor. Basarili olanlari
+        //    BasariylaGonderildi zaten atliyordu, ama HATALI olanlar ayni saniyede IKINCI
+        //    kez gonderiliyordu (2026-10-23, kullanici bildirdi: patoloji zinciri her turda
+        //    iki kez -- bulgu ve belge Update'leri dahil). Bu turda zaten denenmis kayit
+        //    burada tekrar denenmez; bkz. BuTurdaDenendi.
+        var turBaslangicUtc = DateTime.UtcNow;
+        var encounter =await encounterSyncService.SyncOneAsync(protokol.ProtokolId, liveMode: true, ct);
 
         // 2) Epikriz -- cascade'e DAHIL DEGIL, ayrica cagrilmali.
         //
@@ -137,8 +145,8 @@ public class ProtocolFullSyncService(
             return new Sonuc(encounter.Status, epikrizSayi, 0, 0, 0, 0);
 
         var lab = await SendAllLabsAsync(protokol, azPatientId, azEncounterId, ct);
-        var rad = await SendAllRadiologyAsync(protokol, azPatientId, azEncounterId, ct);
-        var pat = await SendAllPathologyAsync(protokol, azPatientId, azEncounterId, ct);
+        var rad = await SendAllRadiologyAsync(protokol, azPatientId, azEncounterId, turBaslangicUtc, ct);
+        var pat = await SendAllPathologyAsync(protokol, azPatientId, azEncounterId, turBaslangicUtc, ct);
         var vital = await SendAllVitalsAsync(protokol, azPatientId, azEncounterId, ct);
 
         return new Sonuc(encounter.Status, epikrizSayi, lab, rad, pat, vital);
@@ -164,6 +172,11 @@ public class ProtocolFullSyncService(
 
     private static bool BasariylaGonderildi(SyncLogEntry? durum) =>
         durum is { Status: SyncStatus.Success } && durum.Operation != SyncOperation.Delete;
+
+    // Son kaydi bu SyncAllAsync cagrisi icinde (Encounter cascade'inde) yazildiysa kayit
+    // bu turda zaten denendi -- sonuc ne olursa olsun ikinci kez gonderilmez.
+    private static bool BuTurdaDenendi(SyncLogEntry? durum, DateTime turBaslangicUtc) =>
+        durum is not null && durum.CreatedAtUtc >= turBaslangicUtc;
 
     // BAKANLIK ISTEGI (2026-09-16, madde 4): ates gibi klinik olcumler az-observation
     // ile gonderilmeli. Kaynak Bulgulari metni; bir muayeneden birden fazla Observation
@@ -205,7 +218,7 @@ public class ProtocolFullSyncService(
     }
 
     private async Task<int> SendAllRadiologyAsync(
-        ProtokolListItem protokol, string azPatientId, string? azEncounterId, CancellationToken ct)
+        ProtokolListItem protokol, string azPatientId, string? azEncounterId, DateTime turBaslangicUtc, CancellationToken ct)
     {
         if (!await settings.GetBoolAsync(SettingsStore.RadiologyReportSendEnabledKey, true, ct)) return 0;
 
@@ -226,7 +239,8 @@ public class ProtocolFullSyncService(
         int n = 0;
         foreach (var report in reports)
         {
-            if (BasariylaGonderildi(durumlar.GetValueOrDefault(report.TetkikIslemId))) continue;
+            var durum = durumlar.GetValueOrDefault(report.TetkikIslemId);
+            if (BasariylaGonderildi(durum) || BuTurdaDenendi(durum, turBaslangicUtc)) continue;
 
             var azProcedureId = CanliAzId(islemDurumlari, report.ProtokolIslemId);
             var azPractitionerId = report.RaporuOnaylayanDoktorId is { } doktorId
@@ -247,7 +261,7 @@ public class ProtocolFullSyncService(
             : null;
 
     private async Task<int> SendAllPathologyAsync(
-        ProtokolListItem protokol, string azPatientId, string? azEncounterId, CancellationToken ct)
+        ProtokolListItem protokol, string azPatientId, string? azEncounterId, DateTime turBaslangicUtc, CancellationToken ct)
     {
         if (!await settings.GetBoolAsync(SettingsStore.PathologyReportSendEnabledKey, true, ct)) return 0;
 
@@ -268,7 +282,8 @@ public class ProtocolFullSyncService(
         int n = 0;
         foreach (var report in reports)
         {
-            if (BasariylaGonderildi(durumlar.GetValueOrDefault(report.ResultId))) continue;
+            var durum = durumlar.GetValueOrDefault(report.ResultId);
+            if (BasariylaGonderildi(durum) || BuTurdaDenendi(durum, turBaslangicUtc)) continue;
 
             var azProcedureId = report.ProtokolIslemId is { } islemId
                 ? CanliAzId(islemDurumlari, islemId)
