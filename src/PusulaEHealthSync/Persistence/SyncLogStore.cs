@@ -301,10 +301,13 @@ public class SyncLogStore
     // protokolun satirinin altinda sebep yazabilmek icin eksik verili kayitlarin da
     // mesaji lazim; basarili kayitlarda NULL (bellek israfi olmasin).
     //
-    // ORTAM FILTRESI YOK: QueryAsync/GetStatusCountsAsync ile ayni bilincli karar.
+    // ORTAM: istege bagli (2026-10-23). Aktivite Akisi'ndaki Canli / Sandbox secimi bunu
+    // dolduruyor; null iki ortami birlikte getirir (eski davranis). Akis ekranindaki dort
+    // sorgunun dordu de ayni parametreyi aliyor ki liste, kartlar ve sayaclar ayni ortami
+    // anlatsin.
     public async Task<List<OzetSatiri>> QueryOzetAsync(
         string? resourceType, DateTime? fromUtc, DateTime? toUtcExclusive,
-        int tavan, CancellationToken ct = default)
+        int tavan, CancellationToken ct = default, string? ortam = null)
     {
         using var conn = new SqliteConnection(_connectionString);
         await conn.OpenAsync(ct);
@@ -321,9 +324,11 @@ public class SyncLogStore
             WHERE ($resourceType IS NULL OR ResourceType = $resourceType)
               AND ($from IS NULL OR CreatedAtUtc >= $from)
               AND ($to IS NULL OR CreatedAtUtc < $to)
+              AND ($ortam IS NULL OR Ortam = $ortam)
             GROUP BY ResourceType, PusulaId, ProtokolId
             ORDER BY SonId DESC
             LIMIT $tavan";
+        cmd.Parameters.AddWithValue("$ortam", (object?)ortam ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$resourceType", (object?)resourceType ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$from", (object?)fromUtc?.ToString("O") ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$to", (object?)toUtcExclusive?.ToString("O") ?? DBNull.Value);
@@ -346,7 +351,7 @@ public class SyncLogStore
     // bir sayfaya dusen gruplarla sinirli oldugu icin maliyeti kucuk.
     public async Task<List<SyncLogEntry>> GetByRecordsAsync(
         IReadOnlyCollection<(string ResourceType, int PusulaId)> kayitlar,
-        DateTime? fromUtc, DateTime? toUtcExclusive, CancellationToken ct = default)
+        DateTime? fromUtc, DateTime? toUtcExclusive, CancellationToken ct = default, string? ortam = null)
     {
         var result = new List<SyncLogEntry>();
         if (kayitlar.Count == 0) return result;
@@ -364,7 +369,9 @@ public class SyncLogStore
                 SELECT {SelectColumns} FROM SyncLog
                 WHERE (ResourceType, PusulaId) IN (VALUES {degerler})
                   AND ($from IS NULL OR CreatedAtUtc >= $from)
-                  AND ($to IS NULL OR CreatedAtUtc < $to)";
+                  AND ($to IS NULL OR CreatedAtUtc < $to)
+                  AND ($ortam IS NULL OR Ortam = $ortam)";
+            cmd.Parameters.AddWithValue("$ortam", (object?)ortam ?? DBNull.Value);
             for (var i = 0; i < chunk.Length; i++)
             {
                 cmd.Parameters.AddWithValue($"$rt{i}", chunk[i].ResourceType);
@@ -667,7 +674,8 @@ public class SyncLogStore
     }
 
     public async Task<Dictionary<string, int>> GetStatusCountsAsync(
-        string? resourceType = null, DateTime? fromUtc = null, DateTime? toUtcExclusive = null, CancellationToken ct = default)
+        string? resourceType = null, DateTime? fromUtc = null, DateTime? toUtcExclusive = null, CancellationToken ct = default,
+        string? ortam = null)
     {
         using var conn = new SqliteConnection(_connectionString);
         await conn.OpenAsync(ct);
@@ -678,7 +686,9 @@ public class SyncLogStore
             WHERE ($resourceType IS NULL OR ResourceType = $resourceType)
               AND ($from IS NULL OR CreatedAtUtc >= $from)
               AND ($to IS NULL OR CreatedAtUtc < $to)
+              AND ($ortam IS NULL OR Ortam = $ortam)
             GROUP BY Status";
+        cmd.Parameters.AddWithValue("$ortam", (object?)ortam ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$resourceType", (object?)resourceType ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$from", (object?)fromUtc?.ToString("O") ?? DBNull.Value);
         cmd.Parameters.AddWithValue("$to", (object?)toUtcExclusive?.ToString("O") ?? DBNull.Value);
@@ -929,11 +939,13 @@ public class SyncLogStore
     public record AkisKartlari(int Toplam, int Basarili, int Atlanan, int Hatali, int HicGitmedi);
 
     public async Task<AkisKartlari> AkisKartlariniHesaplaAsync(
-        string? resourceType, DateTime? fromUtc, DateTime? toUtcExclusive, CancellationToken ct = default)
+        string? resourceType, DateTime? fromUtc, DateTime? toUtcExclusive, CancellationToken ct = default,
+        string? ortam = null)
     {
         using var conn = new SqliteConnection(_connectionString);
         await conn.OpenAsync(ct);
         using var cmd = conn.CreateCommand();
+        cmd.Parameters.AddWithValue("$ortam", (object?)ortam ?? DBNull.Value);
         cmd.CommandText = @"
             WITH kayit AS (
                 -- 1. kademe: KAYIT basina tek durum, 'SON DENEME KAZANIR'
@@ -960,6 +972,7 @@ public class SyncLogStore
                   AND ($resourceType IS NULL OR ResourceType = $resourceType)
                   AND ($from IS NULL OR CreatedAtUtc >= $from)
                   AND ($to IS NULL OR CreatedAtUtc < $to)
+                  AND ($ortam IS NULL OR Ortam = $ortam)
                 -- ProtokolId DE GRUPLAMA ANAHTARINDA (2026-10-21 duzeltmesi).
                 --
                 -- Once yalnizca (ResourceType, PusulaId) ile gruplanip ProtokolId ciplak

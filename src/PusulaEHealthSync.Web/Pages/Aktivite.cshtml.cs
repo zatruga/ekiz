@@ -125,6 +125,17 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
     [BindProperty(SupportsGet = true)]
     public string? Sira { get; set; }
 
+    // HANGI ORTAMIN KAYITLARI (2026-10-23, kullanici istegi: "listede bir buton olsun,
+    // sandbox / canli, hangisini secersem onun verilerini goreyim"). "Live" | "Test".
+    // Secilmemisse ya da tanimsizsa GONDERIMIN SU AN YAPILDIGI ortam -- canliya gecildigi
+    // gun ekran kendiliginden canli kayitlari gostermeye baslar, sandbox gecmisi karismaz.
+    // Liste, kartlar ve sayaclarin hepsi ayni ortama kisitli.
+    [BindProperty(SupportsGet = true)]
+    public string? Ortam { get; set; }
+
+    // Gonderimin su an yapildigi ortam -- seciciye "gönderim burada" isareti icin.
+    public string AktifOrtam { get; set; } = SettingsStore.EHealthEnvironmentDefault;
+
     // Canli gonderim seridi -- ONBELLEGE ALINMIYOR: "su an ne oluyor" sorusunun
     // cevabi iki dakika bayat olamaz. Ayar okumalari ucuz (bkz. SettingsStore).
     public CanliSerit Serit { get; set; } = CanliSerit.Bos;
@@ -154,6 +165,7 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
         EffectiveFrom = From ?? today.AddDays(-6);
         EffectiveTo = To ?? today;
         PageNumber = P < 1 ? 1 : P;
+        await OrtamiBelirleAsync(ct);
 
         // Filtredeki tarihler YEREL gun (kullanici takvimden secer), SyncLog ise UTC saklar --
         // cevrim sart. Eskiden yerel gece yarisi dogrudan UTC alaniyla karsilastiriliyordu,
@@ -225,7 +237,7 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
         // DENEMELER BURADA OKUNUYOR. Ozet kayit basina tek satir tasiyor; tablonun
         // gosterdigi tek tek denemeler yalnizca bu sayfadaki gruplar icin getiriliyor.
         Entries = await syncLog.GetByRecordsAsync(
-            sayfaSatirlari.SelectMany(x => x.Kimlikler).ToList(), fromUtc, toUtcExclusive, ct);
+            sayfaSatirlari.SelectMany(x => x.Kimlikler).ToList(), fromUtc, toUtcExclusive, ct, Ortam);
 
         var denemeler = Entries.ToLookup(e => (e.ResourceType, e.PusulaId));
         Gruplar = sayfaSatirlari
@@ -246,9 +258,16 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
     // secilirken uygulaniyor), dolayisiyla kartlar arasinda gezinmek ayni ozeti
     // kullaniyor -- hesap yeniden yapilmiyor. Sayfa numarasi da anahtarda yok: ozet
     // zaten araligin tamami.
+    private async Task OrtamiBelirleAsync(CancellationToken ct)
+    {
+        AktifOrtam = await settings.GetStringAsync(SettingsStore.EHealthEnvironmentKey,
+            SettingsStore.EHealthEnvironmentDefault, ct);
+        if (Ortam is not ("Live" or "Test")) Ortam = AktifOrtam;
+    }
+
     private async Task<AkisOzeti> OzetAlAsync(DateTime fromUtc, DateTime toUtcExclusive, CancellationToken ct)
     {
-        var anahtar = $"aktivite-ozet|{fromUtc:O}|{toUtcExclusive:O}|{ResourceType}";
+        var anahtar = $"aktivite-ozet|{fromUtc:O}|{toUtcExclusive:O}|{ResourceType}|{Ortam}";
         return await cache.GetOrCreateAsync(anahtar, async giris =>
         {
             var ozet = await OzetiHesaplaAsync(fromUtc, toUtcExclusive, ct);
@@ -269,18 +288,18 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
     private async Task<AkisOzeti> OzetiHesaplaAsync(DateTime fromUtc, DateTime toUtcExclusive, CancellationToken ct)
     {
         var satirlar = await syncLog.QueryOzetAsync(
-            ResourceType, fromUtc, toUtcExclusive, OzetTavani, ct);
+            ResourceType, fromUtc, toUtcExclusive, OzetTavani, ct, Ortam);
 
         // KAYIT SAYILARI AYRI VE KIRPILMASIZ: ust karttaki "N kayit" alt satirlari
         // dogrudan SQL toplamindan geliyor, ozetin tavanindan etkilenmiyor. Eskiden
         // ikisi de ayni kirpilmis listeden hesaplandigi icin tavan asildiginda iki
         // farkli tarih araligi ayni kayit sayisini gosteriyordu.
         var durumSayilari = await syncLog.GetStatusCountsAsync(
-            ResourceType, fromUtc, toUtcExclusive, ct);
+            ResourceType, fromUtc, toUtcExclusive, ct, Ortam);
 
         // KART SAYILARI AYRI VE TAVANSIZ -- ozet listesinden bagimsiz.
         var kartlar = await syncLog.AkisKartlariniHesaplaAsync(
-            ResourceType, fromUtc, toUtcExclusive, ct);
+            ResourceType, fromUtc, toUtcExclusive, ct, Ortam);
 
         // Protokol bagi henuz doldurulmamis satir sayisi -- AYARDAN OKUNUYOR, SAYILMIYOR.
         //
@@ -711,7 +730,7 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
     // islemden sonra kullanici sayfa 1'e duserdi -- tam da kacinmak istedigimiz sey.
     private IActionResult GeriDon() => RedirectToPage("/Aktivite", new
     {
-        Status, ResourceType, Kategori, Q, Sira, P = P < 1 ? 1 : P,
+        Status, ResourceType, Kategori, Q, Sira, Ortam, P = P < 1 ? 1 : P,
         From = From?.ToString("yyyy-MM-dd"),
         To = To?.ToString("yyyy-MM-dd"),
     });

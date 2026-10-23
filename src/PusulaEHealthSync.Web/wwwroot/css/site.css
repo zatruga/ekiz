@@ -2124,6 +2124,8 @@ a.gb-sebep.danger:hover { background: var(--danger-soft); }
 .akis-filtre-tarih label { font-size: 11px; color: var(--text-muted); }
 .akis-filtre-tarih input { border: 0; background: transparent; padding: 4px 0; }
 .akis-filtre-ara { min-width: 240px; }
+.akis-ortam { margin-bottom: 0; }
+.akis-ortam label { padding: 6px 12px; font-size: 13px; }
 
 /* ---- 3) DONEM OZETI -- tiklanabilir suzgec ---- */
 .akis-ozet {
