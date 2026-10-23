@@ -541,7 +541,10 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
             SonTurUtc: Zaman(await settings.GetStringAsync(SettingsStore.AutoSendLastRunUtcKey, "", ct)),
             SonTurOzet: await settings.GetStringAsync(SettingsStore.AutoSendLastRunOzetKey, "", ct),
             Canli: await settings.GetStringAsync(SettingsStore.EHealthEnvironmentKey,
-                SettingsStore.EHealthEnvironmentDefault, ct) == "Live");
+                SettingsStore.EHealthEnvironmentDefault, ct) == "Live",
+            NabizUtc: Zaman(await settings.GetStringAsync(SettingsStore.AutoSendNabizUtcKey, "", ct)),
+            AralikDakika: await settings.GetIntAsync(SettingsStore.AutoSendIntervalMinutesKey,
+                SettingsStore.AutoSendIntervalMinutesDefault, ct));
     }
 
     // Seridin kendini tazelemesi: yalnizca serit parcasini dondurur.
@@ -969,9 +972,17 @@ public record AktiviteGrubu(AkisGrupOzeti Ozet, ProtokolListItem? Protokol, List
 
 // Canli gonderim seridinin anlik goruntusu (bkz. AktiviteModel.SeritOkuAsync).
 public record CanliSerit(bool Acik, int TurNo, int Hedef, int Islenen, int Bekleyen,
-    DateTime? SonrakiTurUtc, DateTime? SonTurUtc, string SonTurOzet, bool Canli)
+    DateTime? SonrakiTurUtc, DateTime? SonTurUtc, string SonTurOzet, bool Canli,
+    DateTime? NabizUtc, int AralikDakika)
 {
-    public static readonly CanliSerit Bos = new(false, 0, 0, 0, 0, null, null, "", false);
+    public static readonly CanliSerit Bos = new(false, 0, 0, 0, 0, null, null, "", false, null, 5);
+
+    // SERVIS YANIT VERMIYOR MU? (2026-10-23) Dongu her tur basinda ve her protokolden sonra
+    // nabiz yaziyor. Esik: tur araliginin 3 kati, en az 30 dk -- tek bir agir adim
+    // (bekleyen is taramasi, iptal senkronu) birkac dakika surebiliyor, yanlis alarm olmasin.
+    // Nabiz HIC yoksa da durgun: servis ya hic baslatilmadi ya da eski surum calisiyor.
+    public bool ServisDurgun => NabizUtc is not { } n
+        || DateTime.UtcNow - n > TimeSpan.FromMinutes(Math.Max(30, 3 * AralikDakika));
 
     // Hedef > 0 = bir tur SURUYOR. Dongu her cikista sifirliyor (bkz. AutoSyncWorker).
     public bool TurSuruyor => Hedef > 0;

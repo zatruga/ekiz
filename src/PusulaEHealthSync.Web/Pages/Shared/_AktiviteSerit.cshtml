@@ -2,8 +2,12 @@
 @{
     var s = Model;
     var tr = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+    // SERVIS DURGUNSA HER SEYDEN ONCE BU SOYLENIR: "acik" yazan anahtar, olu bir donguyu
+    // saglikli gosteremez (bkz. CanliSerit.ServisDurgun). Anahtar kapaliyken de nabiz
+    // yaziliyor, yani "kapali" ile "olu" ayirt edilebiliyor.
     var (durumCss, durumMetni) =
-        s.Durduruluyor ? ("eksik", "Durduruluyor — elindeki protokolü bitiriyor")
+        s.ServisDurgun ? ("hata", "Gönderim servisi çalışmıyor")
+        : s.Durduruluyor ? ("eksik", "Durduruluyor — elindeki protokolü bitiriyor")
         : s.Acik && s.TurSuruyor ? ("ok", "Gönderim çalışıyor")
         : s.Acik ? ("ok", "Tur arası")
         : ("yok", "Otomatik gönderim kapalı");
@@ -16,18 +20,30 @@
    Tur no / ilerleme / bekleyen AutoSyncWorker'in ayara yazdigi degerler. Ilk tur
    bitmeden once hic yazilmamis olabilirler -- o zaman ilgili parca hic gosterilmez,
    "0 / 0" gibi yaniltici bir sey yazilmaz. *@
-<section class="akis-serit" id="akis-serit" aria-label="Otomatik gönderimin şu anki durumu" aria-live="polite">
+<section class="akis-serit @(s.ServisDurgun ? "akis-serit--durgun" : "")" id="akis-serit" aria-label="Otomatik gönderimin şu anki durumu" aria-live="polite">
     <span class="akis-serit-durum">
-        <span class="akis-serit-nokta akis-serit-nokta--@durumCss @(s.Acik && s.TurSuruyor ? "akis-serit-nokta--canli" : "")" aria-hidden="true"></span>
+        <span class="akis-serit-nokta akis-serit-nokta--@durumCss @(!s.ServisDurgun && s.Acik && s.TurSuruyor ? "akis-serit-nokta--canli" : "")" aria-hidden="true"></span>
         @durumMetni
     </span>
+
+    @if (s.ServisDurgun)
+    {
+        <span class="akis-serit-bilgi akis-serit-bilgi--hata">
+            @(s.NabizUtc is { } n
+                ? $"son nabız {AzTime.ToLocal(n):dd.MM HH:mm}"
+                : "hiç nabız gelmedi")
+            · sunucuda PusulaSyncWorker servisini kontrol edin
+        </span>
+    }
 
     @if (s.TurNo > 0)
     {
         <span class="akis-serit-bilgi">tur #@s.TurNo.ToString("N0", tr)</span>
     }
 
-    @if (s.TurSuruyor)
+    @* Durgunken ilerleme GOSTERILMEZ: surec oldurulduyse tur sonu sifirlamasi hic
+       calismamistir ve "312 / 500" asili kalir. *@
+    @if (s.TurSuruyor && !s.ServisDurgun)
     {
         <div class="akis-serit-ilerleme">
             <div class="akis-serit-cubuk" role="progressbar" aria-label="Turun ilerlemesi"

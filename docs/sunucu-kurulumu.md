@@ -130,8 +130,18 @@ cp "$B/Data/synclog.db" /tmp/sunucu-synclog.db
    - `SyncLog:DbPath` -- `Data\synclog.db`
    - `Deploy:*` -- yukarıdaki klasör yolları (yalnızca Updater'da)
 4. IIS sitesini `Web\` klasörüne yönlendir
-5. `PusulaSyncWorker` ve Updater servislerini kur
+5. `PusulaSyncWorker` ve Updater servislerini kur. `PusulaSyncWorker` için iki ayar
+   **şart** (2026-10-23'e kadar eksikti):
+   - Başlangıç türü **Automatic (Delayed Start)**: yoksa sunucu yeniden başladığında
+     gönderim, ilk güncellemeye kadar hiç başlamaz.
+   - Kurtarma: çökmede yeniden başlat --
+     `sc failure PusulaSyncWorker reset= 86400 actions= restart/60000/restart/60000/restart/300000`
 6. Panelden ilk kullanıcıyı oluştur, Ayarlar sayfasından bağlantıları doğrula
+
+**Gönderim döngüsü yalnızca `PusulaSyncWorker`'da çalışır, Web'de değil.** 2026-09-10 ile
+2026-10-23 arasında Web'in (IIS) içindeydi; IIS havuzu 20 dk boşta kalınca kapandığı için
+gönderim günlerce durdu. Servis çalışmıyorsa Aktivite Akışı'ndaki canlı şerit kırmızıya
+döner ("Gönderim servisi çalışmıyor").
 
 **Otomatik gönderim döngüsü varsayılan olarak KAPALI gelir** -- bilinçli bir
 karardır (bkz. `project_auto_send_roadmap`). Ayarlar sayfasından açılır.

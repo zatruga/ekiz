@@ -1,10 +1,7 @@
 ﻿using Microsoft.AspNetCore.Authentication.Cookies;
 using Microsoft.AspNetCore.Identity;
-using PusulaEHealthSync.Config;
-using PusulaEHealthSync.Db;
-using PusulaEHealthSync.EHealth;
+using PusulaEHealthSync;
 using PusulaEHealthSync.Persistence;
-using PusulaEHealthSync.Sync;
 using PusulaEHealthSync.Web.Config;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -15,86 +12,17 @@ var builder = WebApplication.CreateBuilder(args);
 // konsoldan "dotnet run" ile calistirmayi etkilemez.
 builder.Services.AddWindowsService(options => options.ServiceName = "PusulaEHealthSync Web");
 
-builder.Services.Configure<PusulaOptions>(builder.Configuration.GetSection("Pusula"));
-builder.Services.Configure<EHealthOptions>(builder.Configuration.GetSection("EHealth"));
-builder.Services.Configure<SyncLogOptions>(builder.Configuration.GetSection("SyncLog"));
 builder.Services.Configure<DashboardAuthOptions>(builder.Configuration.GetSection("DashboardAuth"));
 builder.Services.Configure<DeployOptions>(builder.Configuration.GetSection("Deploy"));
 
-builder.Services.AddSingleton<PusulaRepository>();
-builder.Services.AddSingleton<EHealthTokenCache>();
-builder.Services.AddHttpClient<EHealthClient>();
-builder.Services.AddSingleton(sp =>
-{
-    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SyncLogOptions>>().Value;
-    return new SettingsStore(options.DbPath);
-});
-// SyncLogStore SettingsStore'u ALIYOR (2026-10-05): her kaydin hangi ortama (Test/Live)
-// gittigini damgalamasi ve "gonderilmis mi" sorgularini o ortama kisitlamasi icin.
-// Kayit sirasi onemli -- SettingsStore once kurulmali.
-builder.Services.AddSingleton(sp =>
-{
-    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SyncLogOptions>>().Value;
-    return new SyncLogStore(options.DbPath, sp.GetRequiredService<SettingsStore>());
-});
-builder.Services.AddSingleton(sp =>
-{
-    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SyncLogOptions>>().Value;
-    return new BolumMappingStore(options.DbPath);
-});
+// Servisle AYNI liste (bkz. ServisKayitlari). Elle gonderim (Gonder/Sil/Tumunu gonder)
+// Web'den yapilmaya devam ediyor, bu yuzden senkron servisleri burada da lazim.
+builder.Services.AddPusulaSenkron(builder.Configuration);
 
-builder.Services.AddSingleton(sp =>
-{
-    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SyncLogOptions>>().Value;
-    return new LabTestLoincStore(options.DbPath);
-});
-
-builder.Services.AddSingleton(sp =>
-{
-    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SyncLogOptions>>().Value;
-    return new HizmetMappingStore(options.DbPath);
-});
-builder.Services.AddSingleton(sp =>
-{
-    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SyncLogOptions>>().Value;
-    return new UserAccountStore(options.DbPath);
-});
-builder.Services.AddSingleton<PatientSyncService>();
-builder.Services.AddSingleton<PractitionerSyncService>();
-builder.Services.AddSingleton<ConditionSyncService>();
-builder.Services.AddSingleton<VitalSignsSyncService>();
-builder.Services.AddHttpClient<PusulaEHealthSync.Mapping.LoincLookup>();
-builder.Services.AddSingleton<ProcedureSyncService>();
-builder.Services.AddSingleton<EncounterSyncService>();
-builder.Services.AddSingleton<CompositionSyncService>();
-builder.Services.AddSingleton<LabResultSyncService>();
-builder.Services.AddSingleton<RadiologyReportSyncService>();
-builder.Services.AddSingleton<PathologyReportSyncService>();
-builder.Services.AddSingleton<DeleteService>();
-builder.Services.AddSingleton<TekilGonderimService>();
-builder.Services.AddSingleton<ProtocolFullSyncService>();
-builder.Services.AddSingleton<PendingWorkService>();
-builder.Services.AddSingleton<CancellationSyncService>();
-builder.Services.AddSingleton<ProtokolBagiDoldurmaService>();
-
-// Gun sonu raporu + e-posta gonderici (2026-10-05). MailSender Ayarlar'daki Mail.*
-// alanlarini okuyor -- o alanlar 2026-08'den beri duruyordu ama hicbir sey gondermiyordu.
-builder.Services.AddSingleton<PusulaEHealthSync.Reporting.GunSonuRaporService>();
-builder.Services.AddSingleton<PusulaEHealthSync.Reporting.MailSender>();
-
-// Protokol bazli durum ozeti (2026-10-09). Genel Bakis'in her sayisi bunun uzerinden
-// hesaplaniyor -- "hangi protokol ne durumda" sorusu artik tek yerde cevaplaniyor
-// (bkz. ProtokolDurumService basindaki not).
-builder.Services.AddSingleton<PusulaEHealthSync.Reporting.ProtokolDurumService>();
-
-// Saatlik otomatik gonderim. VARSAYILAN KAPALI -- Ayarlar'daki "Otomatik gonderim"
-// acilmadan tek kayit bile gondermez (bkz. AutoSyncWorker).
-builder.Services.AddHostedService<AutoSyncWorker>();
-
-// Protokol bagi doldurma -- gonderim turundan BAGIMSIZ (2026-10-21). Turun arkasindayken
-// tur hic bitmedigi icin bir kez bile calismadi (bkz. ProtokolBagiDoldurmaWorker).
-// Bakanliga hicbir sey yazmiyor; gonderim anahtarindan etkilenmez.
-builder.Services.AddHostedService<ProtokolBagiDoldurmaWorker>();
+// OTOMATIK GONDERIM BURADA CALISMIYOR (2026-10-23) -- PusulaSyncWorker Windows servisinde
+// (bkz. PusulaEHealthSync/Program.cs). IIS havuzu boşta kapandigi icin dongu burada
+// gunlerce olu kaldi. AddPusulaArkaPlanIsleri'ni BURAYA EKLEMEYIN: ayni protokol iki
+// surecten ayni anda gonderilir.
 builder.Services.AddSingleton<IPasswordHasher<object>, PasswordHasher<object>>();
 
 builder.Services.AddAuthentication(CookieAuthenticationDefaults.AuthenticationScheme)

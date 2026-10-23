@@ -45,6 +45,9 @@ public class AutoSyncWorker(
                 using var scope = services.CreateScope();
                 var settings = scope.ServiceProvider.GetRequiredService<SettingsStore>();
 
+                // NABIZ -- anahtar kapaliyken de: "kapali" ile "olu" ekranda ayirt edilebilmeli.
+                await NabizAsync(settings, stoppingToken);
+
                 intervalMinutes = await settings.GetIntAsync(
                     SettingsStore.AutoSendIntervalMinutesKey, SettingsStore.AutoSendIntervalMinutesDefault, stoppingToken);
                 var enabled = await settings.GetBoolAsync(
@@ -97,6 +100,10 @@ public class AutoSyncWorker(
             catch (OperationCanceledException) { return; }
         }
     }
+
+    // Bkz. SettingsStore.AutoSendNabizUtcKey.
+    private static Task NabizAsync(SettingsStore settings, CancellationToken ct) =>
+        settings.SetStringAsync(SettingsStore.AutoSendNabizUtcKey, DateTime.UtcNow.ToString("O"), ct);
 
     private async Task RunOnceAsync(IServiceProvider sp, SettingsStore settings, CancellationToken ct)
     {
@@ -236,6 +243,7 @@ public class AutoSyncWorker(
                 // Protokol basina bir SQLite yazimi -- protokol basina saniyeler suren bir
                 // zincirin yaninda ihmal edilebilir.
                 await settings.SetIntAsync(SettingsStore.AutoSendTurIslenenKey, basarili + basarisiz, ct);
+                await NabizAsync(settings, ct);
             }
         }
         finally
@@ -449,6 +457,8 @@ public class AutoSyncWorker(
                 break;
             }
             denenen++;
+            // 45 dakikaya kadar surebilen bir tur -- nabiz kesilmesin.
+            await NabizAsync(settings, ct);
             try
             {
                 var tam = await protocolFullSync.SyncAllAsync(p.Protokol, ct);

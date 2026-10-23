@@ -105,6 +105,15 @@ public class SettingsStore
     // Bir sonraki turun planlanan baslangici; dongu beklemeye girmeden hemen once yazilir.
     public const string AutoSendNextRunUtcKey = "AutoSend.NextRunUtc";
 
+    // NABIZ (2026-10-23): dongunun "hala yasiyorum" damgasi. Her tur basinda ve tur
+    // icinde her protokolden sonra yazilir -- anahtar kapaliyken de.
+    //
+    // NEDEN: dongu IIS'teyken gunlerce SESSIZCE oldu; ekranda "acik" yazan anahtar ve
+    // 14.10'da kalmis bir "son tur" saati vardi, kimse fark etmedi. Nabiz bayatlarsa
+    // Aktivite seridi kirmiziya doner. Servis durmus, cokmus ya da hic baslatilmamis
+    // olabilir -- uc durumda da ekran ayni seyi soyler: "gonderim servisi calismiyor".
+    public const string AutoSendNabizUtcKey = "AutoSend.NabizUtc";
+
     // -- Bekleyen is taramasi araligi -----------------------------------------------------
     // KULLANICI ISTEGI (2026-09-28): "bu tarama tum data degil, Ayarlar kismina alan
     // ekleyelim; orada girilen tarihten itibaren datayi al; bir de son 1 ay / son 3 ay

@@ -2092,6 +2092,9 @@ a.gb-sebep.danger:hover { background: var(--danger-soft); }
 .akis-serit-nokta { width: 8px; height: 8px; border-radius: 50%; background: #8A929E; }
 .akis-serit-nokta--ok { background: #35C98E; }
 .akis-serit-nokta--eksik { background: #E0A526; }
+.akis-serit-nokta--hata { background: #FF6B76; }
+/* Servis yanit vermiyor: kalin kirmizi cerceve -- renk degil kalinlik da tasiyor. */
+.akis-serit--durgun { border: 2px solid #FF6B76; }
 .akis-serit-nokta--canli { animation: akis-nabiz 2s infinite; }
 @keyframes akis-nabiz {
   0% { box-shadow: 0 0 0 0 rgba(53, 201, 142, 0.55); }

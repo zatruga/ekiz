@@ -1,9 +1,4 @@
 using PusulaEHealthSync;
-using PusulaEHealthSync.Config;
-using PusulaEHealthSync.Db;
-using PusulaEHealthSync.EHealth;
-using PusulaEHealthSync.Persistence;
-using PusulaEHealthSync.Sync;
 
 var builder = Host.CreateApplicationBuilder(args);
 
@@ -13,73 +8,23 @@ var builder = Host.CreateApplicationBuilder(args);
 // sadece process gercekten bir Windows Service olarak baslatildiginda devreye girer.
 builder.Services.AddWindowsService(options => options.ServiceName = "PusulaEHealthSync Worker");
 
-builder.Services.Configure<PusulaOptions>(builder.Configuration.GetSection("Pusula"));
-builder.Services.Configure<EHealthOptions>(builder.Configuration.GetSection("EHealth"));
-builder.Services.Configure<SyncLogOptions>(builder.Configuration.GetSection("SyncLog"));
-
-builder.Services.AddSingleton<PusulaRepository>();
-builder.Services.AddSingleton<EHealthTokenCache>();
-builder.Services.AddHttpClient<EHealthClient>();
-builder.Services.AddSingleton(sp =>
-{
-    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SyncLogOptions>>().Value;
-    var path = Path.IsPathRooted(options.DbPath)
-        ? options.DbPath
-        : Path.Combine(AppContext.BaseDirectory, options.DbPath);
-    return new SyncLogStore(path);
-});
-builder.Services.AddSingleton(sp =>
-{
-    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SyncLogOptions>>().Value;
-    var path = Path.IsPathRooted(options.DbPath)
-        ? options.DbPath
-        : Path.Combine(AppContext.BaseDirectory, options.DbPath);
-    return new SettingsStore(path);
-});
-builder.Services.AddSingleton(sp =>
-{
-    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SyncLogOptions>>().Value;
-    var path = Path.IsPathRooted(options.DbPath)
-        ? options.DbPath
-        : Path.Combine(AppContext.BaseDirectory, options.DbPath);
-    return new BolumMappingStore(path);
-});
-
-builder.Services.AddSingleton(sp =>
-{
-    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SyncLogOptions>>().Value;
-    var path = Path.IsPathRooted(options.DbPath)
-        ? options.DbPath
-        : Path.Combine(AppContext.BaseDirectory, options.DbPath);
-    return new LabTestLoincStore(path);
-});
-
-builder.Services.AddSingleton(sp =>
-{
-    var options = sp.GetRequiredService<Microsoft.Extensions.Options.IOptions<SyncLogOptions>>().Value;
-    var path = Path.IsPathRooted(options.DbPath)
-        ? options.DbPath
-        : Path.Combine(AppContext.BaseDirectory, options.DbPath);
-    return new HizmetMappingStore(path);
-});
-builder.Services.AddSingleton<PatientSyncService>();
-builder.Services.AddSingleton<PractitionerSyncService>();
-builder.Services.AddSingleton<ConditionSyncService>();
-builder.Services.AddSingleton<VitalSignsSyncService>();
-builder.Services.AddHttpClient<PusulaEHealthSync.Mapping.LoincLookup>();
-builder.Services.AddSingleton<ProcedureSyncService>();
-builder.Services.AddSingleton<EncounterSyncService>();
-builder.Services.AddSingleton<CompositionSyncService>();
-builder.Services.AddSingleton<LabResultSyncService>();
-builder.Services.AddSingleton<RadiologyReportSyncService>();
-// EncounterSyncService bunu constructor'inda istiyor -- Patoloji modulu eklenirken (7f50755,
-// 2026-09-02) Web/Program.cs'e eklenmis ama BURAYA eklenmemisti. DI dogrulamasi acilista
-// calistigi icin Worker bu yuzden HIC baslamiyordu: sadece patoloji degil, Patient senkronu
-// dahil her sey "Unable to resolve service for type 'PathologyReportSyncService'" ile
-// duvara carpiyordu. Web tarafi etkilenmemisti, o yuzden fark edilmemis.
-builder.Services.AddSingleton<PathologyReportSyncService>();
-
-builder.Services.AddHostedService<Worker>();
+// OTOMATIK GONDERIMIN EVI (2026-10-23).
+//
+// Gonderim donguleri 2026-09-10'dan beri IIS'teki Web uygulamasinin icindeydi. Sunucu
+// gunlugunde olculdu: 12.10'dan beri gonderim yalnizca 1-2 saatlik patlamalar halinde
+// calisti, aralarinda 21-68 saat HIC satir yok (17, 18, 20 Ekim bos). Sebep IIS: uygulama
+// havuzu 20 dk istek gelmezse kapaniyor ve arka plan dongusu onunla birlikte oluyor;
+// biri paneli acana kadar da geri gelmiyor. "Otomatik" gonderim fiilen "panel acikken"
+// gonderimdi.
+//
+// Windows servisi bu baglari tasimiyor: sunucu acilinca baslar, kimse paneli acmasa da
+// calisir, cokerse SCM yeniden baslatir. Guncelleyici bu servisi zaten her dagitimda
+// durdurup baslatiyordu -- icinde yalnizca tek seferlik bir test araci vardi.
+//
+// Web artik yalnizca ekran: ayni ayar veritabanini okudugu icin Durdur/Baslat ve canli
+// serit oradan calismaya devam ediyor.
+builder.Services.AddPusulaSenkron(builder.Configuration);
+builder.Services.AddPusulaArkaPlanIsleri();
 
 var host = builder.Build();
 host.Run();
