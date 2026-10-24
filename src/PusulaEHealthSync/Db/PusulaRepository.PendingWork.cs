@@ -264,16 +264,24 @@ public partial class PusulaRepository
     public async Task<Dictionary<int, ProtokolListItem>> GetProtokollerByIdsAsync(
         IReadOnlyCollection<int> protokolIds, CancellationToken ct = default)
     {
-        var result = new Dictionary<int, ProtokolListItem>();
-        if (protokolIds.Count == 0) return result;
-
-        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
-        await conn.OpenAsync(ct);
+        var result = new System.Collections.Concurrent.ConcurrentDictionary<int, ProtokolListItem>();
+        if (protokolIds.Count == 0) return [];
+        var connectionString = await ConnectionStringAsync(ct);
 
         // IN listesi cok uzarsa SQL Server parametre sinirina (2100) takilir -- 1000'lik
         // partiler halinde okunuyor.
-        foreach (var chunk in protokolIds.Distinct().Chunk(1000))
+        //
+        // PARTILER DORDERLI PARALEL (2026-10-24): Genel Bakis canlida ~15.000 protokol
+        // istiyor, yani ~15 parti. Sirayla ~3 sn suruyordu (parti basina ~0,2 sn, olculdu).
+        // Her parti kendi baglantisini aciyor (bir SqlConnection ayni anda tek komut
+        // calistirabilir). Dort bilincli bir tavan: sorgular kucuk ve salt okunur, ama
+        // karsidaki uretimdeki HBYS -- ona ayni anda daha fazla baglanti acmanin anlami yok.
+        await Parallel.ForEachAsync(protokolIds.Distinct().Chunk(1000),
+            new ParallelOptions { MaxDegreeOfParallelism = 4, CancellationToken = ct },
+            async (chunk, _) =>
         {
+            await using var conn = new SqlConnection(connectionString);
+            await conn.OpenAsync(ct);
             var names = string.Join(",", chunk.Select((_, i) => $"@p{i}"));
             var sql = $@"
                 SELECT
@@ -302,8 +310,8 @@ public partial class PusulaRepository
                 item.TaburcuTarihi = reader.IsDBNull(ord) ? null : reader.GetDateTime(ord);
                 result[item.ProtokolId] = item;
             }
-        }
-        return result;
+        });
+        return new Dictionary<int, ProtokolListItem>(result);
     }
 
     // TERS YONLU KONTROL -- "gonderdiklerim Pusula'da HALA gecerli mi?"

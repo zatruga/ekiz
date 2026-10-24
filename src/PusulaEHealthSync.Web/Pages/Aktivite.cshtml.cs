@@ -99,6 +99,9 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
     // sayfada tekrarlanmasin. Iki dakika ikisini de kabul edilebilir kiliyor.
     private static readonly TimeSpan OnbellekOmru = TimeSpan.FromMinutes(2);
 
+    // Bundan eski sonuc gosterilmez, hesap beklenir (bkz. TazeOnbellek).
+    private static readonly TimeSpan OnbellekEnEski = TimeSpan.FromMinutes(10);
+
     [BindProperty(SupportsGet = true)]
     public string? Status { get; set; }
 
@@ -299,38 +302,44 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
     private async Task<AkisOzeti> OzetAlAsync(DateTime fromUtc, DateTime toUtcExclusive, CancellationToken ct)
     {
         var anahtar = $"aktivite-ozet|{fromUtc:O}|{toUtcExclusive:O}|{ResourceType}|{Ortam}";
-        return await cache.GetOrCreateAsync(anahtar, async giris =>
-        {
-            var ozet = await OzetiHesaplaAsync(fromUtc, toUtcExclusive, ct);
-
-            // PUSULA PATLADIYSA ONBELLEGE ALMA (2026-10-09).
-            //
-            // Protokol cozumu basarisiz oldugunda hasta sayisi YANLIS cikiyor ve iki
-            // dakika boyunca o yanlis sayi herkese gosteriliyordu. Kullanici tam bunu
-            // gordu: ayni veri icin bir seferinde 340, digerinde 650 hasta. Gecici bir
-            // ag kesintisinin sonucunu onbellege almak, hatayi kalicilastirmak demek.
-            // Sifir omurle yazinca bir sonraki acilis yeniden deniyor.
-            giris.AbsoluteExpirationRelativeToNow =
-                ozet.PusulaHatasi ? TimeSpan.FromTicks(1) : OnbellekOmru;
-            return ozet;
-        }) ?? AkisOzeti.Bos;
+        // Bayatsa once gosterilir, arkada tazelenir (bkz. TazeOnbellek).
+        //
+        // PUSULA PATLADIYSA ONBELLEGE ALMA (2026-10-09).
+        //
+        // Protokol cozumu basarisiz oldugunda hasta sayisi YANLIS cikiyor ve iki
+        // dakika boyunca o yanlis sayi herkese gosteriliyordu. Kullanici tam bunu
+        // gordu: ayni veri icin bir seferinde 340, digerinde 650 hasta. Gecici bir
+        // ag kesintisinin sonucunu onbellege almak, hatayi kalicilastirmak demek.
+        // Saklanmayinca bir sonraki acilis yeniden deniyor.
+        return await TazeOnbellek.AlAsync(cache, anahtar,
+            c => OzetiHesaplaAsync(fromUtc, toUtcExclusive, c),
+            OnbellekOmru, OnbellekEnEski, ozet => !ozet.PusulaHatasi, logger);
     }
 
     private async Task<AkisOzeti> OzetiHesaplaAsync(DateTime fromUtc, DateTime toUtcExclusive, CancellationToken ct)
     {
-        var satirlar = await syncLog.QueryOzetAsync(
-            ResourceType, fromUtc, toUtcExclusive, OzetTavani, ct, Ortam);
+        // UC SORGU AYNI ANDA (2026-10-24): birbirlerinin sonucuna ihtiyaclari yok, her biri
+        // kendi baglantisini aciyor ve WAL modunda okuyucular birbirini beklemiyor.
+        // Task.Run SART: Microsoft.Data.Sqlite'in "Async" metotlari aslinda senkron
+        // calisiyor -- dogrudan cagrilsalar gorev donmeden sorgu biterdi, yani yine sirayla.
+        var ozetGorevi = Task.Run(() => syncLog.QueryOzetAsync(
+            ResourceType, fromUtc, toUtcExclusive, OzetTavani, ct, Ortam), ct);
 
         // KAYIT SAYILARI AYRI VE KIRPILMASIZ: ust karttaki "N kayit" alt satirlari
         // dogrudan SQL toplamindan geliyor, ozetin tavanindan etkilenmiyor. Eskiden
         // ikisi de ayni kirpilmis listeden hesaplandigi icin tavan asildiginda iki
         // farkli tarih araligi ayni kayit sayisini gosteriyordu.
-        var durumSayilari = await syncLog.GetStatusCountsAsync(
-            ResourceType, fromUtc, toUtcExclusive, ct, Ortam);
+        var durumGorevi = Task.Run(() => syncLog.GetStatusCountsAsync(
+            ResourceType, fromUtc, toUtcExclusive, ct, Ortam), ct);
 
         // KART SAYILARI AYRI VE TAVANSIZ -- ozet listesinden bagimsiz.
-        var kartlar = await syncLog.AkisKartlariniHesaplaAsync(
-            ResourceType, fromUtc, toUtcExclusive, ct, Ortam);
+        var kartGorevi = Task.Run(() => syncLog.AkisKartlariniHesaplaAsync(
+            ResourceType, fromUtc, toUtcExclusive, ct, Ortam), ct);
+
+        await Task.WhenAll(ozetGorevi, durumGorevi, kartGorevi);
+        var satirlar = ozetGorevi.Result;
+        var durumSayilari = durumGorevi.Result;
+        var kartlar = kartGorevi.Result;
 
         // Protokol bagi henuz doldurulmamis satir sayisi -- AYARDAN OKUNUYOR, SAYILMIYOR.
         //

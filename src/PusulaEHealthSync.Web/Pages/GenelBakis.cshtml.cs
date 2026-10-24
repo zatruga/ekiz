@@ -79,6 +79,9 @@ public class GenelBakisModel(
     // ayni deseni ayni sure ile kullaniyor.
     private static readonly TimeSpan OnbellekOmru = TimeSpan.FromMinutes(2);
 
+    // Bundan eski sonuc gosterilmez, hesap beklenir (bkz. TazeOnbellek).
+    private static readonly TimeSpan OnbellekEnEski = TimeSpan.FromMinutes(10);
+
     // "0" Bugün | "7" Son 7 Gün | "30" Son 30 Gün | "ay:yyyy-MM" belirli bir ay
     // (KULLANICI ISTEGI 2026-10-13: "buraya ay secimi yapacagimiz bir check list olsun,
     // oradan secilen ayin basi ile sonu listelensin").
@@ -313,15 +316,11 @@ public class GenelBakisModel(
             .ToList();
 
         var anahtar = $"genelbakis|{Donem}|{today:yyyy-MM-dd}";
-        Ozet = await onbellek.GetOrCreateAsync(anahtar, async giris =>
-        {
-            var o = await HesaplaAsync(ct);
-            // PUSULA PATLADIYSA ONBELLEGE ALMA: eksik bir ozeti iki dakika boyunca
-            // dogru gibi gostermek, yavas bir sayfadan kotu.
-            giris.AbsoluteExpirationRelativeToNow =
-                o.PusulaHatasi ? TimeSpan.FromTicks(1) : OnbellekOmru;
-            return o;
-        }) ?? BakisOzeti.Bos;
+        // Bayatsa once gosterilir, arkada tazelenir (bkz. TazeOnbellek).
+        // PUSULA PATLADIYSA ONBELLEGE ALMA: eksik bir ozeti iki dakika boyunca
+        // dogru gibi gostermek, yavas bir sayfadan kotu.
+        Ozet = await TazeOnbellek.AlAsync(onbellek, anahtar, HesaplaAsync,
+            OnbellekOmru, OnbellekEnEski, o => !o.PusulaHatasi, logger);
 
         TrendGeometrisiKur();
     }
@@ -350,6 +349,13 @@ public class GenelBakisModel(
         var donemBitYerelHaric = PeriodToDate.AddDays(1).ToDateTime(TimeOnly.MinValue);
         var pencereBasUtc = AzTime.ToUtc(pencereBas.ToDateTime(TimeOnly.MinValue));
         var donemBitUtc = AzTime.ToUtc(donemBitYerelHaric);
+
+        // BAGIMSIZ PUSULA SORGULARI SIMDI BASLIYOR, sonuclari asagida (10 ve 11. adimlar)
+        // bekleniyor (2026-10-24). Ikisi de yalnizca donem tarihine bagli; ozetin
+        // hesaplanmasini beklemeleri icin bir sebep yok. Hatalari kendi try bloklarinda,
+        // await aninda yakalaniyor -- davranis sirali haliyle ayni.
+        var acilanGorevi = pusulaRepository.GetProtokolListAsync(donemBasYerel, donemBitYerelHaric, null, ct);
+        var icbariGorevi = pusulaRepository.GetIcbariIslemlerAsync(donemBasYerel, donemBitYerelHaric, ct);
 
         // ---- 2) PROTOKOL BAZLI OZET (pencerenin tamami) ----
         // YALNIZCA CANLI (2026-10-24, kullanici karari: "dashboard ekrani sadece canli
@@ -531,8 +537,7 @@ public class GenelBakisModel(
         var acilanTabanVar = false;
         try
         {
-            var donemProtokolListesi = await pusulaRepository.GetProtokolListAsync(
-                donemBasYerel, donemBitYerelHaric, null, ct);
+            var donemProtokolListesi = await acilanGorevi;
             acilan = donemProtokolListesi.Count;
 
             // GECMIS BIR AY SECILDIYSE "bugun" donemin DISINDA: ne "bugun acilan"in
@@ -579,8 +584,7 @@ public class GenelBakisModel(
             // veriyordu, yani pencere dort saat kayiyordu -- ayni sayfadaki "bugun acilan
             // protokol" sorgusu ise yerel degerle cagriliyordu. Iki sorgu ayni gunu
             // farkli tanimliyordu.
-            var icbari = await pusulaRepository.GetIcbariIslemlerAsync(
-                donemBasYerel, donemBitYerelHaric, ct);
+            var icbari = await icbariGorevi;
             icbariIslem = icbari.Count;
             var durumlar = await syncLog.GetLatestByPusulaIdsAsync(
                 "Procedure", icbari.Select(i => i.IslemId).ToList(), ct,

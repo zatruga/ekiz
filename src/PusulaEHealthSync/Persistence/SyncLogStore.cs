@@ -158,12 +158,73 @@ public class SyncLogStore
         //
         // ILK OLUSTURMA UZUN SURER: milyonlarca satirda dakikalar alabilir, acilista bir
         // kez olur, tekrarlamaz.
+        //
+        // 2026-10-24: KART2 YERINI IX_SyncLog_Akis'e BIRAKTI (asagida). Kart sorgusu artik
+        // her zaman ortamla cagriliyor; Ortam'i icermeyen bu indeks onu karsilamiyordu.
+        //
+        // ORTAM ONCULU KAPSAYICI INDEKS (2026-10-24, kullanici: "aktivite akisi ve genel
+        // bakis cok yavas listeleniyor").
+        //
+        // SUNUCU VERISIYLE OLCULDU (2,2 GB, 1,19 milyon satir, canlida 252.000):
+        // Ortam filtresi (2026-10-23) eklenince sayfa sorgularinin hicbiri kapsayici
+        // indeks kullanamaz oldu -- her satir icin tabloya gidiliyordu. Tablo pahali bir
+        // yer: Ortam ve ProtokolId sonradan ALTER ile eklendigi icin satirin EN SONUNDA,
+        // ~3 KB'lik iki FHIR govdesinin arkasinda duruyor, yani her okuma tasma
+        // sayfalarini da geziyor.
+        //     Aktivite ozeti    8,8 sn -> 1,4 sn
+        //     durum sayilari    2,4 sn -> 0,2 sn
+        //     kartlar           7,5 sn -> 0,5 sn
+        //     Genel Bakis ozeti 4,9 sn (200.000'de kirpiliyordu) -> 1,9 sn (230.000, tam)
+        //
+        // KOLON SIRASI: Ortam ESITLIK, CreatedAtUtc ARALIK -- esitlik once gelmeli ki aralik
+        // taramasi tek bir ortamin icinde kalsin. Kalan kolonlar sorgularin okudugu her
+        // sey; Message BILEREK disarida (bkz. QueryOzetAsync -- yalnizca son denemesi
+        // basarisiz olan kayitlar icin, Id ile ayrica okunuyor).
+        //
+        // KILIT: indeksi ilk kuran surec (Web ya da servis) yazma kilidi tutar. Diger
+        // surecin ayni CREATE'i 30 sn'lik bekleme suresini asarsa kurucu patlamasin --
+        // indeks zaten kuruluyor, bir sonraki acilista "IF NOT EXISTS" ile gecilir.
         using var kartIndeksCmd = conn.CreateCommand();
         kartIndeksCmd.CommandText = @"
             DROP INDEX IF EXISTS IX_SyncLog_Kart;
-            CREATE INDEX IF NOT EXISTS IX_SyncLog_Kart2
-            ON SyncLog(CreatedAtUtc, ResourceType, PusulaId, Status, ProtokolId);";
-        kartIndeksCmd.ExecuteNonQuery();
+            DROP INDEX IF EXISTS IX_SyncLog_Kart2;
+            CREATE INDEX IF NOT EXISTS IX_SyncLog_Akis
+            ON SyncLog(Ortam, CreatedAtUtc, ResourceType, PusulaId, ProtokolId, Status, Operation);";
+        try { kartIndeksCmd.ExecuteNonQuery(); }
+        catch (SqliteException ex) when (ex.SqliteErrorCode is 5 or 6) { /* SQLITE_BUSY / LOCKED */ }
+    }
+
+    // SAYFA SORGULARININ ORTAK SUZGECI -- YALNIZCA VERILEN KOSULLAR SQL'E GIRER.
+    //
+    // NEDEN "($x IS NULL OR Kolon = $x)" DEGIL: o kalip planlayiciya parametrenin bos
+    // olup olmayacagini soylemiyor ve indeks secimi bozuluyor. Olculdu: yeni indeks
+    // varken bile eski kalipla yazilmis ozet sorgusu 7,9 sn (tablo taramasi), kosullar
+    // yalnizca dolu olanlarla yazilinca 1,4 sn (kapsayici indeks).
+    private static string Suzgec(SqliteCommand cmd, string? ortam, string? resourceType,
+                                 DateTime? fromUtc, DateTime? toUtcExclusive)
+    {
+        var kosullar = new List<string> { "1 = 1" };
+        if (ortam is not null)
+        {
+            kosullar.Add("Ortam = $ortam");
+            cmd.Parameters.AddWithValue("$ortam", ortam);
+        }
+        if (fromUtc is not null)
+        {
+            kosullar.Add("CreatedAtUtc >= $from");
+            cmd.Parameters.AddWithValue("$from", fromUtc.Value.ToString("O"));
+        }
+        if (toUtcExclusive is not null)
+        {
+            kosullar.Add("CreatedAtUtc < $to");
+            cmd.Parameters.AddWithValue("$to", toUtcExclusive.Value.ToString("O"));
+        }
+        if (resourceType is not null)
+        {
+            kosullar.Add("ResourceType = $resourceType");
+            cmd.Parameters.AddWithValue("$resourceType", resourceType);
+        }
+        return string.Join(" AND ", kosullar);
     }
 
     public async Task InsertAsync(SyncLogEntry entry, CancellationToken ct = default)
@@ -313,30 +374,37 @@ public class SyncLogStore
         await conn.OpenAsync(ct);
         using var cmd = conn.CreateCommand();
         // MAX(Id) ILE CIPLAK KOLON: SQLite'ta min/max kullanildiginda ciplak kolonlar
-        // (Status, Message) O satirdan gelir -- yani son denemenin kendisinden.
-        cmd.CommandText = @"
-            SELECT MAX(Id) AS SonId, ResourceType, PusulaId,
-                   Status AS Durum,
-                   COUNT(*) AS Deneme,
-                   CASE WHEN Status <> 'Success' THEN Message END AS HataMesaji,
-                   ProtokolId
-            FROM SyncLog
-            WHERE ($resourceType IS NULL OR ResourceType = $resourceType)
-              AND ($from IS NULL OR CreatedAtUtc >= $from)
-              AND ($to IS NULL OR CreatedAtUtc < $to)
-              AND ($ortam IS NULL OR Ortam = $ortam)
-            GROUP BY ResourceType, PusulaId, ProtokolId
-            ORDER BY SonId DESC
-            LIMIT $tavan";
-        cmd.Parameters.AddWithValue("$ortam", (object?)ortam ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$resourceType", (object?)resourceType ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$from", (object?)fromUtc?.ToString("O") ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$to", (object?)toUtcExclusive?.ToString("O") ?? DBNull.Value);
+        // (Status) O satirdan gelir -- yani son denemenin kendisinden.
+        //
+        // MESAJ ICTE DEGIL, DISTA (2026-10-24): Message indekste yok; icte okunsaydi
+        // araliktaki HER satir icin tabloya gidilirdi. Ic sorgu indeksten cikiyor, mesaj
+        // yalnizca son denemesi basarisiz olan kayitlar icin Id ile okunuyor (bkz.
+        // IX_SyncLog_Akis).
+        var suzgec = Suzgec(cmd, ortam, resourceType, fromUtc, toUtcExclusive);
+        cmd.CommandText = $@"
+            SELECT g.SonId, g.ResourceType, g.PusulaId, g.Durum, g.Deneme,
+                   CASE WHEN g.Durum <> 'Success'
+                        THEN (SELECT m.Message FROM SyncLog m WHERE m.Id = g.SonId) END AS HataMesaji,
+                   g.ProtokolId
+            FROM (
+                SELECT MAX(Id) AS SonId, ResourceType, PusulaId,
+                       Status AS Durum,
+                       COUNT(*) AS Deneme,
+                       ProtokolId
+                FROM SyncLog
+                WHERE {suzgec}
+                GROUP BY ResourceType, PusulaId, ProtokolId
+                ORDER BY SonId DESC
+                LIMIT $tavan
+            ) g
+            ORDER BY g.SonId DESC";
         cmd.Parameters.AddWithValue("$tavan", tavan);
 
         var result = new List<OzetSatiri>();
         using var reader = await cmd.ExecuteReaderAsync(ct);
-        while (await reader.ReadAsync(ct))
+        // Senkron Read: bkz. GetKayitGunOzetleriAsync -- on binlerce satirda ReadAsync
+        // yalnizca satir basina yuk ekliyor.
+        while (reader.Read())
             result.Add(new OzetSatiri(
                 reader.GetInt64(0), reader.GetString(1), reader.GetInt32(2),
                 Enum.Parse<SyncStatus>(reader.GetString(3)),
@@ -681,18 +749,11 @@ public class SyncLogStore
         using var conn = new SqliteConnection(_connectionString);
         await conn.OpenAsync(ct);
         using var cmd = conn.CreateCommand();
-        cmd.CommandText = @"
+        cmd.CommandText = $@"
             SELECT Status, COUNT(*)
             FROM SyncLog
-            WHERE ($resourceType IS NULL OR ResourceType = $resourceType)
-              AND ($from IS NULL OR CreatedAtUtc >= $from)
-              AND ($to IS NULL OR CreatedAtUtc < $to)
-              AND ($ortam IS NULL OR Ortam = $ortam)
+            WHERE {Suzgec(cmd, ortam, resourceType, fromUtc, toUtcExclusive)}
             GROUP BY Status";
-        cmd.Parameters.AddWithValue("$ortam", (object?)ortam ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$resourceType", (object?)resourceType ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$from", (object?)fromUtc?.ToString("O") ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$to", (object?)toUtcExclusive?.ToString("O") ?? DBNull.Value);
         var result = new Dictionary<string, int>();
         using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
@@ -794,8 +855,14 @@ public class SyncLogStore
     // SonId: o kayit-gun grubunun EN YENI SyncLog satiri -- ekranda "Son Hatalar"
     // listesinden Kayit Detayi sayfasina gecis icin. Grup zaten MAX(Id)'ye gore
     // siralandigi icin bedava geliyor.
+    //
+    // ProtokolId (2026-10-24): SyncLog'daki bag. Eskiden bu ozet bagi TASIMIYORDU ve
+    // ProtokolDurumService her kaydi Pusula'ya soruyordu -- canli gunlukte 122.000
+    // laboratuvar kaydi x 1000'lik parti x ~0,65 sn = Genel Bakis'in her soguk acilisinda
+    // ~80 sn yalnizca bu is icin. NULL: bag henuz doldurulmamis (Pusula'ya sorulur);
+    // ProtokolCozulemedi: soruldu, bulunamadi.
     public record KayitGunOzeti(long SonId, string ResourceType, int PusulaId, DateOnly Gun,
-                                SyncStatus Durum, int SatirSayisi, string? Mesaj);
+                                SyncStatus Durum, int SatirSayisi, string? Mesaj, int? ProtokolId);
 
     // SAATLIK PROTOKOL SAYISI (2026-10-24, Genel Bakis ust durum alani -- "son 12 saat").
     // Birim protokol: o saatte en az bir kalemine dokunulan farkli protokol, ve bunlardan
@@ -838,39 +905,82 @@ public class SyncLogStore
         using var conn = new SqliteConnection(_connectionString);
         await conn.OpenAsync(ct);
         using var cmd = conn.CreateCommand();
-        cmd.Parameters.AddWithValue("$ortam", (object?)ortam ?? DBNull.Value);
+        var suzgec = Suzgec(cmd, ortam, null, fromUtc, toUtcExclusive);
         // Gun siniri YEREL (Baki) -- UTC'ye gore gruplamak gece nobetinde (00:00-04:00)
         // yapilan gonderimleri bir onceki gune dusururdu. Bu hata bu projede gunluk
         // trend grafiginde bir kez yasandi (bkz. AzTime).
+        //
+        // IC SORGU INDEKSTEN CIKIYOR (bkz. IX_SyncLog_Akis): mesaj yerine o turden en son
+        // satirin Id'si toplaniyor, mesaj distaki alt sorguyla YALNIZCA hatali/atlanan
+        // kayitlar icin okunuyor. Ornek mesaj artik "sozluk sirasinda en buyuk" degil
+        // "en son" -- kategori sayimi icin ikisi de tek ornek, ama en son olan daha dogru.
+        //
+        // ProtokolId GRUP ANAHTARINDA DEGIL, MAX ile: bagi sonradan doldurulmus bir kaydin
+        // eski (NULL) ve yeni (dolu) satirlari ayni gun icinde iki ayri kayit gibi
+        // sayilmasin. MAX NULL'lari atlar, dolu deger kazanir.
         cmd.CommandText = $@"
-            SELECT MAX(Id) AS SonId, ResourceType, PusulaId,
-                   substr(datetime(CreatedAtUtc, {AzTime.SqliteShiftToLocal}), 1, 10) AS Gun,
-                   CASE WHEN SUM(Status = 'Failed')  > 0 THEN 'Failed'
-                        WHEN SUM(Status = 'Skipped') > 0 THEN 'Skipped'
-                        ELSE 'Success' END AS Durum,
-                   COUNT(*) AS Satir,
-                   COALESCE(MAX(CASE WHEN Status = 'Failed'  THEN Message END),
-                            MAX(CASE WHEN Status = 'Skipped' THEN Message END)) AS Mesaj
-            FROM SyncLog
-            WHERE CreatedAtUtc >= $from AND CreatedAtUtc < $to
-              AND (Operation IS NULL OR Operation NOT IN ('Delete', 'Validate'))
-              AND ($ortam IS NULL OR Ortam = $ortam)
-            GROUP BY ResourceType, PusulaId, Gun
-            ORDER BY MAX(Id) DESC
-            LIMIT $tavan";
-        cmd.Parameters.AddWithValue("$from", fromUtc.ToString("O"));
-        cmd.Parameters.AddWithValue("$to", toUtcExclusive.ToString("O"));
+            SELECT g.SonId, g.ResourceType, g.PusulaId, g.Gun, g.Durum, g.Satir,
+                   CASE WHEN g.HataId IS NOT NULL THEN (SELECT m.Message FROM SyncLog m WHERE m.Id = g.HataId)
+                        WHEN g.AtlamaId IS NOT NULL THEN (SELECT m.Message FROM SyncLog m WHERE m.Id = g.AtlamaId)
+                   END AS Mesaj,
+                   g.ProtokolId
+            FROM (
+                SELECT MAX(Id) AS SonId, ResourceType, PusulaId,
+                       substr(datetime(CreatedAtUtc, {AzTime.SqliteShiftToLocal}), 1, 10) AS Gun,
+                       CASE WHEN SUM(Status = 'Failed')  > 0 THEN 'Failed'
+                            WHEN SUM(Status = 'Skipped') > 0 THEN 'Skipped'
+                            ELSE 'Success' END AS Durum,
+                       COUNT(*) AS Satir,
+                       MAX(CASE WHEN Status = 'Failed'  THEN Id END) AS HataId,
+                       MAX(CASE WHEN Status = 'Skipped' THEN Id END) AS AtlamaId,
+                       MAX(ProtokolId) AS ProtokolId
+                FROM SyncLog
+                WHERE {suzgec}
+                  AND (Operation IS NULL OR Operation NOT IN ('Delete', 'Validate'))
+                GROUP BY ResourceType, PusulaId, Gun
+                ORDER BY MAX(Id) DESC
+                LIMIT $tavan
+            ) g";
         cmd.Parameters.AddWithValue("$tavan", tavan);
 
+        // AYNI MESAJ TEK KOPYA: yuz binlerce kayitta mesaj cesidi birkac yuzu gecmiyor
+        // ("Icbari eslesmesi bulunamadi" binlerce kez). Her satir icin ayri dize tutmak
+        // bellegi gereksiz sisiriyor.
+        //
+        // OKUMA DONGUSU SENKRON VE ONBELLEKLI: 230.000 satirda okuma, SQL'in kendisi kadar
+        // suruyordu (1,8 sn SQL + 1,5 sn okuma). Microsoft.Data.Sqlite'ta ReadAsync zaten
+        // senkron calisiyor, yalnizca satir basina yuk ekliyor. Gun (~15 farkli deger) ve
+        // tur adi da her satirda yeniden ayristirilip ayriliyordu.
+        var mesajlar = new Dictionary<string, string>(StringComparer.Ordinal);
+        var turler = new Dictionary<string, string>(StringComparer.Ordinal);
+        var gunler = new Dictionary<string, DateOnly>(StringComparer.Ordinal);
         var sonuc = new List<KayitGunOzeti>();
         using var reader = await cmd.ExecuteReaderAsync(ct);
-        while (await reader.ReadAsync(ct))
+        while (reader.Read())
+        {
+            string? mesaj = null;
+            if (!reader.IsDBNull(6))
+            {
+                var m = reader.GetString(6);
+                if (!mesajlar.TryGetValue(m, out mesaj)) mesajlar[m] = mesaj = m;
+            }
+            var t = reader.GetString(1);
+            if (!turler.TryGetValue(t, out var tur)) turler[t] = tur = t;
+            var g = reader.GetString(3);
+            if (!gunler.TryGetValue(g, out var gun))
+                gunler[g] = gun = DateOnly.ParseExact(g, "yyyy-MM-dd", CultureInfo.InvariantCulture);
             sonuc.Add(new KayitGunOzeti(
-                reader.GetInt64(0), reader.GetString(1), reader.GetInt32(2),
-                DateOnly.Parse(reader.GetString(3), System.Globalization.CultureInfo.InvariantCulture),
-                Enum.Parse<SyncStatus>(reader.GetString(4)),
+                reader.GetInt64(0), tur, reader.GetInt32(2), gun,
+                reader.GetString(4) switch
+                {
+                    "Failed" => SyncStatus.Failed,
+                    "Skipped" => SyncStatus.Skipped,
+                    _ => SyncStatus.Success,
+                },
                 reader.GetInt32(5),
-                reader.IsDBNull(6) ? null : reader.GetString(6)));
+                mesaj,
+                reader.IsDBNull(7) ? null : reader.GetInt32(7)));
+        }
         return sonuc;
     }
 
@@ -983,8 +1093,8 @@ public class SyncLogStore
         using var conn = new SqliteConnection(_connectionString);
         await conn.OpenAsync(ct);
         using var cmd = conn.CreateCommand();
-        cmd.Parameters.AddWithValue("$ortam", (object?)ortam ?? DBNull.Value);
-        cmd.CommandText = @"
+        var suzgec = Suzgec(cmd, ortam, resourceType, fromUtc, toUtcExclusive);
+        cmd.CommandText = $@"
             WITH kayit AS (
                 -- 1. kademe: KAYIT basina tek durum, 'SON DENEME KAZANIR'
                 -- (2026-10-21, kullanici karari).
@@ -1007,10 +1117,7 @@ public class SyncLogStore
                 SELECT ProtokolId, Status AS Durum, MAX(Id) AS SonId
                 FROM SyncLog
                 WHERE ProtokolId IS NOT NULL AND ProtokolId <> $cozulemedi
-                  AND ($resourceType IS NULL OR ResourceType = $resourceType)
-                  AND ($from IS NULL OR CreatedAtUtc >= $from)
-                  AND ($to IS NULL OR CreatedAtUtc < $to)
-                  AND ($ortam IS NULL OR Ortam = $ortam)
+                  AND {suzgec}
                 -- ProtokolId DE GRUPLAMA ANAHTARINDA (2026-10-21 duzeltmesi).
                 --
                 -- Once yalnizca (ResourceType, PusulaId) ile gruplanip ProtokolId ciplak
@@ -1037,9 +1144,6 @@ public class SyncLogStore
                    SUM(CASE WHEN Basarili = 0 THEN 1 ELSE 0 END)
             FROM grup";
         cmd.Parameters.AddWithValue("$cozulemedi", ProtokolCozulemedi);
-        cmd.Parameters.AddWithValue("$resourceType", (object?)resourceType ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$from", (object?)fromUtc?.ToString("O") ?? DBNull.Value);
-        cmd.Parameters.AddWithValue("$to", (object?)toUtcExclusive?.ToString("O") ?? DBNull.Value);
 
         using var reader = await cmd.ExecuteReaderAsync(ct);
         if (!await reader.ReadAsync(ct) || reader.IsDBNull(0)) return new AkisKartlari(0, 0, 0, 0, 0);

@@ -28,11 +28,14 @@ public class ProtokolDurumService(
     PusulaRepository repository,
     ILogger<ProtokolDurumService> logger)
 {
-    // Kayit-gun grubu tavani. Olculdu (sunucu gunlugu, son 14 gun): 38.868 grup.
-    // Tavan bunun ~5 kati -- tekrar gonderim duzeltmesi (c761e0f) dagitildiktan sonra
-    // satir sayisi 10 kat dusecegi icin bu rahat bir pay. Asilirsa cagiran taraf bunu
-    // EKRANDA soylemek zorunda (Kirpildi), eksik bir toplami tam gibi gostermemek icin.
-    public const int Tavan = 200_000;
+    // Kayit-gun grubu tavani. Asilirsa cagiran taraf bunu EKRANDA soylemek zorunda
+    // (Kirpildi), eksik bir toplami tam gibi gostermemek icin.
+    //
+    // 200.000'DEN 1.000.000'A (2026-10-24): canliya gecis gunu (23.10) birikmis kuyrugun
+    // tamami gonderildi ve 14 gunluk pencere tek basina 230.143 kayit-gun oldu -- yani
+    // Genel Bakis canlida ilk gunden KIRPILMIS veriyle hesapliyordu. Normal akista gunde
+    // ~25.000 kayit-gun yaziliyor; 30 gunluk donem bu tavanin altinda kalir.
+    public const int Tavan = 1_000_000;
 
     public async Task<ProtokolDurumOzeti> HesaplaAsync(
         DateTime fromUtc, DateTime toUtcExclusive, CancellationToken ct = default,
@@ -43,16 +46,27 @@ public class ProtokolDurumService(
         var kirpildi = ham.Count >= Tavan;
 
         // ---- 1) COCUK KAYIT -> PROTOKOL ----
-        // SyncLog'da protokol bagi YOK: her kaynak tipi kendi id uzayini kullaniyor
-        // (Observation -> LabaratuarSonucId, Procedure -> ProtokolIslem.Id ...).
-        // Numarayi Pusula'ya sorarak cozuyoruz (bkz. PusulaRepository.ProtokolCozum).
+        // ONCE SyncLog.ProtokolId (2026-10-24): bag yazma aninda kaydediliyor, eski
+        // satirlar ProtokolBagiDoldurmaService ile dolduruldu. Aktivite Akisi 2026-10-21'den
+        // beri ayni sirayla calisiyor; bu servis geride kalmisti ve HER kaydi Pusula'ya
+        // soruyordu (sunucuda olculdu: Genel Bakis soguk acilista ~80 sn yalnizca bu is).
+        //
+        // Pusula'ya YALNIZCA bagi bos olanlar soruluyor. ProtokolCozulemedi "soruldu,
+        // bulunamadi" demek -- yeniden sorulmaz, protokolsuz kovaya duser. Patient ve
+        // Practitioner'da bag bilerek bos (bkz. asagidaki 2. adim).
         //
         // PUSULA ERISILEMEZSE SAYFA YINE ACILIR: cozulemeyen kayitlar "protokole
         // baglanamadi" kovasinda GORUNUR kalir, sessizce dusurulmez. Gonderim gunlugu,
         // tam da Pusula'ya erisilemedigi anda en cok ihtiyac duyulan sey.
         var esleme = new Dictionary<(string, int), int>();
+        foreach (var k in ham)
+            if (k.ProtokolId is int bag and > 0) esleme[(k.ResourceType, k.PusulaId)] = bag;
+
         var pusulaHatasi = false;
-        foreach (var tip in ham.GroupBy(k => k.ResourceType))
+        foreach (var tip in ham
+                     .Where(k => k.ProtokolId is null && k.ResourceType is not ("Patient" or "Practitioner")
+                                 && !esleme.ContainsKey((k.ResourceType, k.PusulaId)))
+                     .GroupBy(k => k.ResourceType))
         {
             try
             {
