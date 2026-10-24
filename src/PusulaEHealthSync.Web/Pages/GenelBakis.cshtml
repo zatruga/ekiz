@@ -116,23 +116,44 @@
        protokol. Hata alan protokolu olan saat kirmizi. Bos saat = o saatte gonderim yok. *@
     <div class="gb-hukum-saatler">
         <p class="gb-hukum-etiket">Son 12 saat &middot; saat başına gönderilen protokol</p>
-        <div class="gb-saat-cubuklar" role="img"
-             aria-label="Son 12 saatte saat başına gönderilen protokol; toplam @Model.Son12SaatProtokol">
+        @* 2026-10-24 DUZELTME (kullanici: "sutunlar cizgi gibi, anlami yok"): tek bir yogun
+           saat olcegi ezip digerlerini cizgiye ceviriyordu, ve tek hatali protokol butun
+           cubugu kirmiziya boyuyordu. Artik: (1) sayi her cubugun USTUNDE yazili -- boy tek
+           basina anlam tasimiyor; (2) gonderim olan saat en az %18 boyda; (3) cubuk iki
+           parcali, yalnizca hata alan pay kirmizi. *@
+        <ol class="gb-saatler" aria-label="Son 12 saatte saat başına gönderilen protokol; toplam @Model.Son12SaatProtokol">
             @foreach (var h in Model.Saatler)
             {
-                var yuzde = Model.SaatMaks == 0 ? 0 : Math.Max(h.Protokol == 0 ? 0 : 4, h.Protokol * 100.0 / Model.SaatMaks);
-                <span class="gb-saat @(h.HataliProtokol > 0 ? "gb-saat--hata" : "")"
-                      style="height:@yuzde.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)%"
-                      title="@AzTime.ToLocal(h.SaatUtc).ToString("HH:00") · @h.Protokol protokol@(h.HataliProtokol > 0 ? " · " + h.HataliProtokol + " hata aldı" : "")"></span>
+                // Boy PIKSEL (en fazla 56px, gonderim olan saatte en az 10px) -- sayi etiketi
+                // cubugun hemen ustunde durabilsin diye yuzde degil.
+                var boy = h.Protokol == 0 || Model.SaatMaks == 0 ? 0 : Math.Max(10, h.Protokol * 56.0 / Model.SaatMaks);
+                var hataPay = h.Protokol == 0 ? 0 : h.HataliProtokol * 100.0 / h.Protokol;
+                var inv = System.Globalization.CultureInfo.InvariantCulture;
+                <li class="gb-saat-kol" title="@AzTime.ToLocal(h.SaatUtc).ToString("HH:00") · @h.Protokol protokol@(h.HataliProtokol > 0 ? " · " + h.HataliProtokol + " hata aldı" : "")">
+                    <span class="gb-saat-alan">
+                        @if (h.Protokol > 0)
+                        {
+                            <span class="gb-saat-sayi num">@h.Protokol.ToString("N0")</span>
+                            <span class="gb-saat" style="height:@boy.ToString("0.#", inv)px">
+                                @if (h.HataliProtokol > 0)
+                                {
+                                    <span class="gb-saat-hata" style="height:@Math.Max(8, hataPay).ToString("0.#", inv)%"></span>
+                                }
+                            </span>
+                        }
+                        else
+                        {
+                            <span class="gb-saat-bos"></span>
+                        }
+                    </span>
+                    <span class="gb-saat-ad num">@AzTime.ToLocal(h.SaatUtc).ToString("HH")</span>
+                </li>
             }
-        </div>
-        <div class="gb-saat-etiketler num">
-            <span>@(Model.Saatler.Count > 0 ? AzTime.ToLocal(Model.Saatler[0].SaatUtc).ToString("HH:00") : "")</span>
-            @if (Model.Saatler.Any(h => h.HataliProtokol > 0))
-            {
-                <span class="gb-saat-hata-not">kırmızı: o saatte hata alan protokol var</span>
-            }
-            <span>@(Model.Saatler.Count > 0 ? AzTime.ToLocal(Model.Saatler[^1].SaatUtc).ToString("HH:00") : "")</span>
+        </ol>
+        <div class="gb-saat-lejant">
+            <span><i class="gb-lj gb-lj--ok"></i>sorunsuz</span>
+            <span><i class="gb-lj gb-lj--hata"></i>hata alan protokol</span>
+            <span><i class="gb-lj gb-lj--bos"></i>gönderim yok</span>
         </div>
     </div>
 </section>

@@ -2058,11 +2058,21 @@ a.gb-sebep.danger:hover { background: var(--danger-soft); }
 .gb-hukum-sayilar dd { margin: 0; font-size: 24px; font-weight: 600; color: #F6F7F9; }
 .gb-hukum-sayilar small { font-size: 12px; color: #A3ACB9; font-weight: 400; }
 .gb-hukum-saatler { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.10); }
-.gb-saat-cubuklar { display: flex; align-items: flex-end; gap: 5px; height: 48px; }
-.gb-saat { flex: 1; min-width: 0; background: #3D6B8A; border-radius: 2px 2px 0 0; }
-.gb-saat--hata { background: #FF6B76; }
-.gb-saat-etiketler { display: flex; justify-content: space-between; gap: 12px; margin-top: 7px; font-size: 10.5px; color: #8A929E; }
-.gb-saat-hata-not { color: #FF8A93; }
+/* Saatlik sutunlar: sayi ustte, saat altta, cubuk iki parcali (sorunsuz + hata payi). */
+.gb-saatler { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(12, minmax(0, 1fr)); gap: 8px; }
+.gb-saat-kol { display: flex; flex-direction: column; align-items: stretch; gap: 4px; min-width: 0; }
+.gb-saat-sayi { font-size: 11px; line-height: 14px; text-align: center; color: #E4E8ED; white-space: nowrap; margin-bottom: 3px; }
+.gb-saat-alan { height: 74px; display: flex; flex-direction: column; justify-content: flex-end; }
+.gb-saat { flex: none; width: 100%; display: flex; flex-direction: column; justify-content: flex-start; background: #4F8FBF; border-radius: 3px 3px 0 0; overflow: hidden; }
+.gb-saat-hata { display: block; width: 100%; background: #FF6B76; }
+.gb-saat-bos { width: 100%; height: 2px; background: rgba(255, 255, 255, 0.14); }
+.gb-saat-ad { font-size: 10.5px; text-align: center; color: #8A929E; }
+.gb-saat-lejant { display: flex; flex-wrap: wrap; gap: 6px 18px; margin-top: 10px; font-size: 11.5px; color: #A3ACB9; }
+.gb-saat-lejant span { display: inline-flex; align-items: center; gap: 6px; }
+.gb-lj { width: 10px; height: 10px; border-radius: 2px; display: inline-block; }
+.gb-lj--ok { background: #4F8FBF; }
+.gb-lj--hata { background: #FF6B76; }
+.gb-lj--bos { height: 2px; background: rgba(255, 255, 255, 0.35); }
 
 /* Hat -- dort durak. */
 .gb-hat { padding: 26px 28px 22px; margin-bottom: 18px; }
