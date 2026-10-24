@@ -11,6 +11,11 @@
     // BIRIM ALT SATIRI tek yerden -- ekrandaki her protokol rakami altinda ayni bicimde
     // "N kayit - M satir" gorunsun diye. Birimini soylemeyen bir sayi bu projede yanlis
     // sayidan daha cok kafa karistirdi (bkz. GenelBakis.cshtml.cs basindaki not).
+    // CSS GENISLIGI KULTURDEN BAGIMSIZ (2026-10-24, kullanici: "100 olunca yesil oluyor,
+    // onun disinda yok"). double'i dogrudan yazinca tr-TR "50,5" uretiyordu; tarayici
+    // "width:50,5%"i gecersiz sayip atiyordu -- yalnizca tam sayi olan %100 cizilebiliyordu.
+    Func<double, string> css = v => v.ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+
     Func<int, int, string> birim = (kayit, satir) =>
         $"{kayit.ToString("N0")} kayıt · {satir.ToString("N0")} satır";
 
@@ -447,9 +452,9 @@ else if (!Model.AktifOrtamCanli)
                         <span class="gb-satir-alt">@(t.Protokolsuz ? $"{t.Kayit:N0} kayıt · protokole bağlanmıyor" : $"{t.Protokol:N0} protokol · {birim(t.Kayit, t.Satir)}")</span>
                     </span>
                     <span class="bd-bar">
-                        <span class="bd-seg success" style="width:@(t.BarToplam == 0 ? 0 : t.BarTamam * 100.0 / t.BarToplam)%"></span>
-                        <span class="bd-seg warning" style="width:@(t.BarToplam == 0 ? 0 : t.BarEksik * 100.0 / t.BarToplam)%"></span>
-                        <span class="bd-seg danger" style="width:@(t.BarToplam == 0 ? 0 : t.BarHatali * 100.0 / t.BarToplam)%"></span>
+                        <span class="bd-seg success" style="width:@css(t.BarToplam == 0 ? 0 : t.BarTamam * 100.0 / t.BarToplam)%"></span>
+                        <span class="bd-seg warning" style="width:@css(t.BarToplam == 0 ? 0 : t.BarEksik * 100.0 / t.BarToplam)%"></span>
+                        <span class="bd-seg danger" style="width:@css(t.BarToplam == 0 ? 0 : t.BarHatali * 100.0 / t.BarToplam)%"></span>
                     </span>
                     <span class="gb-satir-sag">
                         <span class="gb-satir-pct">%@t.TamamYuzde.ToString("0.0")</span>
@@ -485,9 +490,9 @@ else if (!Model.AktifOrtamCanli)
                         </span>
                     </span>
                     <span class="bd-bar">
-                        <span class="bd-seg success" style="width:@(b.Protokol == 0 ? 0 : b.Tamam * 100.0 / b.Protokol)%"></span>
-                        <span class="bd-seg warning" style="width:@(b.Protokol == 0 ? 0 : b.Eksik * 100.0 / b.Protokol)%"></span>
-                        <span class="bd-seg danger" style="width:@(b.Protokol == 0 ? 0 : b.Hatali * 100.0 / b.Protokol)%"></span>
+                        <span class="bd-seg success" style="width:@css(b.Protokol == 0 ? 0 : b.Tamam * 100.0 / b.Protokol)%"></span>
+                        <span class="bd-seg warning" style="width:@css(b.Protokol == 0 ? 0 : b.Eksik * 100.0 / b.Protokol)%"></span>
+                        <span class="bd-seg danger" style="width:@css(b.Protokol == 0 ? 0 : b.Hatali * 100.0 / b.Protokol)%"></span>
                     </span>
                     <span class="gb-satir-sag">
                         <span class="gb-satir-pct">@b.Tamam.ToString("N0")</span>
