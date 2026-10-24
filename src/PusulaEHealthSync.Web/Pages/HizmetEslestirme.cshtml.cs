@@ -131,6 +131,8 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
             new("Hizmet Adı", 52),
             new("Hizmet Tipi", 22),
             new("İstem (365 gün)", 16, Sayi: true),
+            new("Pay %", 10, Sayi: true),
+            new("Kümülatif %", 13, Sayi: true),
             new("Mevcut Eşleşme (İcbari)", 22),
             new("Önerilen Bakanlık Kodu", 22),
             new("Öneri Kaynağı", 15),
@@ -139,15 +141,26 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
             new("▶ PUSULA'YA GİRİLEN KOD", 26),
         };
 
+        // PAY VE KUMULATIF PAY (2026-10-24, kullanici: "kullanilan ama eslesmesi olmayan
+        // populer hizmetlerin listesi -- bu oranlara gore eslestirme yaptirmaliyim").
+        // Payda: indirilen listenin toplam istemi. "Kullanimda + eslesme yok" filtresiyle
+        // indirildiginde kumulatif sutun "ilk N hizmet eslesirse eksigin yuzde kaci
+        // kapanir" sorusunu dogrudan cevapliyor. Liste istem sirasinda (HizmetMappingStore).
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        var toplamIstem = Math.Max(1, liste.Sum(s => s.Istem));
+        var birikim = 0;
         var satirlar = liste.Select(s =>
         {
             var kod = s.EtkinKod;
+            birikim += s.Istem;
             return new string?[]
             {
                 s.HizmetKodu,
                 s.HizmetAdi,
                 s.HizmetTipi,
-                s.Istem.ToString(System.Globalization.CultureInfo.InvariantCulture),
+                s.Istem.ToString(inv),
+                (s.Istem * 100.0 / toplamIstem).ToString("0.00", inv),
+                (birikim * 100.0 / toplamIstem).ToString("0.0", inv),
                 s.IcbariKodu,
                 s.AzKod ?? s.Oneri,
                 s.Gonderilmez ? "gönderilmez" : s.Rozet switch
@@ -161,7 +174,7 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
                 AzAdiTr(kod),
                 "",
             };
-        });
+        }).ToList();   // birikim sirali sayaca dayaniyor -- tek seferde, sirayla uretilmeli
 
         var bayt = XlsxWriter.Olustur("Hizmet Eşleştirme", sutunlar, satirlar);
         var ad = $"hizmet-eslestirme-{DateTime.Now:yyyyMMdd-HHmm}.xlsx";
