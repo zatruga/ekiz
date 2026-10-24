@@ -172,14 +172,17 @@ public class GenelBakisModel(
         int IcbariIslem, int IcbariGonderilen, double IcbariYuzde,
         List<IcbariSatiri> IcbariGonderilmeyen,
 
-        bool Kirpildi, bool PusulaHatasi)
+        bool Kirpildi, bool PusulaHatasi,
+
+        List<EpikrizDoktorSatiri> EpikrizDoktorlari)
     {
         public static readonly BakisOzeti Bos = new(
             0, 0, 0, 0, 0, 0, false, 0, 0, 0,
             0, 0, 0, false, 0, true,
             0, 0, null,
             [], [], [], [], [], [],
-            0, 0, 0, [], false, false);
+            0, 0, 0, [], false, false,
+            []);
 
         public int ProtokolSorunlu => ProtokolEksik + ProtokolHatali;
         public double RingDashOffset => 119.4 * (1 - TamamYuzde / 100.0);
@@ -221,6 +224,22 @@ public class GenelBakisModel(
     public record BolumSatiri(string Ad, int Protokol, int Tamam, int Eksik, int Hatali, int Pct);
 
     public record IcbariSatiri(string HastaAdi, int ProtokolId, string HizmetAdi, string Sebep);
+
+    // ===================== EPIKRIZ -- DOKTOR BAZINDA (2026-10-24) =====================
+    //
+    // KULLANICI: "epikriz eksik olanlarin doktor bazli oranlamasi, kac protokolde basari
+    // durumu -- bunun sayesinde doktorlara da baski yapilabilir."
+    //
+    // DOKTOR = PROTOKOLUN SORUMLU DOKTORU (ProtokolListItem.Doktor*), epikrizi yazan degil:
+    // eksik epikrizde yazan kisi zaten yok (metin bos), hesap soracak kisi protokolun sahibi.
+    // PAYDA: donemde epikriz kaydi DENENEN protokoller. Epikrizi hic olmayan protokol
+    // (ayaktan muayenelerin cogu) sayilmiyor -- yoksa her doktor haksiz yere dusuk cikardi.
+    // Protokol basina "en kotu durum kazanir", sayfanin geri kalaniyla ayni kural.
+    public record EpikrizDoktorSatiri(string Doktor, string Bolum, int Protokol, int Gonderildi,
+                                      int Eksik, int Hatali, List<int> SorunluProtokoller)
+    {
+        public double BasariYuzde => Protokol == 0 ? 0 : Math.Round(Gonderildi * 100.0 / Protokol, 1);
+    }
 
     public async Task OnGetAsync(CancellationToken ct)
     {
@@ -478,6 +497,27 @@ public class GenelBakisModel(
                 enBuyukBolum == 0 ? 0 : (int)Math.Round(b.Protokol * 100.0 / enBuyukBolum)))
             .ToList();
 
+        // ---- 9b) EPIKRIZ -- DOKTOR BAZINDA (bkz. EpikrizDoktorSatiri) ----
+        var epikrizDoktorlari = ProtokolleriSinifla(
+                donemKayitlari.Where(k => k.ResourceType == "Composition").ToList())
+            .Select(p => (
+                Bilgi: pencere.ProtokolBilgileri.GetValueOrDefault(p.Key),
+                ProtokolId: p.Key, Sinif: p.Value))
+            .GroupBy(x => x.Bilgi?.DoktorAdiSoyadi is { Length: > 0 } d ? d : "Doktor bilinmiyor")
+            .Select(g => new EpikrizDoktorSatiri(
+                g.Key,
+                g.Select(x => x.Bilgi?.BolumAdi).Where(b => !string.IsNullOrWhiteSpace(b))
+                 .GroupBy(b => b).OrderByDescending(b => b.Count()).Select(b => b.Key!).FirstOrDefault() ?? "-",
+                g.Count(),
+                g.Count(x => x.Sinif == ProtokolSinifi.Tamam),
+                g.Count(x => x.Sinif == ProtokolSinifi.Eksik),
+                g.Count(x => x.Sinif == ProtokolSinifi.Hatali),
+                g.Where(x => x.Sinif != ProtokolSinifi.Tamam).Select(x => x.ProtokolId).OrderBy(i => i).ToList()))
+            .OrderByDescending(d => d.Eksik + d.Hatali)
+            .ThenBy(d => d.BasariYuzde)
+            .ThenByDescending(d => d.Protokol)
+            .ToList();
+
         // ---- 10) PUSULA HACMI: donemde ACILAN protokol ----
         var pusulaHatasi = pencere.PusulaHatasi;
         var bugunDonemde = PeriodToDate >= today;
@@ -575,7 +615,39 @@ public class GenelBakisModel(
             icbariIslem, icbariGonderilen,
             icbariIslem == 0 ? 0 : Math.Round(icbariGonderilen * 100.0 / icbariIslem, 1),
             icbariListe,
-            pencere.Kirpildi, pusulaHatasi);
+            pencere.Kirpildi, pusulaHatasi,
+            epikrizDoktorlari);
+    }
+
+    // EXCEL: doktor bazli epikriz tablosunun TAMAMI (ekranda ilk 12 satir). Ayni donem,
+    // ayni onbellekli ozet -- ekrandaki sayilarla indirilen dosya ayrisamaz.
+    public async Task<IActionResult> OnGetEpikrizExcelAsync(CancellationToken ct)
+    {
+        await OnGetAsync(ct);
+        var sutunlar = new List<PusulaEHealthSync.Export.XlsxWriter.Sutun>
+        {
+            new("Doktor", 32),
+            new("Bölüm", 30),
+            new("Epikrizli protokol", 18, Sayi: true),
+            new("Gönderildi", 13, Sayi: true),
+            new("Eksik (metin boş vb.)", 20, Sayi: true),
+            new("Hatalı", 10, Sayi: true),
+            new("Başarı %", 11, Sayi: true),
+            new("Sorunlu protokoller", 60),
+        };
+        var satirlar = Ozet.EpikrizDoktorlari.Select(d => new string?[]
+        {
+            d.Doktor, d.Bolum,
+            d.Protokol.ToString(CultureInfo.InvariantCulture),
+            d.Gonderildi.ToString(CultureInfo.InvariantCulture),
+            d.Eksik.ToString(CultureInfo.InvariantCulture),
+            d.Hatali.ToString(CultureInfo.InvariantCulture),
+            d.BasariYuzde.ToString("0.0", CultureInfo.InvariantCulture),
+            string.Join(", ", d.SorunluProtokoller),
+        });
+        var bayt = PusulaEHealthSync.Export.XlsxWriter.Olustur("Epikriz - Doktor", sutunlar, satirlar);
+        var ad = $"epikriz-doktor-{PeriodFromDate:yyyyMMdd}-{PeriodToDate:yyyyMMdd}.xlsx";
+        return File(bayt, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ad);
     }
 
     // "ay:2026-10" -> o ayin ilk gunu .. son gunu. Gecerli degilse null.

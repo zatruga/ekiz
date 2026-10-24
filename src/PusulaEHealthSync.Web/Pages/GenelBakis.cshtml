@@ -478,6 +478,69 @@ else if (!Model.AktifOrtamCanli)
     </div>
 </div>
 
+@* ======================= EPIKRIZ -- DOKTOR BAZINDA (2026-10-24) =======================
+   KULLANICI: "epikriz eksik olanlarin doktor bazli oranlamasi ... doktorlara da baski
+   yapilabilir." Hesap ve payda tanimi: GenelBakisModel.EpikrizDoktorSatiri. Ekranda en
+   cok sorunlu 12 doktor; tamami Excel'de (sag ust kosedeki ok, uzerine gelince belirir). *@
+<section class="card card-pad gb-indirilebilir" style="margin-bottom:18px;" aria-labelledby="gb-epikriz-baslik">
+    <a asp-page-handler="EpikrizExcel" asp-route-Donem="@Model.Donem" class="gb-indir"
+       title="Excel olarak indir" aria-label="Doktor bazlı epikriz tablosunu Excel olarak indir">
+        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 4v12"/><path d="m6 11 6 6 6-6"/><path d="M5 20h14"/></svg>
+    </a>
+    <p class="gb-kart-ust-etiket">Epikriz &middot; doktor bazında &middot; @Model.PeriodFromDate.ToString("dd.MM") &ndash; @Model.PeriodToDate.ToString("dd.MM.yyyy")</p>
+    <h2 id="gb-epikriz-baslik" class="gb-kart-baslik">Epikrizi eksik kalan protokoller, sorumlu doktora göre</h2>
+    <p class="gb-kart-acik">
+        Dönemde epikrizi gönderilmeye çalışılan protokoller; doktor, protokolün sorumlu doktoru.
+        <b>Eksik</b> çoğunlukla epikriz metninin boş olması &mdash; doktor yazınca kendiliğinden gider.
+        En çok sorunlu olan üstte.
+    </p>
+    @if (o.EpikrizDoktorlari.Count == 0)
+    {
+        <p class="text-muted" style="margin-top:14px;">Seçili dönemde epikriz gönderimi yok.</p>
+    }
+    else
+    {
+        <div class="table-wrap" style="margin-top:14px;">
+            <table class="gb-epikriz">
+                <thead>
+                    <tr>
+                        <th scope="col">Doktor</th>
+                        <th scope="col">Bölüm</th>
+                        <th scope="col" class="sag">Protokol</th>
+                        <th scope="col" class="sag">Gönderildi</th>
+                        <th scope="col" class="sag">Eksik</th>
+                        <th scope="col" class="sag">Hatalı</th>
+                        <th scope="col" style="width:26%;">Başarı</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var d in o.EpikrizDoktorlari.Take(12))
+                    {
+                        <tr>
+                            <td style="font-weight:600;">@d.Doktor</td>
+                            <td class="text-muted">@d.Bolum</td>
+                            <td class="num sag">@d.Protokol.ToString("N0")</td>
+                            <td class="num sag" style="color:var(--akis-ok);">@d.Gonderildi.ToString("N0")</td>
+                            <td class="num sag" style="color:var(--akis-eksik);">@(d.Eksik > 0 ? d.Eksik.ToString("N0") : "–")</td>
+                            <td class="num sag" style="color:var(--akis-hata);">@(d.Hatali > 0 ? d.Hatali.ToString("N0") : "–")</td>
+                            <td>
+                                <span class="gb-epikriz-oran">
+                                    <span class="gb-kalan-cubuk"><span style="width:@d.BasariYuzde.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)%; background:@(d.BasariYuzde >= 90 ? "var(--akis-ok)" : d.BasariYuzde >= 60 ? "var(--akis-eksik)" : "var(--akis-hata)");"></span></span>
+                                    <span class="num">%@d.BasariYuzde.ToString("0.0")</span>
+                                </span>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+        @if (o.EpikrizDoktorlari.Count > 12)
+        {
+            <p class="gb-kart-dip">Ekranda ilk 12 doktor; tüm @o.EpikrizDoktorlari.Count doktor ve sorunlu protokol numaraları Excel dosyasında.</p>
+        }
+    }
+</section>
+
 @* ======================= SEBEPLER -- ESIT IKI SUTUN =======================
    ESKI HAL HAM MESAJA GORE GRUPLUYORDU. Mesaj panel adini ve tarihini de tasidigi icin
    ayni sebep onlarca satira boluniyordu -- "Idrar Mikroskopisi (01.08.2026)",
