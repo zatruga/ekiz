@@ -2024,6 +2024,9 @@ a.gb-sebep.danger:hover { background: var(--danger-soft); }
 .gb-sebep-ad { font-size: 12.5px; font-weight: 600; color: var(--text); }
 .gb-sebep-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.45; }
 .gb-sebep-alt { font-size: 11px; color: var(--text-faint); font-family: var(--font-heading); margin-top: 2px; }
+.gb-sebep-turler { display: flex; flex-wrap: wrap; gap: 4px 10px; margin-top: 4px; }
+.gb-sebep-tur { display: inline-flex; align-items: center; gap: 5px; font-size: 11.5px; color: var(--text-muted); }
+.gb-sebep-tur .badge { font-size: 10.5px; padding: 1px 7px; }
 
 /* ==== GENEL BAKIS -- "A · HAT" + B'NIN UST DURUM ALANI (2026-10-24) ====
    Tasarim tuvali: claude.ai/artifact/W63qzv4iEc8aGfj1SiSGvC. Sayilar es genislikli

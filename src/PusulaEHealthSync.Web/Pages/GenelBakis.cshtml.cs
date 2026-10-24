@@ -216,7 +216,11 @@ public class GenelBakisModel(
 
     // Sebep kutucugu. HAM MESAJ DEGIL KATEGORI -- ham mesaj panel adi/tarih tasidigi icin
     // ayni sebebi onlarca parcaya boluyordu (bkz. dosya basindaki not 2).
-    public record SebepSatiri(string Kategori, string Aciklama, int Protokol, int Kayit, int Satir);
+    // Turler: sebebin HANGI KAYIT TURLERINDEN geldigi, tur basina kayit sayisiyla
+    // (2026-10-24, kullanici: "burada hangi veri turunun oldugunu da belirtelim").
+    // "Gonderilecek metin yok" tek basina epikriz mi patoloji mi belli etmiyordu.
+    public record SebepSatiri(string Kategori, string Aciklama, int Protokol, int Kayit, int Satir,
+                              List<(string ResourceType, string Etiket, int Kayit)> Turler);
 
     public record HataSatiri(long SonId, int? ProtokolId, string HastaAdi, string TurEtiketi,
                              string HamMesaj, string AnlasilirMesaj, int Kayit, DateOnly Gun);
@@ -701,7 +705,11 @@ public class GenelBakisModel(
             g.Key.Label, g.Key.Description,
             g.Where(k => k.ProtokolId is not null).Select(k => k.ProtokolId!.Value).Distinct().Count(),
             g.Select(k => (k.ResourceType, k.PusulaId)).Distinct().Count(),
-            g.Sum(k => k.Satir)))
+            g.Sum(k => k.Satir),
+            g.GroupBy(k => k.ResourceType)
+             .Select(t => (t.Key, SyncLogEntry.ResourceTypeLabel(t.Key), t.Select(k => k.PusulaId).Distinct().Count()))
+             .OrderByDescending(t => t.Item3)
+             .ToList()))
         .OrderByDescending(s => s.Kayit)
         .ToList();
 

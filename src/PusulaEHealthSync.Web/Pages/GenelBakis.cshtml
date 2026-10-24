@@ -597,6 +597,12 @@ else if (!Model.AktifOrtamCanli)
                     <span class="gb-sebep-metin">
                         <span class="gb-sebep-ad">@s.Kategori</span>
                         <span class="gb-sebep-desc">@s.Aciklama</span>
+                        <span class="gb-sebep-turler">
+                            @foreach (var tr in s.Turler)
+                            {
+                                <span class="gb-sebep-tur"><span class="badge @PusulaEHealthSync.Persistence.SyncLogEntry.ResourceTypeCssClass(tr.ResourceType)">@tr.Etiket</span> <span class="num">@tr.Kayit.ToString("N0")</span></span>
+                            }
+                        </span>
                         <span class="gb-sebep-alt">@birim(s.Kayit, s.Satir)</span>
                     </span>
                 </a>
@@ -623,6 +629,12 @@ else if (!Model.AktifOrtamCanli)
                     <span class="gb-sebep-metin">
                         <span class="gb-sebep-ad">@s.Kategori</span>
                         <span class="gb-sebep-desc">@s.Aciklama</span>
+                        <span class="gb-sebep-turler">
+                            @foreach (var tr in s.Turler)
+                            {
+                                <span class="gb-sebep-tur"><span class="badge @PusulaEHealthSync.Persistence.SyncLogEntry.ResourceTypeCssClass(tr.ResourceType)">@tr.Etiket</span> <span class="num">@tr.Kayit.ToString("N0")</span></span>
+                            }
+                        </span>
                         <span class="gb-sebep-alt">@birim(s.Kayit, s.Satir)</span>
                     </span>
                 </a>
