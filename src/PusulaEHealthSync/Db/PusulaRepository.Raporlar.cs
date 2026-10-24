@@ -60,7 +60,16 @@ public partial class PusulaRepository
                 SELECT TOP 1 t.Id AS TestId, t.HizmetId
                 FROM LIS.Test t
                 WHERE t.LoincKodu = s.LoincKodu
-                ORDER BY CASE WHEN t.State <> 0 THEN 0 ELSE 1 END, t.Id DESC
+                -- GONDERIMLE AYNI SECIM (bkz. GetLabResultsByProtokolIdAsync, 2026-10-24
+                -- idrar mikroskopisi duzeltmesi) -- rapor ile gonderim ayni testi secmeli.
+                ORDER BY CASE WHEN t.State <> 0 THEN 0 ELSE 1 END,
+                         CASE WHEN EXISTS (SELECT 1 FROM LIS.TestParametre tpx
+                                           INNER JOIN LIS.Test px ON px.Id = tpx.TestId
+                                           WHERE tpx.AltTestId = t.Id AND tpx.State <> 0 AND px.State <> 0) THEN 0
+                              WHEN EXISTS (SELECT 1 FROM LIS.TestParametre tpy
+                                           WHERE tpy.AltTestId = t.Id AND tpy.State <> 0) THEN 2
+                              ELSE 1 END,
+                         t.Id DESC
             ) t
             LEFT JOIN Ortak.Hizmet oh ON oh.Id = t.HizmetId
             OUTER APPLY (
@@ -75,7 +84,7 @@ public partial class PusulaRepository
                 FROM LIS.TestParametre tp
                 INNER JOIN LIS.Test parentTest ON parentTest.Id = tp.TestId
                 WHERE tp.AltTestId = t.TestId AND tp.State <> 0
-                ORDER BY tp.Sira
+                ORDER BY CASE WHEN parentTest.State <> 0 THEN 0 ELSE 1 END, tp.Sira
             ) panel
             OUTER APPLY (
                 SELECT TOP 1 PKH2.Kodu FROM Ortak.HizmetKurumHizmet OHKH2

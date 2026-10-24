@@ -115,7 +115,7 @@ public static partial class LabResultObservationMapper
             var bilesenler = new JsonArray();
             foreach (var alt in grup.Bilesenler)
             {
-                if (Bos(alt.TetkikSonucu) || Bos(alt.LoincKodu)) continue;
+                if (!GonderilebilirBilesen(alt)) continue;
 
                 var c = new JsonObject { ["code"] = Kodlama(alt.LoincKodu!, alt.TetkikAdi ?? alt.LoincKodu!, loincEslestirme) };
                 Deger(c, alt);
@@ -241,4 +241,13 @@ public static partial class LabResultObservationMapper
     }
 
     private static bool Bos(string? s) => string.IsNullOrWhiteSpace(s);
+
+    // Bir alt parametre component olarak GIDEBILIR mi -- degeri ve LOINC'i dolu olmali.
+    // Disariya acik: "bu panel daha az parametreyle mi gonderildi" karsilastirmasi
+    // (ProtocolFullSyncService) AYNI kurali kullanmali, yoksa bos parametreler panelin her
+    // turda yeniden gonderilmesine yol acardi.
+    public static bool GonderilebilirBilesen(LabResultRecord alt) => !Bos(alt.TetkikSonucu) && !Bos(alt.LoincKodu);
+
+    public static int GonderilebilirBilesenSayisi(LabGroupBuilder.LabGrup grup) =>
+        grup.Panelli ? grup.Bilesenler.Count(GonderilebilirBilesen) : 0;
 }

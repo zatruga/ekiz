@@ -173,6 +173,19 @@ public class ProtocolFullSyncService(
     private static bool BasariylaGonderildi(SyncLogEntry? durum) =>
         durum is { Status: SyncStatus.Success } && durum.Operation != SyncOperation.Delete;
 
+    // Son basarili gonderimin govdesindeki component sayisi. Govde okunamazsa int.MaxValue:
+    // emin olamadigimiz durumda yeniden gondermek yerine eski davranis (atla) korunur.
+    private static int GonderilenBilesenSayisi(SyncLogEntry durum)
+    {
+        if (string.IsNullOrEmpty(durum.RequestJson)) return int.MaxValue;
+        try
+        {
+            return System.Text.Json.Nodes.JsonNode.Parse(durum.RequestJson)?["component"] is System.Text.Json.Nodes.JsonArray dizi
+                ? dizi.Count : 0;
+        }
+        catch (System.Text.Json.JsonException) { return int.MaxValue; }
+    }
+
     // Son kaydi bu SyncAllAsync cagrisi icinde (Encounter cascade'inde) yazildiysa kayit
     // bu turda zaten denendi -- sonuc ne olursa olsun ikinci kez gonderilmez.
     private static bool BuTurdaDenendi(SyncLogEntry? durum, DateTime turBaslangicUtc) =>
@@ -210,7 +223,17 @@ public class ProtocolFullSyncService(
         int n = 0;
         foreach (var grup in gruplar)
         {
-            if (BasariylaGonderildi(durumlar.GetValueOrDefault(grup.AnahtarId))) continue;
+            var durum = durumlar.GetValueOrDefault(grup.AnahtarId);
+            // EKSIK GONDERILMIS PANEL YENIDEN GIDER (2026-10-24). Panel basariyla gitmis olsa
+            // bile, gonderilen govdedeki component sayisi bugun gonderilebilecek parametre
+            // sayisindan AZSA panel tekrar gonderilir (ayni kayit, Update). Iki durum:
+            //   - idrar mikroskopisi duzeltmesi: tek tahlil iki gruba bolunuyordu, canlida
+            //     yedi parametreyle giden "İdrar Tetkiki" kayitlari kalan 13'u almali;
+            //   - panelin bazi parametreleri sonradan onaylanir (ilk gonderimde yoktular).
+            // Esitse ya da fazlaysa atlanir -- gereksiz yeniden gonderim yok.
+            if (BasariylaGonderildi(durum)
+                && LabResultObservationMapper.GonderilebilirBilesenSayisi(grup) <= GonderilenBilesenSayisi(durum!))
+                continue;
             var r = await labResultSyncService.SyncGroupAsync(grup, protokol, azPatientId, azEncounterId, liveMode: true, ct);
             if (r.Status == SyncStatus.Success) n++;
         }

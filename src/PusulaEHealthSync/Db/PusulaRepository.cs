@@ -412,7 +412,23 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
                 SELECT TOP 1 t.Id AS TestId, t.HizmetId
                 FROM LIS.Test t
                 WHERE t.LoincKodu = lab.LoincKodu
-                ORDER BY CASE WHEN t.State <> 0 THEN 0 ELSE 1 END, t.Id DESC
+                ORDER BY CASE WHEN t.State <> 0 THEN 0 ELSE 1 END,
+                         -- AKTIF BIR PANELIN ALTINDAKI KOPYA ONCE (2026-10-24, kullanici: idrar
+                         -- mikroskopisini inceler misin, neden gonderemiyoruz). Idrar
+                         -- parametrelerinin her biri Pusula'da IKI aktif testte tanimli: aktif
+                         -- İdrar Tetkiki (583, hizmet Tam sidik analizi -> Icbari 2.4.30.)
+                         -- ve PASIF, hizmetsiz İdrar Mikroskopisi (907) altinda. Eski sira
+                         -- (aktif, sonra en yeni Id) 20 parametrenin 13'unu 907'ye dusuruyordu:
+                         -- tek tahlil iki gruba bolunuyor, mikroskopi grubu Icbari kodu
+                         -- bulunamadigi icin hic gitmiyordu. Yalnizca pasif bir panelin altinda
+                         -- olan kopya en sona (2) -- paneli hic olmayan bagimsiz test (1) ondan once.
+                         CASE WHEN EXISTS (SELECT 1 FROM LIS.TestParametre tpx
+                                           INNER JOIN LIS.Test px ON px.Id = tpx.TestId
+                                           WHERE tpx.AltTestId = t.Id AND tpx.State <> 0 AND px.State <> 0) THEN 0
+                              WHEN EXISTS (SELECT 1 FROM LIS.TestParametre tpy
+                                           WHERE tpy.AltTestId = t.Id AND tpy.State <> 0) THEN 2
+                              ELSE 1 END,
+                         t.Id DESC
             ) t
             LEFT JOIN Ortak.Hizmet oh ON oh.Id = t.HizmetId
             OUTER APPLY (
@@ -431,7 +447,7 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
                 FROM LIS.TestParametre tp
                 INNER JOIN LIS.Test parentTest ON parentTest.Id = tp.TestId
                 WHERE tp.AltTestId = t.TestId AND tp.State <> 0
-                ORDER BY tp.Sira
+                ORDER BY CASE WHEN parentTest.State <> 0 THEN 0 ELSE 1 END, tp.Sira
             ) panel
             OUTER APPLY (
                 SELECT TOP 1 PKH2.Kodu, PKH2.Adi
