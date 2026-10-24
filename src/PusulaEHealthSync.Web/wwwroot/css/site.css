@@ -2025,6 +2025,90 @@ a.gb-sebep.danger:hover { background: var(--danger-soft); }
 .gb-sebep-desc { font-size: 11.5px; color: var(--text-muted); line-height: 1.45; }
 .gb-sebep-alt { font-size: 11px; color: var(--text-faint); font-family: var(--font-heading); margin-top: 2px; }
 
+/* ==== GENEL BAKIS -- "A · HAT" + B'NIN UST DURUM ALANI (2026-10-24) ====
+   Tasarim tuvali: claude.ai/artifact/W63qzv4iEc8aGfj1SiSGvC. Sayilar es genislikli
+   (tabular) -- alt alta gelen rakamlar hizali okunsun. Durum renkleri Aktivite
+   Akisi'nin olculmus paletinden (--akis-*); yeni renk eklenmedi. */
+.num { font-family: var(--font-heading); font-variant-numeric: tabular-nums; }
+
+.gb-ust { display: flex; flex-wrap: wrap; align-items: flex-end; justify-content: space-between; gap: 16px 28px; margin-bottom: 18px; }
+.gb-ust-ust { margin: 0 0 6px; font-family: var(--font-heading); font-size: 11px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--text-muted); }
+
+/* Ust durum alani -- Aktivite seridiyle ayni koyu zemin, iki temada da koyu. */
+.gb-hukum {
+  background: var(--akis-serit-zemin); color: #F6F7F9;
+  border: 1px solid var(--border); border-radius: 10px;
+  padding: 22px 26px 18px; margin-bottom: 18px;
+}
+.gb-hukum--hata { border: 2px solid #FF6B76; }
+.gb-hukum a { color: #9CC8F0; }
+.gb-hukum-ust { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 18px 36px; }
+.gb-hukum-sol { flex: 1 1 480px; min-width: 0; }
+.gb-hukum-etiket { margin: 0 0 8px; font-family: var(--font-heading); font-size: 10.5px; letter-spacing: 0.16em; text-transform: uppercase; color: #A3ACB9; }
+.gb-hukum-baslik { color: #F6F7F9; margin: 0; display: flex; align-items: center; gap: 14px; font-size: 30px; font-weight: 700; letter-spacing: -0.01em; line-height: 1.1; }
+.gb-hukum-nokta { width: 12px; height: 12px; border-radius: 50%; flex: none; background: #8A929E; }
+.gb-hukum--ok .gb-hukum-nokta { background: #35C98E; animation: akis-nabiz 2s infinite; }
+.gb-hukum--eksik .gb-hukum-nokta { background: #E0A526; }
+.gb-hukum--hata .gb-hukum-nokta { background: #FF6B76; }
+.gb-hukum-cumle { margin: 10px 0 0; font-size: 14px; line-height: 1.6; color: #C9D0D9; max-width: 680px; }
+.gb-hukum-cumle .num { color: #F6F7F9; }
+.gb-hukum-vurgu { color: #F2C14E !important; }
+.gb-hukum-sayilar { display: flex; flex-wrap: wrap; gap: 28px; margin: 0; }
+.gb-hukum-sayilar dt { font-family: var(--font-heading); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: #A3ACB9; margin-bottom: 6px; }
+.gb-hukum-sayilar dd { margin: 0; font-size: 24px; font-weight: 600; color: #F6F7F9; }
+.gb-hukum-sayilar small { font-size: 12px; color: #A3ACB9; font-weight: 400; }
+.gb-hukum-saatler { margin-top: 18px; padding-top: 14px; border-top: 1px solid rgba(255, 255, 255, 0.10); }
+.gb-saat-cubuklar { display: flex; align-items: flex-end; gap: 5px; height: 48px; }
+.gb-saat { flex: 1; min-width: 0; background: #3D6B8A; border-radius: 2px 2px 0 0; }
+.gb-saat--hata { background: #FF6B76; }
+.gb-saat-etiketler { display: flex; justify-content: space-between; gap: 12px; margin-top: 7px; font-size: 10.5px; color: #8A929E; }
+.gb-saat-hata-not { color: #FF8A93; }
+
+/* Hat -- dort durak. */
+.gb-hat { padding: 26px 28px 22px; margin-bottom: 18px; }
+.gb-hat-bas { display: flex; flex-wrap: wrap; align-items: baseline; justify-content: space-between; gap: 6px 24px; margin-bottom: 22px; }
+.gb-kart-baslik { margin: 0; font-size: 16px; font-weight: 700; letter-spacing: -0.01em; color: var(--text); }
+.gb-kart-acik { margin: 6px 0 0; font-size: 12.5px; line-height: 1.6; color: var(--text-muted); max-width: 620px; }
+.gb-kart-ust-etiket { margin: 0 0 6px; font-family: var(--font-heading); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
+.gb-duraklar { list-style: none; margin: 0; padding: 0; display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 24px; }
+.gb-duraklar li { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+.gb-durak-ad { font-family: var(--font-heading); font-size: 10.5px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--text-muted); }
+.gb-durak-sayi { font-size: 34px; font-weight: 700; line-height: 1; letter-spacing: -0.02em; color: var(--text); }
+.gb-durak-sayi--son { color: var(--akis-ok); }
+.gb-durak-cubuk { display: block; height: 6px; background: var(--surface-hover); border-radius: 3px; overflow: hidden; }
+.gb-durak-cubuk > span { display: block; height: 100%; background: var(--primary); border-radius: 3px; }
+.gb-durak-cubuk--son > span { background: var(--akis-ok); }
+.gb-durak-not { font-size: 12px; line-height: 1.55; color: var(--text-muted); }
+.gb-eksi-uyari { font-family: var(--font-heading); color: var(--akis-eksik); font-weight: 600; }
+.gb-eksi-hata { font-family: var(--font-heading); color: var(--akis-hata); font-weight: 600; }
+.gb-hat-alt { margin: 22px 0 0; padding-top: 14px; border-top: 1px solid var(--border); font-size: 12px; line-height: 1.6; color: var(--text-muted); }
+
+/* Iki ayri soru. */
+.gb-dort { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 16px; margin-top: 18px; }
+.gb-dort-hucre { display: flex; flex-direction: column; gap: 4px; text-decoration: none; border-radius: 6px; padding: 6px; margin: -6px; }
+.gb-dort-hucre:hover { background: var(--surface-hover); }
+.gb-dort-sayi { font-size: 26px; font-weight: 700; line-height: 1.1; color: var(--text); }
+.gb-dort-sayi.success { color: var(--akis-ok); }
+.gb-dort-sayi.warning { color: var(--akis-eksik); }
+.gb-dort-sayi.danger { color: var(--akis-hata); }
+.gb-dort-ad { font-size: 12px; color: var(--text-muted); }
+.gb-kart-dip { margin: 18px 0 0; padding-top: 12px; border-top: 1px solid var(--border); font-size: 11.5px; line-height: 1.6; color: var(--text-muted); }
+.gb-kalan { display: flex; flex-direction: column; gap: 4px; margin-top: 16px; }
+.gb-kalan-satir { display: grid; grid-template-columns: minmax(96px, 150px) 1fr auto; align-items: center; gap: 14px; padding: 5px 0; text-decoration: none; color: var(--text); font-size: 13px; }
+.gb-kalan-satir:hover { color: var(--primary); }
+.gb-kalan-cubuk { display: block; height: 8px; background: var(--surface-hover); border-radius: 4px; overflow: hidden; }
+.gb-kalan-cubuk > span { display: block; height: 100%; background: var(--primary); border-radius: 4px; }
+.gb-kalan-sayi { font-weight: 600; text-align: right; min-width: 56px; }
+
+@media (max-width: 1100px) {
+  .gb-duraklar { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}
+@media (max-width: 640px) {
+  .gb-duraklar, .gb-dort { grid-template-columns: 1fr 1fr; }
+  .gb-hukum { padding: 18px 16px 14px; }
+  .gb-hukum-baslik { font-size: 22px; }
+}
+
 /* ==== AKTIVITE AKISI -- "D" TASARIMI (2026-10-21) ====
    Onaylanan yon: canli serit + baslik/filtre + suzgec ozeti + protokol listesi, her
    satirda gonderim zinciri rozetleri.

@@ -43,9 +43,33 @@ public class GenelBakisModel(
     SyncLogStore syncLog,
     ProtokolDurumService protokolDurum,
     PendingWorkService pendingWork,
+    SettingsStore settings,
     IMemoryCache onbellek,
     ILogger<GenelBakisModel> logger) : PageModel
 {
+    // ===================== UST DURUM ALANI (2026-10-24, "A + B'nin ust seridi") =====================
+    //
+    // KULLANICI: tasarim tuvalindeki A yonu ("Hat") secildi, ustune B'deki gonderim durum
+    // alani eklenecek. Veri Aktivite Akisi seridiyle AYNI okumadan (CanliSerit.OkuAsync) --
+    // iki ekran "gonderim calisiyor mu" sorusuna farkli cevap veremez. ONBELLEGE ALINMIYOR:
+    // "su an" iki dakika bayat olamaz.
+    public CanliSerit Serit { get; private set; } = CanliSerit.Bos;
+
+    // Son 12 saat, saat basina dokunulan / hata alan protokol -- eksik saatler 0 ile dolu.
+    public List<SyncLogStore.SaatOzeti> Saatler { get; private set; } = [];
+    public int SaatMaks => Saatler.Count == 0 ? 0 : Saatler.Max(s => s.Protokol);
+    public int Son12SaatProtokol => Saatler.Sum(s => s.Protokol);
+
+    // Hat'in 2. duragi (tarama) AKTIF ortamin gunlugune bakiyor. Ortam canli degilse hat
+    // sandbox'i anlatirdi -- sayfa yalnizca canliyi gosterdigi icin o durumda gizleniyor.
+    public bool AktifOrtamCanli => Serit.Canli;
+
+    // "Geriye ne kaldi" karti: bekleyen kalemler turune gore (Bekleyen Isler ile ayni nesne).
+    public List<KeyValuePair<string, int>> BekleyenTurler { get; private set; } = [];
+
+    // Hat'in 1. duragi -- null: Pusula'ya erisilemedi ya da tarama henuz yok.
+    public int? TaramaAraligindaAcilan { get; private set; }
+
     // Trend penceresi. Donem bundan uzunsa pencere donemle ayni olur -- boylece TEK
     // protokol cozumu hem donem toplamlarini hem gunluk grafigi besliyor.
     private const int TrendGun = 14;
@@ -232,6 +256,38 @@ public class GenelBakisModel(
         KapsamZamaniUtc = pendingWork.SonHesaplamaUtc;
         KapsamBaslangic = pendingWork.SonTaramaBaslangici;
         KapsamBitis = pendingWork.SonTaramaBitisi;
+        BekleyenTurler = pendingWork.SonSonuc?.OzetSayimlar
+            .Where(kv => kv.Value > 0).OrderByDescending(kv => kv.Value).ToList() ?? [];
+
+        // HAT'IN 1. DURAGI: taramanin araliginda Pusula'da acilan protokol. Ayni aralik --
+        // donemin degil -- yoksa ilk durak ile ikincisi farkli kumeleri anlatirdi.
+        if (KapsamBaslangic is { } kb && KapsamBitis is { } kbit)
+        {
+            try
+            {
+                TaramaAraligindaAcilan = await onbellek.GetOrCreateAsync(
+                    $"genelbakis-acilan|{kb:O}|{kbit:O}", async giris =>
+                    {
+                        giris.AbsoluteExpirationRelativeToNow = OnbellekOmru;
+                        return (await pusulaRepository.GetProtokolListAsync(kb, kbit, null, ct)).Count;
+                    });
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Genel Bakis: tarama araligindaki acilan protokol sayisi okunamadi.");
+            }
+        }
+
+        Serit = await CanliSerit.OkuAsync(settings, ct);
+        var simdiSaat = DateTime.UtcNow;
+        simdiSaat = new DateTime(simdiSaat.Year, simdiSaat.Month, simdiSaat.Day, simdiSaat.Hour, 0, 0, DateTimeKind.Utc);
+        var ilkSaat = simdiSaat.AddHours(-11);
+        var saatlik = (await syncLog.GetSaatlikProtokolSayilariAsync(ilkSaat, "Live", ct))
+            .ToDictionary(s => s.SaatUtc);
+        Saatler = Enumerable.Range(0, 12)
+            .Select(i => ilkSaat.AddHours(i))
+            .Select(h => saatlik.GetValueOrDefault(h) ?? new SyncLogStore.SaatOzeti(h, 0, 0))
+            .ToList();
 
         var anahtar = $"genelbakis|{Donem}|{today:yyyy-MM-dd}";
         Ozet = await onbellek.GetOrCreateAsync(anahtar, async giris =>
@@ -273,7 +329,10 @@ public class GenelBakisModel(
         var donemBitUtc = AzTime.ToUtc(donemBitYerelHaric);
 
         // ---- 2) PROTOKOL BAZLI OZET (pencerenin tamami) ----
-        var pencere = await protokolDurum.HesaplaAsync(pencereBasUtc, donemBitUtc, ct);
+        // YALNIZCA CANLI (2026-10-24, kullanici karari: "dashboard ekrani sadece canli
+        // gonderimler uzerinden hesaplamalari yapsin, sandbox icin bir veri gosterme").
+        // Sandbox gecmisine bakmak isteyen Aktivite Akisi'ndaki ortam seciciyi kullanir.
+        var pencere = await protokolDurum.HesaplaAsync(pencereBasUtc, donemBitUtc, ct, "Live");
 
         // ---- 3) DONEME DUSEN KAYITLAR ----
         // Pencere donemden uzun olabilir; donem kartlari yalnizca donemin gunlerini sayar.
@@ -480,7 +539,8 @@ public class GenelBakisModel(
                 donemBasYerel, donemBitYerelHaric, ct);
             icbariIslem = icbari.Count;
             var durumlar = await syncLog.GetLatestByPusulaIdsAsync(
-                "Procedure", icbari.Select(i => i.IslemId).ToList(), ct);
+                "Procedure", icbari.Select(i => i.IslemId).ToList(), ct,
+                govdeleriGetir: false, ortamZorla: "Live");
             icbariGonderilen = icbari.Count(i => durumlar.GetValueOrDefault(i.IslemId) is { Status: SyncStatus.Success });
             icbariListe = icbari
                 .Where(i => durumlar.GetValueOrDefault(i.IslemId) is not { Status: SyncStatus.Success })

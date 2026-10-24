@@ -444,9 +444,10 @@ public class SyncLogStore
     // (true) kullanmali.
     public async Task<Dictionary<int, SyncLogEntry>> GetLatestByPusulaIdsAsync(
         string resourceType, IReadOnlyCollection<int> pusulaIds, CancellationToken ct = default,
-        bool govdeleriGetir = true)
+        bool govdeleriGetir = true, string? ortamZorla = null)
     {
-        var ortam = await OrtamAsync(ct);
+        // ortamZorla: aktif ortamdan bagimsiz sabit bir ortam (Genel Bakis yalnizca canli).
+        var ortam = ortamZorla ?? await OrtamAsync(ct);
         var result = new Dictionary<int, SyncLogEntry>();
         if (pusulaIds.Count == 0) return result;
 
@@ -796,12 +797,48 @@ public class SyncLogStore
     public record KayitGunOzeti(long SonId, string ResourceType, int PusulaId, DateOnly Gun,
                                 SyncStatus Durum, int SatirSayisi, string? Mesaj);
 
-    public async Task<List<KayitGunOzeti>> GetKayitGunOzetleriAsync(
-        DateTime fromUtc, DateTime toUtcExclusive, int tavan, CancellationToken ct = default)
+    // SAATLIK PROTOKOL SAYISI (2026-10-24, Genel Bakis ust durum alani -- "son 12 saat").
+    // Birim protokol: o saatte en az bir kalemine dokunulan farkli protokol, ve bunlardan
+    // en az bir kalemi hata alan. Tur gecmisi ayrica saklanmadigi icin gonderimin ritmini
+    // gunlugun kendisi gosteriyor; CreatedAtUtc indeksli, pencere kucuk.
+    public record SaatOzeti(DateTime SaatUtc, int Protokol, int HataliProtokol);
+
+    public async Task<List<SaatOzeti>> GetSaatlikProtokolSayilariAsync(
+        DateTime fromUtc, string ortam, CancellationToken ct = default)
     {
         using var conn = new SqliteConnection(_connectionString);
         await conn.OpenAsync(ct);
         using var cmd = conn.CreateCommand();
+        cmd.CommandText = @"
+            SELECT substr(CreatedAtUtc, 1, 13) AS Saat,
+                   COUNT(DISTINCT ProtokolId),
+                   COUNT(DISTINCT CASE WHEN Status = 'Failed' THEN ProtokolId END)
+            FROM SyncLog
+            WHERE CreatedAtUtc >= $from AND Ortam = $ortam
+              AND ProtokolId IS NOT NULL AND ProtokolId <> $cozulemedi
+              AND (Operation IS NULL OR Operation NOT IN ('Delete', 'Validate'))
+            GROUP BY Saat";
+        cmd.Parameters.AddWithValue("$from", fromUtc.ToString("O"));
+        cmd.Parameters.AddWithValue("$ortam", ortam);
+        cmd.Parameters.AddWithValue("$cozulemedi", ProtokolCozulemedi);
+
+        var sonuc = new List<SaatOzeti>();
+        using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            if (DateTime.TryParseExact(reader.GetString(0), "yyyy-MM-ddTHH", CultureInfo.InvariantCulture,
+                    DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal, out var saat))
+                sonuc.Add(new SaatOzeti(saat, reader.GetInt32(1), reader.GetInt32(2)));
+        return sonuc;
+    }
+
+    public async Task<List<KayitGunOzeti>> GetKayitGunOzetleriAsync(
+        DateTime fromUtc, DateTime toUtcExclusive, int tavan, CancellationToken ct = default,
+        string? ortam = null)
+    {
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+        using var cmd = conn.CreateCommand();
+        cmd.Parameters.AddWithValue("$ortam", (object?)ortam ?? DBNull.Value);
         // Gun siniri YEREL (Baki) -- UTC'ye gore gruplamak gece nobetinde (00:00-04:00)
         // yapilan gonderimleri bir onceki gune dusururdu. Bu hata bu projede gunluk
         // trend grafiginde bir kez yasandi (bkz. AzTime).
@@ -817,6 +854,7 @@ public class SyncLogStore
             FROM SyncLog
             WHERE CreatedAtUtc >= $from AND CreatedAtUtc < $to
               AND (Operation IS NULL OR Operation NOT IN ('Delete', 'Validate'))
+              AND ($ortam IS NULL OR Ortam = $ortam)
             GROUP BY ResourceType, PusulaId, Gun
             ORDER BY MAX(Id) DESC
             LIMIT $tavan";

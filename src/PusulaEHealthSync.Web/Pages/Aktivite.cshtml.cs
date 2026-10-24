@@ -576,26 +576,7 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
     // Yalnizca AYAR okuyor -- dongunun kendisine dokunmuyor. Degerleri AutoSyncWorker
     // yaziyor (bkz. SettingsStore.AutoSendTurHedefKey). Sayfa acikken serit 15 saniyede
     // bir kendini tazeliyor (OnGetSeritAsync), sayfanin geri kalani degil.
-    private async Task<CanliSerit> SeritOkuAsync(CancellationToken ct)
-    {
-        static DateTime? Zaman(string s) => DateTime.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
-            System.Globalization.DateTimeStyles.RoundtripKind, out var t) ? t : null;
-
-        return new CanliSerit(
-            Acik: await settings.GetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, false, ct),
-            TurNo: await settings.GetIntAsync(SettingsStore.AutoSendTurNoKey, 0, ct),
-            Hedef: await settings.GetIntAsync(SettingsStore.AutoSendTurHedefKey, 0, ct),
-            Islenen: await settings.GetIntAsync(SettingsStore.AutoSendTurIslenenKey, 0, ct),
-            Bekleyen: await settings.GetIntAsync(SettingsStore.AutoSendTurBekleyenKey, 0, ct),
-            SonrakiTurUtc: Zaman(await settings.GetStringAsync(SettingsStore.AutoSendNextRunUtcKey, "", ct)),
-            SonTurUtc: Zaman(await settings.GetStringAsync(SettingsStore.AutoSendLastRunUtcKey, "", ct)),
-            SonTurOzet: await settings.GetStringAsync(SettingsStore.AutoSendLastRunOzetKey, "", ct),
-            Canli: await settings.GetStringAsync(SettingsStore.EHealthEnvironmentKey,
-                SettingsStore.EHealthEnvironmentDefault, ct) == "Live",
-            NabizUtc: Zaman(await settings.GetStringAsync(SettingsStore.AutoSendNabizUtcKey, "", ct)),
-            AralikDakika: await settings.GetIntAsync(SettingsStore.AutoSendIntervalMinutesKey,
-                SettingsStore.AutoSendIntervalMinutesDefault, ct));
-    }
+    private Task<CanliSerit> SeritOkuAsync(CancellationToken ct) => CanliSerit.OkuAsync(settings, ct);
 
     // Seridin kendini tazelemesi: yalnizca serit parcasini dondurur.
     public async Task<IActionResult> OnGetSeritAsync(CancellationToken ct) =>
@@ -1026,6 +1007,28 @@ public record CanliSerit(bool Acik, int TurNo, int Hedef, int Islenen, int Bekle
     DateTime? NabizUtc, int AralikDakika)
 {
     public static readonly CanliSerit Bos = new(false, 0, 0, 0, 0, null, null, "", false, null, 5);
+
+    // Iki sayfanin ortak okumasi: Aktivite Akisi seridi ve Genel Bakis'in ust durum alani.
+    public static async Task<CanliSerit> OkuAsync(SettingsStore settings, CancellationToken ct)
+    {
+        static DateTime? Zaman(string s) => DateTime.TryParse(s, System.Globalization.CultureInfo.InvariantCulture,
+            System.Globalization.DateTimeStyles.RoundtripKind, out var t) ? t : null;
+
+        return new CanliSerit(
+            Acik: await settings.GetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, false, ct),
+            TurNo: await settings.GetIntAsync(SettingsStore.AutoSendTurNoKey, 0, ct),
+            Hedef: await settings.GetIntAsync(SettingsStore.AutoSendTurHedefKey, 0, ct),
+            Islenen: await settings.GetIntAsync(SettingsStore.AutoSendTurIslenenKey, 0, ct),
+            Bekleyen: await settings.GetIntAsync(SettingsStore.AutoSendTurBekleyenKey, 0, ct),
+            SonrakiTurUtc: Zaman(await settings.GetStringAsync(SettingsStore.AutoSendNextRunUtcKey, "", ct)),
+            SonTurUtc: Zaman(await settings.GetStringAsync(SettingsStore.AutoSendLastRunUtcKey, "", ct)),
+            SonTurOzet: await settings.GetStringAsync(SettingsStore.AutoSendLastRunOzetKey, "", ct),
+            Canli: await settings.GetStringAsync(SettingsStore.EHealthEnvironmentKey,
+                SettingsStore.EHealthEnvironmentDefault, ct) == "Live",
+            NabizUtc: Zaman(await settings.GetStringAsync(SettingsStore.AutoSendNabizUtcKey, "", ct)),
+            AralikDakika: await settings.GetIntAsync(SettingsStore.AutoSendIntervalMinutesKey,
+                SettingsStore.AutoSendIntervalMinutesDefault, ct));
+    }
 
     // SERVIS YANIT VERMIYOR MU? (2026-10-23) Dongu her tur basinda ve her protokolden sonra
     // nabiz yaziyor. Kural bekciyle ORTAK (bkz. ServisDurumu.NabizBayat): seritte kirmizi

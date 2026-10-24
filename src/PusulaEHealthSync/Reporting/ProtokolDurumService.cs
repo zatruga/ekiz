@@ -35,9 +35,10 @@ public class ProtokolDurumService(
     public const int Tavan = 200_000;
 
     public async Task<ProtokolDurumOzeti> HesaplaAsync(
-        DateTime fromUtc, DateTime toUtcExclusive, CancellationToken ct = default)
+        DateTime fromUtc, DateTime toUtcExclusive, CancellationToken ct = default,
+        string? ortam = null)
     {
-        var ham = await syncLog.GetKayitGunOzetleriAsync(fromUtc, toUtcExclusive, Tavan, ct);
+        var ham = await syncLog.GetKayitGunOzetleriAsync(fromUtc, toUtcExclusive, Tavan, ct, ortam);
         if (ham.Count == 0) return ProtokolDurumOzeti.Bos;
         var kirpildi = ham.Count >= Tavan;
 
