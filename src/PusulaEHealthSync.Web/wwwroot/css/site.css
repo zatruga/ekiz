@@ -2426,3 +2426,44 @@ details.akis-satir[open] > summary .akis-grup-ok { transform: rotate(90deg); }
 .yh-gecmis ul { margin: 6px 0 0; padding-left: 18px; }
 .yh-sayfa { display: flex; gap: 8px; padding: 12px 16px; }
 @media (max-width: 640px) { .yh-kart { min-width: calc(50% - 4px); } }
+
+/* ==== GENEL BAKIS -- ESIT KARTLAR, IC KAYDIRMA, ICBARI ISTATISTIGI (2026-10-26) ==== */
+.gb-kaydir { overflow-y: auto; max-height: 480px; padding-right: 6px; overscroll-behavior: contain; }
+/* Iki kart AYNI yukseklikte; uzun liste kartin icinde kayar, kart sayfayi uzatmaz. */
+.gb-split.gb-esit { align-items: stretch; }
+/* EN FAZLA 620px: grid satiri uzun olan kartin boyunu alir (tavana kadar), iki kart da ona
+   esitlenir. Sabit yukseklik verilseydi veri azken kartlar bos dururdu. */
+.gb-esit > .card { display: flex; flex-direction: column; max-height: 620px; }
+.gb-esit .gb-kaydir { flex: 1; min-height: 0; max-height: none; }
+.gb-kaydir--tablo { max-height: 520px; border: 1px solid var(--border); border-radius: var(--radius-sm); }
+.gb-kaydir--tablo thead th { position: sticky; top: 0; background: var(--surface); z-index: 1; padding-top: 10px; }
+.gb-sirala { cursor: pointer; user-select: none; white-space: nowrap; }
+.gb-sirala:hover { color: var(--text); }
+.gb-sirala::after { content: " ↕"; opacity: .35; font-size: 10px; }
+.gb-sirala[data-yon="artan"]::after { content: " ▲"; opacity: 1; }
+.gb-sirala[data-yon="azalan"]::after { content: " ▼"; opacity: 1; }
+.gb-tablo-ara { position: absolute; top: 20px; right: 58px; width: 230px; font-size: 13px; padding: 6px 10px; }
+@media (max-width: 760px) { .gb-tablo-ara { position: static; width: 100%; margin-top: 10px; } .gb-esit > .card { height: auto; } .gb-esit .gb-kaydir { max-height: 420px; } }
+
+.gb-acilan { display: flex; align-items: baseline; gap: 10px; margin-top: 14px; padding: 10px 12px; border: 1px dashed var(--border-strong); border-radius: var(--radius-sm); text-decoration: none; color: var(--text); }
+.gb-acilan:hover { border-style: solid; border-color: var(--primary); }
+.gb-acilan-sayi { font-size: 22px; font-weight: 700; }
+.gb-acilan-metin { font-size: 13px; }
+.gb-acilan-alt { display: block; font-size: 11.5px; color: var(--primary); margin-top: 2px; }
+
+.gb-icbari-ana { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; margin-top: 16px; }
+.gb-icbari-hucre { display: flex; flex-direction: column; gap: 3px; padding: 12px 14px; border: 1px solid var(--border); border-radius: var(--radius-sm); text-decoration: none; color: var(--text); }
+.gb-icbari-hucre:hover { border-color: var(--violet); background: var(--violet-soft); }
+.gb-icbari-sayi { font-size: 30px; font-weight: 700; line-height: 1.1; }
+.gb-icbari-ad { font-size: 13px; font-weight: 600; }
+.gb-icbari-alt { font-size: 11.5px; color: var(--text-muted); }
+.gb-icbari-serit { display: flex; height: 12px; border-radius: 6px; overflow: hidden; gap: 2px; margin: 16px 0 10px; background: var(--surface-hover); }
+.gb-icbari-serit .bd-seg { height: 100%; }
+.gb-seg-bekliyor { background: var(--text-faint); }
+.gb-icbari-kirilim { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 14px; }
+.gb-icbari-kucuk { display: flex; gap: 10px; align-items: flex-start; padding: 8px 10px; border-radius: var(--radius-sm); text-decoration: none; color: var(--text); }
+.gb-icbari-kucuk:hover { background: var(--surface-hover); }
+.gb-icbari-kare { width: 10px; height: 10px; border-radius: 2px; margin-top: 7px; flex: none; }
+.gb-icbari-hizmet { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.gb-icbari .gb-kalan-satir { grid-template-columns: minmax(120px, 1.4fr) 1fr auto; }
+@media (max-width: 760px) { .gb-icbari-ana, .gb-icbari-kirilim { grid-template-columns: 1fr; } }

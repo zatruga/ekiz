@@ -71,6 +71,7 @@ public static class ServisKayitlari
         services.AddSingleton<MailSender>();
         services.AddSingleton<MailAyarlari>();
         services.AddSingleton<ProtokolDurumService>();
+        services.AddSingleton<IcbariKapsamService>();
         return services;
     }
 

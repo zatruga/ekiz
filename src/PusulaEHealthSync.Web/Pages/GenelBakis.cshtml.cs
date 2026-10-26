@@ -42,6 +42,7 @@ public class GenelBakisModel(
     PusulaRepository pusulaRepository,
     SyncLogStore syncLog,
     ProtokolDurumService protokolDurum,
+    IcbariKapsamService icbariKapsam,
     PendingWorkService pendingWork,
     SettingsStore settings,
     IMemoryCache onbellek,
@@ -172,8 +173,8 @@ public class GenelBakisModel(
         List<HataSatiri> SonHatalar,
         List<BolumSatiri> Bolumler,
 
-        int IcbariIslem, int IcbariGonderilen, double IcbariYuzde,
-        List<IcbariSatiri> IcbariGonderilmeyen,
+        // Icbari kapsami -- hesap IcbariKapsamService'te, Icbari Islemler sayfasiyla ortak.
+        IcbariKapsamService.IcbariOzeti Icbari,
 
         bool Kirpildi, bool PusulaHatasi,
 
@@ -184,7 +185,7 @@ public class GenelBakisModel(
             0, 0, 0, false, 0, true,
             0, 0, null,
             [], [], [], [], [], [],
-            0, 0, 0, [], false, false,
+            IcbariKapsamService.IcbariOzeti.Bos, false, false,
             []);
 
         public int ProtokolSorunlu => ProtokolEksik + ProtokolHatali;
@@ -230,7 +231,6 @@ public class GenelBakisModel(
 
     public record BolumSatiri(string Ad, int Protokol, int Tamam, int Eksik, int Hatali, int Pct);
 
-    public record IcbariSatiri(string HastaAdi, int ProtokolId, string HizmetAdi, string Sebep);
 
     // ===================== EPIKRIZ -- DOKTOR BAZINDA (2026-10-24) =====================
     //
@@ -355,7 +355,7 @@ public class GenelBakisModel(
         // hesaplanmasini beklemeleri icin bir sebep yok. Hatalari kendi try bloklarinda,
         // await aninda yakalaniyor -- davranis sirali haliyle ayni.
         var acilanGorevi = pusulaRepository.GetProtokolListAsync(donemBasYerel, donemBitYerelHaric, null, ct);
-        var icbariGorevi = pusulaRepository.GetIcbariIslemlerAsync(donemBasYerel, donemBitYerelHaric, ct);
+        var icbariGorevi = icbariKapsam.KalemlerAsync(donemBasYerel, donemBitYerelHaric, "Live", ct);
 
         // ---- 2) PROTOKOL BAZLI OZET (pencerenin tamami) ----
         // YALNIZCA CANLI (2026-10-24, kullanici karari: "dashboard ekrani sadece canli
@@ -499,7 +499,8 @@ public class GenelBakisModel(
                 Hatali = g.Count(x => x.Sinif == ProtokolSinifi.Hatali),
             })
             .OrderByDescending(g => g.Protokol)
-            .Take(8)
+            // TAVAN YOK (2026-10-26, kullanici: "tum bolumler listelensin, kart kendi icinde
+            // kaysin"). Kart sabit yukseklikte, liste icinde kaydiriliyor.
             .ToList();
         var enBuyukBolum = bolumler.Count == 0 ? 0 : bolumler[0].Protokol;
         var bolumSatirlari = bolumler
@@ -574,38 +575,14 @@ public class GenelBakisModel(
         }
 
         // ---- 11) ICBARI KAPSAMI ----
-        var icbariIslem = 0;
-        var icbariGonderilen = 0;
-        var icbariListe = new List<IcbariSatiri>();
+        // YEREL SAAT, UTC DEGIL: sorgu p.AcilisTarihi (Pusula yerel saati) uzerinde
+        // (bkz. yukaridaki icbariGorevi). HASTA LISTESI YOK (2026-10-26, kullanici: "hasta
+        // listesi olarak degil rakamlara odaklanalim, tiklayinca filtreli sayfaya gidelim")
+        // -- satirlar Icbari Islemler sayfasinda, ayni servisten.
+        var icbari = IcbariKapsamService.IcbariOzeti.Bos;
         try
         {
-            // YEREL SAAT, UTC DEGIL. Sorgu p.AcilisTarihi uzerinde calisiyor ve o kolon
-            // Pusula'nin YEREL saati. Eski hal buraya AzTime.ToUtc'den gecmis degerleri
-            // veriyordu, yani pencere dort saat kayiyordu -- ayni sayfadaki "bugun acilan
-            // protokol" sorgusu ise yerel degerle cagriliyordu. Iki sorgu ayni gunu
-            // farkli tanimliyordu.
-            var icbari = await icbariGorevi;
-            icbariIslem = icbari.Count;
-            var durumlar = await syncLog.GetLatestByPusulaIdsAsync(
-                "Procedure", icbari.Select(i => i.IslemId).ToList(), ct,
-                govdeleriGetir: false, ortamZorla: "Live");
-            icbariGonderilen = icbari.Count(i => durumlar.GetValueOrDefault(i.IslemId) is { Status: SyncStatus.Success });
-            icbariListe = icbari
-                .Where(i => durumlar.GetValueOrDefault(i.IslemId) is not { Status: SyncStatus.Success })
-                .Select(i =>
-                {
-                    var son = durumlar.GetValueOrDefault(i.IslemId);
-                    var sebep = son is { Status: SyncStatus.Failed }
-                        ? SyncLogEntry.ErrorCategory(son.Message).Label
-                        : son is { Status: SyncStatus.Skipped }
-                            ? SyncLogEntry.ErrorCategory(son.Message).Label
-                            : "Henüz gönderilmedi";
-                    return new IcbariSatiri(
-                        string.IsNullOrWhiteSpace(i.PatientName) ? "-" : i.PatientName,
-                        i.ProtokolId, i.HizmetAdi ?? i.IcbariAdi, sebep);
-                })
-                .Take(25)
-                .ToList();
+            icbari = IcbariKapsamService.Ozetle(await icbariGorevi);
         }
         catch (Exception ex)
         {
@@ -620,9 +597,7 @@ public class GenelBakisModel(
             donemGun == 0 ? 0 : Math.Round((double)acilan / donemGun, 1), bugunDonemde,
             doluGun, pencereGun, sonGonderim,
             trend, turler, hataSebepleri, eksikSebepleri, sonHatalar, bolumSatirlari,
-            icbariIslem, icbariGonderilen,
-            icbariIslem == 0 ? 0 : Math.Round(icbariGonderilen * 100.0 / icbariIslem, 1),
-            icbariListe,
+            icbari,
             pencere.Kirpildi, pusulaHatasi,
             epikrizDoktorlari);
     }

@@ -426,9 +426,15 @@ public class AutoSyncWorker(
         // denenmezdi -- yani duzeltilmesi ana listeden cikarilan tuzagin aynisini bu listenin
         // icinde kurmus olurduk. Denemeden SONRA SyncLog zaman damgasi guncellendigi icin bu
         // siralama kendiliginden donuyor: her gece sira baskalarina geliyor.
+        //
+        // ICBARI ONCE (2026-10-26, kullanici istegi: "otomatik gonderimde icbariye
+        // onceliklendir"). Icbari kalemi olanlar once, kendi iclerinde yine en uzun suredir
+        // denenmeyen once -- donme mantigi korunuyor. Aclik riski olculdu ve yok: 26.10 gecesi
+        // tur ~2.000 takilan protokolun tamamini 10 dakikada bitirdi, butce 180 dakika.
         var hedefler = sonuc.TakilanProtokoller
             .Where(p => p.Eligible)
-            .OrderBy(p => p.Items.Max(i => i.SonDeneme?.CreatedAtUtc ?? DateTime.MinValue))
+            .OrderByDescending(p => p.IcbariVar)
+            .ThenBy(p => p.Items.Max(i => i.SonDeneme?.CreatedAtUtc ?? DateTime.MinValue))
             .ToList();
 
         logger.LogInformation(

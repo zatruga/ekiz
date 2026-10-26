@@ -1,0 +1,152 @@
+@page
+@model PusulaEHealthSync.Web.Pages.IcbariIslemlerModel
+@using PusulaEHealthSync.Reporting
+@{
+    ViewData["Title"] = "İcbari İşlemler";
+    ViewData["Genis"] = true;
+    var tr = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+    var fromIso = Model.EffectiveFrom.ToString("yyyy-MM-dd");
+    var toIso = Model.EffectiveTo.ToString("yyyy-MM-dd");
+    var o = Model.Ozet;
+    string yuzde(int n) => "%" + o.Yuzde(n).ToString("0.0");
+}
+
+<header class="yh-bas">
+    <div>
+        <p class="breadcrumb" style="margin:0 0 4px;"><a asp-page="/GenelBakis">Genel Bakış</a> / İcbari İşlemler</p>
+        <h1 class="page-title" style="margin:0;">İcbari İşlemler</h1>
+        <p class="text-muted" style="margin:4px 0 0; font-size:13px;">
+            İcbari Sigorta Fiyat Listesi ile eşleşen işlemler ve canlı TRƏS gönderim durumları &middot;
+            tarih aralığı protokolün Pusula'daki açılış tarihi
+        </p>
+    </div>
+    <form method="get" class="akis-filtre">
+        <input type="hidden" name="Durum" value="@Model.Durum" />
+        <input type="hidden" name="Sebep" value="@Model.Sebep" />
+        <input type="hidden" name="Hizmet" value="@Model.Hizmet" />
+        <div class="akis-filtre-tarih">
+            <label for="from">Açılış</label>
+            <input type="date" id="from" name="From" value="@fromIso" onchange="this.form.submit()" />
+            <span aria-hidden="true">→</span>
+            <label for="to" class="sr-only">Bitiş</label>
+            <input type="date" id="to" name="To" value="@toIso" onchange="this.form.submit()" />
+        </div>
+        <label for="q" class="sr-only">Ara</label>
+        <input type="search" id="q" name="Q" value="@Model.Q" placeholder="Protokol, hasta veya hizmet" class="akis-filtre-ara" />
+        <button type="submit" class="btn btn-outline btn-sm">Ara</button>
+    </form>
+</header>
+
+@if (Model.PusulaHatasi)
+{
+    <div class="alert alert-danger"><strong>Liste okunamadı.</strong> Pusula'ya erişilemedi; sayfayı yenileyip tekrar deneyin.</div>
+}
+
+<section class="yh-kartlar" aria-label="Özet">
+    <div class="yh-kart-grup">
+        <span class="yh-grup-ad">@o.Toplam.ToString("N0", tr) icbari işlem · @o.Protokol.ToString("N0", tr) protokol</span>
+        @foreach (var (anahtar, ad, sayi, ton) in new[]
+        {
+            ((string?)null, "Tümü", o.Toplam, "neutral"),
+            ("gitti", "Gönderildi", o.Gitti, "success"),
+            ("gitmedi", "Gönderilmedi", o.Gitmedi, "danger"),
+            ("denenmedi", "Henüz denenmedi", o.Denenmedi, "neutral"),
+            ("eksik", "Eksik verili", o.Eksik, "warning"),
+            ("hatali", "Hatalı", o.Hatali, "danger"),
+        })
+        {
+            <a asp-page="/IcbariIslemler" asp-route-Durum="@anahtar" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Q="@Model.Q"
+               asp-route-Hizmet="@Model.Hizmet"
+               class="yh-kart yh-kart--@ton @((Model.Durum ?? "") == (anahtar ?? "") && string.IsNullOrEmpty(Model.Sebep) ? "active" : "")">
+                <span class="yh-kart-ad">@ad</span>
+                <span class="yh-kart-sayi">@sayi.ToString("N0", tr)</span>
+                @if (anahtar is not null) { <span class="yh-kart-ad">@yuzde(sayi)</span> }
+            </a>
+        }
+    </div>
+</section>
+
+@if (!string.IsNullOrEmpty(Model.Sebep) || !string.IsNullOrEmpty(Model.Hizmet))
+{
+    <div class="filter-chip-bar">
+        @if (!string.IsNullOrEmpty(Model.Sebep))
+        {
+            <span class="filter-chip">Sebep: <strong>@Model.Sebep</strong>
+                <a asp-page="/IcbariIslemler" asp-route-Durum="@Model.Durum" asp-route-Hizmet="@Model.Hizmet" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Q="@Model.Q" class="filter-chip-x" title="Sebep filtresini kaldır">&times;</a></span>
+        }
+        @if (!string.IsNullOrEmpty(Model.Hizmet))
+        {
+            <span class="filter-chip">Hizmet: <strong>@Model.Hizmet</strong>
+                <a asp-page="/IcbariIslemler" asp-route-Durum="@Model.Durum" asp-route-Sebep="@Model.Sebep" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Q="@Model.Q" class="filter-chip-x" title="Hizmet filtresini kaldır">&times;</a></span>
+        }
+    </div>
+}
+
+<section class="card" style="padding:0;">
+    <div class="yh-arac">
+        <span class="text-muted">@Model.ListelenenSayi.ToString("N0", tr) işlem
+            @if (Model.ListelenenSayi > 0) { <text>· @(((Model.PageNumber - 1) * 100 + 1))–@(Math.Min(Model.PageNumber * 100, Model.ListelenenSayi)) arası</text> }</span>
+        <span style="flex:1"></span>
+        <a asp-page-handler="Excel" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="@Model.Durum" asp-route-Sebep="@Model.Sebep"
+           asp-route-Hizmet="@Model.Hizmet" asp-route-Q="@Model.Q" class="btn btn-outline btn-sm">Excel'e indir</a>
+    </div>
+    @if (Model.Satirlar.Count == 0)
+    {
+        <div class="empty-state"><p>Bu filtrede icbari işlem yok.</p></div>
+    }
+    else
+    {
+        <div class="table-wrap" style="border:0; border-radius:0;">
+            <table class="yh-tablo">
+                <thead>
+                    <tr><th>Protokol</th><th>Hasta</th><th>Hizmet</th><th>Durum</th><th>Sebep</th></tr>
+                </thead>
+                <tbody>
+                @foreach (var k in Model.Satirlar)
+                {
+                    <tr>
+                        <td class="mono"><a asp-page="/Protokol" asp-route-id="@k.Islem.ProtokolId" target="_blank" rel="noopener">@k.Islem.ProtokolId</a></td>
+                        <td>@(string.IsNullOrWhiteSpace(k.Islem.PatientName) ? "-" : k.Islem.PatientName)</td>
+                        <td>
+                            @IcbariKapsamService.HizmetAdi(k.Islem)
+                            @if (!string.IsNullOrWhiteSpace(k.Islem.HizmetAdi) && k.Islem.IcbariAdi != k.Islem.HizmetAdi)
+                            {
+                                <div class="text-muted" style="font-size:12px;">İcbari: @k.Islem.IcbariAdi</div>
+                            }
+                        </td>
+                        <td>
+                            @switch (k.Durum)
+                            {
+                                case IcbariKapsamService.Durum.Gitti: <span class="badge success"><span class="badge-dot"></span>Gönderildi</span> break;
+                                case IcbariKapsamService.Durum.Eksik: <span class="badge warning"><span class="badge-dot"></span>Eksik verili</span> break;
+                                case IcbariKapsamService.Durum.Hatali: <span class="badge danger"><span class="badge-dot"></span>Hatalı</span> break;
+                                default: <span class="badge neutral">Henüz denenmedi</span> break;
+                            }
+                            @if (k.SonDenemeUtc is { } sd)
+                            {
+                                <div class="text-muted" style="font-size:12px;">@AzTime.ToLocal(sd).ToString("dd.MM.yyyy HH:mm", tr)</div>
+                            }
+                        </td>
+                        <td>
+                            @if (k.Durum != IcbariKapsamService.Durum.Gitti)
+                            {
+                                <span title="@k.Mesaj">@k.Sebep</span>
+                            }
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+        <div class="yh-sayfa">
+            @if (Model.PageNumber > 1)
+            {
+                <a class="btn btn-outline btn-sm" asp-page="/IcbariIslemler" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="@Model.Durum" asp-route-Sebep="@Model.Sebep" asp-route-Hizmet="@Model.Hizmet" asp-route-Q="@Model.Q" asp-route-P="@(Model.PageNumber - 1)">&larr; Önceki</a>
+            }
+            @if (Model.HasNextPage)
+            {
+                <a class="btn btn-outline btn-sm" asp-page="/IcbariIslemler" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="@Model.Durum" asp-route-Sebep="@Model.Sebep" asp-route-Hizmet="@Model.Hizmet" asp-route-Q="@Model.Q" asp-route-P="@(Model.PageNumber + 1)">Sonraki &rarr;</a>
+            }
+        </div>
+    }
+</section>

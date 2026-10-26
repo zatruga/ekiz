@@ -269,6 +269,15 @@ else if (!Model.AktifOrtamCanli)
         <p class="gb-kart-acik">
             Yalnızca bu dönemde <b>denenmiş</b> canlı gönderimler. Hiç denenmemiş bir kalem burada görünmez.
         </p>
+        @* PUSULA'DA ACILAN (2026-10-26, kullanici istegi). Ayri bir kume: asagidaki dort sayi
+           o donemde DENENEN protokolleri sayiyor, bu ise donemde ACILANLARI. Tiklayinca
+           Aktivite'nin protokol tarihi gorunumu: bu protokollerin bugunku durumu. *@
+        <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Olcut="protokol" asp-route-From="@fromIso" asp-route-To="@toIso"
+           class="gb-acilan" target="_blank" rel="noopener">
+            <span class="gb-acilan-sayi num">@o.AcilanProtokol.ToString("N0")</span>
+            <span class="gb-acilan-metin">protokol bu dönemde <b>Pusula'da açıldı</b>
+                <span class="gb-acilan-alt">ne kadarı gönderildi, ne kadarı kaldı &rarr;</span></span>
+        </a>
         <div class="gb-dort">
             <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Olcut="gonderim" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-dort-hucre" target="_blank" rel="noopener">
                 <span class="gb-dort-sayi num">@o.ProtokolDokunulan.ToString("N0")</span>
@@ -329,6 +338,107 @@ else if (!Model.AktifOrtamCanli)
         }
     </section>
 </div>
+
+
+@* ======================= ICBARI SIGORTA -- YUKARIDA, RAKAM ODAKLI (2026-10-26) =======================
+   KULLANICI: "icbari barini hasta listesi olarak degil daha cok rakamlara odaklanalim ve
+   tiklayinca filtre edilmis sayfaya gidelim; istatistigi arttiralim -- asil para kaynagi,
+   kazanc kapisi burasi. Biraz ustlere tasiyalim, en uste alma."
+   Hesap IcbariKapsamService'te; her rakam Icbari Islemler sayfasinin AYNI kumeden suzulmus
+   halini aciyor -- kartta yazan sayi ile listedeki satir sayisi ayni. *@
+@{
+    var ic = o.Icbari;
+    string yuzde(int n) => "%" + ic.Yuzde(n).ToString("0.0");
+    string gen(int n) => (ic.Toplam == 0 ? 0 : n * 100.0 / ic.Toplam).ToString("0.##", System.Globalization.CultureInfo.InvariantCulture);
+}
+<section class="card card-pad accent-violet gb-icbari" style="margin-bottom:18px;" aria-labelledby="gb-icbari-baslik">
+    <p class="gb-kart-ust-etiket" style="color:var(--violet);">İcbari sigorta &middot; faturaya konu işlemler &middot; @Model.PeriodFromDate.ToString("dd.MM") &ndash; @Model.PeriodToDate.ToString("dd.MM.yyyy")</p>
+    <h2 id="gb-icbari-baslik" class="gb-kart-baslik">İcbari Sigorta Gönderim Kapsamı</h2>
+    <p class="gb-kart-acik">
+        Dönemde açılan protokollerde İcbari Sigorta Fiyat Listesi ile eşleşen işlemler. Ölçü <b>işlem</b> &mdash;
+        faturalama kalemi işlemin kendisi. Rakamlara tıklayınca işlem listesi o filtreyle açılır.
+    </p>
+    @if (ic.Toplam == 0)
+    {
+        <p class="text-muted" style="margin-top:14px;">Seçili dönemde icbari sigorta ile eşleşen işlem yok.</p>
+    }
+    else
+    {
+        <div class="gb-icbari-ana">
+            <a asp-page="/IcbariIslemler" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-icbari-hucre" target="_blank" rel="noopener">
+                <span class="gb-icbari-sayi num">@ic.Toplam.ToString("N0")</span>
+                <span class="gb-icbari-ad">icbari işlem</span>
+                <span class="gb-icbari-alt">@ic.Protokol.ToString("N0") protokol · @ic.HizmetCesidi.ToString("N0") hizmet çeşidi</span>
+            </a>
+            <a asp-page="/IcbariIslemler" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="gitti" class="gb-icbari-hucre" target="_blank" rel="noopener">
+                <span class="gb-icbari-sayi num" style="color:var(--akis-ok);">@ic.Gitti.ToString("N0")</span>
+                <span class="gb-icbari-ad">TRƏS'e gönderildi · @yuzde(ic.Gitti)</span>
+                <span class="gb-icbari-alt">@ic.ProtokolTam.ToString("N0") protokolün tüm icbari işlemleri gitti</span>
+            </a>
+            <a asp-page="/IcbariIslemler" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="gitmedi" class="gb-icbari-hucre" target="_blank" rel="noopener">
+                <span class="gb-icbari-sayi num" style="color:var(--akis-hata);">@ic.Gitmedi.ToString("N0")</span>
+                <span class="gb-icbari-ad">gönderilmedi · @yuzde(ic.Gitmedi)</span>
+                <span class="gb-icbari-alt">faturaya konu ama TRƏS'te yok</span>
+            </a>
+        </div>
+
+        <div class="gb-icbari-serit" role="img" aria-label="Gönderildi @yuzde(ic.Gitti), henüz denenmedi @yuzde(ic.Denenmedi), eksik verili @yuzde(ic.Eksik), hatalı @yuzde(ic.Hatali)">
+            <span class="bd-seg success" style="width:@gen(ic.Gitti)%"></span>
+            <span class="bd-seg gb-seg-bekliyor" style="width:@gen(ic.Denenmedi)%"></span>
+            <span class="bd-seg warning" style="width:@gen(ic.Eksik)%"></span>
+            <span class="bd-seg danger" style="width:@gen(ic.Hatali)%"></span>
+        </div>
+        <div class="gb-icbari-kirilim">
+            @foreach (var (anahtar, ad, sayi, renk, aciklama) in new[]
+            {
+                ("denenmedi", "Henüz denenmedi", ic.Denenmedi, "var(--text-muted)", "sırası gelmedi ya da kuyrukta"),
+                ("eksik", "Eksik verili", ic.Eksik, "var(--akis-eksik)", "Pusula'da veri/tanım eksik"),
+                ("hatali", "Hatalı", ic.Hatali, "var(--akis-hata)", "TRƏS reddetti"),
+            })
+            {
+                <a asp-page="/IcbariIslemler" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="@anahtar" class="gb-icbari-kucuk" target="_blank" rel="noopener">
+                    <span class="gb-icbari-kare" style="background:@renk;" aria-hidden="true"></span>
+                    <span>
+                        <span class="num" style="font-weight:700; font-size:18px;">@sayi.ToString("N0")</span>
+                        <span class="text-muted" style="font-size:12px;"> · @yuzde(sayi)</span>
+                        <span class="gb-icbari-ad" style="display:block;">@ad</span>
+                        <span class="gb-icbari-alt">@aciklama</span>
+                    </span>
+                </a>
+            }
+        </div>
+
+        <div class="gb-split" style="margin:20px 0 0;">
+            <div>
+                <p class="section-title" style="margin-bottom:8px;">Gönderilmeme sebepleri</p>
+                @{ var enCokSebep = ic.Sebepler.Count == 0 ? 1 : ic.Sebepler[0].Islem; }
+                @foreach (var sb in ic.Sebepler.Take(8))
+                {
+                    <a asp-page="/IcbariIslemler" asp-route-From="@fromIso" asp-route-To="@toIso"
+                       asp-route-Durum="@PusulaEHealthSync.Reporting.IcbariKapsamService.DurumAnahtari(sb.Durum)" asp-route-Sebep="@sb.Sebep"
+                       class="gb-kalan-satir" target="_blank" rel="noopener">
+                        <span>@sb.Sebep</span>
+                        <span class="gb-kalan-cubuk"><span style="width:@((sb.Islem * 100.0 / enCokSebep).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))%; background:@(sb.Durum switch { PusulaEHealthSync.Reporting.IcbariKapsamService.Durum.Hatali => "var(--akis-hata)", PusulaEHealthSync.Reporting.IcbariKapsamService.Durum.Eksik => "var(--akis-eksik)", _ => "var(--text-faint)" });"></span></span>
+                        <span class="num gb-kalan-sayi">@sb.Islem.ToString("N0")</span>
+                    </a>
+                }
+            </div>
+            <div>
+                <p class="section-title" style="margin-bottom:8px;">En çok gönderilemeyen hizmetler</p>
+                @foreach (var h in ic.Hizmetler)
+                {
+                    <a asp-page="/IcbariIslemler" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="gitmedi" asp-route-Hizmet="@h.Hizmet"
+                       class="gb-kalan-satir" target="_blank" rel="noopener" title="@h.Toplam işlemin @h.Gitti tanesi gönderildi (%@h.GittiYuzde.ToString("0.0"))">
+                        <span class="gb-icbari-hizmet">@h.Hizmet</span>
+                        <span class="gb-kalan-cubuk"><span style="width:@h.GittiYuzde.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)%; background:var(--akis-ok);"></span></span>
+                        <span class="num gb-kalan-sayi" style="color:var(--akis-hata);">@h.Gitmedi.ToString("N0")<span class="text-muted" style="font-weight:400;">/@h.Toplam.ToString("N0")</span></span>
+                    </a>
+                }
+                <p class="gb-kart-dip" style="margin-top:10px;">Çubuk o hizmetin gönderilen oranı; sayı gönderilmeyen / toplam işlem.</p>
+            </div>
+        </div>
+    }
+</section>
 
 @* KULLANICI (2026-10-08): "otomatik gonderimi sanki surekli yapmiyor gibi?"
    Haklydi: olculdu, 14 gunun yalnizca 7'sinde gonderim vardi. Ama ekranda bunu
@@ -431,7 +541,7 @@ else if (!Model.AktifOrtamCanli)
    Her iki liste de SIKISTIRILMIS satir kullaniyor (ad | cubuk | oran tek satirda).
    Eskiden her satir uc katli bir blokdu; on iki tur = ~700px'lik bir sutun ve
    yanindaki bolum karti yarisi kadar. Artik ikisi de ayni yukseklikte duruyor. *@
-<div class="gb-split">
+<div class="gb-split gb-esit">
     <div class="card card-pad">
         <p class="section-title">Kayıt Türüne Göre Durum</p>
         <p class="card-desc">
@@ -444,6 +554,7 @@ else if (!Model.AktifOrtamCanli)
         }
         else
         {
+            @:<div class="gb-kaydir">
             foreach (var t in o.Turler)
             {
                 <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Olcut="gonderim" asp-route-ResourceType="@t.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-satir" target="_blank" rel="noopener">
@@ -462,6 +573,7 @@ else if (!Model.AktifOrtamCanli)
                     </span>
                 </a>
             }
+            @:</div>
         }
     </div>
 
@@ -471,13 +583,14 @@ else if (!Model.AktifOrtamCanli)
        sey gonderimi yapilan protokollerin hangi bolumlerde sorun cikardigi. *@
     <div class="card card-pad">
         <p class="section-title">Bölüme Göre Gönderim Durumu</p>
-        <p class="card-desc">Dönemde gönderimi yapılan protokoller, bölümüne ve sonucuna göre.</p>
+        <p class="card-desc">Dönemde gönderimi yapılan protokoller, bölümüne ve sonucuna göre. Tüm bölümler; liste kart içinde kayar.</p>
         @if (o.Bolumler.Count == 0)
         {
             <p class="text-muted">Seçili dönemde gönderim yok.</p>
         }
         else
         {
+            @:<div class="gb-kaydir">
             foreach (var b in o.Bolumler)
             {
                 <div class="gb-satir" style="cursor:default;">
@@ -500,6 +613,7 @@ else if (!Model.AktifOrtamCanli)
                     </span>
                 </div>
             }
+            @:</div>
         }
     </div>
 </div>
@@ -518,38 +632,47 @@ else if (!Model.AktifOrtamCanli)
     <p class="gb-kart-acik">
         Dönemde epikrizi gönderilmeye çalışılan protokoller; doktor, protokolün sorumlu doktoru.
         <b>Eksik</b> çoğunlukla epikriz metninin boş olması &mdash; doktor yazınca kendiliğinden gider.
-        En çok sorunlu olan üstte.
+        Tüm doktorlar; başlığa tıklayarak sıralayın, sağdaki kutuyla arayın.
     </p>
+    @if (o.EpikrizDoktorlari.Count > 0)
+    {
+        <input type="search" id="gb-epikriz-ara" class="gb-tablo-ara" placeholder="Doktor veya bölüm ara"
+               aria-label="Doktor veya bölüm ara" oninput="gbTabloAra(this, 'gb-epikriz-tablo')" />
+    }
     @if (o.EpikrizDoktorlari.Count == 0)
     {
         <p class="text-muted" style="margin-top:14px;">Seçili dönemde epikriz gönderimi yok.</p>
     }
     else
     {
-        <div class="table-wrap" style="margin-top:14px;">
-            <table class="gb-epikriz">
+        @* TUM DOKTORLAR, KART ICINDE KAYAN (2026-10-26, kullanici istegi). Siralama ve arama
+           tarayicida (bkz. gbTabloSirala/gbTabloAra): veri zaten sayfada, sunucuya gidip
+           gelmeye gerek yok. data-v siralama degeri -- ekrandaki "–" ve binlik ayiraci
+           siralamayi bozmasin diye ham sayi. *@
+        <div class="gb-kaydir gb-kaydir--tablo" style="margin-top:14px;">
+            <table class="gb-epikriz" id="gb-epikriz-tablo">
                 <thead>
                     <tr>
-                        <th scope="col">Doktor</th>
-                        <th scope="col">Bölüm</th>
-                        <th scope="col" class="sag">Protokol</th>
-                        <th scope="col" class="sag">Gönderildi</th>
-                        <th scope="col" class="sag">Eksik</th>
-                        <th scope="col" class="sag">Hatalı</th>
-                        <th scope="col" style="width:26%;">Başarı</th>
+                        <th scope="col" class="gb-sirala" onclick="gbTabloSirala(this)" data-tur="metin">Doktor</th>
+                        <th scope="col" class="gb-sirala" onclick="gbTabloSirala(this)" data-tur="metin">Bölüm</th>
+                        <th scope="col" class="sag gb-sirala" onclick="gbTabloSirala(this)">Protokol</th>
+                        <th scope="col" class="sag gb-sirala" onclick="gbTabloSirala(this)">Gönderildi</th>
+                        <th scope="col" class="sag gb-sirala" onclick="gbTabloSirala(this)">Eksik</th>
+                        <th scope="col" class="sag gb-sirala" onclick="gbTabloSirala(this)">Hatalı</th>
+                        <th scope="col" class="gb-sirala" onclick="gbTabloSirala(this)" style="width:26%;">Başarı</th>
                     </tr>
                 </thead>
                 <tbody>
-                    @foreach (var d in o.EpikrizDoktorlari.Take(12))
+                    @foreach (var d in o.EpikrizDoktorlari)
                     {
                         <tr>
-                            <td style="font-weight:600;">@d.Doktor</td>
-                            <td class="text-muted">@d.Bolum</td>
-                            <td class="num sag">@d.Protokol.ToString("N0")</td>
-                            <td class="num sag" style="color:var(--akis-ok);">@d.Gonderildi.ToString("N0")</td>
-                            <td class="num sag" style="color:var(--akis-eksik);">@(d.Eksik > 0 ? d.Eksik.ToString("N0") : "–")</td>
-                            <td class="num sag" style="color:var(--akis-hata);">@(d.Hatali > 0 ? d.Hatali.ToString("N0") : "–")</td>
-                            <td>
+                            <td style="font-weight:600;" data-v="@d.Doktor">@d.Doktor</td>
+                            <td class="text-muted" data-v="@d.Bolum">@d.Bolum</td>
+                            <td class="num sag" data-v="@d.Protokol">@d.Protokol.ToString("N0")</td>
+                            <td class="num sag" data-v="@d.Gonderildi" style="color:var(--akis-ok);">@d.Gonderildi.ToString("N0")</td>
+                            <td class="num sag" data-v="@d.Eksik" style="color:var(--akis-eksik);">@(d.Eksik > 0 ? d.Eksik.ToString("N0") : "–")</td>
+                            <td class="num sag" data-v="@d.Hatali" style="color:var(--akis-hata);">@(d.Hatali > 0 ? d.Hatali.ToString("N0") : "–")</td>
+                            <td data-v="@d.BasariYuzde.ToString(System.Globalization.CultureInfo.InvariantCulture)">
                                 <span class="gb-epikriz-oran">
                                     <span class="gb-kalan-cubuk"><span style="width:@d.BasariYuzde.ToString("0.#", System.Globalization.CultureInfo.InvariantCulture)%; background:@(d.BasariYuzde >= 90 ? "var(--akis-ok)" : d.BasariYuzde >= 60 ? "var(--akis-eksik)" : "var(--akis-hata)");"></span></span>
                                     <span class="num">%@d.BasariYuzde.ToString("0.0")</span>
@@ -560,10 +683,7 @@ else if (!Model.AktifOrtamCanli)
                 </tbody>
             </table>
         </div>
-        @if (o.EpikrizDoktorlari.Count > 12)
-        {
-            <p class="gb-kart-dip">Ekranda ilk 12 doktor; tüm @o.EpikrizDoktorlari.Count doktor ve sorunlu protokol numaraları Excel dosyasında.</p>
-        }
+        <p class="gb-kart-dip">@o.EpikrizDoktorlari.Count doktor &middot; sorunlu protokol numaraları Excel dosyasında (sağ üstteki ok).</p>
     }
 </section>
 
@@ -685,47 +805,29 @@ else if (!Model.AktifOrtamCanli)
     }
 </div>
 
-<div class="card card-pad accent-violet">
-    <p class="section-title" style="color:var(--violet);">İcbari Sigorta Gönderim Kapsamı</p>
-    <p class="card-desc">
-        İcbari Sigorta Fiyat Listesi ile eşleşen (faturaya konu) hizmetlerden hangileri TRƏS'e gönderildi.
-        Buradaki ölçü <b>işlem</b> &mdash; protokol değil, çünkü faturalama kalemi işlemin kendisi.
-        Tutar/kayıp ciro bilgisi gösterilmiyor: Pusula'daki fiyat/tarife alanı henüz doğrulanmadı.
-    </p>
-    <div class="icbari-kpis">
-        <div class="icbari-kpi">
-            <span class="icbari-kpi-label">İcbari eşleşen işlem</span>
-            <span class="icbari-kpi-value">@o.IcbariIslem.ToString("N0")</span>
-        </div>
-        <div class="icbari-kpi">
-            <span class="icbari-kpi-label">Başarıyla gönderilen</span>
-            <span class="icbari-kpi-value" style="color:var(--success);">@o.IcbariGonderilen.ToString("N0") <span style="font-size:15px; color:var(--text-faint);">(%@o.IcbariYuzde.ToString("0.0"))</span></span>
-        </div>
-        <div class="icbari-kpi">
-            <span class="icbari-kpi-label">Gönderilmeyen</span>
-            <span class="icbari-kpi-value" style="color:var(--danger);">@((o.IcbariIslem - o.IcbariGonderilen).ToString("N0"))</span>
-        </div>
-    </div>
-    @if (o.IcbariGonderilmeyen.Count == 0)
-    {
-        <p class="text-muted">@(o.IcbariIslem == 0 ? "Seçili dönemde icbari sigorta ile eşleşen işlem yok." : "Eşleşen tüm işlemler gönderilmiş.")</p>
+<script>
+    // TABLO SIRALAMA / ARAMA (2026-10-26) -- veri sayfada, sunucuya gidilmiyor.
+    // Ayni basliga ikinci tik yonu cevirir. Sayi sutunlari buyukten kucuge baslar.
+    function gbTabloSirala(th) {
+        const tablo = th.closest('table'), govde = tablo.tBodies[0];
+        const sira = Array.from(th.parentNode.children).indexOf(th);
+        const metin = th.dataset.tur === 'metin';
+        const artan = th.dataset.yon ? th.dataset.yon !== 'artan' : metin;
+        tablo.querySelectorAll('th').forEach(h => { delete h.dataset.yon; h.removeAttribute('aria-sort'); });
+        th.dataset.yon = artan ? 'artan' : 'azalan';
+        th.setAttribute('aria-sort', artan ? 'ascending' : 'descending');
+        const deger = tr => tr.children[sira].dataset.v ?? tr.children[sira].textContent;
+        const satirlar = Array.from(govde.rows).sort((a, b) => {
+            const x = deger(a), y = deger(b);
+            const f = metin ? x.localeCompare(y, 'tr') : parseFloat(x) - parseFloat(y);
+            return artan ? f : -f;
+        });
+        satirlar.forEach(tr => govde.appendChild(tr));
     }
-    else
-    {
-        <div class="icbari-table-wrap">
-            <table class="icbari-table">
-                <thead><tr><th>Hasta / Protokol</th><th>Hizmet</th><th>Sebep</th></tr></thead>
-                <tbody>
-                    @foreach (var r in o.IcbariGonderilmeyen)
-                    {
-                        <tr class="clickable" onclick="window.open('@Url.Page("/Protokol", new { id = r.ProtokolId })', '_blank')">
-                            <td><div style="font-weight:600;">@r.HastaAdi</div><div style="color:var(--text-faint); font-size:11.5px; margin-top:2px;">Protokol @r.ProtokolId</div></td>
-                            <td>@r.HizmetAdi</td>
-                            <td class="reason">@r.Sebep</td>
-                        </tr>
-                    }
-                </tbody>
-            </table>
-        </div>
+    function gbTabloAra(kutu, tabloId) {
+        const aranan = kutu.value.trim().toLocaleLowerCase('tr');
+        document.querySelectorAll('#' + tabloId + ' tbody tr').forEach(tr => {
+            tr.hidden = aranan !== '' && !tr.textContent.toLocaleLowerCase('tr').includes(aranan);
+        });
     }
-</div>
+</script>

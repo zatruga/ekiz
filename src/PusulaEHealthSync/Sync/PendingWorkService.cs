@@ -489,8 +489,13 @@ public class PendingWorkService(
         //
         // TAKILANLAR LISTESINE UYGULANMIYOR: orada soru "ne kadar suredir takili" --
         // uygunluk o listenin konusu degil, en eski once dogru sira.
+        //
+        // UYGUNLARIN ICINDE ICBARI ONCE (2026-10-26, kullanici istegi). Dongu bu listeyi
+        // sirayla isliyor; parti dolarsa, devre kesici turu birakirsa ya da Durdur'a
+        // basilirsa once faturaya konu protokoller gitmis olur.
         static List<PendingProtocol> KirpUygunOnce(List<PendingProtocol> g, int n) => g
             .OrderByDescending(x => x.Eligible)
+            .ThenByDescending(x => x.IcbariVar)
             .ThenBy(EnEskiKalem)
             .Take(n)
             .ToList();
@@ -733,7 +738,15 @@ public record PendingProtocol(
     ProtokolListItem Protokol,
     List<PendingItem> Items,
     bool Eligible,
-    string? NotEligibleReason);
+    string? NotEligibleReason)
+{
+    // BEKLEYEN ICBARI ISLEMI VAR MI (2026-10-26, kullanici: "otomatik gonderimde icbariye
+    // onceliklendir -- asil para kaynagi burasi"). Procedure kalemleri YALNIZCA Icbari
+    // Sigorta Fiyat Listesi ile eslesen hizmetlerden uretiliyor (bkz.
+    // PusulaRepository.GetIslemlerByProtokolIdAsync), yani bekleyen bir Procedure faturaya
+    // konu bir kalem demek.
+    public bool IcbariVar => Items.Any(i => i.ResourceType == "Procedure");
+}
 
 // Taramanin sonucu IKI AYRI KUME tasir (KULLANICI KARARI 2026-10-03). Protokoller/
 // OzetSayimlar/ToplamProtokolSayisi yalnizca GONDERILEBILIR olanlari sayar; mevcut veriyle
