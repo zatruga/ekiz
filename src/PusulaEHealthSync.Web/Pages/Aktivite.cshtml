@@ -53,13 +53,7 @@
             <input type="radio" id="olcutGonderim" name="Olcut" value="gonderim" checked="@(!Model.ProtokolOlcutu)" onchange="this.form.submit()" />
             <label for="olcutGonderim" title="Seçilen aralıkta yapılan gönderim denemeleri">Gönderim tarihi</label>
         </div>
-        <div class="akis-filtre-tarih">
-            <label for="from">Başlangıç</label>
-            <input type="date" id="from" name="From" value="@fromIso" onchange="this.form.submit()" />
-            <span aria-hidden="true">→</span>
-            <label for="to">Bitiş</label>
-            <input type="date" id="to" name="To" value="@toIso" onchange="this.form.submit()" />
-        </div>
+        <partial name="_TarihSecici" model="@(new PusulaEHealthSync.Web.TarihSecici(Model.EffectiveFrom, Model.EffectiveTo))" />
         <label for="q" class="sr-only">Ara</label>
         <input type="search" id="q" name="Q" value="@Model.Q" placeholder="Hasta adı, FIN veya protokol no" class="akis-filtre-ara" />
         <label for="tur" class="sr-only">Kayıt türü</label>

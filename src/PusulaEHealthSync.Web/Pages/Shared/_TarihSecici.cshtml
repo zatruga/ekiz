@@ -1,0 +1,33 @@
+@model PusulaEHealthSync.Web.TarihSecici
+@* TARIH ARALIGI SECICI -- davranis wwwroot/js/tarih-secici.js'de. Gizli From/To alanlari
+   formun icinde; sunucu tarafi eskisi gibi onlari okuyor. JS yuklenmezse dugme yalnizca
+   araligi gosterir. *@
+<div class="ts" data-ts data-etiket="@Model.Etiket" title="@Model.Ipucu">
+    <input type="hidden" name="From" value="@Model.From.ToString("yyyy-MM-dd")" data-ts-from />
+    <input type="hidden" name="To" value="@Model.To.ToString("yyyy-MM-dd")" data-ts-to />
+    <button type="button" class="ts-dugme" aria-haspopup="dialog" aria-expanded="false">
+        <span class="ts-ikon" aria-hidden="true">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="3" y="4" width="18" height="18" rx="2"></rect><path d="M16 2v4M8 2v4M3 10h18"></path></svg>
+        </span>
+        <span class="ts-metin">
+            <span class="ts-ust">@Model.Etiket</span>
+            <span class="ts-aralik">@Model.From.ToString("dd.MM.yyyy") – @Model.To.ToString("dd.MM.yyyy")</span>
+        </span>
+        <svg class="ts-chevron" width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="m6 9 6 6 6-6"></path></svg>
+    </button>
+    <div class="ts-panel" role="dialog" aria-label="Tarih aralığı" hidden>
+        <div class="ts-hazir"></div>
+        <div class="ts-sag">
+            <div class="ts-takvim"></div>
+            <div class="ts-alt">
+                <span class="ts-alt-tarih ts-alt-bas"></span>
+                <span aria-hidden="true">→</span>
+                <span class="ts-alt-tarih ts-alt-bit"></span>
+                <span class="ts-alt-sayi"></span>
+                <span class="ts-bosluk"></span>
+                <button type="button" class="btn btn-outline btn-sm ts-vazgec">Vazgeç</button>
+                <button type="button" class="btn btn-primary btn-sm ts-uygula">Uygula</button>
+            </div>
+        </div>
+    </div>
+</div>

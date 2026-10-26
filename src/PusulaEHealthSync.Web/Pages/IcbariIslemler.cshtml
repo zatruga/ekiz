@@ -26,13 +26,7 @@
         <input type="hidden" name="Durum" value="@Model.Durum" />
         <input type="hidden" name="Sebep" value="@Model.Sebep" />
         <input type="hidden" name="Hizmet" value="@Model.Hizmet" />
-        <div class="akis-filtre-tarih">
-            <label for="from">Açılış</label>
-            <input type="date" id="from" name="From" value="@fromIso" onchange="this.form.submit()" />
-            <span aria-hidden="true">→</span>
-            <label for="to" class="sr-only">Bitiş</label>
-            <input type="date" id="to" name="To" value="@toIso" onchange="this.form.submit()" />
-        </div>
+        <partial name="_TarihSecici" model="@(new PusulaEHealthSync.Web.TarihSecici(Model.EffectiveFrom, Model.EffectiveTo, "Açılış"))" />
         <label for="q" class="sr-only">Ara</label>
         <input type="search" id="q" name="Q" value="@Model.Q" placeholder="Protokol, hasta veya hizmet" class="akis-filtre-ara" />
         <button type="submit" class="btn btn-outline btn-sm">Ara</button>

@@ -2597,3 +2597,69 @@ div.gb-sebep.danger:hover { background: var(--danger-soft); }
 }
 /* Icbari Islemler -- acilan satirda henuz denenmemis icbari islemler (SyncLog'da yoklar). */
 .ic-denenmemis { padding: 10px 18px; font-size: 12.5px; border-top: 1px solid var(--border); background: var(--bg-elevated); }
+
+/* ==== TARIH ARALIGI SECICI (2026-10-26) -- tasarim tuvali "B", tek ay ====
+   Davranis: wwwroot/js/tarih-secici.js. Isaretleme: Pages/Shared/_TarihSecici.cshtml. */
+.ts { position: relative; }
+.ts-dugme {
+  height: var(--filtre-h, 38px); box-sizing: border-box; display: inline-flex; align-items: center; gap: 9px;
+  padding: 0 11px 0 6px; border: 1px solid var(--border); border-radius: 10px; background: var(--surface);
+  color: var(--text); font: inherit; cursor: pointer; transition: border-color 150ms ease, box-shadow 150ms ease;
+}
+.ts-dugme:hover { border-color: var(--border-strong); }
+.ts-dugme:focus-visible, .ts-dugme[aria-expanded="true"] { outline: none; border-color: var(--primary); box-shadow: 0 0 0 3px var(--primary-soft); }
+.ts-ikon { display: inline-flex; align-items: center; justify-content: center; width: 26px; height: 26px; border-radius: 7px; background: var(--primary-soft); color: var(--primary); }
+.ts-metin { display: flex; flex-direction: column; align-items: flex-start; line-height: 1.15; }
+.ts-ust { font-size: 10.5px; color: var(--text-muted); }
+.ts-aralik { font-family: var(--font-heading); font-size: 12.5px; font-weight: 600; font-variant-numeric: tabular-nums; white-space: nowrap; }
+.ts-chevron { color: var(--text-faint); transition: transform 150ms ease; }
+.ts-dugme[aria-expanded="true"] .ts-chevron { transform: rotate(180deg); }
+
+.ts-panel {
+  position: absolute; top: calc(100% + 6px); left: 0; z-index: 60; display: flex;
+  border: 1px solid var(--border); border-radius: 12px; background: var(--surface);
+  box-shadow: 0 16px 40px rgba(15, 23, 42, .16); overflow: hidden;
+}
+.ts-panel[hidden] { display: none; }
+.ts-panel.sag { left: auto; right: 0; }
+.ts-hazir { width: 150px; box-sizing: border-box; padding: 10px; display: flex; flex-direction: column; gap: 2px; border-right: 1px solid var(--border); background: var(--bg-elevated); }
+.ts-hazir-btn { text-align: left; height: 34px; padding: 0 10px; border: 0; border-radius: 7px; background: transparent; color: var(--text); font: inherit; font-size: 13px; cursor: pointer; }
+.ts-hazir-btn:hover { background: var(--surface-hover); }
+.ts-hazir-btn.active { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+.ts-hazir-btn:focus-visible { outline: 2px solid var(--primary); outline-offset: -2px; }
+.ts-hazir-not { margin-top: auto; padding: 8px 4px 2px; font-size: 11px; line-height: 1.4; color: var(--text-muted); }
+.ts-sag { padding: 14px 16px 12px; display: flex; flex-direction: column; gap: 10px; }
+.ts-takvim { width: 266px; display: flex; flex-direction: column; gap: 6px; }
+.ts-takvim-ust { display: flex; align-items: center; justify-content: space-between; }
+.ts-ay { font-size: 13.5px; font-weight: 600; }
+.ts-ok { width: 32px; height: 32px; display: inline-flex; align-items: center; justify-content: center; border: 1px solid var(--border); border-radius: 8px; background: var(--surface); color: var(--text-muted); cursor: pointer; }
+.ts-ok:hover:not(:disabled) { border-color: var(--border-strong); color: var(--text); }
+.ts-ok:disabled { opacity: .35; cursor: default; }
+.ts-izgara { display: grid; grid-template-columns: repeat(7, minmax(0, 1fr)); row-gap: 2px; text-align: center; }
+.ts-gun-adi { font-size: 10.5px; color: var(--text-muted); padding: 4px 0; }
+.ts-gun {
+  height: 34px; border: 0; border-radius: 8px; background: transparent; color: var(--text); cursor: pointer;
+  font-family: var(--font-heading); font-size: 12px; font-variant-numeric: tabular-nums;
+}
+.ts-gun:hover:not(:disabled) { background: var(--surface-hover); }
+.ts-gun:disabled { color: var(--text-faint); opacity: .45; cursor: default; }
+.ts-gun.bugun { box-shadow: inset 0 0 0 1px var(--border-strong); }
+.ts-gun.aralik { background: var(--primary-soft); color: var(--primary); border-radius: 0; }
+.ts-gun.bas, .ts-gun.bit { background: var(--primary); color: #fff; font-weight: 600; }
+.ts-gun.bas { border-radius: 8px 0 0 8px; }
+.ts-gun.bit { border-radius: 0 8px 8px 0; }
+.ts-gun.bas.bit { border-radius: 8px; }
+.ts-gun:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+.ts-alt { display: flex; align-items: center; gap: 6px; padding-top: 10px; border-top: 1px solid var(--border); font-size: 12px; color: var(--text-muted); }
+.ts-alt-tarih { font-family: var(--font-heading); font-size: 12px; color: var(--text); padding: 5px 8px; border: 1px solid var(--border); border-radius: 7px; font-variant-numeric: tabular-nums; }
+.ts-alt-sayi { white-space: nowrap; }
+.ts-bosluk { flex: 1; min-width: 8px; }
+.ts-alt .btn { border-radius: 8px; }
+@media (max-width: 640px) {
+  .ts, .ts-dugme { width: 100%; }
+  .ts-panel { flex-direction: column; left: 0; right: 0; }
+  .ts-hazir { width: auto; flex-direction: row; flex-wrap: wrap; border-right: 0; border-bottom: 1px solid var(--border); }
+  .ts-hazir-not { display: none; }
+  .ts-takvim { width: auto; }
+  .ts-alt { flex-wrap: wrap; }
+}

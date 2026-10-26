@@ -29,13 +29,7 @@
     <form method="get" class="akis-filtre">
         <input type="hidden" name="Durum" value="@Model.Durum" />
         <input type="hidden" name="Gonderim" value="@Model.Gonderim" />
-        <div class="akis-filtre-tarih" title="Filtre taburcu tarihine göre. Şu an yatanlar tarihten bağımsız listelenir.">
-            <label for="from">Taburcu</label>
-            <input type="date" id="from" name="From" value="@fromIso" onchange="this.form.submit()" />
-            <span aria-hidden="true">→</span>
-            <label for="to" class="sr-only">Bitiş</label>
-            <input type="date" id="to" name="To" value="@toIso" onchange="this.form.submit()" />
-        </div>
+        <partial name="_TarihSecici" model="@(new PusulaEHealthSync.Web.TarihSecici(Model.EffectiveFrom, Model.EffectiveTo, "Taburcu", "Filtre taburcu tarihine göre. Şu an yatanlar tarihten bağımsız listelenir."))" />
         <label for="q" class="sr-only">Ara</label>
         <input type="search" id="q" name="Q" value="@Model.Q" placeholder="Hasta, FIN, protokol veya arşiv no" class="akis-filtre-ara" />
         <button type="submit" class="btn btn-outline btn-sm">Ara</button>
