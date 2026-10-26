@@ -154,7 +154,7 @@ public class YatanHastalarModel(
 
     // Ozet satirlarindan Aktivite'nin grup nesnesi -- AktiviteModel'deki Grup() ile ayni
     // katlama: kayit basina SON deneme kazanir, deneme sayisi toplanir.
-    private static AktiviteGrubu AkisKur(ProtokolListItem protokol, IEnumerable<SyncLogStore.OzetSatiri> kaynak)
+    internal static AktiviteGrubu AkisKur(ProtokolListItem protokol, IEnumerable<SyncLogStore.OzetSatiri> kaynak)
     {
         var satirlar = kaynak.ToList();
         var kayitlar = satirlar

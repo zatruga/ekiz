@@ -114,76 +114,148 @@
 
     @if (Model.Satirlar.Count == 0)
     {
-        <div class="empty-state"><p>Bu filtrede icbari işlemi olan protokol yok.</p></div>
+        <div class="empty-state"><p>Bu filtrede icbari protokol yok.</p></div>
     }
     else
     {
-        <div class="table-wrap" style="border:0; border-radius:0;">
-            <table class="yh-tablo">
-                <thead>
-                    <tr>
-                        <th style="width:28px;"><input type="checkbox" aria-label="Sayfadakilerin tümünü seç" onchange="document.querySelectorAll('.ic-sec').forEach(c => c.checked = this.checked)" /></th>
-                        <th>Protokol · Hasta</th>
-                        <th>İcbari işlemler</th>
-                        <th>Durum</th>
-                        <th>Sebep</th>
-                        <th style="text-align:right;">İşlem</th>
-                    </tr>
-                </thead>
-                <tbody>
-                @foreach (var p in Model.Satirlar)
-                {
-                    <tr>
-                        <td><input type="checkbox" class="ic-sec" name="protokolIds" value="@p.ProtokolId" form="ic-toplu" aria-label="Protokol @p.ProtokolId seç" /></td>
-                        <td>
-                            <a asp-page="/Protokol" asp-route-id="@p.ProtokolId" class="mono" target="_blank" rel="noopener">@p.ProtokolId</a>
-                            <div><strong>@(string.IsNullOrWhiteSpace(p.Hasta) ? "-" : p.Hasta)</strong></div>
-                        </td>
-                        <td>
-                            <span class="num" style="font-weight:600;">@p.Gitti/@p.Kalemler.Count</span> <span class="text-muted">gönderildi</span>
-                            <details class="ic-kalemler">
-                                <summary>@p.Kalemler.Count işlem</summary>
-                                <ul>
-                                    @foreach (var k in p.Kalemler.OrderBy(k => k.Durum == IcbariKapsamService.Durum.Gitti))
-                                    {
-                                        <li>
-                                            <span class="badge @IcbariIslemlerModel.DurumCss(k.Durum)">@IcbariIslemlerModel.DurumAdi(k.Durum)</span>
-                                            @IcbariKapsamService.HizmetAdi(k.Islem)
-                                            @if (k.Durum != IcbariKapsamService.Durum.Gitti)
-                                            {
-                                                <span class="text-muted" title="@k.Mesaj"> · @k.Sebep</span>
-                                            }
-                                        </li>
-                                    }
-                                </ul>
-                            </details>
-                        </td>
-                        <td>
-                            <span class="badge @IcbariIslemlerModel.DurumCss(p.Durum)">@(p.Durum == IcbariKapsamService.Durum.Gitti ? "Tamamı gönderildi" : IcbariIslemlerModel.DurumAdi(p.Durum))</span>
-                            @if (p.SonDenemeUtc is { } sd)
-                            {
-                                <div class="text-muted" style="font-size:12px;">son deneme @AzTime.ToLocal(sd).ToString("dd.MM.yyyy HH:mm", tr)</div>
-                            }
-                        </td>
-                        <td>
-                            @foreach (var sebep in p.Kalemler.Where(k => k.Durum != IcbariKapsamService.Durum.Gitti).GroupBy(k => k.Sebep).OrderByDescending(g => g.Count()).Take(3))
-                            {
-                                <div class="yh-sebep">@sebep.Key@(sebep.Count() > 1 ? $" ({sebep.Count()})" : "")</div>
-                            }
-                        </td>
-                        <td class="yh-islem">
-                            <form method="post" asp-page-handler="Gonder" asp-route-protokolId="@p.ProtokolId"
-                                  asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="@Model.Durum" asp-route-Sebep="@Model.Sebep"
-                                  asp-route-Hizmet="@Model.Hizmet" asp-route-Q="@Model.Q" asp-route-P="@Model.PageNumber"
-                                  onsubmit="return confirm('Protokol @p.ProtokolId @ortamAdi ortamına gönderilecek. Emin misiniz?')">
-                                <button type="submit" class="btn btn-primary btn-sm">Gönder</button>
-                            </form>
-                        </td>
-                    </tr>
-                }
-                </tbody>
-            </table>
+        @* SATIR = Aktivite Akisi satiri (kullanici 2026-10-26): kimlik, protokolun TUM
+           gonderim zinciri, Detay/Gonder. Durum sutunu ve sebep satiri ICBARI sinifi --
+           kartlardaki sayilarla ayni kaynak. Acilinca protokolun icbari islemleri. *@
+        <div class="akis-sutunlar">
+            <span><input type="checkbox" aria-label="Sayfadakilerin tümünü seç" onchange="document.querySelectorAll('.ic-sec').forEach(c => c.checked = this.checked)" /></span>
+            <span>Hasta · protokol</span>
+            <span>Gönderim zinciri</span>
+            <span>İcbari durum</span>
+            <span class="akis-sag">İcbari işlem</span>
+            <span></span>
         </div>
+        @foreach (var s in Model.Satirlar)
+        {
+            var p = s.Icbari;
+            var pr = s.P;
+            var durumCss = IcbariIslemlerModel.AkisCss(p.Durum);
+            var sebepler = p.Kalemler.Where(k => k.Durum != IcbariKapsamService.Durum.Gitti)
+                .GroupBy(k => k.Sebep).OrderByDescending(g => g.Count()).Take(3).ToList();
+            <details class="akis-satir akis-satir--@durumCss">
+                <summary>
+                    <span class="akis-satir-sec" onclick="event.stopPropagation()">
+                        <input type="checkbox" class="ic-sec" name="protokolIds" value="@p.ProtokolId" form="ic-toplu" aria-label="Protokol @p.ProtokolId seç" />
+                    </span>
+                    <span class="akis-satir-kimlik">
+                        <span class="akis-satir-ad">
+                            <span class="akis-grup-ok" aria-hidden="true"></span>
+                            @(string.IsNullOrWhiteSpace(s.Akis.HastaAdi) ? (string.IsNullOrWhiteSpace(p.Hasta) ? "—" : p.Hasta) : s.Akis.HastaAdi)
+                            @if (!string.IsNullOrWhiteSpace(s.Akis.Fin)) { <span class="akis-satir-fin">@s.Akis.Fin</span> }
+                        </span>
+                        @if (pr is not null)
+                        {
+                            <span class="akis-satir-alt">@string.Join(" · ", new[] { pr.BolumAdi, pr.DoktorAdiSoyadi }.Where(x => !string.IsNullOrWhiteSpace(x)))</span>
+                        }
+                        <span class="akis-satir-alt akis-mono">
+                            protokol @p.ProtokolId.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                            @if (pr?.AcilisTarihi is { } ac) { <text> · @ac.ToString("dd.MM.yyyy")</text> }
+                            @if (pr?.GelisTipiId is { } gt) { <text> · @(gt == "Y" ? "Yatan" : gt == "G" ? "Günübirlik" : "Ayaktan")</text> }
+                        </span>
+                    </span>
+                    <span class="akis-zincir">
+                        @foreach (var h in s.Akis.Zincir)
+                        {
+                            <span class="akis-halka akis-halka--@h.Css" title="@h.Aciklama">
+                                <span class="akis-kare akis-kare--@h.Css" aria-hidden="true"></span>
+                                @h.Ad
+                                @if (h.Adet > 0)
+                                {
+                                    <span class="akis-halka-adet">@(h.Takilan > 0 ? $"{h.Takilan}/{h.Adet}" : h.Adet.ToString(tr))</span>
+                                }
+                            </span>
+                        }
+                    </span>
+                    <span class="akis-satir-durum">
+                        <span class="akis-kare akis-kare--@durumCss" aria-hidden="true"></span>
+                        <span>
+                            @(p.Durum == IcbariKapsamService.Durum.Gitti ? "Tamamı gönderildi" : IcbariIslemlerModel.DurumAdi(p.Durum))
+                            @if (p.SonDenemeUtc is { } sd) { <span class="akis-satir-hic">son @AzTime.ToLocal(sd).ToString("dd.MM HH:mm", tr)</span> }
+                        </span>
+                    </span>
+                    <span class="akis-satir-sayac akis-mono">
+                        @if (p.IslemYok)
+                        {
+                            <text>—</text>
+                            <span class="akis-satir-saat">icbari işlem yok</span>
+                        }
+                        else
+                        {
+                            <text>@p.Gitti/@p.Kalemler.Count</text>
+                            <span class="akis-satir-saat">gönderildi</span>
+                        }
+                    </span>
+                    <span class="akis-satir-eylem" onclick="event.stopPropagation()">
+                        <a asp-page="/Protokol" asp-route-id="@p.ProtokolId" class="btn btn-outline btn-sm"
+                           target="_blank" rel="noopener" title="Protokol detayını yeni sekmede aç">Detay</a>
+                        <form method="post" asp-page-handler="Gonder" asp-route-protokolId="@p.ProtokolId"
+                              asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="@Model.Durum" asp-route-Sebep="@Model.Sebep"
+                              asp-route-Hizmet="@Model.Hizmet" asp-route-Q="@Model.Q" asp-route-P="@Model.PageNumber"
+                              onsubmit="return confirm('Protokol @p.ProtokolId @ortamAdi ortamına gönderilecek. Emin misiniz?')">
+                            <button type="submit" class="btn btn-primary btn-sm"
+                                    title="Bu protokolün tüm zincirini gönder (müayinə, tanı, işlem, epikriz, laboratuvar, radyoloji, patoloji)">Gönder</button>
+                        </form>
+                    </span>
+                    @if (sebepler.Count > 0)
+                    {
+                        <span class="akis-satir-sebep">
+                            @for (var i = 0; i < sebepler.Count; i++)
+                            {
+                                var g = sebepler[i];
+                                var mesaj = g.Select(k => k.Mesaj).FirstOrDefault(m => !string.IsNullOrWhiteSpace(m));
+                                if (i > 0) { <text> · </text> }
+                                <strong class="akis-renk--@IcbariIslemlerModel.AkisCss(g.First().Durum)" title="@mesaj">@g.Key</strong>
+                                if (!p.IslemYok && g.Count() > 1) { <text> (@g.Count() işlem)</text> }
+                            }
+                        </span>
+                    }
+                </summary>
+
+                <div class="table-wrap akis-grup-tablo">
+                    <table>
+                        <thead>
+                            <tr>
+                                <th>Hizmet</th>
+                                <th>İcbari karşılığı</th>
+                                <th style="width:130px;">Durum</th>
+                                <th>Sebep / TRƏS mesajı</th>
+                                <th style="width:130px;">Son deneme</th>
+                                <th style="width:72px;"></th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var k in p.Kalemler.OrderBy(k => k.Durum == IcbariKapsamService.Durum.Gitti))
+                            {
+                                <tr>
+                                    <td>@IcbariKapsamService.HizmetAdi(k.Islem)</td>
+                                    <td class="text-muted">@(string.IsNullOrWhiteSpace(k.Islem.IcbariAdi) ? "—" : k.Islem.IcbariAdi)</td>
+                                    <td><span class="badge @IcbariIslemlerModel.DurumCss(k.Durum)"><span class="badge-dot"></span>@IcbariIslemlerModel.DurumAdi(k.Durum)</span></td>
+                                    <td class="cell-wide text-muted">
+                                        @if (k.Durum != IcbariKapsamService.Durum.Gitti)
+                                        {
+                                            <span>@k.Sebep</span>
+                                            @if (!string.IsNullOrWhiteSpace(k.Mesaj)) { <div title="@k.Mesaj">@PusulaEHealthSync.Persistence.SyncLogEntry.FriendlyError(k.Mesaj)</div> }
+                                        }
+                                        else { <text>-</text> }
+                                    </td>
+                                    <td class="mono text-muted">@(k.SonDenemeUtc is { } kd ? AzTime.ToLocal(kd).ToString("dd.MM.yyyy HH:mm", tr) : "—")</td>
+                                    <td>
+                                        @if (k.KayitId is { } kid)
+                                        {
+                                            <a asp-page="/Detail" asp-route-id="@kid" asp-route-fromProtokol="@p.ProtokolId" class="btn btn-outline btn-sm">Detay</a>
+                                        }
+                                    </td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+            </details>
+        }
         <div class="yh-sayfa">
             @if (Model.PageNumber > 1)
             {

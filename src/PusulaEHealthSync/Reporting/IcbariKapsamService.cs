@@ -18,12 +18,21 @@ namespace PusulaEHealthSync.Reporting;
 // Kume PusulaRepository.GetIcbariIslemlerAsync -- gonderimle ayni islem eslesme kurallari,
 // ama yalniz secili kurumu icbari olan protokoller (Hasta.Protokol.AKKurumId).
 //
+// TABAN TUM KURUMLU PROTOKOLLER (kullanici 2026-10-26: "tum kurumlu protokolleri baz
+// almali"): icbari kodlu islemi olmayan protokol de sayilir. Onun yerine MUAYENE
+// (Encounter) tek kalem olarak durur (Kalem.Muayene) -- protokol sayisina ve sinifina
+// girer, ISLEM sayilarina girmez.
+//
 // SALT OKUNUR: Pusula'ya yalnizca SELECT.
 public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncLog, SettingsStore settings)
 {
     public enum Durum { Gitti, Eksik, Hatali, Denenmedi }
 
-    public record Kalem(IcbariIslemRecord Islem, Durum Durum, string Sebep, string? Mesaj, DateTime? SonDenemeUtc);
+    // KayitId: son denemenin SyncLog kaydi (Detay sayfasina baglanti); denenmemisse null.
+    public record Kalem(IcbariIslemRecord Islem, Durum Durum, string Sebep, string? Mesaj, DateTime? SonDenemeUtc,
+                        long? KayitId = null, bool Muayene = false);
+
+    public const string MuayeneKalemi = "Muayene (icbari kodlu işlem yok)";
 
     // PROTOKOL BIRIMI (2026-10-26, kullanici: "ana gozuken veriler protokol bazli olsun,
     // altinda veri sayilari olsun"). Bir protokolun icbari durumu, islemlerinden:
@@ -33,6 +42,8 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
     public record ProtokolKalemi(int ProtokolId, string? Hasta, List<Kalem> Kalemler)
     {
         public Durum Durum { get; } = ProtokolDurumu(Kalemler);
+        public bool IslemYok => Kalemler.All(k => k.Muayene);
+        public int IslemSayisi => Kalemler.Count(k => !k.Muayene);
         public int Gitti => Kalemler.Count(k => k.Durum == Durum.Gitti);
         public int Gitmedi => Kalemler.Count - Gitti;
         public DateTime? SonDenemeUtc => Kalemler.Max(k => k.SonDenemeUtc);
@@ -83,9 +94,17 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
     public async Task<List<Kalem>> KalemlerAsync(
         DateTime fromLocal, DateTime toLocalExclusive, string ortam, CancellationToken ct = default)
     {
-        var islemler = await repository.GetIcbariIslemlerAsync(fromLocal, toLocalExclusive, ct);
+        var islemlerGorevi = repository.GetIcbariIslemlerAsync(fromLocal, toLocalExclusive, ct);
+        var kurumluGorevi = repository.GetIcbariKurumluProtokollerAsync(fromLocal, toLocalExclusive, ct);
+        var islemler = await islemlerGorevi;
+        var islemliProtokoller = islemler.Select(i => i.ProtokolId).ToHashSet();
+        var islemsizler = (await kurumluGorevi).Where(p => !islemliProtokoller.Contains(p.ProtokolId)).ToList();
+
         var durumlar = await syncLog.GetLatestByPusulaIdsAsync(
             "Procedure", islemler.Select(i => i.IslemId).ToList(), ct, govdeleriGetir: false, ortamZorla: ortam);
+        var muayeneDurumlari = islemsizler.Count == 0 ? new Dictionary<int, SyncLogEntry>()
+            : await syncLog.GetLatestByPusulaIdsAsync(
+                "Encounter", islemsizler.Select(p => p.ProtokolId).ToList(), ct, govdeleriGetir: false, ortamZorla: ortam);
 
         static Durum DurumBul(SyncLogEntry? son) => son switch
         {
@@ -104,12 +123,14 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
         // gonderim ayri kural kullanirsa ekranda "kuyrukta" yazan protokol gitmez.
         var denenmemisProtokoller = islemler
             .Where(i => DurumBul(durumlar.GetValueOrDefault(i.IslemId)) == Durum.Denenmedi)
-            .Select(i => i.ProtokolId).Distinct().ToList();
+            .Select(i => i.ProtokolId)
+            .Concat(islemsizler.Where(p => DurumBul(muayeneDurumlari.GetValueOrDefault(p.ProtokolId)) == Durum.Denenmedi)
+                               .Select(p => p.ProtokolId))
+            .Distinct().ToList();
         var sebepler = await DenenmemeSebepleriAsync(denenmemisProtokoller, ortam, ct);
 
-        return islemler.Select(i =>
+        Kalem KalemKur(IcbariIslemRecord i, SyncLogEntry? son, bool muayene)
         {
-            var son = durumlar.GetValueOrDefault(i.IslemId);
             var durum = DurumBul(son);
             var (sebep, mesaj) = durum switch
             {
@@ -117,8 +138,15 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
                 Durum.Denenmedi => sebepler.GetValueOrDefault(i.ProtokolId, (HenuzGonderilmedi, null)),
                 _ => (SyncLogEntry.ErrorCategory(son!.Message).Label, son!.Message),
             };
-            return new Kalem(i, durum, sebep, mesaj, son?.CreatedAtUtc);
-        }).ToList();
+            return new Kalem(i, durum, sebep, mesaj, son?.CreatedAtUtc, son?.Id, muayene);
+        }
+
+        return islemler.Select(i => KalemKur(i, durumlar.GetValueOrDefault(i.IslemId), false))
+            .Concat(islemsizler.Select(p => KalemKur(
+                new IcbariIslemRecord { IslemId = 0, ProtokolId = p.ProtokolId, PatientName = p.Hasta,
+                                        HizmetAdi = MuayeneKalemi, IcbariAdi = "" },
+                muayeneDurumlari.GetValueOrDefault(p.ProtokolId), true)))
+            .ToList();
     }
 
     // Protokol -> (sabit kategori, ayrintili metin). Kategori sabit ki gruplanabilsin
@@ -178,9 +206,11 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
         if (kalemler.Count == 0) return IcbariOzeti.Bos;
 
         var protokoller = Protokollere(kalemler);
-        Sayi Sinif(Durum d) => new(protokoller.Count(p => p.Durum == d), kalemler.Count(k => k.Durum == d));
+        // Islem sayilari muayene kalemlerini (islemsiz protokoller) saymaz.
+        var islemKalemleri = kalemler.Where(k => !k.Muayene).ToList();
+        Sayi Sinif(Durum d) => new(protokoller.Count(p => p.Durum == d), islemKalemleri.Count(k => k.Durum == d));
 
-        var hizmetler = kalemler
+        var hizmetler = islemKalemleri
             .GroupBy(k => HizmetAdi(k.Islem))
             .Select(g => new HizmetSatiri(g.Key, g.Count(),
                 g.Count(k => k.Durum == Durum.Gitti),
@@ -188,16 +218,16 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
             .ToList();
 
         return new IcbariOzeti(
-            new(protokoller.Count, kalemler.Count),
+            new(protokoller.Count, islemKalemleri.Count),
             Sinif(Durum.Gitti),
-            new(protokoller.Count(p => p.Durum != Durum.Gitti), kalemler.Count(k => k.Durum != Durum.Gitti)),
+            new(protokoller.Count(p => p.Durum != Durum.Gitti), islemKalemleri.Count(k => k.Durum != Durum.Gitti)),
             Sinif(Durum.Eksik),
             Sinif(Durum.Hatali),
             Sinif(Durum.Denenmedi),
             kalemler.Where(k => k.Durum != Durum.Gitti)
                 .GroupBy(k => (k.Sebep, k.Durum))
                 .Select(g => new SebepSatiri(g.Key.Sebep, g.Key.Durum,
-                    g.Select(k => k.Islem.ProtokolId).Distinct().Count(), g.Count()))
+                    g.Select(k => k.Islem.ProtokolId).Distinct().Count(), g.Count(k => !k.Muayene)))
                 .OrderByDescending(s => s.Protokol)
                 .ToList(),
             // En cok GITMEYEN hizmet once (protokol sayisina gore): "neyi duzeltirsem en cok

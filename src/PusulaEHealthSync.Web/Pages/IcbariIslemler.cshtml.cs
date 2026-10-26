@@ -24,7 +24,7 @@ namespace PusulaEHealthSync.Web.Pages;
 // gibi). Gonderim ise Ayarlar'daki AKTIF ortama gider -- ikisi farkliysa ekran uyariyor.
 public class IcbariIslemlerModel(
     IcbariKapsamService icbari, PusulaRepository repository, ProtocolFullSyncService protocolFullSync,
-    SettingsStore settings, ILogger<IcbariIslemlerModel> logger) : PageModel
+    SettingsStore settings, SyncLogStore syncLog, ILogger<IcbariIslemlerModel> logger) : PageModel
 {
     private const int SayfaBoyutu = 50;
     private const int TopluTavan = 25;
@@ -44,7 +44,17 @@ public class IcbariIslemlerModel(
     public DateOnly EffectiveFrom { get; private set; }
     public DateOnly EffectiveTo { get; private set; }
     public IcbariOzeti Ozet { get; private set; } = IcbariOzeti.Bos;
-    public List<ProtokolKalemi> Satirlar { get; private set; } = [];
+    public List<Satir> Satirlar { get; private set; } = [];
+
+    // SATIR = Aktivite Akisi'ndaki satirin AYNISI (kullanici 2026-10-26: "icbari islemler
+    // aktivite akisindaki gibi olmali, protokol detaylari vs ayni"). Akis: protokolun TUM
+    // gonderim zinciri (Live) -- YatanHastalarModel.AkisKur ile ayni katlama. Icbari: o
+    // protokolun icbari kalemleri ve icbari sinifi. Akis yalniz sayfadaki 50 protokol icin
+    // kuruluyor; kartlar ve suzgec Icbari'den.
+    public record Satir(ProtokolKalemi Icbari, AktiviteGrubu Akis, DateTime? SonGonderimUtc)
+    {
+        public ProtokolListItem? P => Akis.Protokol;
+    }
     public int ListelenenSayi { get; private set; }
     public int ListelenenIslem { get; private set; }
     public int PageNumber { get; private set; } = 1;
@@ -59,9 +69,42 @@ public class IcbariIslemlerModel(
         var liste = await SuzulmusAsync(ct);
         PageNumber = P < 1 ? 1 : P;
         ListelenenSayi = liste.Count;
-        ListelenenIslem = liste.Sum(p => p.Kalemler.Count);
-        Satirlar = liste.Skip((PageNumber - 1) * SayfaBoyutu).Take(SayfaBoyutu).ToList();
+        ListelenenIslem = liste.Sum(p => p.IslemSayisi);
         HasNextPage = liste.Count > PageNumber * SayfaBoyutu;
+        Satirlar = await SatirlariKurAsync(liste.Skip((PageNumber - 1) * SayfaBoyutu).Take(SayfaBoyutu).ToList(), ct);
+    }
+
+    private async Task<List<Satir>> SatirlariKurAsync(List<ProtokolKalemi> sayfa, CancellationToken ct)
+    {
+        if (sayfa.Count == 0) return [];
+        var ids = sayfa.Select(p => p.ProtokolId).ToList();
+        Dictionary<int, ProtokolListItem> protokoller;
+        try
+        {
+            protokoller = await repository.GetProtokollerByIdsAsync(ids, ct);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Icbari Islemler: protokol bilgileri Pusula'dan okunamadi.");
+            protokoller = [];
+        }
+
+        var ozet = await syncLog.QueryOzetByProtokolIdsAsync(
+            ids, protokoller.Values.Select(p => p.HastaId).Where(h => h > 0).Distinct().ToList(), null, "Live", ct);
+        var protokolBasina = ozet.Where(o => o.ProtokolId is not null).ToLookup(o => o.ProtokolId!.Value);
+        var hastaBasina = ozet.Where(o => o.ResourceType == "Patient").ToLookup(o => o.PusulaId);
+        var sonIdler = ids.Select(id => protokolBasina[id].Select(o => o.SonId).DefaultIfEmpty(0).Max()).ToList();
+        var zamanlar = await syncLog.GetZamanlarAsync(sonIdler.Where(i => i > 0).ToList(), ct);
+
+        return sayfa.Select((p, i) =>
+        {
+            var protokol = protokoller.GetValueOrDefault(p.ProtokolId)
+                ?? new ProtokolListItem { ProtokolId = p.ProtokolId, HastaAdi = p.Hasta };
+            var kaynak = protokolBasina[p.ProtokolId]
+                .Concat(protokol.HastaId > 0 ? hastaBasina[protokol.HastaId] : []);
+            return new Satir(p, YatanHastalarModel.AkisKur(protokol, kaynak),
+                zamanlar.TryGetValue(sonIdler[i], out var z) ? z : null);
+        }).ToList();
     }
 
     // Faturalama ekibine: suzulmus protokollerin ISLEMLERI (satir = islem), sayfalama yok.
@@ -209,6 +252,15 @@ public class IcbariIslemlerModel(
         IcbariKapsamService.Durum.Eksik => "Eksik verili",
         IcbariKapsamService.Durum.Hatali => "Hatalı",
         _ => "Henüz denenmedi",
+    };
+
+    // Aktivite Akisi'nin renk sinifi (akis-kare--*, akis-satir--*).
+    public static string AkisCss(IcbariKapsamService.Durum d) => d switch
+    {
+        IcbariKapsamService.Durum.Gitti => "ok",
+        IcbariKapsamService.Durum.Eksik => "eksik",
+        IcbariKapsamService.Durum.Hatali => "hata",
+        _ => "yok",
     };
 
     public static string DurumCss(IcbariKapsamService.Durum d) => d switch

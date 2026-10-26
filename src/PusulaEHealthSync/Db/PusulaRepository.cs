@@ -922,7 +922,7 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
                 ORDER BY PKH.IsPaket DESC
             ) icb
             WHERE p.AcilisTarihi >= @FromDate AND p.AcilisTarihi < @ToDateExclusive
-              AND p.AKKurumId = @IcbariKurumId
+              AND p.AKKurumId = @IcbariKurumId AND p.State <> 0
               AND pi.State >= 2 AND pi.HizmetId IS NOT NULL
               AND icb.Kodu IS NOT NULL AND LEN(icb.Kodu) > 0
               AND NOT EXISTS (
@@ -963,11 +963,42 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
         return result;
     }
 
+    // Kurumu icbari secili TUM protokoller -- icbari kodlu islemi olmayanlar dahil.
+    // KULLANICI (2026-10-26): "tum kurumlu protokolleri baz almali". Islemi olmayan
+    // protokol panelde muayenesinin durumuyla sayiliyor (IcbariKapsamService).
+    public async Task<List<(int ProtokolId, string? Hasta)>> GetIcbariKurumluProtokollerAsync(
+        DateTime fromDate, DateTime toDateExclusive, CancellationToken ct = default)
+    {
+        const string sql = @"
+            SELECT p.Id, h.Adi, h.Soyadi
+            FROM hasta.protokol p
+            LEFT JOIN hasta.hasta h ON h.Id = p.HastaId
+            WHERE p.AcilisTarihi >= @FromDate AND p.AcilisTarihi < @ToDateExclusive
+              AND p.AKKurumId = @IcbariKurumId AND p.State <> 0";
+
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
+        await conn.OpenAsync(ct);
+        await using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@FromDate", fromDate);
+        cmd.Parameters.AddWithValue("@ToDateExclusive", toDateExclusive);
+        cmd.Parameters.AddWithValue("@IcbariKurumId", IcbariKurumId);
+
+        var result = new List<(int, string?)>();
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            var ad = string.Join(" ", new[] { reader.IsDBNull(1) ? null : reader.GetString(1),
+                                               reader.IsDBNull(2) ? null : reader.GetString(2) }
+                .Where(x => !string.IsNullOrWhiteSpace(x)));
+            result.Add((reader.GetInt32(0), ad));
+        }
+        return result;
+    }
+
     // Protokol Listesi'ndeki "Sadece İcbari Sigorta hastaları" filtresi icin (KULLANICI
-    // ISTEGI, 2026-08-29) -- GetIslemlerByProtokolIdAsync/GetIcbariIslemlerAsync ile AYNI
-    // eslesme kurallari (tam gerekce orada), ama verilen bir protokol Id kumesi icin sadece
-    // "en az bir icbari-eslesen İşlemi var mi" sorusuna DISTINCT bir ProtokolId listesiyle
-    // cevap verir -- tarih araligina degil, cagiran tarafin zaten elindeki aday listesine
+    // ISTEGI, 2026-08-29). 2026-10-26'dan beri: protokolde secili kurum icbari mi
+    // (AKKurumId, bkz. IcbariKurumId) -- islem eslesmesine bakilmiyor. Tarih araligina degil,
+    // cagiran tarafin zaten elindeki aday listesine
     // bagli, boylece arama (tarih yok sayilan) ile de dogru calisir.
     // DUZELTME (2026-08-29, canli hata -- "SqlException: The incoming request has too many
     // parameters. The server supports a maximum of 2100 parameters."): sadece 6 gunluk bir
@@ -989,33 +1020,10 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
         {
             var placeholders = batch.Select((_, i) => $"@id{i}").ToList();
             var sql = $@"
-                SELECT DISTINCT pi.ProtokolId
-                FROM Hasta.ProtokolIslem pi
-                INNER JOIN Ortak.Hizmet oh ON oh.Id = pi.HizmetId
-                INNER JOIN hasta.protokol p ON p.Id = pi.ProtokolId AND p.AKKurumId = {IcbariKurumId}
-                OUTER APPLY (
-                    SELECT TOP 1 PKH.Kodu
-                    FROM Ortak.HizmetKurumHizmet OHKH
-                    INNER JOIN Pazarlama.KurumHizmet PKH ON PKH.Id = OHKH.KurumHizmetId
-                    WHERE OHKH.HizmetId = oh.Id
-                      AND PKH.KurumHizmetKategoriId = 13
-                      AND PKH.State <> 0
-                      AND OHKH.State <> 0
-                    ORDER BY PKH.IsPaket DESC
-                ) icb
-                WHERE pi.ProtokolId IN ({string.Join(",", placeholders)})
-                  AND pi.State >= 2 AND pi.HizmetId IS NOT NULL
-                  AND icb.Kodu IS NOT NULL AND LEN(icb.Kodu) > 0
-                  AND NOT EXISTS (
-                      SELECT 1 FROM RIS.TetkikIslem rti
-                      WHERE rti.ProtokolIslemId = pi.Id AND rti.State <> 0 AND rti.State <> 6
-                  )
-                  AND NOT EXISTS (
-                      SELECT 1 FROM LIS.TestIslem lti
-                      WHERE lti.ProtokolIslemId = pi.Id AND lti.State <> 0 AND lti.State <> 6
-                  )
-                  -- Laboratuvar kalemleri artik DISLANMIYOR (2026-09-14) -- yukaridaki
-                  -- ayni gerekce.";
+                SELECT p.Id
+                FROM hasta.protokol p
+                WHERE p.Id IN ({string.Join(",", placeholders)})
+                  AND p.AKKurumId = {IcbariKurumId} AND p.State <> 0";
 
             await using var cmd = new SqlCommand(sql, conn);
             for (var i = 0; i < batch.Length; i++)
