@@ -895,6 +895,13 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
     // tarih araligindaki TUM protokoller uzerinden calisir. Cagiran taraf (GenelBakis) her
     // IslemId'yi SyncLogStore'daki Procedure kayitlariyla eslestirip hangisinin
     // gonderildigini/gonderilemedigini bulur.
+    // Icbari hasta = protokolde SECILI kurum "Icbari Tibbi Siğorta Üzrə Dövlət Agentliyi"
+    // (Hasta.Protokol.AKKurumId). KULLANICI DUZELTMESI (2026-10-26): onceden yalniz hizmetin
+    // icbari fiyat listesinde olmasina bakiliyordu; ucretli/ozel sigortali hastalarin
+    // tahlilleri de sayildigi icin panel 01.10-26.10 icin 218 yerine 15.790 protokol
+    // gosteriyordu. Gonderim (GetIslemlerByProtokolIdAsync) bu kuraldan ETKILENMEZ.
+    private const int IcbariKurumId = 7660;
+
     public async Task<List<IcbariIslemRecord>> GetIcbariIslemlerAsync(DateTime fromDate, DateTime toDateExclusive, CancellationToken ct = default)
     {
         const string sql = @"
@@ -915,6 +922,7 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
                 ORDER BY PKH.IsPaket DESC
             ) icb
             WHERE p.AcilisTarihi >= @FromDate AND p.AcilisTarihi < @ToDateExclusive
+              AND p.AKKurumId = @IcbariKurumId
               AND pi.State >= 2 AND pi.HizmetId IS NOT NULL
               AND icb.Kodu IS NOT NULL AND LEN(icb.Kodu) > 0
               AND NOT EXISTS (
@@ -935,6 +943,7 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
         await using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@FromDate", fromDate);
         cmd.Parameters.AddWithValue("@ToDateExclusive", toDateExclusive);
+        cmd.Parameters.AddWithValue("@IcbariKurumId", IcbariKurumId);
 
         var result = new List<IcbariIslemRecord>();
         await using var reader = await cmd.ExecuteReaderAsync(ct);
@@ -983,6 +992,7 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
                 SELECT DISTINCT pi.ProtokolId
                 FROM Hasta.ProtokolIslem pi
                 INNER JOIN Ortak.Hizmet oh ON oh.Id = pi.HizmetId
+                INNER JOIN hasta.protokol p ON p.Id = pi.ProtokolId AND p.AKKurumId = {IcbariKurumId}
                 OUTER APPLY (
                     SELECT TOP 1 PKH.Kodu
                     FROM Ortak.HizmetKurumHizmet OHKH

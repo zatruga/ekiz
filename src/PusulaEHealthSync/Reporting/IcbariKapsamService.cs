@@ -15,7 +15,8 @@ namespace PusulaEHealthSync.Reporting;
 // tiklayinca 309 satir gelebilirdi -- bu projede o tur ayrismanin bedeli birkac kez odendi.
 //
 // OLCU ISLEM: faturalama kalemi islemin kendisi (Hasta.ProtokolIslem), protokol degil.
-// Kume PusulaRepository.GetIcbariIslemlerAsync -- gonderimle BIREBIR ayni eslesme kurallari.
+// Kume PusulaRepository.GetIcbariIslemlerAsync -- gonderimle ayni islem eslesme kurallari,
+// ama yalniz secili kurumu icbari olan protokoller (Hasta.Protokol.AKKurumId).
 //
 // SALT OKUNUR: Pusula'ya yalnizca SELECT.
 public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncLog, SettingsStore settings)
