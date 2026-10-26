@@ -178,7 +178,11 @@ public class GenelBakisModel(
 
         bool Kirpildi, bool PusulaHatasi,
 
-        List<EpikrizDoktorSatiri> EpikrizDoktorlari)
+        List<EpikrizDoktorSatiri> EpikrizDoktorlari,
+
+        // Sebep kartlarindaki "Listele" penceresinin kaynagi -- ayni hesaptan, ayni
+        // onbellekte (kartta yazan sayi ile listelenen kayit ayrisamaz).
+        List<SebepKaydi> SebepKayitlari)
     {
         public static readonly BakisOzeti Bos = new(
             0, 0, 0, 0, 0, 0, false, 0, 0, 0,
@@ -186,7 +190,7 @@ public class GenelBakisModel(
             0, 0, null,
             [], [], [], [], [], [],
             IcbariKapsamService.IcbariOzeti.Bos, false, false,
-            []);
+            [], []);
 
         public int ProtokolSorunlu => ProtokolEksik + ProtokolHatali;
         public double RingDashOffset => 119.4 * (1 - TamamYuzde / 100.0);
@@ -225,6 +229,13 @@ public class GenelBakisModel(
     // "Gonderilecek metin yok" tek basina epikriz mi patoloji mi belli etmiyordu.
     public record SebepSatiri(string Kategori, string Aciklama, int Protokol, int Kayit, int Satir,
                               List<(string ResourceType, string Etiket, int Kayit)> Turler);
+
+    // SEBEP LISTESI (2026-10-26, kullanici: "eslestirme eksik satirinda bu hizmetleri ya da
+    // testleri liste seklinde vermeli; kimlik numarasi yok kisminda listele deyince liste
+    // popup ekranda gostermeli; tetkik sonucu girilmedi denilen hastalari listelemeli").
+    // Kayit basina bir satir (kayit-gun degil); Durum "eksik" | "hata".
+    public record SebepKaydi(string Durum, string Kategori, long SonId, string ResourceType,
+                             int PusulaId, int? ProtokolId, string? Mesaj, DateOnly Gun);
 
     public record HataSatiri(long SonId, int? ProtokolId, string HastaAdi, string TurEtiketi,
                              string HamMesaj, string AnlasilirMesaj, int Kayit, DateOnly Gun);
@@ -453,6 +464,14 @@ public class GenelBakisModel(
         // ---- 7) SEBEPLER -- KATEGORI BAZINDA, HER UC BIRIMLE ----
         var hataSebepleri = SebepleriTopla(donemKayitlari, SyncStatus.Failed);
         var eksikSebepleri = SebepleriTopla(donemKayitlari, SyncStatus.Skipped);
+        var sebepKayitlari = donemKayitlari
+            .Where(k => k.Durum is SyncStatus.Skipped or SyncStatus.Failed)
+            .GroupBy(k => (k.Durum, k.ResourceType, k.PusulaId))
+            .Select(g => g.MaxBy(k => k.SonId)!)
+            .Select(k => new SebepKaydi(k.Durum == SyncStatus.Failed ? "hata" : "eksik",
+                SyncLogEntry.ErrorCategory(k.Mesaj).Label, k.SonId, k.ResourceType, k.PusulaId,
+                k.ProtokolId, k.Mesaj, k.Gun))
+            .ToList();
 
         // ---- 8) SON HATALAR ----
         // Hasta adi artik AYRI BIR SYNCLOG SORGUSUNDAN gelmiyor: protokol bilgileri
@@ -599,7 +618,129 @@ public class GenelBakisModel(
             trend, turler, hataSebepleri, eksikSebepleri, sonHatalar, bolumSatirlari,
             icbari,
             pencere.Kirpildi, pusulaHatasi,
-            epikrizDoktorlari);
+            epikrizDoktorlari, sebepKayitlari);
+    }
+
+    // ===================== SEBEP LISTESI PENCERESI =====================
+    //
+    // Sayfadaki <dialog> bunu fetch ile cagiriyor; ozet onbellekten geliyor (sayfa az once
+    // ayni anahtarla hesapladi). Pusula'ya yalnizca sayfadaki kayitlarin adi ve protokol
+    // bilgisi icin gidiliyor -- SELECT.
+    private const int ListeTavan = 3000;
+
+    public record SebepListeSatiri(SebepKaydi Kayit, string TurEtiketi, string? Icerik,
+                                   string? Hasta, string? Bolum, string? Doktor);
+
+    // KONUYA GORE: eksik eslestirme, sonucsuz tetkik gibi sebeplerde asil soru "HANGI
+    // hizmet/test" -- ayni tetkik yuzlerce hastada takiliyor. Kimlik/FIN sebeplerinde konu
+    // hastanin kendisi. Konu = icerik, yoksa hasta. TUM kayitlar uzerinden (tavan yok) --
+    // eksik tanim listesi yarim kalmasin.
+    public record SebepKonusu(string Konu, string TurEtiketi, int Kayit, int Protokol);
+
+    public record SebepListesi(string Durum, string Kategori, string Aciklama, int Toplam,
+                               List<SebepKonusu> Konular,
+                               List<SebepListeSatiri> Satirlar, bool Kirpildi, bool PusulaHatasi)
+    {
+
+        // Hasta odakli sebepler: once kayit listesi acilsin.
+        public bool HastaOdakli => Kategori.Contains("Kimlik", StringComparison.OrdinalIgnoreCase)
+                                || Kategori.Contains("FIN", StringComparison.OrdinalIgnoreCase);
+    }
+
+    public async Task<IActionResult> OnGetSebepListesiAsync(string durum, string kategori, CancellationToken ct)
+    {
+        var liste = await SebepListesiKurAsync(durum, kategori, ct);
+        return Partial("_GbSebepListesi", liste);
+    }
+
+    public async Task<IActionResult> OnGetSebepExcelAsync(string durum, string kategori, CancellationToken ct)
+    {
+        var liste = await SebepListesiKurAsync(durum, kategori, ct);
+        var sutunlar = new List<PusulaEHealthSync.Export.XlsxWriter.Sutun>
+        {
+            new("Tür", 16), new("İçerik", 44), new("Hasta", 28), new("Protokol", 12, Sayi: true),
+            new("Bölüm", 28), new("Doktor", 26), new("Gün", 12), new("Mesaj", 80),
+        };
+        var satirlar = liste.Satirlar.Select(x => new string?[]
+        {
+            x.TurEtiketi, x.Icerik, x.Hasta, x.Kayit.ProtokolId?.ToString(CultureInfo.InvariantCulture),
+            x.Bolum, x.Doktor, x.Kayit.Gun.ToString("dd.MM.yyyy"), x.Kayit.Mesaj,
+        });
+        var bayt = PusulaEHealthSync.Export.XlsxWriter.Olustur(liste.Kategori.Length > 30 ? liste.Kategori[..30] : liste.Kategori, sutunlar, satirlar);
+        return File(bayt, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+            $"sebep-{durum}-{PeriodFromDate:yyyyMMdd}-{PeriodToDate:yyyyMMdd}.xlsx");
+    }
+
+    private async Task<SebepListesi> SebepListesiKurAsync(string durum, string kategori, CancellationToken ct)
+    {
+        await OnGetAsync(ct);
+        var tum = Ozet.SebepKayitlari.Where(k => k.Durum == durum && k.Kategori == kategori)
+            .OrderByDescending(k => k.SonId).ToList();
+        var secilen = tum.Take(ListeTavan).ToList();
+        var aciklama = (durum == "hata" ? Ozet.HataSebepleri : Ozet.EksikSebepleri)
+            .FirstOrDefault(x => x.Kategori == kategori)?.Aciklama ?? "";
+
+        var pusulaHatasi = false;
+        var icerikler = new Dictionary<(string, int), string>();
+        foreach (var tip in tum.GroupBy(k => k.ResourceType))
+        {
+            if (!PusulaRepository.AciklamaDestekleniyorMu(tip.Key)) continue;
+            try
+            {
+                foreach (var kv in await pusulaRepository.KayitAciklamalariAsync(
+                             tip.Key, tip.Select(k => k.PusulaId).Distinct().ToList(), ct))
+                    icerikler[(tip.Key, kv.Key)] = kv.Value;
+            }
+            catch (Exception ex)
+            {
+                pusulaHatasi = true;
+                logger.LogWarning(ex, "Genel Bakis: {Tip} kayit adlari okunamadi.", tip.Key);
+            }
+        }
+
+        Dictionary<int, ProtokolListItem> protokoller = [];
+        try
+        {
+            protokoller = await pusulaRepository.GetProtokollerByIdsAsync(
+                secilen.Where(k => k.ProtokolId is not null).Select(k => k.ProtokolId!.Value).Distinct().ToList(), ct);
+        }
+        catch (Exception ex)
+        {
+            pusulaHatasi = true;
+            logger.LogWarning(ex, "Genel Bakis: sebep listesi icin protokol bilgileri okunamadi.");
+        }
+
+        var satirlar = secilen.Select(k =>
+        {
+            var pr = k.ProtokolId is { } pid ? protokoller.GetValueOrDefault(pid) : null;
+            var icerik = icerikler.GetValueOrDefault((k.ResourceType, k.PusulaId));
+            // Hasta kaydinin "icerigi" hastanin kendisi -- konu olarak degil hasta olarak gosterilir.
+            var hasta = k.ResourceType == "Patient" ? icerik : pr?.HastaAdiSoyadi;
+            if (k.ResourceType == "Patient") icerik = null;
+            return new SebepListeSatiri(k, SyncLogEntry.ResourceTypeLabel(k.ResourceType), icerik,
+                string.IsNullOrWhiteSpace(hasta) ? null : hasta, pr?.BolumAdi, pr?.DoktorAdiSoyadi);
+        }).ToList();
+
+        // Konu adi icerik yoksa hasta -- hasta adi yalnizca listelenen kayitlar icin cozuldu;
+        // kalanlar icin protokol numarasi yazilir (hasta odakli sebepler zaten kucuk).
+        var hastaAdlari = satirlar.Where(x => x.Kayit.ProtokolId is not null && x.Hasta is not null)
+            .GroupBy(x => x.Kayit.ProtokolId!.Value).ToDictionary(g => g.Key, g => g.First().Hasta!);
+        var konular = tum
+            .GroupBy(k =>
+            {
+                var icerik = icerikler.GetValueOrDefault((k.ResourceType, k.PusulaId));
+                var konu = k.ResourceType == "Patient" ? icerik
+                    : icerik ?? (k.ProtokolId is { } pid
+                        ? hastaAdlari.GetValueOrDefault(pid) ?? $"Protokol {pid}"
+                        : null);
+                return (Konu: konu ?? "(adı çözülemedi)", Tur: SyncLogEntry.ResourceTypeLabel(k.ResourceType));
+            })
+            .Select(g => new SebepKonusu(g.Key.Konu, g.Key.Tur, g.Count(),
+                g.Where(k => k.ProtokolId is not null).Select(k => k.ProtokolId).Distinct().Count()))
+            .OrderByDescending(k => k.Kayit).ThenBy(k => k.Konu)
+            .ToList();
+
+        return new SebepListesi(durum, kategori, aciklama, tum.Count, konular, satirlar, tum.Count > secilen.Count, pusulaHatasi);
     }
 
     // EXCEL: doktor bazli epikriz tablosunun TAMAMI (ekranda ilk 12 satir). Ayni donem,

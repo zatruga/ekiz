@@ -1,0 +1,88 @@
+@model PusulaEHealthSync.Web.Pages.GenelBakisModel.SebepListesi
+@using PusulaEHealthSync.Persistence
+@{
+    var tr = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+    var konular = Model.Konular;
+    var konuIlk = !Model.HastaOdakli;
+}
+@* GENEL BAKIS -- SEBEP LISTESI PENCERESININ ICERIGI (fetch ile <dialog>'a yukleniyor).
+   Iki gorunum: KONUYA GORE (hangi hizmet/test/hasta, kac kayit) ve KAYITLAR (tek tek,
+   hasta ve protokolle). Kimlik/FIN sebeplerinde kayitlar once acilir. *@
+<div class="gb-liste-bas">
+    <div>
+        <p class="gb-liste-ust">@(Model.Durum == "hata" ? "Hata sebebi" : "Eksik veri sebebi")</p>
+        <h2 id="gb-liste-baslik" class="gb-liste-baslik">@Model.Kategori</h2>
+        @if (!string.IsNullOrWhiteSpace(Model.Aciklama)) { <p class="gb-liste-acik">@Model.Aciklama</p> }
+        <p class="gb-liste-acik num">
+            @Model.Toplam.ToString("N0", tr) kayıt · @konular.Count.ToString("N0", tr) farklı konu
+            @if (Model.Kirpildi) { <text>· kayıt listesinde en yeni @Model.Satirlar.Count.ToString("N0", tr) kayıt (Excel'de de bu kadar); konu listesi tam</text> }
+        </p>
+    </div>
+    <button type="button" class="btn btn-outline btn-sm" onclick="this.closest('dialog').close()" aria-label="Kapat">Kapat</button>
+</div>
+
+@if (Model.PusulaHatasi)
+{
+    <div class="alert alert-warning">Pusula'ya erişilemedi; bazı adlar ve hasta bilgileri boş görünebilir.</div>
+}
+
+<div class="gb-liste-arac">
+    <div class="gb-seg" role="tablist">
+        <button type="button" role="tab" class="gb-seg-btn @(konuIlk ? "active" : "")" aria-selected="@(konuIlk ? "true" : "false")" onclick="gbListeGorunum(this, 'konu')">Konuya göre (@konular.Count.ToString("N0", tr))</button>
+        <button type="button" role="tab" class="gb-seg-btn @(konuIlk ? "" : "active")" aria-selected="@(konuIlk ? "false" : "true")" onclick="gbListeGorunum(this, 'kayit')">Kayıtlar (@Model.Satirlar.Count.ToString("N0", tr))</button>
+    </div>
+    <input type="search" class="gb-tablo-ara" placeholder="Listede ara" aria-label="Listede ara" oninput="gbListeAra(this)" />
+    <a class="btn btn-outline btn-sm" href="?handler=SebepExcel&durum=@Uri.EscapeDataString(Model.Durum)&kategori=@Uri.EscapeDataString(Model.Kategori)&Donem=@Uri.EscapeDataString(Context.Request.Query["Donem"].ToString())">Excel'e indir</a>
+</div>
+
+<div class="gb-liste-govde" data-gorunum="konu" @(konuIlk ? "" : "hidden")>
+    <table class="gb-liste-tablo">
+        <thead><tr><th>Konu</th><th>Tür</th><th class="akis-sag">Kayıt</th><th class="akis-sag">Protokol</th></tr></thead>
+        <tbody>
+            @foreach (var k in konular)
+            {
+                <tr>
+                    <td>@k.Konu</td>
+                    <td class="text-muted">@k.TurEtiketi</td>
+                    <td class="akis-sag num">@k.Kayit.ToString("N0", tr)</td>
+                    <td class="akis-sag num">@k.Protokol.ToString("N0", tr)</td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>
+
+<div class="gb-liste-govde" data-gorunum="kayit" @(konuIlk ? "hidden" : "")>
+    <table class="gb-liste-tablo">
+        <thead><tr><th>Hasta</th><th>Protokol</th><th>Tür · içerik</th><th>Bölüm · doktor</th><th>Gün</th><th></th></tr></thead>
+        <tbody>
+            @foreach (var x in Model.Satirlar)
+            {
+                <tr>
+                    <td>@(x.Hasta ?? "—")</td>
+                    <td class="mono">
+                        @if (x.Kayit.ProtokolId is { } pid)
+                        {
+                            <a asp-page="/Protokol" asp-route-id="@pid" target="_blank" rel="noopener">@pid</a>
+                        }
+                        else { <span class="text-faint">—</span> }
+                    </td>
+                    <td>
+                        <span class="badge @SyncLogEntry.ResourceTypeCssClass(x.Kayit.ResourceType)">@x.TurEtiketi</span>
+                        @(x.Icerik ?? "")
+                        @if (!string.IsNullOrWhiteSpace(x.Kayit.Mesaj))
+                        {
+                            <div class="text-muted gb-liste-mesaj" title="@x.Kayit.Mesaj">@x.Kayit.Mesaj</div>
+                        }
+                    </td>
+                    <td class="text-muted">@string.Join(" · ", new[] { x.Bolum, x.Doktor }.Where(v => !string.IsNullOrWhiteSpace(v)))</td>
+                    <td class="mono text-muted">@x.Kayit.Gun.ToString("dd.MM")</td>
+                    <td>
+                        <a asp-page="/Detail" asp-route-id="@x.Kayit.SonId" asp-route-fromProtokol="@x.Kayit.ProtokolId"
+                           class="btn btn-outline btn-sm" target="_blank" rel="noopener">Detay</a>
+                    </td>
+                </tr>
+            }
+        </tbody>
+    </table>
+</div>

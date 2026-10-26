@@ -713,7 +713,8 @@ else if (!Model.AktifOrtamCanli)
         {
             foreach (var s in o.EksikSebepleri)
             {
-                <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Olcut="gonderim" asp-route-Status="Skipped" asp-route-Kategori="@s.Kategori" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-sebep warning" target="_blank" rel="noopener">
+                <div class="gb-sebep warning" role="button" tabindex="0" data-durum="eksik" data-kategori="@s.Kategori"
+                     onclick="gbSebepListele(this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); gbSebepListele(this); }">
                     <span class="gb-sebep-sayi">@sebepSayisi(s)<span>@(s.Protokol > 0 ? "protokol" : "kayıt")</span></span>
                     <span class="gb-sebep-metin">
                         <span class="gb-sebep-ad">@s.Kategori</span>
@@ -725,8 +726,13 @@ else if (!Model.AktifOrtamCanli)
                             }
                         </span>
                         <span class="gb-sebep-alt">@birim(s.Kayit, s.Satir)</span>
+                        <span class="gb-sebep-eylem" onclick="event.stopPropagation()">
+                            <button type="button" class="btn btn-outline btn-sm" onclick="gbSebepListele(this.closest('.gb-sebep'))">Listele</button>
+                            <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Olcut="gonderim" asp-route-Status="Skipped" asp-route-Kategori="@s.Kategori" asp-route-From="@fromIso" asp-route-To="@toIso"
+                               class="btn btn-outline btn-sm" target="_blank" rel="noopener">Aktivite'de aç ↗</a>
+                        </span>
                     </span>
-                </a>
+                </div>
             }
         }
     </div>
@@ -745,7 +751,8 @@ else if (!Model.AktifOrtamCanli)
         {
             foreach (var s in o.HataSebepleri)
             {
-                <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Olcut="gonderim" asp-route-Status="Failed" asp-route-Kategori="@s.Kategori" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-sebep danger" target="_blank" rel="noopener">
+                <div class="gb-sebep danger" role="button" tabindex="0" data-durum="hata" data-kategori="@s.Kategori"
+                     onclick="gbSebepListele(this)" onkeydown="if (event.key === 'Enter' || event.key === ' ') { event.preventDefault(); gbSebepListele(this); }">
                     <span class="gb-sebep-sayi">@sebepSayisi(s)<span>@(s.Protokol > 0 ? "protokol" : "kayıt")</span></span>
                     <span class="gb-sebep-metin">
                         <span class="gb-sebep-ad">@s.Kategori</span>
@@ -757,8 +764,13 @@ else if (!Model.AktifOrtamCanli)
                             }
                         </span>
                         <span class="gb-sebep-alt">@birim(s.Kayit, s.Satir)</span>
+                        <span class="gb-sebep-eylem" onclick="event.stopPropagation()">
+                            <button type="button" class="btn btn-outline btn-sm" onclick="gbSebepListele(this.closest('.gb-sebep'))">Listele</button>
+                            <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Olcut="gonderim" asp-route-Status="Failed" asp-route-Kategori="@s.Kategori" asp-route-From="@fromIso" asp-route-To="@toIso"
+                               class="btn btn-outline btn-sm" target="_blank" rel="noopener">Aktivite'de aç ↗</a>
+                        </span>
                     </span>
-                </a>
+                </div>
             }
         }
     </div>
@@ -806,7 +818,45 @@ else if (!Model.AktifOrtamCanli)
     }
 </div>
 
+<dialog id="gb-liste" class="gb-liste-pencere" aria-labelledby="gb-liste-baslik">
+    <div class="gb-liste-icerik"></div>
+</dialog>
+
 <script>
+    // SEBEP LISTESI (2026-10-26) -- satira ya da "Listele"ye tiklayinca pencere acilir,
+    // icerik sunucudan gelir (ayni onbellekli ozet). Kapatmak: Esc, Kapat ya da disari tik.
+    async function gbSebepListele(satir) {
+        const pencere = document.getElementById('gb-liste');
+        const icerik = pencere.querySelector('.gb-liste-icerik');
+        icerik.innerHTML = '<div class="gb-liste-yukleniyor">Liste hazırlanıyor…</div>';
+        if (!pencere.open) pencere.showModal();
+        const q = new URLSearchParams(location.search);
+        q.set('handler', 'SebepListesi');
+        q.set('durum', satir.dataset.durum);
+        q.set('kategori', satir.dataset.kategori);
+        try {
+            const yanit = await fetch('?' + q.toString(), { headers: { 'X-Requested-With': 'fetch' } });
+            if (!yanit.ok) throw new Error(yanit.status);
+            icerik.innerHTML = await yanit.text();
+        } catch (e) {
+            icerik.innerHTML = '<div class="gb-liste-yukleniyor">Liste alınamadı (' + e.message + '). Sayfayı yenileyip tekrar deneyin.</div>';
+        }
+    }
+    document.getElementById('gb-liste').addEventListener('click', e => {
+        if (e.target === e.currentTarget) e.currentTarget.close();
+    });
+    function gbListeGorunum(dugme, ad) {
+        const kok = dugme.closest('.gb-liste-icerik');
+        kok.querySelectorAll('.gb-seg-btn').forEach(b => { b.classList.toggle('active', b === dugme); b.setAttribute('aria-selected', b === dugme); });
+        kok.querySelectorAll('.gb-liste-govde').forEach(g => g.hidden = g.dataset.gorunum !== ad);
+    }
+    function gbListeAra(kutu) {
+        const aranan = kutu.value.trim().toLocaleLowerCase('tr');
+        kutu.closest('.gb-liste-icerik').querySelectorAll('.gb-liste-govde tbody tr').forEach(tr => {
+            tr.hidden = aranan !== '' && !tr.textContent.toLocaleLowerCase('tr').includes(aranan);
+        });
+    }
+
     // TABLO SIRALAMA / ARAMA (2026-10-26) -- veri sayfada, sunucuya gidilmiyor.
     // Ayni basliga ikinci tik yonu cevirir. Sayi sutunlari buyukten kucuge baslar.
     function gbTabloSirala(th) {

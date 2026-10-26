@@ -101,7 +101,13 @@ public partial class PusulaRepository
             ) t
             WHERE t.Sira = 1",
 
-        // Hasta: ad zaten SyncLogEntry.PatientFullName'de tasiniyor, sorgu gereksiz.
+        // Hasta: Aktivite'de ad SyncLogEntry.PatientFullName'den geliyor; Genel Bakis'in
+        // sebep listesi ise yalnizca PusulaId (HastaId) tasiyor (2026-10-26).
+        "Patient" => @"
+            SELECT h.Id, LTRIM(RTRIM(ISNULL(h.Adi,'') + ' ' + ISNULL(h.Soyadi,'')))
+            FROM hasta.hasta h
+            WHERE h.Id IN ({0})",
+
         // Muayine: protokol duzeyinde -- bolum bilgisi ekranda protokol kaydindan geliyor.
         _ => null,
     };

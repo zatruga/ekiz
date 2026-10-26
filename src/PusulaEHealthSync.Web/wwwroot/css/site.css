@@ -2471,3 +2471,39 @@ details.akis-satir[open] > summary .akis-grup-ok { transform: rotate(90deg); }
 .ic-kalemler > summary { cursor: pointer; color: var(--primary); width: max-content; }
 .ic-kalemler ul { margin: 6px 0 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
 .ic-kalemler li .badge { font-size: 10.5px; padding: 1px 6px; margin-right: 4px; }
+
+/* ==== GENEL BAKIS -- SEBEP LISTESI PENCERESI (2026-10-26) ====
+   Sebep satirina tiklayinca acilan <dialog>; icerik fetch ile geliyor. */
+.gb-sebep-eylem { display: flex; flex-wrap: wrap; gap: 6px; margin-top: 6px; }
+div.gb-sebep { cursor: pointer; }
+div.gb-sebep.warning:hover { background: var(--warning-soft); }
+div.gb-sebep.danger:hover { background: var(--danger-soft); }
+.gb-liste-pencere {
+  width: min(1100px, calc(100vw - 32px)); max-height: calc(100vh - 48px);
+  padding: 0; border: 1px solid var(--border); border-radius: 12px;
+  background: var(--surface); color: var(--text); box-shadow: 0 24px 64px rgba(0,0,0,.28);
+}
+.gb-liste-pencere::backdrop { background: rgba(15, 18, 25, .45); }
+.gb-liste-pencere[open] { display: flex; flex-direction: column; }
+.gb-liste-icerik { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
+.gb-liste-bas { display: flex; gap: 16px; justify-content: space-between; align-items: flex-start; padding: 18px 20px 10px; }
+.gb-liste-ust { margin: 0; font-size: 11px; letter-spacing: .08em; text-transform: uppercase; color: var(--text-muted); }
+.gb-liste-baslik { margin: 2px 0 4px; font-size: 18px; font-family: var(--font-body); font-weight: 600; }
+.gb-liste-acik { margin: 2px 0 0; font-size: 12.5px; color: var(--text-muted); }
+.gb-liste-arac { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 8px 20px 12px; border-bottom: 1px solid var(--border); }
+.gb-liste-arac .gb-tablo-ara { position: static; margin: 0 0 0 auto; width: 260px; }
+.gb-seg { display: inline-flex; border: 1px solid var(--border); border-radius: 8px; overflow: hidden; }
+.gb-seg-btn { border: 0; background: transparent; padding: 6px 12px; font-size: 12.5px; color: var(--text-muted); cursor: pointer; min-height: 32px; }
+.gb-seg-btn + .gb-seg-btn { border-left: 1px solid var(--border); }
+.gb-seg-btn.active { background: var(--primary-soft); color: var(--primary); font-weight: 600; }
+.gb-liste-govde { overflow: auto; min-height: 120px; }
+.gb-liste-govde[hidden] { display: none; }
+.gb-liste-tablo { width: 100%; border-collapse: collapse; font-size: 13px; }
+.gb-liste-tablo th { position: sticky; top: 0; background: var(--bg-elevated); text-align: left; font-size: 11px; font-weight: 600; color: var(--text-faint); text-transform: uppercase; letter-spacing: .03em; padding: 8px 12px; border-bottom: 1px solid var(--border); }
+.gb-liste-tablo td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.gb-liste-tablo tr:hover td { background: var(--surface-hover); }
+.gb-liste-mesaj { font-size: 11.5px; margin-top: 2px; max-width: 560px; display: -webkit-box; -webkit-line-clamp: 2; -webkit-box-orient: vertical; overflow: hidden; }
+.gb-liste-yukleniyor { padding: 40px; text-align: center; color: var(--text-muted); }
+@media (max-width: 640px) {
+  .gb-liste-arac .gb-tablo-ara { margin-left: 0; width: 100%; }
+}
