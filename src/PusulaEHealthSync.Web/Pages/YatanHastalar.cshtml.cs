@@ -62,11 +62,14 @@ public class YatanHastalarModel(
 
     public enum GonderimDurumu { Gitmedi, Gitti, Eksik, Hatali }
 
+    // Akis: Aktivite Akisi'ndaki satirin AYNISI (kimlik, gonderim zinciri rozetleri, durum,
+    // takilma sebebi) -- kullanici 2026-10-26: "yatan hastalarda da protokol alani akistaki
+    // mantikta olsun". Ayni nesneden uretiliyor ki iki ekran ayni protokole ayni seyi desin.
     public record Satir(
         PusulaRepository.YatanProtokol Yatan,
         YatanArsivStore.ArsivKaydi? Arsiv,
         GonderimDurumu Gonderim, int Basarili, int Eksik, int Hatali,
-        DateTime? SonDenemeUtc, List<string> Sebepler)
+        DateTime? SonDenemeUtc, AktiviteGrubu Akis)
     {
         public ProtokolListItem P => Yatan.Protokol;
         public string ArsivDurumu => Yatan.Yatiyor ? "yatiyor"
@@ -110,33 +113,30 @@ public class YatanHastalarModel(
         var arsivler = await arsiv.GetByProtokolIdsAsync(ids, ct);
 
         // GONDERIM DURUMU -- aktif ortamda, her kaydin SON denemesine gore (Aktivite ile
-        // ayni kural). Hasta (Patient) kaydi bilerek disarida: hasta protokoller arasi
-        // paylasiliyor, baska bir protokolun hastasi bu satiri boyamasin.
-        var ozet = await syncLog.QueryOzetByProtokolIdsAsync(ids, [], null, AktifOrtam, ct);
+        // ayni kural). Hasta kayitlari zincirin "Hasta" halkasi icin geliyor; protokol
+        // SINIFINA karismiyorlar (AkisGrupOzeti.Siniflanan -- Aktivite'deki kural).
+        var ozet = await syncLog.QueryOzetByProtokolIdsAsync(
+            ids, yatanlar.Select(y => y.Protokol.HastaId).Where(h => h > 0).Distinct().ToList(), null, AktifOrtam, ct);
         var protokolBasina = ozet.Where(o => o.ProtokolId is not null).ToLookup(o => o.ProtokolId!.Value);
+        var hastaBasina = ozet.Where(o => o.ResourceType == "Patient").ToLookup(o => o.PusulaId);
         var zamanlar = await syncLog.GetZamanlarAsync(
             ids.Select(id => protokolBasina[id].Select(o => o.SonId).DefaultIfEmpty(0).Max()).Where(i => i > 0).ToList(), ct);
 
         Tumu = yatanlar.Select(y =>
         {
             var kayitlar = protokolBasina[y.Protokol.ProtokolId].ToList();
-            int b = kayitlar.Count(k => k.Status == SyncStatus.Success),
-                e = kayitlar.Count(k => k.Status == SyncStatus.Skipped),
-                h = kayitlar.Count(k => k.Status == SyncStatus.Failed);
+            var akis = AkisKur(y.Protokol, kayitlar.Concat(hastaBasina[y.Protokol.HastaId]));
             var durum = kayitlar.Count == 0 ? GonderimDurumu.Gitmedi
-                : h > 0 ? GonderimDurumu.Hatali
-                : e > 0 ? GonderimDurumu.Eksik
-                : GonderimDurumu.Gitti;
+                : akis.Ozet.Sinif switch
+                {
+                    SyncStatus.Failed => GonderimDurumu.Hatali,
+                    SyncStatus.Skipped => GonderimDurumu.Eksik,
+                    _ => GonderimDurumu.Gitti,
+                };
             var sonId = kayitlar.Count == 0 ? 0 : kayitlar.Max(k => k.SonId);
-            // Sebep: hata ve eksiklerin kategorisi, en sik once -- arsivci "neden gitmedi"
-            // sorusunu satirda gorsun.
-            var sebepler = kayitlar.Where(k => k.Status != SyncStatus.Success && k.HataMesaji is not null)
-                .GroupBy(k => SyncLogEntry.ErrorCategory(k.HataMesaji).Label)
-                .OrderByDescending(g => g.Count())
-                .Select(g => g.Count() > 1 ? $"{g.Key} ({g.Count()})" : g.Key)
-                .Take(3).ToList();
-            return new Satir(y, arsivler.GetValueOrDefault(y.Protokol.ProtokolId), durum, b, e, h,
-                zamanlar.TryGetValue(sonId, out var z) ? z : null, sebepler);
+            return new Satir(y, arsivler.GetValueOrDefault(y.Protokol.ProtokolId), durum,
+                akis.Basarili, akis.Atlanan, akis.Hatali,
+                zamanlar.TryGetValue(sonId, out var z) ? z : null, akis);
         }).ToList();
 
         var aranan = Q?.Trim();
@@ -150,6 +150,27 @@ public class YatanHastalarModel(
         HasNextPage = liste.Count > PageNumber * SayfaBoyutu;
 
         if (Gecmis is { } g) GecmisHareketler = await arsiv.HareketlerAsync(g, ct);
+    }
+
+    // Ozet satirlarindan Aktivite'nin grup nesnesi -- AktiviteModel'deki Grup() ile ayni
+    // katlama: kayit basina SON deneme kazanir, deneme sayisi toplanir.
+    private static AktiviteGrubu AkisKur(ProtokolListItem protokol, IEnumerable<SyncLogStore.OzetSatiri> kaynak)
+    {
+        var satirlar = kaynak.ToList();
+        var kayitlar = satirlar
+            .GroupBy(x => (x.ResourceType, x.PusulaId))
+            .Select(g => (Son: g.MaxBy(x => x.SonId)!, Deneme: g.Sum(x => x.DenemeSayisi)))
+            .OrderByDescending(x => x.Son.SonId)
+            .Select(x => new AkisKayitRef(x.Son.ResourceType, x.Son.PusulaId, x.Son.Status, x.Deneme,
+                x.Son.Status == SyncStatus.Failed ? SyncLogEntry.ErrorCategory(x.Son.HataMesaji).Label : null,
+                x.Son.HataMesaji))
+            .ToList();
+        var grup = new AkisGrupOzeti(protokol.ProtokolId, false, kayitlar,
+            kayitlar.Count(x => x.Durum == SyncStatus.Success),
+            kayitlar.Count(x => x.Durum == SyncStatus.Skipped),
+            kayitlar.Count(x => x.Durum == SyncStatus.Failed),
+            satirlar.Count == 0 ? 0 : satirlar.Max(x => x.SonId));
+        return new AktiviteGrubu(grup, protokol, []);
     }
 
     public static string GonderimAnahtari(GonderimDurumu d) => d switch

@@ -135,8 +135,7 @@
         <thead>
             <tr>
                 <th style="width:28px;"><input type="checkbox" aria-label="Sayfadakilerin tümünü seç" onchange="document.querySelectorAll('.yh-sec').forEach(c => c.checked = this.checked)" /></th>
-                <th>Hasta</th>
-                <th>Protokol · Bölüm</th>
+                <th>Hasta · Protokol</th>
                 <th>Yatış → Taburcu</th>
                 <th>Arşiv</th>
                 <th>TRƏS gönderimi</th>
@@ -149,14 +148,20 @@
             var pid = s.P.ProtokolId;
             <tr>
                 <td><input type="checkbox" class="yh-sec" name="protokolIds" value="@pid" form="yh-toplu" aria-label="Protokol @pid seç" /></td>
+                @* KIMLIK -- Aktivite Akisi'ndaki satirla ayni duzen (kullanici 2026-10-26). *@
                 <td>
-                    <strong>@s.P.HastaAdi @s.P.HastaSoyadi</strong>
-                    <div class="text-muted mono">@s.P.Fin</div>
-                </td>
-                <td>
-                    <span class="mono">@pid</span>
-                    <div class="text-muted">@s.P.BolumAdi</div>
-                    <div class="text-muted" style="font-size:12px;">@s.P.DoktorAdi @s.P.DoktorSoyadi</div>
+                    <span class="akis-satir-kimlik">
+                        <span class="akis-satir-ad">
+                            @(string.IsNullOrWhiteSpace(s.Akis.HastaAdi) ? "—" : s.Akis.HastaAdi)
+                            @if (!string.IsNullOrWhiteSpace(s.Akis.Fin)) { <span class="akis-satir-fin">@s.Akis.Fin</span> }
+                        </span>
+                        <span class="akis-satir-alt">@string.Join(" · ", new[] { s.P.BolumAdi, s.P.DoktorAdiSoyadi }.Where(x => !string.IsNullOrWhiteSpace(x)))</span>
+                        <span class="akis-satir-alt akis-mono">
+                            protokol @pid.ToString(System.Globalization.CultureInfo.InvariantCulture)
+                            @if (s.P.AcilisTarihi is { } ac) { <text> · @ac.ToString("dd.MM.yyyy")</text> }
+                            · Yatan
+                        </span>
+                    </span>
                 </td>
                 <td class="mono" style="white-space:nowrap;">
                     @(s.Yatan.YatisTarihi?.ToString("dd.MM.yyyy HH:mm", tr) ?? "-")
@@ -206,32 +211,47 @@
                             break;
                     }
                 </td>
+                @* TRƏS GONDERIMI -- Aktivite'deki zincir rozetleri, durum ve takilma sebebi
+                   (ayni AktiviteGrubu nesnesinden). Hic denenmemisse rozetler bos, durum
+                   "Gönderilmedi". *@
                 <td>
-                    @switch (s.Gonderim)
+                    <span class="akis-zincir">
+                        @foreach (var h in s.Akis.Zincir)
+                        {
+                            <span class="akis-halka akis-halka--@h.Css" title="@h.Aciklama">
+                                <span class="akis-kare akis-kare--@h.Css" aria-hidden="true"></span>
+                                @h.Ad
+                                @if (h.Adet > 0)
+                                {
+                                    <span class="akis-halka-adet">@(h.Takilan > 0 ? $"{h.Takilan}/{h.Adet}" : h.Adet.ToString(tr))</span>
+                                }
+                            </span>
+                        }
+                    </span>
+                    <div class="akis-satir-durum" style="margin-top:6px;">
+                        @if (s.Gonderim == YatanHastalarModel.GonderimDurumu.Gitmedi)
+                        {
+                            <span class="akis-kare akis-kare--yok" aria-hidden="true"></span>
+                            <span>Gönderilmedi</span>
+                        }
+                        else
+                        {
+                            var (durumCss, durumEtiket) = s.Akis.DurumGosterimi;
+                            <span class="akis-kare akis-kare--@durumCss" aria-hidden="true"></span>
+                            <span>
+                                @durumEtiket
+                                @if (s.Akis.Ozet.HicGitmedi) { <span class="akis-satir-hic">hiç gitmedi</span> }
+                                @if (s.SonDenemeUtc is { } sd) { <span class="text-muted" style="font-size:12px;"> · son @Yerel(sd)</span> }
+                            </span>
+                        }
+                    </div>
+                    @if (s.Akis.SebepBaslik is { } sebep)
                     {
-                        case YatanHastalarModel.GonderimDurumu.Gitmedi:
-                            <span class="badge neutral">Gönderilmedi</span>
-                            break;
-                        case YatanHastalarModel.GonderimDurumu.Gitti:
-                            <span class="badge success"><span class="badge-dot"></span>Gönderildi</span>
-                            break;
-                        case YatanHastalarModel.GonderimDurumu.Eksik:
-                            <span class="badge warning"><span class="badge-dot"></span>Eksik verili</span>
-                            break;
-                        default:
-                            <span class="badge danger"><span class="badge-dot"></span>Hatalı</span>
-                            break;
-                    }
-                    @if (s.Gonderim != YatanHastalarModel.GonderimDurumu.Gitmedi)
-                    {
-                        <div class="text-muted" style="font-size:12px;">
-                            @s.Basarili gitti@(s.Eksik > 0 ? $" · {s.Eksik} eksik" : "")@(s.Hatali > 0 ? $" · {s.Hatali} hatalı" : "")
-                            @if (s.SonDenemeUtc is { } sd) { <text>· son @Yerel(sd)</text> }
+                        var (sCss, _) = s.Akis.DurumGosterimi;
+                        <div class="akis-satir-sebep" style="margin-top:4px;">
+                            <strong class="akis-renk--@sCss">@sebep</strong>
+                            @if (s.Akis.SebepMetni is { } metin) { <text> — @metin</text> }
                         </div>
-                    }
-                    @foreach (var sebep in s.Sebepler)
-                    {
-                        <div class="yh-sebep">@sebep</div>
                     }
                 </td>
                 <td class="yh-islem">
