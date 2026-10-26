@@ -15,6 +15,9 @@ public class UserAccountStore
     public const string RoleAdmin = "Admin";
     public const string RoleOperator = "Operator";
     public const string RoleViewer = "Viewer";
+    // ARSIV (2026-10-26): yalnizca Yatan Hastalar ekranini gorur ve kullanir -- arsive al,
+    // tamamla, TRƏS'e gonder. Baska hicbir sayfaya giremez (bkz. Web/ArsivSayfaKisiti).
+    public const string RoleArsiv = "Arsiv";
 
     private readonly string _connectionString;
 

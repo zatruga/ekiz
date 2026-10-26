@@ -81,6 +81,14 @@ public class SettingsStore
     public const string AutoSendBatchSizeKey = "AutoSend.BatchSize";
     public const int AutoSendBatchSizeDefault = 50;
 
+    // YATAN PROTOKOLLER OTOMATIK GONDERIME DAHIL MI (2026-10-26, kullanici istegi: "yatan
+    // protokolleri otomatik gonderime dahil et parametresi koyalim; tikli ise gondersin,
+    // degilse dahil etmesin"). Kapaliyken yatanlar Yatan Hastalar ekranindan ELLE gider.
+    // Varsayilan ACIK: parametre eklenmeden onceki davranis buydu, dagitim onu degistirmesin.
+    // Kural PendingWorkService'te uygulanir -- iki tur da (saatlik, takilanlar) oradan okur.
+    public const string AutoSendYatanEnabledKey = "AutoSend.Yatan.Enabled";
+    public const bool AutoSendYatanEnabledDefault = true;
+
     // SON TURUN IZI. Ayarlar sayfasindaki durum kutusu bunlari gosteriyor -- "acik" yazan
     // bir anahtar, dongunun GERCEKTEN calistigini kanitlamaz. Son tur saati ve ozeti
     // olmadan, acik ama sessizce olmus bir dongu ile saglikli bir dongu ekranda ayni

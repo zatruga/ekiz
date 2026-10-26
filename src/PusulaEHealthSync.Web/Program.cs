@@ -2,6 +2,7 @@
 using Microsoft.AspNetCore.Identity;
 using PusulaEHealthSync;
 using PusulaEHealthSync.Persistence;
+using PusulaEHealthSync.Web;
 using PusulaEHealthSync.Web.Config;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -51,6 +52,8 @@ builder.Services.AddRazorPages(options =>
     options.Conventions.AuthorizePage("/Guncelle", "AdminOnly");
     // Servisi yeniden baslatabiliyor -- yalnizca yonetici.
     options.Conventions.AuthorizePage("/ServisDurumu", "AdminOnly");
+    // Arsiv rolu yalnizca Yatan Hastalar ekranini gorur (bkz. ArsivSayfaKisiti).
+    options.Conventions.ConfigureFilter(new ArsivSayfaKisiti());
 }).AddMvcOptions(options =>
 {
     // Ayarlar sayfasindaki bircok alan (SMTP kullanici adi/sifresi, Canli ortam

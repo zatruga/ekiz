@@ -560,6 +560,28 @@ public class SyncLogStore
         return result;
     }
 
+    // Yalnizca ZAMAN -- "en son ne zaman denendi" sorusu icin govdeleri okumadan
+    // (bkz. Yatan Hastalar ekrani). Id -> CreatedAtUtc.
+    public async Task<Dictionary<long, DateTime>> GetZamanlarAsync(
+        IReadOnlyCollection<long> idler, CancellationToken ct = default)
+    {
+        var sonuc = new Dictionary<long, DateTime>();
+        if (idler.Count == 0) return sonuc;
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+        foreach (var kume in idler.Distinct().Chunk(900))
+        {
+            using var cmd = conn.CreateCommand();
+            cmd.CommandText = $"SELECT Id, CreatedAtUtc FROM SyncLog WHERE Id IN ({string.Join(",", kume.Select((_, i) => $"$id{i}"))})";
+            for (var i = 0; i < kume.Length; i++) cmd.Parameters.AddWithValue($"$id{i}", kume[i]);
+            using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (reader.Read())
+                sonuc[reader.GetInt64(0)] = DateTime.Parse(reader.GetString(1), CultureInfo.InvariantCulture,
+                    DateTimeStyles.AdjustToUniversal | DateTimeStyles.AssumeUniversal);
+        }
+        return sonuc;
+    }
+
     public async Task<SyncLogEntry?> GetByIdAsync(long id, CancellationToken ct = default)
     {
         using var conn = new SqliteConnection(_connectionString);

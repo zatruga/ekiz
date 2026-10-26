@@ -48,6 +48,7 @@ public static class ServisKayitlari
         services.AddSingleton(sp => new LabTestLoincStore(Yol(sp)));
         services.AddSingleton(sp => new HizmetMappingStore(Yol(sp)));
         services.AddSingleton(sp => new UserAccountStore(Yol(sp)));
+        services.AddSingleton(sp => new YatanArsivStore(Yol(sp)));
 
         services.AddSingleton<PatientSyncService>();
         services.AddSingleton<PractitionerSyncService>();

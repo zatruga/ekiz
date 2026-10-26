@@ -2391,3 +2391,38 @@ details.akis-satir[open] > summary .akis-grup-ok { transform: rotate(90deg); }
 .sd-liste dd { margin: 0; display: flex; flex-wrap: wrap; gap: 6px; align-items: center; }
 .sd-link { font-size: 12px; margin-left: 4px; }
 @media (max-width: 640px) { .sd-izgara { grid-template-columns: 1fr; } .sd-liste { grid-template-columns: 1fr; } }
+
+/* ==== YATAN HASTALAR -- ARSIV IS AKISI (2026-10-26) ==== */
+.badge.info { background: var(--primary-soft); color: var(--primary); }
+.btn-danger-text { color: var(--danger) !important; }
+.yh-bas { display: flex; flex-wrap: wrap; gap: 14px; align-items: flex-end; justify-content: space-between; margin-bottom: 14px; }
+.yh-kartlar { display: flex; flex-wrap: wrap; gap: 14px; margin-bottom: 16px; }
+.yh-kart-grup { display: flex; flex-wrap: wrap; gap: 8px; align-items: stretch; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius); background: var(--surface); }
+.yh-grup-ad { width: 100%; font-size: 11px; letter-spacing: .06em; text-transform: uppercase; color: var(--text-muted); }
+.yh-kart { display: flex; flex-direction: column; gap: 2px; min-width: 112px; padding: 8px 12px; border-radius: var(--radius-sm); border: 1px solid var(--border); color: var(--text); text-decoration: none; border-left-width: 3px; }
+.yh-kart:hover { background: var(--surface-hover); }
+.yh-kart.active { outline: 2px solid var(--primary); outline-offset: 1px; }
+.yh-kart--neutral { border-left-color: var(--border-strong); }
+.yh-kart--warning { border-left-color: var(--warning); }
+.yh-kart--info { border-left-color: var(--primary); }
+.yh-kart--success { border-left-color: var(--success); }
+.yh-kart--danger { border-left-color: var(--danger); }
+.yh-kart-ad { font-size: 12px; color: var(--text-muted); }
+.yh-kart-sayi { font-family: var(--font-heading); font-size: 20px; font-weight: 600; }
+.yh-arac { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; padding: 12px 16px; border-bottom: 1px solid var(--border); }
+.yh-tablo td { vertical-align: top; }
+.yh-satir-form { display: flex; gap: 6px; align-items: center; margin: 0; }
+.yh-no { width: 120px; font-family: var(--font-heading); font-size: 12.5px; padding: 5px 8px; }
+.yh-arsiv-no { font-weight: 600; margin-right: 6px; }
+.yh-sebep { font-size: 12px; color: var(--warning); margin-top: 2px; }
+.yh-islem { text-align: right; white-space: nowrap; }
+.yh-islem > form { display: inline-block; margin: 0 0 4px 4px; }
+.yh-daha { display: inline-block; position: relative; margin-left: 4px; }
+.yh-daha > summary { list-style: none; cursor: pointer; }
+.yh-daha > summary::-webkit-details-marker { display: none; }
+.yh-daha-menu { position: absolute; right: 0; top: calc(100% + 4px); z-index: 20; display: flex; flex-direction: column; gap: 6px; align-items: stretch; min-width: 220px; padding: 10px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--surface); box-shadow: var(--shadow-card); text-align: left; }
+.yh-daha-menu form { margin: 0; }
+.yh-gecmis td { background: var(--surface-hover); font-size: 13px; }
+.yh-gecmis ul { margin: 6px 0 0; padding-left: 18px; }
+.yh-sayfa { display: flex; gap: 8px; padding: 12px 16px; }
+@media (max-width: 640px) { .yh-kart { min-width: calc(50% - 4px); } }

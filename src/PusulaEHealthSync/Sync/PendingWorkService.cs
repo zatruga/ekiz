@@ -345,6 +345,8 @@ public class PendingWorkService(
             SettingsStore.MinProtokolYasiGunKey, SettingsStore.MinProtokolYasiGunDefault, ct);
         var yatanTavan = await settings.GetIntAsync(
             SettingsStore.YatanMaxOpenDaysKey, SettingsStore.YatanMaxOpenDaysDefault, ct);
+        var yatanOtomatik = await settings.GetBoolAsync(
+            SettingsStore.AutoSendYatanEnabledKey, SettingsStore.AutoSendYatanEnabledDefault, ct);
 
         // SOGUMA SURESI -- Ayarlar'daki "Kac dakika sonra tekrar dene?" (2026-10-05'te
         // gercekten baglandi; o alan da okunmuyordu).
@@ -404,6 +406,17 @@ public class PendingWorkService(
                     && DateOnly.FromDateTime(acilis.Date) < taban) continue;
 
                 var (eligible, reason) = IsEligible(protokol, openAfterDays, minYas, yatanTavan);
+
+                // YATAN OTOMATIK GONDERIMDEN CIKARILDIYSA (bkz. AutoSendYatanEnabledKey).
+                // Uygunluk kurali DEGIL, ayri bir adim: protokol gonderilebilir durumda, yalnizca
+                // otomatik dongu dokunmuyor. Elle gonderim (Yatan Hastalar, Protokol, Aktivite)
+                // bu listeden gecmedigi icin etkilenmiyor.
+                if (eligible && !yatanOtomatik && protokol.GelisTipiId == "Y")
+                {
+                    eligible = false;
+                    reason = YatanOtomatikDisiSebep;
+                }
+
                 var items = group
                     .Select(c => new PendingItem(
                         c.ResourceType, c.Baslik, c.PusulaId, c.SonuclanmaTarihi,
@@ -638,6 +651,9 @@ public class PendingWorkService(
 
     // Protokol gonderime uygun mu? Yatan ve ayaktan icin FARKLI kural (kullanici karari
     // 2026-09-09), ustune AYNI GUN GONDERME kurali (kullanici karari 2026-10-03).
+    public const string YatanOtomatikDisiSebep =
+        "Yatan protokol — otomatik gönderim dışı (Ayarlar). Yatan Hastalar ekranından elle gönderilir";
+
     // PUBLIC (2026-10-26): Aktivite Akisi "denenmemis protokol neden denenmedi" sorusunu
     // AYNI kuralla cevapliyor -- ekran ile gonderim ayri kural kullanirsa ekranda "sirasi
     // gelmedi" yazan protokol gonderilir, ya da tersi.

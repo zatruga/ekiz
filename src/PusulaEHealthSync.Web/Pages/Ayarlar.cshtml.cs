@@ -70,6 +70,9 @@ public class AyarlarModel(
     public bool AutoSendPatientEnabled { get; set; }
     [BindProperty]
     public bool AutoSendEncounterEnabled { get; set; }
+    // Yatan protokoller otomatik gonderime dahil mi (bkz. SettingsStore.AutoSendYatanEnabledKey).
+    [BindProperty]
+    public bool AutoSendYatanEnabled { get; set; }
     [BindProperty]
     [Range(5, 1440)]
     public int AutoSendIntervalMinutes { get; set; }
@@ -340,6 +343,7 @@ public class AyarlarModel(
         // degistirmekle ayni jest olmamali.
         await settings.SetIntAsync(SettingsStore.AutoSendIntervalMinutesKey, AutoSendIntervalMinutes, ct);
         await settings.SetIntAsync(SettingsStore.AutoSendBatchSizeKey, AutoSendBatchSize, ct);
+        await settings.SetBoolAsync(SettingsStore.AutoSendYatanEnabledKey, AutoSendYatanEnabled, ct);
         await settings.SetIntAsync(SettingsStore.DevreKesiciSiniriKey, DevreKesiciSiniri, ct);
         await settings.SetIntAsync(SettingsStore.MinProtokolYasiGunKey, MinProtokolYasiGun, ct);
         await settings.SetStringAsync(SettingsStore.SendFloorDateKey, Clean(SendFloorDate), ct);
@@ -594,6 +598,7 @@ public class AyarlarModel(
             AutoSendEncounterEnabled = await settings.GetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, false, ct);
             AutoSendIntervalMinutes = await settings.GetIntAsync(SettingsStore.AutoSendIntervalMinutesKey, SettingsStore.AutoSendIntervalMinutesDefault, ct);
             AutoSendBatchSize = await settings.GetIntAsync(SettingsStore.AutoSendBatchSizeKey, SettingsStore.AutoSendBatchSizeDefault, ct);
+            AutoSendYatanEnabled = await settings.GetBoolAsync(SettingsStore.AutoSendYatanEnabledKey, SettingsStore.AutoSendYatanEnabledDefault, ct);
             MinProtokolYasiGun = await settings.GetIntAsync(SettingsStore.MinProtokolYasiGunKey, SettingsStore.MinProtokolYasiGunDefault, ct);
             SendFloorDate = await settings.GetStringAsync(SettingsStore.SendFloorDateKey, "", ct);
             TakilanDenemeSaati = await settings.GetIntAsync(SettingsStore.StuckRetryHourKey, SettingsStore.StuckRetryHourDefault, ct);

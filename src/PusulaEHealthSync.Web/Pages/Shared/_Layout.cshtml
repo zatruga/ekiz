@@ -28,6 +28,18 @@
                     </span>
                     <span class="brand-name">Pusula &rarr; TRƏS<br /><span class="accent">Senkron Paneli</span></span>
                 </a>
+                @* ARSIV ROLU YALNIZCA KENDI EKRANINI GORUR (bkz. ArsivSayfaKisiti) -- menude de
+                   yalnizca o var; ulasamayacagi bir sayfaya baglanti gostermek kafa karistirirdi. *@
+                @if (User.IsInRole("Arsiv"))
+                {
+                    <div class="nav-section-label">Arşiv</div>
+                    <a asp-page="/YatanHastalar" class="nav-link active">
+                        <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
+                        Yatan Hastalar
+                    </a>
+                }
+                else
+                {
 
                 <div class="nav-section-label">İzleme</div>
                 <a asp-page="/GenelBakis" class="nav-link @(currentPage is "/GenelBakis" ? "active" : "")">
@@ -44,6 +56,10 @@
                 </a>
                 <a asp-page="/BekleyenIsler" class="nav-link @(currentPage is "/BekleyenIsler" ? "active" : "")">
                     Bekleyen İşler
+                </a>
+                <a asp-page="/YatanHastalar" class="nav-link @(currentPage is "/YatanHastalar" ? "active" : "")">
+                    <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
+                    Yatan Hastalar
                 </a>
 
                 <div class="nav-section-label">Sistem</div>
@@ -84,6 +100,7 @@
                         Kullanıcılar
                     </a>
                 }
+                }
 
                 <div class="sidebar-footer">
                     <button type="button" class="theme-toggle" onclick="pusulaToggleTheme()" aria-label="Açık/koyu tema değiştir">
@@ -99,7 +116,7 @@
                             <span class="user-name">
                                 @User.FindFirstValue(ClaimTypes.Name)
                                 <span class="text-muted" style="display:block; font-size:11px; font-weight:400;">
-                                    @(User.FindFirstValue(ClaimTypes.Role) switch { "Admin" => "Yönetici", "Operator" => "Operatör", "Viewer" => "İzleyici", _ => "" })
+                                    @(User.FindFirstValue(ClaimTypes.Role) switch { "Admin" => "Yönetici", "Operator" => "Operatör", "Viewer" => "İzleyici", "Arsiv" => "Arşiv", _ => "" })
                                 </span>
                             </span>
                         </div>

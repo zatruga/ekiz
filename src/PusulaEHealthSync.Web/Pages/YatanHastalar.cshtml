@@ -1,0 +1,343 @@
+@page
+@model PusulaEHealthSync.Web.Pages.YatanHastalarModel
+@using PusulaEHealthSync.Persistence
+@using PusulaEHealthSync.Web.Pages
+@{
+    ViewData["Title"] = "Yatan Hastalar";
+    ViewData["Genis"] = true;
+    var tr = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+    var fromIso = Model.EffectiveFrom.ToString("yyyy-MM-dd");
+    var toIso = Model.EffectiveTo.ToString("yyyy-MM-dd");
+    var tumu = Model.Tumu;
+    var taburcu = tumu.Where(s => !s.Yatan.Yatiyor).ToList();
+    string Yerel(DateTime utc) => AzTime.ToLocal(utc).ToString("dd.MM.yyyy HH:mm", tr);
+}
+
+@* ==== YATAN HASTALAR -- ARSIV IS AKISI (2026-10-26) ====
+   Kullanicisi arsiv departmani. Akis: taburcu -> Arsive al (arsiv no) -> Tamamla.
+   TRƏS'e gonderim ayri dugme (kullanici karari). Kartlar suzgec: tiklayinca liste daralir,
+   kartlardaki sayilar her zaman araligin TAMAMI. *@
+
+<header class="yh-bas">
+    <div>
+        <h1 class="page-title" style="margin:0;">Yatan Hastalar</h1>
+        <p class="text-muted" style="margin:4px 0 0; font-size:13px;">
+            Taburcu olan dosyaların arşiv takibi ve TRƏS gönderimi ·
+            gönderim ortamı <strong>@YatanHastalarModel.AktifOrtamAdi(Model.AktifOrtam)</strong>
+        </p>
+    </div>
+    <form method="get" class="akis-filtre">
+        <input type="hidden" name="Durum" value="@Model.Durum" />
+        <input type="hidden" name="Gonderim" value="@Model.Gonderim" />
+        <div class="akis-filtre-tarih" title="Filtre taburcu tarihine göre. Şu an yatanlar tarihten bağımsız listelenir.">
+            <label for="from">Taburcu</label>
+            <input type="date" id="from" name="From" value="@fromIso" onchange="this.form.submit()" />
+            <span aria-hidden="true">→</span>
+            <label for="to" class="sr-only">Bitiş</label>
+            <input type="date" id="to" name="To" value="@toIso" onchange="this.form.submit()" />
+        </div>
+        <label for="q" class="sr-only">Ara</label>
+        <input type="search" id="q" name="Q" value="@Model.Q" placeholder="Hasta, FIN, protokol veya arşiv no" class="akis-filtre-ara" />
+        <button type="submit" class="btn btn-outline btn-sm">Ara</button>
+    </form>
+</header>
+
+@if (!string.IsNullOrWhiteSpace(Model.IslemMesaji))
+{
+    <div class="alert @(Model.IslemBasarili ? "alert-success" : "alert-danger")">@Model.IslemMesaji</div>
+}
+@if (Model.PusulaHatasi)
+{
+    <div class="alert alert-danger"><strong>Liste okunamadı.</strong> Pusula'ya erişilemedi; sayfayı yenileyip tekrar deneyin.</div>
+}
+<p class="text-muted" style="font-size:12.5px; margin:0 0 12px;">
+    @if (Model.YatanOtomatik)
+    {
+        <text>Yatan protokoller <strong>otomatik gönderime dahil</strong>: taburcudan sonraki gün otomatik gönderilir; buradan ayrıca elle gönderilebilir.</text>
+    }
+    else
+    {
+        <text>Yatan protokoller <strong>otomatik gönderime dahil değil</strong> (Ayarlar): TRƏS'e yalnızca bu ekrandaki <strong>Gönder</strong> ile gider.</text>
+    }
+</p>
+
+@{
+    var arsivKartlari = new[]
+    {
+        ("yatiyor", "Yatıyor", tumu.Count(s => s.ArsivDurumu == "yatiyor"), "neutral", "taburcu olmamış"),
+        ("bekliyor", "Arşiv bekliyor", tumu.Count(s => s.ArsivDurumu == "bekliyor"), "warning", "taburcu, arşive alınmadı"),
+        ("arsivde", "Arşivde", tumu.Count(s => s.ArsivDurumu == "arsivde"), "info", "arşive alındı, tamamlanmadı"),
+        ("tamamlandi", "Tamamlandı", tumu.Count(s => s.ArsivDurumu == "tamamlandi"), "success", "arşiv işi kapandı"),
+    };
+    var gonderimKartlari = new[]
+    {
+        ("gitmedi", "Gönderilmedi", taburcu.Count(s => s.Gonderim == YatanHastalarModel.GonderimDurumu.Gitmedi), "neutral"),
+        ("gitti", "Gönderildi", taburcu.Count(s => s.Gonderim == YatanHastalarModel.GonderimDurumu.Gitti), "success"),
+        ("eksik", "Eksik verili", taburcu.Count(s => s.Gonderim == YatanHastalarModel.GonderimDurumu.Eksik), "warning"),
+        ("hatali", "Hatalı", taburcu.Count(s => s.Gonderim == YatanHastalarModel.GonderimDurumu.Hatali), "danger"),
+    };
+}
+<section class="yh-kartlar" aria-label="Özet">
+    <div class="yh-kart-grup">
+        <span class="yh-grup-ad">Arşiv</span>
+        @foreach (var (anahtar, ad, sayi, ton, alt) in arsivKartlari)
+        {
+            <a asp-page="/YatanHastalar" asp-route-Durum="@(Model.Durum == anahtar ? null : anahtar)" asp-route-Gonderim="@Model.Gonderim"
+               asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Q="@Model.Q"
+               class="yh-kart yh-kart--@ton @(Model.Durum == anahtar ? "active" : "")" title="@alt">
+                <span class="yh-kart-ad">@ad</span>
+                <span class="yh-kart-sayi">@sayi.ToString("N0", tr)</span>
+            </a>
+        }
+    </div>
+    <div class="yh-kart-grup">
+        <span class="yh-grup-ad">TRƏS gönderimi <span class="text-muted">(taburcu olanlar)</span></span>
+        @foreach (var (anahtar, ad, sayi, ton) in gonderimKartlari)
+        {
+            <a asp-page="/YatanHastalar" asp-route-Gonderim="@(Model.Gonderim == anahtar ? null : anahtar)" asp-route-Durum="@Model.Durum"
+               asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Q="@Model.Q"
+               class="yh-kart yh-kart--@ton @(Model.Gonderim == anahtar ? "active" : "")">
+                <span class="yh-kart-ad">@ad</span>
+                <span class="yh-kart-sayi">@sayi.ToString("N0", tr)</span>
+            </a>
+        }
+    </div>
+</section>
+
+<section class="card" style="padding:0;">
+    <form id="yh-toplu" method="post" asp-page-handler="TopluArsiveAl"
+          asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="@Model.Durum" asp-route-Gonderim="@Model.Gonderim"
+          asp-route-Q="@Model.Q" asp-route-P="@Model.PageNumber"></form>
+    <div class="yh-arac">
+        <span class="text-muted">@Model.ListelenenSayi.ToString("N0", tr) protokol
+            @if (Model.ListelenenSayi > 0) { <text>· @(((Model.PageNumber - 1) * 50 + 1))–@(Math.Min(Model.PageNumber * 50, Model.ListelenenSayi)) arası</text> }</span>
+        <span style="flex:1"></span>
+        <button type="submit" form="yh-toplu" class="btn btn-outline btn-sm"
+                onclick="return yhSecimVar() && confirm('Seçilen dosyalar sıradaki arşiv numaralarıyla arşive alınacak. Emin misiniz?')">
+            Seçilenleri arşive al
+        </button>
+        <button type="submit" form="yh-toplu" class="btn btn-primary btn-sm"
+                asp-page-handler="TopluGonder" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="@Model.Durum"
+                asp-route-Gonderim="@Model.Gonderim" asp-route-Q="@Model.Q" asp-route-P="@Model.PageNumber"
+                onclick="return yhSecimVar() && confirm('Seçilen protokoller @YatanHastalarModel.AktifOrtamAdi(Model.AktifOrtam) ortamına GÖNDERİLECEK (en fazla 25). Emin misiniz?')">
+            Seçilenleri gönder
+        </button>
+    </div>
+
+    @if (Model.Satirlar.Count == 0)
+    {
+        <div class="empty-state"><p>Bu filtrede yatan protokol yok.</p></div>
+    }
+    else
+    {
+    <div class="table-wrap" style="border:0; border-radius:0;">
+    <table class="yh-tablo">
+        <thead>
+            <tr>
+                <th style="width:28px;"><input type="checkbox" aria-label="Sayfadakilerin tümünü seç" onchange="document.querySelectorAll('.yh-sec').forEach(c => c.checked = this.checked)" /></th>
+                <th>Hasta</th>
+                <th>Protokol · Bölüm</th>
+                <th>Yatış → Taburcu</th>
+                <th>Arşiv</th>
+                <th>TRƏS gönderimi</th>
+                <th style="text-align:right;">İşlem</th>
+            </tr>
+        </thead>
+        <tbody>
+        @foreach (var s in Model.Satirlar)
+        {
+            var pid = s.P.ProtokolId;
+            <tr>
+                <td><input type="checkbox" class="yh-sec" name="protokolIds" value="@pid" form="yh-toplu" aria-label="Protokol @pid seç" /></td>
+                <td>
+                    <strong>@s.P.HastaAdi @s.P.HastaSoyadi</strong>
+                    <div class="text-muted mono">@s.P.Fin</div>
+                </td>
+                <td>
+                    <span class="mono">@pid</span>
+                    <div class="text-muted">@s.P.BolumAdi</div>
+                    <div class="text-muted" style="font-size:12px;">@s.P.DoktorAdi @s.P.DoktorSoyadi</div>
+                </td>
+                <td class="mono" style="white-space:nowrap;">
+                    @(s.Yatan.YatisTarihi?.ToString("dd.MM.yyyy HH:mm", tr) ?? "-")
+                    <div>
+                        @if (s.Yatan.Yatiyor)
+                        {
+                            var gun = s.Yatan.YatisTarihi is { } yt ? (DateTime.Today - yt.Date).Days : 0;
+                            <span class="badge neutral">Yatıyor · @gun gün</span>
+                        }
+                        else
+                        {
+                            <text>→ @s.Yatan.Taburcu!.Value.ToString("dd.MM.yyyy HH:mm", tr)</text>
+                        }
+                    </div>
+                </td>
+                <td class="yh-arsiv">
+                    @switch (s.ArsivDurumu)
+                    {
+                        case "yatiyor":
+                            <span class="text-muted">Taburcu bekleniyor</span>
+                            break;
+                        case "bekliyor":
+                            <form method="post" asp-page-handler="ArsiveAl" asp-route-protokolId="@pid"
+                                  asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="@Model.Durum" asp-route-Gonderim="@Model.Gonderim"
+                                  asp-route-Q="@Model.Q" asp-route-P="@Model.PageNumber" class="yh-satir-form">
+                                <input type="text" name="arsivNo" placeholder="@Model.SiradakiNo" maxlength="40" class="yh-no"
+                                       title="Boş bırakırsanız sıradaki numara verilir" aria-label="Arşiv numarası" />
+                                <button type="submit" class="btn btn-outline btn-sm">Arşive al</button>
+                            </form>
+                            break;
+                        default:
+                            <span class="mono yh-arsiv-no">@s.Arsiv!.ArsivNo</span>
+                            @if (s.Arsiv.Tamamlandi)
+                            {
+                                <span class="badge success"><span class="badge-dot"></span>Tamamlandı</span>
+                                <div class="text-muted" style="font-size:12px;">@s.Arsiv.Tamamlayan · @Yerel(s.Arsiv.TamamlanmaUtc!.Value)</div>
+                            }
+                            else
+                            {
+                                <span class="badge info"><span class="badge-dot"></span>Arşivde</span>
+                                <div class="text-muted" style="font-size:12px;">@s.Arsiv.ArsiveAlan · @Yerel(s.Arsiv.ArsiveAlinmaUtc)</div>
+                            }
+                            @if (!string.IsNullOrEmpty(s.Arsiv.Notu))
+                            {
+                                <div class="text-muted" style="font-size:12px;">Not: @s.Arsiv.Notu</div>
+                            }
+                            break;
+                    }
+                </td>
+                <td>
+                    @switch (s.Gonderim)
+                    {
+                        case YatanHastalarModel.GonderimDurumu.Gitmedi:
+                            <span class="badge neutral">Gönderilmedi</span>
+                            break;
+                        case YatanHastalarModel.GonderimDurumu.Gitti:
+                            <span class="badge success"><span class="badge-dot"></span>Gönderildi</span>
+                            break;
+                        case YatanHastalarModel.GonderimDurumu.Eksik:
+                            <span class="badge warning"><span class="badge-dot"></span>Eksik verili</span>
+                            break;
+                        default:
+                            <span class="badge danger"><span class="badge-dot"></span>Hatalı</span>
+                            break;
+                    }
+                    @if (s.Gonderim != YatanHastalarModel.GonderimDurumu.Gitmedi)
+                    {
+                        <div class="text-muted" style="font-size:12px;">
+                            @s.Basarili gitti@(s.Eksik > 0 ? $" · {s.Eksik} eksik" : "")@(s.Hatali > 0 ? $" · {s.Hatali} hatalı" : "")
+                            @if (s.SonDenemeUtc is { } sd) { <text>· son @Yerel(sd)</text> }
+                        </div>
+                    }
+                    @foreach (var sebep in s.Sebepler)
+                    {
+                        <div class="yh-sebep">@sebep</div>
+                    }
+                </td>
+                <td class="yh-islem">
+                    @{
+                        var onay = s.Yatan.Yatiyor
+                            ? "Hasta henüz TABURCU OLMADI. Gönderim yarım bir yatış epizodu gönderir. Yine de gönderilsin mi?"
+                            : s.Gonderim == YatanHastalarModel.GonderimDurumu.Gitti
+                                ? "Bu protokol zaten gönderilmiş. Yeniden gönderilsin mi?"
+                                : $"Protokol {pid} {YatanHastalarModel.AktifOrtamAdi(Model.AktifOrtam)} ortamına gönderilecek. Emin misiniz?";
+                    }
+                    <form method="post" asp-page-handler="Gonder" asp-route-protokolId="@pid"
+                          asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="@Model.Durum" asp-route-Gonderim="@Model.Gonderim"
+                          asp-route-Q="@Model.Q" asp-route-P="@Model.PageNumber" onsubmit="return confirm('@onay')">
+                        <button type="submit" class="btn btn-primary btn-sm">Gönder</button>
+                    </form>
+                    @if (s.ArsivDurumu == "arsivde")
+                    {
+                        <form method="post" asp-page-handler="Tamamla" asp-route-protokolId="@pid"
+                              asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="@Model.Durum" asp-route-Gonderim="@Model.Gonderim"
+                              asp-route-Q="@Model.Q" asp-route-P="@Model.PageNumber"
+                              onsubmit="@(s.Gonderim == YatanHastalarModel.GonderimDurumu.Gitti ? "" : "return confirm('Dosya TRƏS\\'e henüz sorunsuz gitmedi. Yine de tamamlansın mı?')")">
+                            <button type="submit" class="btn btn-outline btn-sm">Tamamla</button>
+                        </form>
+                    }
+                    <details class="yh-daha">
+                        <summary class="btn btn-outline btn-sm" aria-label="Diğer işlemler">⋯</summary>
+                        <div class="yh-daha-menu">
+                            <a asp-page="/YatanHastalar" asp-route-Gecmis="@(Model.Gecmis == pid ? null : pid)"
+                               asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="@Model.Durum" asp-route-Gonderim="@Model.Gonderim"
+                               asp-route-Q="@Model.Q" asp-route-P="@Model.PageNumber">Geçmiş</a>
+                            @if (!Model.ArsivKullanicisi)
+                            {
+                                <a asp-page="/Protokol" asp-route-id="@pid" target="_blank" rel="noopener">Protokol detayı</a>
+                            }
+                            @if (s.Arsiv is not null)
+                            {
+                                <form method="post" asp-page-handler="NoDegistir" asp-route-protokolId="@pid"
+                                      asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="@Model.Durum" asp-route-Gonderim="@Model.Gonderim"
+                                      asp-route-Q="@Model.Q" asp-route-P="@Model.PageNumber" class="yh-satir-form">
+                                    <input type="text" name="arsivNo" value="@s.Arsiv.ArsivNo" maxlength="40" class="yh-no" aria-label="Yeni arşiv numarası" />
+                                    <button type="submit" class="btn btn-outline btn-sm">No değiştir</button>
+                                </form>
+                                @if (s.Arsiv.Tamamlandi)
+                                {
+                                    <form method="post" asp-page-handler="GeriAl" asp-route-protokolId="@pid"
+                                          asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="@Model.Durum" asp-route-Gonderim="@Model.Gonderim"
+                                          asp-route-Q="@Model.Q" asp-route-P="@Model.PageNumber" onsubmit="return confirm('Tamamlama geri alınsın mı?')">
+                                        <button type="submit" class="btn btn-outline btn-sm">Tamamlamayı geri al</button>
+                                    </form>
+                                }
+                                else
+                                {
+                                    <form method="post" asp-page-handler="ArsivdenCikar" asp-route-protokolId="@pid"
+                                          asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="@Model.Durum" asp-route-Gonderim="@Model.Gonderim"
+                                          asp-route-Q="@Model.Q" asp-route-P="@Model.PageNumber" onsubmit="return confirm('Dosya arşivden çıkarılsın mı? Arşiv numarası serbest kalır.')">
+                                        <button type="submit" class="btn btn-outline btn-sm btn-danger-text">Arşivden çıkar</button>
+                                    </form>
+                                }
+                            }
+                        </div>
+                    </details>
+                </td>
+            </tr>
+            @if (Model.Gecmis == pid)
+            {
+                <tr class="yh-gecmis">
+                    <td></td>
+                    <td colspan="6">
+                        <strong>Dosya geçmişi</strong>
+                        @if (Model.GecmisHareketler.Count == 0)
+                        {
+                            <span class="text-muted"> — henüz bir işlem yapılmadı.</span>
+                        }
+                        else
+                        {
+                            <ul>
+                                @foreach (var h in Model.GecmisHareketler)
+                                {
+                                    <li><span class="mono">@Yerel(h.Utc)</span> · <strong>@h.Islem</strong> · @h.Kullanici@(string.IsNullOrEmpty(h.Detay) ? "" : $" · {h.Detay}")</li>
+                                }
+                            </ul>
+                        }
+                    </td>
+                </tr>
+            }
+        }
+        </tbody>
+    </table>
+    </div>
+    <div class="yh-sayfa">
+        @if (Model.PageNumber > 1)
+        {
+            <a class="btn btn-outline btn-sm" asp-page="/YatanHastalar" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="@Model.Durum" asp-route-Gonderim="@Model.Gonderim" asp-route-Q="@Model.Q" asp-route-P="@(Model.PageNumber - 1)">&larr; Önceki</a>
+        }
+        @if (Model.HasNextPage)
+        {
+            <a class="btn btn-outline btn-sm" asp-page="/YatanHastalar" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="@Model.Durum" asp-route-Gonderim="@Model.Gonderim" asp-route-Q="@Model.Q" asp-route-P="@(Model.PageNumber + 1)">Sonraki &rarr;</a>
+        }
+    </div>
+    }
+</section>
+
+<script>
+    function yhSecimVar() {
+        if (document.querySelectorAll('.yh-sec:checked').length > 0) return true;
+        alert('Önce listeden protokol seçin.');
+        return false;
+    }
+</script>

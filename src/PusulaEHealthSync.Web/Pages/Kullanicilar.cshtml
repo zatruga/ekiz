@@ -37,6 +37,7 @@
                 <option value="Admin">Yönetici (Admin)</option>
                 <option value="Operator" selected>Operatör</option>
                 <option value="Viewer">İzleyici</option>
+                <option value="Arsiv">Arşiv</option>
             </select>
         </div>
         <button type="submit" class="btn btn-primary">Ekle</button>
@@ -44,7 +45,8 @@
     <p class="text-muted" style="font-size:12.5px; margin:10px 0 0;">
         <b>Yönetici:</b> Ayarlar ve Kullanıcılar dahil her şeyi görür/değiştirir &middot;
         <b>Operatör:</b> gönderim/silme işlemlerini yapabilir, Ayarlar'a giremez &middot;
-        <b>İzleyici:</b> sadece görüntüler.
+        <b>İzleyici:</b> sadece görüntüler &middot;
+        <b>Arşiv:</b> yalnızca Yatan Hastalar ekranını görür; dosyaları arşive alır, tamamlar ve TRƏS'e gönderir.
     </p>
 </div>
 
@@ -73,6 +75,7 @@
                                 <option value="Admin" selected="@(user.Role == "Admin")">Yönetici</option>
                                 <option value="Operator" selected="@(user.Role == "Operator")">Operatör</option>
                                 <option value="Viewer" selected="@(user.Role == "Viewer")">İzleyici</option>
+                                <option value="Arsiv" selected="@(user.Role == "Arsiv")">Arşiv</option>
                             </select>
                             <button type="submit" class="btn btn-outline btn-sm">Kaydet</button>
                         </form>
