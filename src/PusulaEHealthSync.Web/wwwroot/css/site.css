@@ -2467,3 +2467,7 @@ details.akis-satir[open] > summary .akis-grup-ok { transform: rotate(90deg); }
 .gb-icbari-hizmet { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .gb-icbari .gb-kalan-satir { grid-template-columns: minmax(120px, 1.4fr) 1fr auto; }
 @media (max-width: 760px) { .gb-icbari-ana, .gb-icbari-kirilim { grid-template-columns: 1fr; } }
+.ic-kalemler { margin-top: 4px; font-size: 12.5px; }
+.ic-kalemler > summary { cursor: pointer; color: var(--primary); width: max-content; }
+.ic-kalemler ul { margin: 6px 0 0; padding-left: 0; list-style: none; display: flex; flex-direction: column; gap: 4px; }
+.ic-kalemler li .badge { font-size: 10.5px; padding: 1px 6px; margin-right: 4px; }

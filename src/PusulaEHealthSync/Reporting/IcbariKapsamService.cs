@@ -23,22 +23,56 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
 
     public record Kalem(IcbariIslemRecord Islem, Durum Durum, string Sebep, string? Mesaj, DateTime? SonDenemeUtc);
 
-    public record SebepSatiri(string Sebep, Durum Durum, int Islem);
-    public record HizmetSatiri(string Hizmet, int Toplam, int Gitti, int Eksik, int Hatali, int Denenmedi)
+    // PROTOKOL BIRIMI (2026-10-26, kullanici: "ana gozuken veriler protokol bazli olsun,
+    // altinda veri sayilari olsun"). Bir protokolun icbari durumu, islemlerinden:
+    //   hepsi gitti -> Gitti; degilse EN KOTU KAZANIR: Hatali > Eksik > Denenmedi.
+    // Aktivite Akisi'ndaki protokol sinifiyla ayni kural -- iki ekran ayni protokole ayni
+    // sinifi versin.
+    public record ProtokolKalemi(int ProtokolId, string? Hasta, List<Kalem> Kalemler)
+    {
+        public Durum Durum { get; } = ProtokolDurumu(Kalemler);
+        public int Gitti => Kalemler.Count(k => k.Durum == Durum.Gitti);
+        public int Gitmedi => Kalemler.Count - Gitti;
+        public DateTime? SonDenemeUtc => Kalemler.Max(k => k.SonDenemeUtc);
+    }
+
+    public static Durum ProtokolDurumu(IEnumerable<Kalem> kalemler)
+    {
+        var liste = kalemler as IReadOnlyCollection<Kalem> ?? kalemler.ToList();
+        if (liste.All(k => k.Durum == Durum.Gitti)) return Durum.Gitti;
+        if (liste.Any(k => k.Durum == Durum.Hatali)) return Durum.Hatali;
+        if (liste.Any(k => k.Durum == Durum.Eksik)) return Durum.Eksik;
+        return Durum.Denenmedi;
+    }
+
+    public static List<ProtokolKalemi> Protokollere(IEnumerable<Kalem> kalemler) => kalemler
+        .GroupBy(k => k.Islem.ProtokolId)
+        .Select(g => new ProtokolKalemi(g.Key, g.Select(k => k.Islem.PatientName).FirstOrDefault(n => !string.IsNullOrWhiteSpace(n)),
+                                        g.ToList()))
+        .ToList();
+
+    // Sebep ve hizmet satirlari: ana sayi PROTOKOL, alt sayi ISLEM.
+    public record SebepSatiri(string Sebep, Durum Durum, int Protokol, int Islem);
+    public record HizmetSatiri(string Hizmet, int Toplam, int Gitti, int ProtokolGitmedi)
     {
         public int Gitmedi => Toplam - Gitti;
         public double GittiYuzde => Toplam == 0 ? 0 : Math.Round(Gitti * 100.0 / Toplam, 1);
     }
 
+    // Sayim cifti: ana olcu PROTOKOL (o siniftaki protokoller), alt olcu ISLEM (o durumdaki
+    // islemler -- protokol sinifindan bagimsiz). Ornek: "Gonderildi: 2.000 protokolun tum
+    // icbari islemleri gitti · toplam 49.639 islem gonderildi" -- kismen giden protokolun
+    // giden islemleri de islem sayisina girer.
+    public record Sayi(int Protokol, int Islem);
+
     public record IcbariOzeti(
-        int Toplam, int Gitti, int Eksik, int Hatali, int Denenmedi,
-        int Protokol, int ProtokolTam,
+        Sayi Toplam, Sayi Gitti, Sayi Gitmedi, Sayi Eksik, Sayi Hatali, Sayi Denenmedi,
         List<SebepSatiri> Sebepler, List<HizmetSatiri> Hizmetler, int HizmetCesidi)
     {
-        public static readonly IcbariOzeti Bos = new(0, 0, 0, 0, 0, 0, 0, [], [], 0);
-        public int Gitmedi => Toplam - Gitti;
-        public double GittiYuzde => Toplam == 0 ? 0 : Math.Round(Gitti * 100.0 / Toplam, 1);
-        public double Yuzde(int n) => Toplam == 0 ? 0 : Math.Round(n * 100.0 / Toplam, 1);
+        public static readonly IcbariOzeti Bos =
+            new(new(0, 0), new(0, 0), new(0, 0), new(0, 0), new(0, 0), new(0, 0), [], [], 0);
+        public double ProtokolYuzde(int n) => Toplam.Protokol == 0 ? 0 : Math.Round(n * 100.0 / Toplam.Protokol, 1);
+        public double IslemYuzde(int n) => Toplam.Islem == 0 ? 0 : Math.Round(n * 100.0 / Toplam.Islem, 1);
     }
 
     public const string HenuzGonderilmedi = "Henüz gönderilmedi";
@@ -78,29 +112,32 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
     {
         if (kalemler.Count == 0) return IcbariOzeti.Bos;
 
-        var protokoller = kalemler.GroupBy(k => k.Islem.ProtokolId).ToList();
+        var protokoller = Protokollere(kalemler);
+        Sayi Sinif(Durum d) => new(protokoller.Count(p => p.Durum == d), kalemler.Count(k => k.Durum == d));
+
         var hizmetler = kalemler
             .GroupBy(k => HizmetAdi(k.Islem))
             .Select(g => new HizmetSatiri(g.Key, g.Count(),
-                g.Count(k => k.Durum == Durum.Gitti), g.Count(k => k.Durum == Durum.Eksik),
-                g.Count(k => k.Durum == Durum.Hatali), g.Count(k => k.Durum == Durum.Denenmedi)))
+                g.Count(k => k.Durum == Durum.Gitti),
+                g.Where(k => k.Durum != Durum.Gitti).Select(k => k.Islem.ProtokolId).Distinct().Count()))
             .ToList();
 
         return new IcbariOzeti(
-            kalemler.Count,
-            kalemler.Count(k => k.Durum == Durum.Gitti),
-            kalemler.Count(k => k.Durum == Durum.Eksik),
-            kalemler.Count(k => k.Durum == Durum.Hatali),
-            kalemler.Count(k => k.Durum == Durum.Denenmedi),
-            protokoller.Count,
-            protokoller.Count(g => g.All(k => k.Durum == Durum.Gitti)),
+            new(protokoller.Count, kalemler.Count),
+            Sinif(Durum.Gitti),
+            new(protokoller.Count(p => p.Durum != Durum.Gitti), kalemler.Count(k => k.Durum != Durum.Gitti)),
+            Sinif(Durum.Eksik),
+            Sinif(Durum.Hatali),
+            Sinif(Durum.Denenmedi),
             kalemler.Where(k => k.Durum != Durum.Gitti)
                 .GroupBy(k => (k.Sebep, k.Durum))
-                .Select(g => new SebepSatiri(g.Key.Sebep, g.Key.Durum, g.Count()))
-                .OrderByDescending(s => s.Islem)
+                .Select(g => new SebepSatiri(g.Key.Sebep, g.Key.Durum,
+                    g.Select(k => k.Islem.ProtokolId).Distinct().Count(), g.Count()))
+                .OrderByDescending(s => s.Protokol)
                 .ToList(),
-            // En cok GITMEYEN hizmet once: "neyi duzeltirsem en cok kazandiririm" sorusunun cevabi.
-            hizmetler.Where(h => h.Gitmedi > 0).OrderByDescending(h => h.Gitmedi).Take(hizmetTavan).ToList(),
+            // En cok GITMEYEN hizmet once (protokol sayisina gore): "neyi duzeltirsem en cok
+            // kazandiririm" sorusunun cevabi.
+            hizmetler.Where(h => h.Gitmedi > 0).OrderByDescending(h => h.ProtokolGitmedi).Take(hizmetTavan).ToList(),
             hizmetler.Count);
     }
 
