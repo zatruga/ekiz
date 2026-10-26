@@ -415,10 +415,14 @@ public class AutoSyncWorker(
 
         // TAM tarama: takilan kalemler tanimi geregi eskidir, artimli pencere onlari
         // gormezdi.
-        // maxProtocols genis: artik sayiyla degil sureyle siniriyoruz, bu yuzden listenin
-        // kirpilmasi butceyi fiilen daraltmasin. Kirpma yalnizca bellekte siralama/alma --
-        // ag cagrisi yok, bedeli ihmal edilebilir.
-        var sonuc = await pendingWork.RefreshAsync(maxProtocols: 2000, ct: ct);
+        // maxProtocols SINIRSIZ (2026-10-26 duzeltmesi). Eskiden 2000'di ve kirpma "en eski
+        // kalem once" yapiliyordu: her gece ACILISI EN ESKI AYNI 2.000 protokol (cogu kalici
+        // takili -- bos epikriz, FIN) deneniyor, gerisi HIC denenmiyordu. Olculdu (25 ve 26.10
+        // gece turlari): ikisi de tam 1.997 protokol, ayni id araligi; Icbari eslesmesi
+        // sonradan duzeltilen "Idrar Mikroskopisi" paneline bagli 451 protokolun (4.603 kalem)
+        // HICBIRI turda yoktu. Butce 180 dk iken tur ~10 dk'da "bitiyordu" -- bitmiyordu,
+        // sinira carpiyordu. Sinir zaten sure; kirpma yalnizca bellekte, ag cagrisi yok.
+        var sonuc = await pendingWork.RefreshAsync(maxProtocols: int.MaxValue, ct: ct);
 
         // SIRALAMA: EN UZUN SUREDIR DENENMEYEN once. Takilan listesi parti boyutundan buyuk
         // olabilir (olculdu: 30 gunde 4.289 protokol). Ana listedeki gibi "en eski kayit
@@ -429,8 +433,7 @@ public class AutoSyncWorker(
         //
         // ICBARI ONCE (2026-10-26, kullanici istegi: "otomatik gonderimde icbariye
         // onceliklendir"). Icbari kalemi olanlar once, kendi iclerinde yine en uzun suredir
-        // denenmeyen once -- donme mantigi korunuyor. Aclik riski olculdu ve yok: 26.10 gecesi
-        // tur ~2.000 takilan protokolun tamamini 10 dakikada bitirdi, butce 180 dakika.
+        // denenmeyen once -- donme mantigi korunuyor.
         var hedefler = sonuc.TakilanProtokoller
             .Where(p => p.Eligible)
             .OrderByDescending(p => p.IcbariVar)
