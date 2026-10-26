@@ -192,6 +192,18 @@ public class SyncLogStore
             ON SyncLog(Ortam, CreatedAtUtc, ResourceType, PusulaId, ProtokolId, Status, Operation);";
         try { kartIndeksCmd.ExecuteNonQuery(); }
         catch (SqliteException ex) when (ex.SqliteErrorCode is 5 or 6) { /* SQLITE_BUSY / LOCKED */ }
+
+        // PROTOKOL ONCULU KAPSAYICI INDEKS (2026-10-26) -- Aktivite Akisi'nin "protokol
+        // tarihi" gorunumu icin (bkz. QueryOzetByProtokolIdsAsync). Orada suzgec tarih
+        // degil protokol kumesi; mevcut IX_SyncLog_ProtokolId (ProtokolId, CreatedAtUtc)
+        // Ortam/Status'u tasimadigi icin her satirda tabloya -- govdelerin arkasindaki
+        // sutunlara -- gidilirdi. Kilit davranisi yukaridakiyle ayni.
+        using var protokolIndeksCmd = conn.CreateCommand();
+        protokolIndeksCmd.CommandText = @"
+            CREATE INDEX IF NOT EXISTS IX_SyncLog_ProtokolDurum
+            ON SyncLog(ProtokolId, Ortam, ResourceType, PusulaId, Status);";
+        try { protokolIndeksCmd.ExecuteNonQuery(); }
+        catch (SqliteException ex) when (ex.SqliteErrorCode is 5 or 6) { /* SQLITE_BUSY / LOCKED */ }
     }
 
     // SAYFA SORGULARININ ORTAK SUZGECI -- YALNIZCA VERILEN KOSULLAR SQL'E GIRER.
@@ -411,6 +423,68 @@ public class SyncLogStore
                 reader.GetInt32(4),
                 reader.IsDBNull(5) ? null : reader.GetString(5),
                 reader.IsDBNull(6) ? null : reader.GetInt32(6)));
+        return result;
+    }
+
+    // PROTOKOL KUMESININ KAYITLARI -- TARIHSIZ (2026-10-26).
+    //
+    // KULLANICI: "belirtilen tarih araliginda 2000 Pusula protokolu var, biz bunlarin
+    // 1400'unde gondermeyi denedik, 500 basarili, 800 eksik verili... ben deneme ya da
+    // farkli bir sey degil bunu gormem lazim: ne kadar protokol gonderdim, ne kadar kaldi."
+    //
+    // Aktivite'nin varsayilan gorunumu artik PROTOKOL tarihine gore: tarih araligi
+    // Pusula'daki acilis tarihi, kume o aralikta acilan protokoller. Kayitlarin NE ZAMAN
+    // denendigi onemsiz -- 23.10'da acilip 26.10'da gonderilen protokol 23.10'a aittir.
+    // Bu yuzden burada tarih suzgeci YOK; durum her kaydin SON denemesi (QueryOzetAsync
+    // ile ayni kural ve ayni satir bicimi, gruplama kodu ikisini de ayni yoldan isliyor).
+    //
+    // HASTA KAYITLARI AYRICA: Patient'in ProtokolId'si bilerek bos (hasta protokoller arasi
+    // paylasilir). Protokollerin hastalari verilirse onlarin kayitlari da gelir; cagiran
+    // taraf onlari protokole katiyor (bkz. AktiviteModel).
+    public async Task<List<OzetSatiri>> QueryOzetByProtokolIdsAsync(
+        IReadOnlyCollection<int> protokolIdleri, IReadOnlyCollection<int> hastaIdleri,
+        string? resourceType, string? ortam, CancellationToken ct = default)
+    {
+        var result = new List<OzetSatiri>();
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+
+        async Task OkuAsync(string kumeKosulu, string kumeParametresi, int[] kume)
+        {
+            using var cmd = conn.CreateCommand();
+            var adlar = string.Join(",", kume.Select((_, i) => $"${kumeParametresi}{i}"));
+            for (var i = 0; i < kume.Length; i++) cmd.Parameters.AddWithValue($"${kumeParametresi}{i}", kume[i]);
+            var suzgec = Suzgec(cmd, ortam, resourceType, null, null);
+            cmd.CommandText = $@"
+                SELECT g.SonId, g.ResourceType, g.PusulaId, g.Durum, g.Deneme,
+                       CASE WHEN g.Durum <> 'Success'
+                            THEN (SELECT m.Message FROM SyncLog m WHERE m.Id = g.SonId) END,
+                       g.ProtokolId
+                FROM (
+                    SELECT MAX(Id) AS SonId, ResourceType, PusulaId, Status AS Durum,
+                           COUNT(*) AS Deneme, ProtokolId
+                    FROM SyncLog
+                    WHERE {string.Format(kumeKosulu, adlar)} AND {suzgec}
+                    GROUP BY ResourceType, PusulaId, ProtokolId
+                ) g";
+            using var reader = await cmd.ExecuteReaderAsync(ct);
+            while (reader.Read())
+                result.Add(new OzetSatiri(
+                    reader.GetInt64(0), reader.GetString(1), reader.GetInt32(2),
+                    Enum.Parse<SyncStatus>(reader.GetString(3)),
+                    reader.GetInt32(4),
+                    reader.IsDBNull(5) ? null : reader.GetString(5),
+                    reader.IsDBNull(6) ? null : reader.GetInt32(6)));
+        }
+
+        // SQLite'in 999 degisken siniri -- ortam ve tur icin pay birakiliyor.
+        foreach (var kume in protokolIdleri.Distinct().Chunk(900))
+            await OkuAsync("ProtokolId IN ({0})", "p", kume);
+        if (resourceType is null or "Patient")
+            foreach (var kume in hastaIdleri.Distinct().Chunk(900))
+                await OkuAsync("ResourceType = 'Patient' AND PusulaId IN ({0})", "h", kume);
+
+        result.Sort((a, b) => b.SonId.CompareTo(a.SonId));
         return result;
     }
 

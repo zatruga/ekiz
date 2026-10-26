@@ -270,11 +270,11 @@ else if (!Model.AktifOrtamCanli)
             Yalnızca bu dönemde <b>denenmiş</b> canlı gönderimler. Hiç denenmemiş bir kalem burada görünmez.
         </p>
         <div class="gb-dort">
-            <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-dort-hucre" target="_blank" rel="noopener">
+            <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Olcut="gonderim" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-dort-hucre" target="_blank" rel="noopener">
                 <span class="gb-dort-sayi num">@o.ProtokolDokunulan.ToString("N0")</span>
                 <span class="gb-dort-ad">dokunulan protokol</span>
             </a>
-            <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Status="Success" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-dort-hucre" target="_blank" rel="noopener">
+            <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Olcut="gonderim" asp-route-Status="Success" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-dort-hucre" target="_blank" rel="noopener">
                 <span class="gb-dort-sayi num success">@o.ProtokolTamam.ToString("N0")</span>
                 <span class="gb-dort-ad">
                     sorunsuz (%@o.TamamYuzde.ToString("0.0"))
@@ -284,11 +284,11 @@ else if (!Model.AktifOrtamCanli)
                     }
                 </span>
             </a>
-            <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Status="Skipped" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-dort-hucre" target="_blank" rel="noopener">
+            <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Olcut="gonderim" asp-route-Status="Skipped" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-dort-hucre" target="_blank" rel="noopener">
                 <span class="gb-dort-sayi num warning">@o.ProtokolEksik.ToString("N0")</span>
                 <span class="gb-dort-ad">eksik verisi var</span>
             </a>
-            <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Status="Failed" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-dort-hucre" target="_blank" rel="noopener">
+            <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Olcut="gonderim" asp-route-Status="Failed" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-dort-hucre" target="_blank" rel="noopener">
                 <span class="gb-dort-sayi num danger">@o.ProtokolHatali.ToString("N0")</span>
                 <span class="gb-dort-ad">TRƏS reddetti</span>
             </a>
@@ -446,7 +446,7 @@ else if (!Model.AktifOrtamCanli)
         {
             foreach (var t in o.Turler)
             {
-                <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-ResourceType="@t.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-satir" target="_blank" rel="noopener">
+                <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Olcut="gonderim" asp-route-ResourceType="@t.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-satir" target="_blank" rel="noopener">
                     <span class="gb-satir-ad">
                         @t.Etiket
                         <span class="gb-satir-alt">@(t.Protokolsuz ? $"{t.Kayit:N0} kayıt · protokole bağlanmıyor" : $"{t.Protokol:N0} protokol · {birim(t.Kayit, t.Satir)}")</span>
@@ -592,7 +592,7 @@ else if (!Model.AktifOrtamCanli)
         {
             foreach (var s in o.EksikSebepleri)
             {
-                <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Status="Skipped" asp-route-Kategori="@s.Kategori" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-sebep warning" target="_blank" rel="noopener">
+                <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Olcut="gonderim" asp-route-Status="Skipped" asp-route-Kategori="@s.Kategori" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-sebep warning" target="_blank" rel="noopener">
                     <span class="gb-sebep-sayi">@sebepSayisi(s)<span>@(s.Protokol > 0 ? "protokol" : "kayıt")</span></span>
                     <span class="gb-sebep-metin">
                         <span class="gb-sebep-ad">@s.Kategori</span>
@@ -624,7 +624,7 @@ else if (!Model.AktifOrtamCanli)
         {
             foreach (var s in o.HataSebepleri)
             {
-                <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Status="Failed" asp-route-Kategori="@s.Kategori" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-sebep danger" target="_blank" rel="noopener">
+                <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Olcut="gonderim" asp-route-Status="Failed" asp-route-Kategori="@s.Kategori" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-sebep danger" target="_blank" rel="noopener">
                     <span class="gb-sebep-sayi">@sebepSayisi(s)<span>@(s.Protokol > 0 ? "protokol" : "kayıt")</span></span>
                     <span class="gb-sebep-metin">
                         <span class="gb-sebep-ad">@s.Kategori</span>

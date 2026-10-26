@@ -638,7 +638,10 @@ public class PendingWorkService(
 
     // Protokol gonderime uygun mu? Yatan ve ayaktan icin FARKLI kural (kullanici karari
     // 2026-09-09), ustune AYNI GUN GONDERME kurali (kullanici karari 2026-10-03).
-    private static (bool Eligible, string? Reason) IsEligible(
+    // PUBLIC (2026-10-26): Aktivite Akisi "denenmemis protokol neden denenmedi" sorusunu
+    // AYNI kuralla cevapliyor -- ekran ile gonderim ayri kural kullanirsa ekranda "sirasi
+    // gelmedi" yazan protokol gonderilir, ya da tersi.
+    public static (bool Eligible, string? Reason) IsEligible(
         ProtokolListItem p, int openAfterDays, int minAgeDays, int yatanTavanGun)
     {
         var (uygunlukAni, redSebebi) = UygunlukAni(p, openAfterDays, yatanTavanGun);

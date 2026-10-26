@@ -136,6 +136,17 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
     [BindProperty(SupportsGet = true)]
     public string? Ortam { get; set; }
 
+    // TARIH OLCUTU (2026-10-26, kullanici karari: "secmeli, varsayilan protokol tarihi").
+    //   "protokol" -- aralik Pusula'daki ACILIS tarihi; kume o aralikta acilan protokoller,
+    //                 durumlari bugun itibariyle. "Ne kadar gonderdim, ne kadar kaldi."
+    //   "gonderim" -- aralik DENEME tarihi; o gunlerde ne denendi (eski davranis).
+    [BindProperty(SupportsGet = true)]
+    public string? Olcut { get; set; }
+
+    public const string OlcutProtokol = "protokol";
+    public const string OlcutGonderim = "gonderim";
+    public bool ProtokolOlcutu => Olcut != OlcutGonderim;
+
     // Gonderimin su an yapildigi ortam -- seciciye "gönderim burada" isareti icin.
     public string AktifOrtam { get; set; } = SettingsStore.EHealthEnvironmentDefault;
 
@@ -199,6 +210,7 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
         EffectiveFrom = From ?? today.AddDays(-6);
         EffectiveTo = To ?? today;
         PageNumber = P < 1 ? 1 : P;
+        Olcut = Olcut == OlcutGonderim ? OlcutGonderim : OlcutProtokol;
         await OrtamiBelirleAsync(ct);
 
         // Filtredeki tarihler YEREL gun (kullanici takvimden secer), SyncLog ise UTC saklar --
@@ -270,8 +282,11 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
 
         // DENEMELER BURADA OKUNUYOR. Ozet kayit basina tek satir tasiyor; tablonun
         // gosterdigi tek tek denemeler yalnizca bu sayfadaki gruplar icin getiriliyor.
+        // Protokol tarihi gorunumunde denemelerin TAMAMI -- protokol araliga aitse, ne zaman
+        // denendigine bakilmaksizin butun gecmisi gosterilir (bkz. QueryOzetByProtokolIdsAsync).
         Entries = await syncLog.GetByRecordsAsync(
-            sayfaSatirlari.SelectMany(x => x.Kimlikler).ToList(), fromUtc, toUtcExclusive, ct, Ortam);
+            sayfaSatirlari.SelectMany(x => x.Kimlikler).ToList(),
+            ProtokolOlcutu ? null : fromUtc, ProtokolOlcutu ? null : toUtcExclusive, ct, Ortam);
 
         var denemeler = Entries.ToLookup(e => (e.ResourceType, e.PusulaId));
         Gruplar = sayfaSatirlari
@@ -301,7 +316,7 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
 
     private async Task<AkisOzeti> OzetAlAsync(DateTime fromUtc, DateTime toUtcExclusive, CancellationToken ct)
     {
-        var anahtar = $"aktivite-ozet|{fromUtc:O}|{toUtcExclusive:O}|{ResourceType}|{Ortam}";
+        var anahtar = $"aktivite-ozet|{Olcut}|{fromUtc:O}|{toUtcExclusive:O}|{ResourceType}|{Ortam}";
         // Bayatsa once gosterilir, arkada tazelenir (bkz. TazeOnbellek).
         //
         // PUSULA PATLADIYSA ONBELLEGE ALMA (2026-10-09).
@@ -311,12 +326,116 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
         // gordu: ayni veri icin bir seferinde 340, digerinde 650 hasta. Gecici bir
         // ag kesintisinin sonucunu onbellege almak, hatayi kalicilastirmak demek.
         // Saklanmayinca bir sonraki acilis yeniden deniyor.
+        var (bas, bit) = (EffectiveFrom, EffectiveTo);
         return await TazeOnbellek.AlAsync(cache, anahtar,
-            c => OzetiHesaplaAsync(fromUtc, toUtcExclusive, c),
+            c => ProtokolOlcutu
+                ? ProtokolTarihineGoreAsync(bas, bit, c)
+                : GonderimTarihineGoreAsync(fromUtc, toUtcExclusive, c),
             OnbellekOmru, OnbellekEnEski, ozet => !ozet.PusulaHatasi, logger);
     }
 
-    private async Task<AkisOzeti> OzetiHesaplaAsync(DateTime fromUtc, DateTime toUtcExclusive, CancellationToken ct)
+    // ---- PROTOKOL TARIHI GORUNUMU (2026-10-26, varsayilan) ----
+    //
+    // KULLANICI: "belirtilen tarih araliginda 2000 Pusula protokolu var, biz bunlarin
+    // 1400'unde gondermeyi denedik, 500 basarili, 800 eksik verili, 200 hata, 300 hic
+    // gonderilmeyecek ... ne kadar protokol gonderdim, ne kadar kaldi -- bunu gormem lazim."
+    //
+    // GONDERIM TARIHI GORUNUMU BU SORUYU CEVAPLAMIYORDU: o, araliktaki DENEMELERI sayiyor.
+    // Gece takilanlar turu her gece ayni ~2.000 protokolu yeniden denedigi icin 26.10'a
+    // bakan "2.171 protokol" goruyordu; 2.084'u onceki gunlerin protokolleriydi.
+    //
+    // Burada kume PUSULA'DAN geliyor: aralikta acilan (iptal edilmemis) protokoller. Her
+    // birinin kayitlari tarihsiz okunuyor ve son durumlarina gore siniflaniyor -- yani
+    // kartlar "bu protokollerin bugun itibariyle durumu"nu anlatiyor. Denenmemis olanlar
+    // gonderimin kendi kuraliyla (PendingWorkService.IsEligible) sebebine ayriliyor.
+    private async Task<AkisOzeti> ProtokolTarihineGoreAsync(DateOnly bas, DateOnly bit, CancellationToken ct)
+    {
+        List<ProtokolListItem> liste;
+        try
+        {
+            liste = await repository.GetProtokolListAsync(
+                bas.ToDateTime(TimeOnly.MinValue), bit.AddDays(1).ToDateTime(TimeOnly.MinValue), null, ct);
+        }
+        catch (Exception ex)
+        {
+            // Pusula yoksa bu gorunum kurulamaz -- kume Pusula'dan geliyor. Bos ozet,
+            // hata isaretiyle (onbellege alinmaz, sayfa uyariyi gosterir).
+            logger.LogWarning(ex, "Aktivite akisi: aralikta acilan protokoller Pusula'dan okunamadi.");
+            return AkisOzeti.Bos with { PusulaHatasi = true, Olcut = OlcutProtokol };
+        }
+
+        var protokoller = liste.GroupBy(p => p.ProtokolId).ToDictionary(g => g.Key, g => g.First());
+        var satirlar = await Task.Run(() => syncLog.QueryOzetByProtokolIdsAsync(
+            protokoller.Keys.ToList(), protokoller.Values.Select(p => p.HastaId).Where(h => h > 0).ToList(),
+            ResourceType, Ortam, ct), ct);
+
+        var (gruplar, _, pusulaHatasi) = await GruplariKurAsync(satirlar, protokoller, ct);
+
+        // Protokole baglanamayan Hasta kayitlari (protokolunun baska hicbir kaydi yok) bu
+        // gorunumde ayri satir olmuyor: soru "protokoller ne durumda", kume protokoller.
+        var protokolGruplari = gruplar.Where(g => g.ProtokolId is not null).ToList();
+        var denenen = protokolGruplari.Select(g => g.ProtokolId!.Value).ToHashSet();
+        var kayitlar = protokolGruplari.SelectMany(g => g.Kayitlar).ToList();
+
+        // ---- DENENMEMIS PROTOKOLLER -- NEDEN? ----
+        // Gonderimin kendi kurallariyla, ayni sirayla (bkz. PendingWorkService.ComputeAsync):
+        //   1. devreye alim tarihinden once acilmis   -> kapsam disi
+        //   2. henuz uygun degil (ayni gun, acik ayaktan, taburcu olmamis yatan) -> sirasi gelmedi
+        //   3. uygun ama hic kaydi denenmemis          -> gonderilecek kaydi yok
+        // 3. kume pratikte "kalemsiz" protokoller: yalniz tani/recete iceren ya da bos
+        // protokollerin muayenesi bilincli olarak gonderilmiyor (kullanici karari 22.10).
+        // Uygun ve gonderilecek kalemi olan bir protokol otomatik turda dakikalar icinde
+        // denenir; burada uzun sure kalmaz.
+        var openAfterDays = await settings.GetIntAsync(
+            SettingsStore.OpenProtokolSendAfterDaysKey, SettingsStore.OpenProtokolSendAfterDaysDefault, ct);
+        var minYas = await settings.GetIntAsync(
+            SettingsStore.MinProtokolYasiGunKey, SettingsStore.MinProtokolYasiGunDefault, ct);
+        var yatanTavan = await settings.GetIntAsync(
+            SettingsStore.YatanMaxOpenDaysKey, SettingsStore.YatanMaxOpenDaysDefault, ct);
+        var tabanHam = await settings.GetStringAsync(SettingsStore.SendFloorDateKey, "", ct);
+        DateOnly? taban = DateOnly.TryParseExact(tabanHam, "yyyy-MM-dd",
+            System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var t)
+            ? t : null;
+
+        int kapsamDisi = 0, sirasiGelmedi = 0, kaydiYok = 0;
+        foreach (var p in protokoller.Values)
+        {
+            if (denenen.Contains(p.ProtokolId)) continue;
+            if (taban is { } tb && p.AcilisTarihi is { } acilis && DateOnly.FromDateTime(acilis) < tb)
+                kapsamDisi++;
+            else if (!PendingWorkService.IsEligible(p, openAfterDays, minYas, yatanTavan).Eligible)
+                sirasiGelmedi++;
+            else
+                kaydiYok++;
+        }
+
+        return new AkisOzeti(
+            protokolGruplari, protokoller,
+            ToplamKayit: kayitlar.Count,
+            BasariliKayit: kayitlar.Count(k => k.Durum == SyncStatus.Success),
+            AtlananKayit: kayitlar.Count(k => k.Durum == SyncStatus.Skipped),
+            HataliKayit: kayitlar.Count(k => k.Durum == SyncStatus.Failed),
+            // Kartlar LISTEYLE AYNI KUMEDEN (protokolGruplari) -- karta tiklayinca
+            // listelenen protokol sayisi kartta yazanla birebir ayni.
+            HastaToplam: protokolGruplari.Count,
+            HastaBasarili: protokolGruplari.Count(g => g.Sinif == SyncStatus.Success),
+            HastaAtlanan: protokolGruplari.Count(g => g.Sinif == SyncStatus.Skipped),
+            HastaHatali: protokolGruplari.Count(g => g.Sinif == SyncStatus.Failed),
+            HastaHicGitmediSql: protokolGruplari.Count(g => g.HicGitmedi),
+            BagiEksikSatir: 0,
+            Kirpildi: false,
+            PusulaHatasi: pusulaHatasi)
+        {
+            Olcut = OlcutProtokol,
+            PusulaProtokol = protokoller.Count,
+            DenenmeyenKapsamDisi = kapsamDisi,
+            DenenmeyenSirasiGelmedi = sirasiGelmedi,
+            DenenmeyenKaydiYok = kaydiYok,
+        };
+    }
+
+    // ---- GONDERIM TARIHI GORUNUMU -- araliktaki DENEMELER (eski davranis) ----
+    private async Task<AkisOzeti> GonderimTarihineGoreAsync(DateTime fromUtc, DateTime toUtcExclusive, CancellationToken ct)
     {
         // UC SORGU AYNI ANDA (2026-10-24): birbirlerinin sonucuna ihtiyaclari yok, her biri
         // kendi baglantisini aciyor ve WAL modunda okuyucular birbirini beklemiyor.
@@ -356,6 +475,42 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
         var kirpildi = satirlar.Count >= OzetTavani;
         if (satirlar.Count == 0) return AkisOzeti.Bos;
 
+        var (gruplar, protokoller, pusulaHatasi) = await GruplariKurAsync(satirlar, null, ct);
+
+        return new AkisOzeti(
+            gruplar, protokoller,
+            // Kirpilmasiz SQL toplami -- tarih araligini gercekten yansitir.
+            ToplamKayit: durumSayilari.Values.Sum(),
+            BasariliKayit: durumSayilari.GetValueOrDefault(nameof(SyncStatus.Success)),
+            AtlananKayit: durumSayilari.GetValueOrDefault(nameof(SyncStatus.Skipped)),
+            HataliKayit: durumSayilari.GetValueOrDefault(nameof(SyncStatus.Failed)),
+            // KART SAYILARI ARTIK TAVANSIZ SQL'DEN (2026-10-16). Eskiden bunlar da
+            // kirpilmis listeden sayiliyordu; kirpma devreye girdiginde tarih araligi
+            // GENISLETILINCE sayi DUSEBILIYORDU -- kullanici bildirdi. Ayrintili gerekce
+            // SyncLogStore.AkisKartlariniHesaplaAsync'te.
+            //
+            // HASTA SAYIMI "EN KOTU DURUM KAZANIR" KURALIYLA: bir hastanin 40 kaydindan
+            // biri hata aldiysa o hasta hatali sayilir. Liste (gruplar) hala kirpili: o bir
+            // SAYFALANMIS GORUNUM, sayi degil. Kirpma orada zararsiz.
+            HastaToplam: kartlar.Toplam,
+            HastaBasarili: kartlar.Basarili,
+            HastaAtlanan: kartlar.Atlanan,
+            HastaHatali: kartlar.Hatali,
+            HastaHicGitmediSql: kartlar.HicGitmedi,
+            BagiEksikSatir: bagiEksik,
+            Kirpildi: kirpildi,
+            PusulaHatasi: pusulaHatasi)
+        { Olcut = OlcutGonderim };
+    }
+
+    // ---- GRUPLAMA -- IKI GORUNUMUN ORTAK YOLU ----
+    // Ozet satirlarini protokol / hasta / kimliksiz kovalarina ayirir. onceden verilirse
+    // (protokol tarihi gorunumu: protokoller zaten Pusula listesinden geldi) protokol
+    // bilgisi yeniden okunmaz.
+    private async Task<(List<AkisGrupOzeti> Gruplar, Dictionary<int, ProtokolListItem> Protokoller, bool PusulaHatasi)>
+        GruplariKurAsync(List<SyncLogStore.OzetSatiri> satirlar, Dictionary<int, ProtokolListItem>? onceden,
+                         CancellationToken ct)
+    {
         // ---- 1) PROTOKOL COZUMU ----
         // ONCE SyncLog.ProtokolId (2026-10-21): bag yazma aninda kaydediliyor, eski satirlar
         // da ProtokolBagiDoldurmaService ile dolduruluyor. Kartlar da bu sutundan sayiyor --
@@ -408,8 +563,8 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
         }
 
         // ---- 3) PROTOKOL BILGILERI ----
-        var protokoller = new Dictionary<int, ProtokolListItem>();
-        if (protokolKovalari.Count > 0)
+        var protokoller = onceden ?? new Dictionary<int, ProtokolListItem>();
+        if (onceden is null && protokolKovalari.Count > 0)
         {
             try
             {
@@ -478,40 +633,7 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
 
         if (kimliksiz.Count > 0) gruplar.Add(Grup(null, false, kimliksiz));
 
-        // ---- 6) SAYIMLAR ----
-        // HASTA SAYIMI "EN KOTU DURUM KAZANIR" KURALIYLA: bir hastanin 40 kaydindan
-        // biri hata aldiysa o hasta hatali sayilir. Kullanici bu karta "hangi hastalarda
-        // sorun var" diye tikliyor; "39 kaydi gectigi icin basarili" demek onu yanlis
-        // yere gotururdu. Kategoriler bu sayede ortusmuyor, toplamlari hasta sayisini
-        // veriyor.
-        //
-        // KIMLIKSIZ KOVA HASTA SAYILMIYOR: icinde doktor kayitlari ve hastasi
-        // cozulemeyen satirlar var, tek bir kisiye karsilik gelmiyor. Listede duruyor
-        // ama "kac hasta" sorusunun cevabina karismiyor.
-        var hastaGruplari = gruplar.Where(g => g.ProtokolId is not null || g.HastaGrubu).ToList();
-
-        return new AkisOzeti(
-            gruplar, protokoller,
-            // Kirpilmasiz SQL toplami -- tarih araligini gercekten yansitir.
-            ToplamKayit: durumSayilari.Values.Sum(),
-            BasariliKayit: durumSayilari.GetValueOrDefault(nameof(SyncStatus.Success)),
-            AtlananKayit: durumSayilari.GetValueOrDefault(nameof(SyncStatus.Skipped)),
-            HataliKayit: durumSayilari.GetValueOrDefault(nameof(SyncStatus.Failed)),
-            // KART SAYILARI ARTIK TAVANSIZ SQL'DEN (2026-10-16). Eskiden bunlar da
-            // kirpilmis listeden (hastaGruplari) sayiliyordu; kirpma devreye girdiginde
-            // tarih araligi GENISLETILINCE sayi DUSEBILIYORDU -- kullanici bildirdi.
-            // Ayrintili gerekce SyncLogStore.AkisKartlariniHesaplaAsync'te.
-            //
-            // Liste (gruplar) hala kirpili: o bir SAYFALANMIS GORUNUM, sayi degil.
-            // Kirpma orada zararsiz; kart sayilarina artik hic karismiyor.
-            HastaToplam: kartlar.Toplam,
-            HastaBasarili: kartlar.Basarili,
-            HastaAtlanan: kartlar.Atlanan,
-            HastaHatali: kartlar.Hatali,
-            HastaHicGitmediSql: kartlar.HicGitmedi,
-            BagiEksikSatir: bagiEksik,
-            Kirpildi: kirpildi,
-            PusulaHatasi: pusulaHatasi);
+        return (gruplar, protokoller, pusulaHatasi);
 
         static void Kovala(Dictionary<int, List<SyncLogStore.OzetSatiri>> kovalar, int anahtar,
             SyncLogStore.OzetSatiri satir)
@@ -751,7 +873,7 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
     // islemden sonra kullanici sayfa 1'e duserdi -- tam da kacinmak istedigimiz sey.
     private IActionResult GeriDon() => RedirectToPage("/Aktivite", new
     {
-        Status, ResourceType, Kategori, Q, Sira, Ortam, P = P < 1 ? 1 : P,
+        Status, ResourceType, Kategori, Q, Sira, Ortam, Olcut, P = P < 1 ? 1 : P,
         From = From?.ToString("yyyy-MM-dd"),
         To = To?.ToString("yyyy-MM-dd"),
     });
@@ -800,6 +922,18 @@ public record AkisOzeti(
     // SQL'den geliyor (tavansiz); liste kirpili oldugu icin Gruplar'dan sayilamaz.
     public int HastaHicGitmedi => HastaHicGitmediSql;
     public int HicGitmeyenKayit => Gruplar.Where(g => g.HicGitmedi).Sum(g => g.Kayitlar.Count);
+
+    // ---- YALNIZCA PROTOKOL TARIHI GORUNUMUNDE (bkz. AktiviteModel.ProtokolTarihineGoreAsync) ----
+    public string Olcut { get; init; } = AktiviteModel.OlcutProtokol;
+
+    // Aralikta Pusula'da acilan (iptal edilmemis) protokol sayisi -- kumenin tamami.
+    public int PusulaProtokol { get; init; }
+
+    // Hic denenmemis protokoller, sebebine gore. Toplamlari PusulaProtokol - HastaToplam.
+    public int DenenmeyenKapsamDisi { get; init; }
+    public int DenenmeyenSirasiGelmedi { get; init; }
+    public int DenenmeyenKaydiYok { get; init; }
+    public int Denenmeyen => DenenmeyenKapsamDisi + DenenmeyenSirasiGelmedi + DenenmeyenKaydiYok;
 }
 
 // Ozetteki tek bir KAYIT (satir degil): kimligi, en kotu durumu, kac kez denendigi ve

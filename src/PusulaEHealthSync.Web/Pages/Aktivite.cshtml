@@ -45,6 +45,14 @@
             <input type="radio" id="ortamTest" name="Ortam" value="Test" checked="@(Model.Ortam == "Test")" onchange="this.form.submit()" />
             <label for="ortamTest">Sandbox (Test)@(Model.AktifOrtam == "Test" ? " •" : "")</label>
         </div>
+        @* TARIH OLCUTU (2026-10-26) -- protokol tarihi: aralikta Pusula'da ACILAN protokoller
+           ve bugunku durumlari; gonderim tarihi: aralikta yapilan DENEMELER. *@
+        <div class="segmented akis-ortam" role="radiogroup" aria-label="Tarih ölçütü">
+            <input type="radio" id="olcutProtokol" name="Olcut" value="protokol" checked="@(Model.ProtokolOlcutu)" onchange="this.form.submit()" />
+            <label for="olcutProtokol" title="Seçilen aralıkta Pusula'da açılan protokoller ve bugünkü gönderim durumları">Protokol tarihi</label>
+            <input type="radio" id="olcutGonderim" name="Olcut" value="gonderim" checked="@(!Model.ProtokolOlcutu)" onchange="this.form.submit()" />
+            <label for="olcutGonderim" title="Seçilen aralıkta yapılan gönderim denemeleri">Gönderim tarihi</label>
+        </div>
         <div class="akis-filtre-tarih">
             <label for="from">Başlangıç</label>
             <input type="date" id="from" name="From" value="@fromIso" onchange="this.form.submit()" />
@@ -85,11 +93,23 @@
    onlarin UZERINE biniyor (Eksik verili + Hatali'nin alt kumesi) -- bu yuzden kesik
    cizgili ve ayri duruyor, ayni agirlikta bir dorduncu kova gibi gorunmesin. *@
 <section class="akis-ozet" aria-label="Dönem özeti">
-    <a asp-page="/Aktivite" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam"
-       class="akis-ozet-toplam @(string.IsNullOrEmpty(Model.Status) ? "active" : "")" title="Tüm protokolleri listele">
-        <span class="akis-ozet-etiket">Dönemde</span>
-        <span class="akis-ozet-sayi">@Model.Ozet.HastaToplam.ToString("N0", tr)</span>
-        <span class="akis-ozet-alt">protokol · @Model.Ozet.ToplamKayit.ToString("N0", tr) kayıt</span>
+    <a asp-page="/Aktivite" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam" asp-route-Olcut="@Model.Olcut"
+       class="akis-ozet-toplam @(string.IsNullOrEmpty(Model.Status) ? "active" : "")" title="Gönderimi denenen tüm protokolleri listele">
+        @if (Model.ProtokolOlcutu)
+        {
+            @* PROTOKOL TARIHI: ana sayi Pusula'da acilan protokollerin TAMAMI; alt satir
+               bunlarin kacinda gonderim denendigi. Uc durum kutusu denenenlerin dagilimi,
+               "Denenmeyen" kutusu kalani -- ikisinin toplami ana sayiya esit. *@
+            <span class="akis-ozet-etiket">Pusula'da açılan</span>
+            <span class="akis-ozet-sayi">@Model.Ozet.PusulaProtokol.ToString("N0", tr)</span>
+            <span class="akis-ozet-alt">protokol · @Model.Ozet.HastaToplam.ToString("N0", tr)'inde gönderim denendi</span>
+        }
+        else
+        {
+            <span class="akis-ozet-etiket">Dönemde denenen</span>
+            <span class="akis-ozet-sayi">@Model.Ozet.HastaToplam.ToString("N0", tr)</span>
+            <span class="akis-ozet-alt">protokol · @Model.Ozet.ToplamKayit.ToString("N0", tr) deneme</span>
+        }
     </a>
 
     @foreach (var (durum, css, ad, sayi, alt) in new[]
@@ -99,7 +119,7 @@
         ("Failed", "hata", "Hatalı", Model.Ozet.HastaHatali, $"{Model.Ozet.HataliKayit.ToString("N0", tr)} kayıt hata aldı"),
     })
     {
-        <a asp-page="/Aktivite" asp-route-Status="@durum" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam"
+        <a asp-page="/Aktivite" asp-route-Status="@durum" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam" asp-route-Olcut="@Model.Olcut"
            asp-route-Kategori="@(durum == "Failed" ? Model.Kategori : null)"
            class="akis-ozet-kutu akis-ozet-kutu--@css @(Model.Status == durum ? "active" : "")"
            aria-current="@(Model.Status == durum ? "true" : null)">
@@ -112,7 +132,7 @@
         </a>
     }
 
-    <a asp-page="/Aktivite" asp-route-Status="@hicbiri" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam"
+    <a asp-page="/Aktivite" asp-route-Status="@hicbiri" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam" asp-route-Olcut="@Model.Olcut"
        class="akis-ozet-kutu akis-ozet-kutu--altkume @(Model.Status == hicbiri ? "active" : "")"
        aria-current="@(Model.Status == hicbiri ? "true" : null)"
        title="Tek bir kaydı bile TRƏS'e ulaşmamış protokoller — Eksik verili ve Hatalı içinden">
@@ -123,6 +143,27 @@
             <span class="akis-ozet-alt">@Model.Ozet.HicGitmeyenKayit.ToString("N0", tr) kayıt · hiçbiri ulaşmadı</span>
         </span>
     </a>
+
+    @* DENENMEYEN -- yalnizca protokol tarihinde ve tur suzgeci yokken: tur secildiginde
+       "denenmedi" o turde kaydi olmayan protokol demek olur, sebep kirilimi yaniltir.
+       Tiklanamaz: bu protokollerin gunlukte kaydi yok, listelenecek satir yok. Ayrintisi
+       Bekleyen Isler sayfasinda. *@
+    @if (Model.ProtokolOlcutu && string.IsNullOrEmpty(Model.ResourceType))
+    {
+        <div class="akis-ozet-kutu akis-ozet-kutu--altkume"
+             title="Hiç gönderim denenmemiş protokoller, gönderim kurallarına göre sebebiyle">
+            <span class="akis-ozet-kutu-metin">
+                <span class="akis-ozet-etiket">Denenmeyen</span>
+                <span class="akis-ozet-sayi akis-ozet-sayi--kucuk">@Model.Ozet.Denenmeyen.ToString("N0", tr)</span>
+                <span class="akis-ozet-alt" title="Bugün kapandı, açık ayaktan ya da taburcu olmamış yatan — kural gereği henüz gönderilmiyor">@Model.Ozet.DenenmeyenSirasiGelmedi.ToString("N0", tr) sırası gelmedi</span>
+                <span class="akis-ozet-alt" title="Yalnız tanı/reçete içeren ya da boş protokoller — bilinçli olarak gönderilmiyor">@Model.Ozet.DenenmeyenKaydiYok.ToString("N0", tr) gönderilecek kaydı yok</span>
+                @if (Model.Ozet.DenenmeyenKapsamDisi > 0)
+                {
+                    <span class="akis-ozet-alt" title="Devreye alım tarihinden önce açılmış">@Model.Ozet.DenenmeyenKapsamDisi.ToString("N0", tr) kapsam dışı</span>
+                }
+            </span>
+        </div>
+    }
 </section>
 
 @* ISLEM SONUCU -- gonderme/silme POST-REDIRECT-GET ile bittigi icin TempData'dan
@@ -170,7 +211,7 @@
     <div class="filter-chip-bar">
         <span class="filter-chip">
             Kategori: <strong>@Model.Kategori</strong>
-            <a asp-page="/Aktivite" asp-route-Status="Failed" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam" class="filter-chip-x" title="Kategori filtresini kaldır">&times;</a>
+            <a asp-page="/Aktivite" asp-route-Status="Failed" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam" asp-route-Olcut="@Model.Olcut" class="filter-chip-x" title="Kategori filtresini kaldır">&times;</a>
         </span>
     </div>
 }
@@ -180,7 +221,7 @@
        Ic ice form HTML'de yasak; satirlarin kendi Gonder/Sil formlari var. *@
     <form id="akis-toplu" method="post" asp-page-handler="TopluGonder"
           asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType"
-          asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam"
+          asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam" asp-route-Olcut="@Model.Olcut"
           asp-route-P="@Model.PageNumber" asp-route-From="@fromIso" asp-route-To="@toIso"
           onsubmit="return akisTopluOnay(this)"></form>
 
@@ -204,6 +245,7 @@
                 <input type="hidden" name="ResourceType" value="@Model.ResourceType" />
                 <input type="hidden" name="Q" value="@Model.Q" />
                 <input type="hidden" name="Ortam" value="@Model.Ortam" />
+                <input type="hidden" name="Olcut" value="@Model.Olcut" />
                 <input type="hidden" name="From" value="@fromIso" />
                 <input type="hidden" name="To" value="@toIso" />
                 <label for="sira">Sırala</label>
@@ -351,7 +393,7 @@
                                target="_blank" rel="noopener" title="Protokol detayını yeni sekmede aç">Detay</a>
                             <form method="post" asp-page-handler="GrupGonder" asp-route-protokolId="@grupPid"
                                   asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType"
-                                  asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam"
+                                  asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam" asp-route-Olcut="@Model.Olcut"
                                   asp-route-P="@Model.PageNumber" asp-route-From="@fromIso" asp-route-To="@toIso"
                                   onsubmit="pusulaLockSubmit(this)">
                                 <button type="submit" class="btn btn-primary btn-sm"
@@ -359,7 +401,7 @@
                             </form>
                             <form method="post" asp-page-handler="GrupSil" asp-route-protokolId="@grupPid"
                                   asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType"
-                                  asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam"
+                                  asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam" asp-route-Olcut="@Model.Olcut"
                                   asp-route-P="@Model.PageNumber" asp-route-From="@fromIso" asp-route-To="@toIso"
                                   data-onay="Protokol @grupPid: bu hastanın TRƏS'e gönderilmiş TÜM kayıtları silinecek."
                                   onsubmit="return pusulaSilOnayi(this)">
@@ -477,7 +519,7 @@
                                                class="btn btn-outline btn-sm">Detay</a>
                                             <form method="post" asp-page-handler="Gonder" asp-route-kayitId="@e.Id"
                                                   asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType"
-                                                  asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam"
+                                                  asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam" asp-route-Olcut="@Model.Olcut"
                                                   asp-route-P="@Model.PageNumber" asp-route-From="@fromIso" asp-route-To="@toIso"
                                                   onsubmit="pusulaLockSubmit(this)">
                                                 <input type="hidden" name="ProtokolId" value="@grup.ProtokolId" />
@@ -488,7 +530,7 @@
                                             {
                                                 <form method="post" asp-page-handler="Sil" asp-route-kayitId="@e.Id"
                                                       asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType"
-                                                      asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam"
+                                                      asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam" asp-route-Olcut="@Model.Olcut"
                                                       asp-route-P="@Model.PageNumber" asp-route-From="@fromIso" asp-route-To="@toIso"
                                                       data-onay="@SyncLogEntry.ResourceTypeLabel(e.ResourceType) kaydı (Pusula @e.PusulaId) TRƏS'ten silinecek."
                                                       onsubmit="return pusulaSilOnayi(this)">
@@ -511,11 +553,11 @@
             </span>
             @if (Model.PageNumber > 1)
             {
-                <a class="btn btn-outline btn-sm" asp-page="/Aktivite" asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam" asp-route-P="@(Model.PageNumber - 1)">&larr; Önceki</a>
+                <a class="btn btn-outline btn-sm" asp-page="/Aktivite" asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam" asp-route-Olcut="@Model.Olcut" asp-route-P="@(Model.PageNumber - 1)">&larr; Önceki</a>
             }
             @if (Model.HasNextPage)
             {
-                <a class="btn btn-outline btn-sm" asp-page="/Aktivite" asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam" asp-route-P="@(Model.PageNumber + 1)">Sonraki &rarr;</a>
+                <a class="btn btn-outline btn-sm" asp-page="/Aktivite" asp-route-Status="@Model.Status" asp-route-ResourceType="@Model.ResourceType" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Kategori="@Model.Kategori" asp-route-Q="@Model.Q" asp-route-Sira="@Model.Sira" asp-route-Ortam="@Model.Ortam" asp-route-Olcut="@Model.Olcut" asp-route-P="@(Model.PageNumber + 1)">Sonraki &rarr;</a>
             }
         </div>
     }
