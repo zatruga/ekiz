@@ -4,6 +4,12 @@
     var tr = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
     var konular = Model.Konular;
     var konuIlk = !Model.HastaOdakli;
+    // HASTA / DOKTOR SECIMI (2026-10-26, kullanici: "orta kisma doktor hasta secimi koyalim").
+    // Kimlik/FIN sebepleri hem hastada hem doktorda cikiyor; doktor kaydi Practitioner.
+    var doktorEtiketi = SyncLogEntry.ResourceTypeLabel("Practitioner");
+    string Taraf(string turEtiketi) => turEtiketi == doktorEtiketi ? "doktor" : "hasta";
+    var doktorKayit = Model.Satirlar.Count(x => x.Kayit.ResourceType == "Practitioner");
+    var hastaKayit = Model.Satirlar.Count - doktorKayit;
 }
 @* GENEL BAKIS -- SEBEP LISTESI PENCERESININ ICERIGI (fetch ile <dialog>'a yukleniyor).
    Iki gorunum: KONUYA GORE (hangi hizmet/test/hasta, kac kayit) ve KAYITLAR (tek tek,
@@ -31,6 +37,14 @@
         <button type="button" role="tab" class="gb-seg-btn @(konuIlk ? "active" : "")" aria-selected="@(konuIlk ? "true" : "false")" onclick="gbListeGorunum(this, 'konu')">Konuya göre (@konular.Count.ToString("N0", tr))</button>
         <button type="button" role="tab" class="gb-seg-btn @(konuIlk ? "" : "active")" aria-selected="@(konuIlk ? "false" : "true")" onclick="gbListeGorunum(this, 'kayit')">Kayıtlar (@Model.Satirlar.Count.ToString("N0", tr))</button>
     </div>
+    @if (doktorKayit > 0 && hastaKayit > 0)
+    {
+        <div class="gb-seg gb-liste-taraf" role="group" aria-label="Hasta ya da doktor">
+            <button type="button" class="gb-seg-btn active" aria-pressed="true" onclick="gbListeTaraf(this, '')">Tümü</button>
+            <button type="button" class="gb-seg-btn" aria-pressed="false" onclick="gbListeTaraf(this, 'hasta')">Hasta (@hastaKayit.ToString("N0", tr))</button>
+            <button type="button" class="gb-seg-btn" aria-pressed="false" onclick="gbListeTaraf(this, 'doktor')">Doktor (@doktorKayit.ToString("N0", tr))</button>
+        </div>
+    }
     <input type="search" class="gb-tablo-ara" placeholder="Listede ara" aria-label="Listede ara" oninput="gbListeAra(this)" />
     <a class="btn btn-outline btn-sm" href="?handler=SebepExcel&durum=@Uri.EscapeDataString(Model.Durum)&kategori=@Uri.EscapeDataString(Model.Kategori)&Donem=@Uri.EscapeDataString(Context.Request.Query["Donem"].ToString())">Excel'e indir</a>
 </div>
@@ -41,7 +55,7 @@
         <tbody>
             @foreach (var k in konular)
             {
-                <tr>
+                <tr data-taraf="@Taraf(k.TurEtiketi)">
                     <td>@k.Konu</td>
                     <td class="text-muted">@k.TurEtiketi</td>
                     <td class="akis-sag num">@k.Kayit.ToString("N0", tr)</td>
@@ -54,12 +68,13 @@
 
 <div class="gb-liste-govde" data-gorunum="kayit" @(konuIlk ? "hidden" : "")>
     <table class="gb-liste-tablo">
-        <thead><tr><th>Hasta</th><th>Protokol</th><th>Tür · içerik</th><th>Bölüm · doktor</th><th>Gün</th><th></th></tr></thead>
+        <thead><tr><th>Hasta / doktor</th><th>Protokol</th><th>Tür · içerik</th><th>Bölüm · doktor</th><th>Gün</th><th></th></tr></thead>
         <tbody>
             @foreach (var x in Model.Satirlar)
             {
-                <tr>
-                    <td>@(x.Hasta ?? "—")</td>
+                var doktor = x.Kayit.ResourceType == "Practitioner";
+                <tr data-taraf="@(doktor ? "doktor" : "hasta")">
+                    <td>@(doktor ? (x.Icerik ?? "—") : (x.Hasta ?? "—"))</td>
                     <td class="mono">
                         @if (x.Kayit.ProtokolId is { } pid)
                         {

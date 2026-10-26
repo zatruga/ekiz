@@ -829,6 +829,7 @@ else if (!Model.AktifOrtamCanli)
         const pencere = document.getElementById('gb-liste');
         const icerik = pencere.querySelector('.gb-liste-icerik');
         icerik.innerHTML = '<div class="gb-liste-yukleniyor">Liste hazırlanıyor…</div>';
+        delete icerik.dataset.taraf;
         if (!pencere.open) pencere.showModal();
         const q = new URLSearchParams(location.search);
         q.set('handler', 'SebepListesi');
@@ -850,11 +851,24 @@ else if (!Model.AktifOrtamCanli)
         kok.querySelectorAll('.gb-seg-btn').forEach(b => { b.classList.toggle('active', b === dugme); b.setAttribute('aria-selected', b === dugme); });
         kok.querySelectorAll('.gb-liste-govde').forEach(g => g.hidden = g.dataset.gorunum !== ad);
     }
-    function gbListeAra(kutu) {
-        const aranan = kutu.value.trim().toLocaleLowerCase('tr');
-        kutu.closest('.gb-liste-icerik').querySelectorAll('.gb-liste-govde tbody tr').forEach(tr => {
-            tr.hidden = aranan !== '' && !tr.textContent.toLocaleLowerCase('tr').includes(aranan);
+    // Arama ve Hasta/Doktor secimi BIRLIKTE uygulanir: satir ikisine de uymali.
+    function gbListeSuz(kok) {
+        const aranan = (kok.querySelector('.gb-liste-arac .gb-tablo-ara')?.value ?? '').trim().toLocaleLowerCase('tr');
+        const taraf = kok.dataset.taraf ?? '';
+        kok.querySelectorAll('.gb-liste-govde tbody tr').forEach(tr => {
+            tr.hidden = (aranan !== '' && !tr.textContent.toLocaleLowerCase('tr').includes(aranan))
+                     || (taraf !== '' && tr.dataset.taraf !== taraf);
         });
+    }
+    function gbListeAra(kutu) { gbListeSuz(kutu.closest('.gb-liste-icerik')); }
+    function gbListeTaraf(dugme, taraf) {
+        const kok = dugme.closest('.gb-liste-icerik');
+        kok.dataset.taraf = taraf;
+        dugme.parentElement.querySelectorAll('.gb-seg-btn').forEach(b => {
+            b.classList.toggle('active', b === dugme);
+            b.setAttribute('aria-pressed', b === dugme);
+        });
+        gbListeSuz(kok);
     }
 
     // TABLO SIRALAMA / ARAMA (2026-10-26) -- veri sayfada, sunucuya gidilmiyor.

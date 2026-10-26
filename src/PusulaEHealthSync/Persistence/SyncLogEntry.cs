@@ -160,6 +160,11 @@ public class SyncLogEntry
     // satiri okumak yerine "hangi TUR hata ne kadar sik" sorusuna cevap lazim. Burada anahtar
     // kelime eslestirmesiyle mesaj TEKRAR (SQL'de degil, sadece sunum katmaninda) gruplaniyor
     // -- EHealthErrorFormatter'in kendi cikardigi metni degistirmiyor, sadece siniflandiriyor.
+    // "TCKimlikNo (FIN icin kullanilacak alan) bos" -- FIN alani BOS (bicimi bozuk degil).
+    private static bool KimlikBos(string m) =>
+        (m.Contains("TCKimlikNo", StringComparison.OrdinalIgnoreCase) || m.Contains("FIN", StringComparison.OrdinalIgnoreCase))
+        && (m.Contains("boş", StringComparison.OrdinalIgnoreCase) || m.Contains("bos", StringComparison.OrdinalIgnoreCase));
+
     public static (string Label, string Description) ErrorCategory(string? message)
     {
         var m = message ?? "";
@@ -212,11 +217,13 @@ public class SyncLogEntry
         // O dal yalnizca "FIN" kelimesini aradigi icin bu mesaji "FIN formati hatali"
         // sayiyordu; oysa alan BOS, bicimi bozuk degil. Biri Pusula'da kimlik girilmesini,
         // digeri yazilmis numaranin duzeltilmesini gerektiriyor.
-        if ((m.Contains("TCKimlikNo", StringComparison.OrdinalIgnoreCase)
-             || m.Contains("FIN", StringComparison.OrdinalIgnoreCase))
-            && (m.Contains("boş", StringComparison.OrdinalIgnoreCase)
-                || m.Contains("bos", StringComparison.OrdinalIgnoreCase)))
-            return ("Kimlik numarası boş", "Hastanın/doktorun FIN alanı Pusula'da hiç girilmemiş -- gönderim için zorunlu");
+        //
+        // TEK KATEGORI (2026-10-26, kullanici: "kimlik sorunu deyip FIN ile ilgili olanlari
+        // tek satirda birlestirelim"). Bos FIN ile bicimi bozuk FIN ayni kisiye (Pusula'da
+        // hasta/doktor kartini duzelten kisiye) gidiyor; ayrimi kaydin kendi aciklamasi
+        // tasiyor (bkz. FriendlyError, KimlikBos).
+        if (KimlikBos(m))
+            return ("Kimlik sorunu", "Hastanın/doktorun FIN alanı Pusula'da boş ya da AZ FIN biçimine uymuyor -- gönderim için zorunlu");
 
         // Epikriz ve patoloji raporu AYNI kategoriye giriyor: ikisinde de "kayit
         // kilitlenmis/tamamlanmis ama metin yazilmamis" durumu var ve ikisinde de
@@ -246,7 +253,7 @@ public class SyncLogEntry
             return ("Doktor dışı personel", "Kayıt doktor değil (hemşire/teknisyen vb.) -- bilinçli olarak gönderilmiyor, yapılacak bir şey yok");
 
         if (m.Contains("FIN", StringComparison.OrdinalIgnoreCase))
-            return ("FIN formatı hatalı", "TC Kimlik/FIN alanı AZ FIN biçimine uymuyor");
+            return ("Kimlik sorunu", "Hastanın/doktorun FIN alanı Pusula'da boş ya da AZ FIN biçimine uymuyor -- gönderim için zorunlu");
         if (m.Contains("ICD", StringComparison.OrdinalIgnoreCase) || m.Contains("tanı", StringComparison.OrdinalIgnoreCase))
             return ("ICD tanı eksik/geçersiz", "Protokolde tanı yok ya da AZ CodeSystem'de karşılığı bulunamadı");
         if (m.Contains("zaman aşımı", StringComparison.OrdinalIgnoreCase) || m.Contains("timeout", StringComparison.OrdinalIgnoreCase) || m.Contains("yanıt ver", StringComparison.OrdinalIgnoreCase))
@@ -395,7 +402,8 @@ public class SyncLogEntry
         var (label, _) = ErrorCategory(s);
         return label switch
         {
-            "FIN formatı hatalı" => "Kimlik/FIN numarası AZ FIN biçimine uymuyor -- Pusula'daki kayıt kontrol edilmeli.",
+            "Kimlik sorunu" when KimlikBos(s) => "Pusula'da hastanın/doktorun kimlik (FIN) alanı hiç girilmemiş. FIN gönderim için zorunlu -- alan doldurulunca kayıt kendiliğinden gönderilir.",
+            "Kimlik sorunu" => "Kimlik/FIN numarası AZ FIN biçimine uymuyor -- Pusula'daki kayıt kontrol edilmeli.",
             "ICD tanı eksik/geçersiz" => "Protokolde geçerli bir ICD-10 tanı kodu yok -- Pusula'da tanı girilmeli.",
             "Zaman aşımı / bağlantı" => "TRƏS sunucusu zamanında yanıt vermedi -- bağlantı sorunu olabilir, tekrar denenmeli.",
             "TRƏS bağlantı ayarı eksik" => "Ayarlar sayfasında TRƏS bağlantı bilgileri eksik ya da hatalı.",
@@ -406,7 +414,6 @@ public class SyncLogEntry
             // Asagidaki uc kategori 2026-10-09'da eklendi -- hepsi ATLAMA (Skipped)
             // sebebi, yani hata degil. Ucunde de ortak nokta: duzeltme PUSULA'da
             // yapiliyor, burada "tekrar gonder" demek yanlis yonlendirme olurdu.
-            "Kimlik numarası boş" => "Pusula'da hastanın/doktorun kimlik (FIN) alanı hiç girilmemiş. FIN gönderim için zorunlu -- alan doldurulunca kayıt kendiliğinden gönderilir.",
             "Gönderilecek metin yok" => "Kayıt kilitlenmiş/tamamlanmış ama metin alanı (epikriz ya da rapor) boş. Gönderilecek bir içerik yok -- metin yazılınca kayıt kendiliğinden gönderilir.",
             "İşlem tarihi müayinə dışında" => "İşlemin tarihi, bağlı olduğu müayinənin başlangıç-bitiş aralığının dışında kalıyor. TRƏS bunu iş kuralı olarak reddediyor -- Pusula'daki işlem ya da protokol tarihi düzeltilmeli.",
             "Zincirdeki önceki kayıt gitmedi" => "Bu kaydın bağlı olduğu kayıt (epikrizi yazan doktor, ya da raporun işlemi) henüz TRƏS'e gönderilmedi. O kayıt gönderildiğinde bu da kendiliğinden gider -- ayrıca bir şey yapmak gerekmiyor.",

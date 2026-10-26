@@ -131,24 +131,28 @@
             </div>
         </section>
 
-        <!-- 2. OTOMATİK GÖNDERİM AYARLARI -->
+        <!-- 2. OTOMATİK GÖNDERİM -->
+        @* ==== SORUYA GORE GRUPLU (2026-10-26) ====
+           KULLANICI: "otomatik gonderim ayarlari da gonderim parametre alani da birbirine
+           karismis, sacma sapan gosteriyor -- duzenleyip acikli sekilde duzenleyelim".
+           Her kart TEK bir soruyu cevapliyor ve kendi Kaydet'i var (bkz. AyarlarModel,
+           OnPostZamanlama/Kapsam/Takilan). En ustteki ozet, kayitli degerlerden HESAPLANAN
+           duz cumle: ayarlarin birlikte ne anlama geldigini tek yerde soyler. *@
+        @{
+            var minYas = Model.MinProtokolYasiGun;
+            var acikGun = Model.OpenProtokolSendAfterDays;
+            string GunSonra(int n) => n == 0 ? "hemen (sıradaki turda)" : n == 1 ? "ertesi gün" : $"{n} gün sonra";
+            DateTime? taban = DateTime.TryParseExact(Model.SendFloorDate, "yyyy-MM-dd",
+                System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var tb) ? tb : null;
+        }
         <section class="settings-panel" id="panel-oto">
             <div class="settings-grid">
+
                 <div class="card card-pad settings-card span-2">
                     <p class="section-title">Otomatik Gönderim</p>
-
-                    @* ==== DURUM KUTUSU + BAŞLAT/DURDUR (2026-10-03) ====
-                       KULLANICI ISTEGI: "ayarlar kısmında otomatik gönderimde altına otomatik
-                       gönderimi başlat seçeneği olmalı."
-
-                       Başlat/Durdur AYRI BİR FORM: döngüyü çalıştırmak, bir sayıyı değiştirmekle
-                       aynı jest olmamalı. Onay metni ortamı ve parti boyutunu açıkça yazıyor --
-                       canlı ortamda çalıştırılan bir döngünün ne yapacağı tahmine bırakılamaz.
-
-                       Durum kutusu SON TUR bilgisini gösteriyor: "açık" yazan bir anahtar
-                       döngünün gerçekten çalıştığını kanıtlamaz. Bu projede tam bu tuzak bir kez
-                       yaşandı -- Ayarlar'daki otomatik gönderim anahtarlarını bir ay boyunca
-                       hiçbir şey okumuyordu ve ekranda her şey normal görünüyordu. *@
+                    @* Baslat/Durdur AYRI form: canli veri yazan donguyu baslatmak bir sayiyi
+                       degistirmekle ayni jest olmamali. Durum kutusu SON TUR bilgisini
+                       gosteriyor -- "acik" yazan bir anahtar dongunun calistigini kanitlamaz. *@
                     <div class="oto-durum @(Model.OtomatikCalisiyor ? "oto-durum--acik" : "")">
                         <div class="oto-durum-ust">
                             <span class="oto-durum-rozet">
@@ -163,12 +167,7 @@
                             {
                                 <span class="badge neutral"><span class="badge-dot"></span>Test / Sandbox</span>
                             }
-                            @if (Model.OtomatikCalisiyor)
-                            {
-                                <span class="oto-durum-bilgi">Her @Model.AutoSendIntervalMinutes dakikada bir, en fazla @Model.AutoSendBatchSize protokol</span>
-                            }
                         </div>
-
                         <div class="oto-durum-son">
                             @if (Model.SonTurUtc is null)
                             {
@@ -183,9 +182,6 @@
                                 }
                             }
                         </div>
-
-                        @* Başlat ve Durdur AYRI handler: tek handler + gizli "baslat" alanı
-                           kullansaydık ve o alan bağlanmazsa düğme sessizce yanlış çalışırdı. *@
                         <form method="post" asp-page-handler="@(Model.OtomatikCalisiyor ? "Durdur" : "Baslat")" onsubmit="pusulaLockSubmit(this)">
                             @if (Model.OtomatikCalisiyor)
                             {
@@ -197,101 +193,176 @@
                             else
                             {
                                 <button type="submit" class="btn btn-bulk"
-                                        onclick="return confirm('@(Model.Ortam == "Live" ? "DİKKAT: CANLI ORTAM.\\n\\n" : "")Otomatik gönderim BAŞLATILACAK.\n\n1) Her @Model.AutoSendIntervalMinutes dakikada bir, en fazla @Model.AutoSendBatchSize protokol @(Model.Ortam == "Live" ? "CANLI" : "Test/Sandbox") ortamına GÖNDERİLECEK. Kapanalı @Model.MinProtokolYasiGun günden az olan protokoller gönderilmez.\n\n2) Aynı turda iptal senkronu da çalışır: Pusula tarafında silinmiş veya iptal edilmiş kayıtlar TRƏS üzerinden SİLİNİR. Uzun süredir çalışmadıysa ilk turda toplu silme olabilir.\n\n3) Her gece saat @Model.TakilanDenemeSaati civarında takılan kayıtlar bir kez daha denenir.\n\nEmin misiniz?')">
+                                        onclick="return confirm('@(Model.Ortam == "Live" ? "DİKKAT: CANLI ORTAM.\\n\\n" : "")Otomatik gönderim BAŞLATILACAK.\n\n1) Her @Model.AutoSendIntervalMinutes dakikada bir, en fazla @Model.AutoSendBatchSize protokol @(Model.Ortam == "Live" ? "CANLI" : "Test/Sandbox") ortamına GÖNDERİLECEK.\n\n2) Aynı turda iptal senkronu da çalışır: Pusula tarafında silinmiş veya iptal edilmiş kayıtlar TRƏS üzerinden SİLİNİR.\n\n3) Her gece saat @Model.TakilanDenemeSaati:00 civarında takılan kayıtlar bir kez daha denenir.\n\nEmin misiniz?')">
                                     Otomatik Gönderimi Başlat
                                 </button>
                             }
                         </form>
                     </div>
 
-                    <p class="card-desc" style="margin-top:14px;">
-                        Döngü her turda: gönderim bekleyen protokolleri hesaplar, parti boyutu kadarını gönderir,
-                        Pusula'da iptal edilmişleri TRƏS'ten siler.
-                        <span class="field-hint">Takılan kayıtlar (LOINC kodu olmayan tetkik, sonuç değeri olmayan satır gibi
-                        mevcut veriyle gönderilemeyecek olanlar) bu turda denenmez &mdash; onların günde bir kez çalışan
-                        kendi turu var.</span>
-                    </p>
+                    <p class="ayar-ozet-baslik">Şu anki ayarlarla sistem şöyle çalışıyor</p>
+                    <ol class="ayar-ozet">
+                        <li>
+                            <span class="ayar-ozet-no">1</span>
+                            <span><b>Her @Model.AutoSendIntervalMinutes dakikada bir</b> tur çalışır; gönderime uygun protokollerden
+                            en fazla <b>@Model.AutoSendBatchSize</b> tanesini, icbari işlemi olanlar önce olmak üzere gönderir.
+                            Pusula'da silinen kayıtlar aynı turda TRƏS'ten de silinir.</span>
+                        </li>
+                        <li>
+                            <span class="ayar-ozet-no">2</span>
+                            <span><b>Ayaktan / günübirlik protokol</b> kapandıktan <b>@GunSonra(minYas)</b> gönderilir.
+                            Hiç kapanmazsa açıldığı günden <b>@GunSonra(acikGun + minYas)</b> gönderilir.</span>
+                        </li>
+                        <li>
+                            <span class="ayar-ozet-no">3</span>
+                            @if (Model.AutoSendYatanEnabled)
+                            {
+                                <span><b>Yatan hasta protokolü</b> taburcudan <b>@GunSonra(minYas)</b> gönderilir. Taburcu hiç girilmezse
+                                açılıştan <b>@Model.YatanMaxOpenDays gün</b> sonra gönderilir.</span>
+                            }
+                            else
+                            {
+                                <span><b>Yatan hasta protokolleri otomatik gönderilmez</b>; arşiv bunları <b>Yatan Hastalar</b> ekranından elle gönderir.</span>
+                            }
+                        </li>
+                        <li>
+                            <span class="ayar-ozet-no">4</span>
+                            <span>@if (taban is { } t) { <text><b>@t.ToString("dd.MM.yyyy")</b> tarihinden önce açılan protokoller otomatik gönderilmez.</text> } else { <text>Devreye alım tarihi tanımlı değil: tarama aralığındaki tüm protokoller gönderilebilir.</text> }</span>
+                        </li>
+                        <li>
+                            <span class="ayar-ozet-no">5</span>
+                            <span>Hata alan kayıt <b>@Model.RetryIntervalMinutes dakika</b> sonra yeniden denenir; <b>@Model.RetryMaxAttempts</b> kez
+                            üst üste hata alırsa <b>Takılanlar</b>'a geçer. Takılanlar her gece <b>@(Model.TakilanDenemeSaati.ToString("00")):00</b>'da
+                            en fazla <b>@Model.TakilanSureDakika dakika</b> boyunca bir kez daha denenir.</span>
+                        </li>
+                    </ol>
+                    @if (minYas == 0 && acikGun == 0)
+                    {
+                        <div class="alert alert-warning" style="margin-top:12px;">
+                            <b>Dikkat:</b> iki bekleme süresi de 0. Kapanmamış ayaktan protokoller açıldıkları anda gönderilir;
+                            hasta henüz muayenedeyken TRƏS'e yarım veri gider, sonradan gelen her sonuç için güncelleme gönderilir.
+                        </div>
+                    }
+                </div>
 
-                    <form method="post" asp-page-handler="Genel" style="display:flex; flex-direction:column; flex:1;">
-                        <div class="field-row-2">
-                            <div class="field"><label for="autoInterval">Kaç dakikada bir çalışsın?</label>
-                                <input type="number" id="autoInterval" asp-for="AutoSendIntervalMinutes" min="5" max="1440" /></div>
-                            <div class="field"><label for="autoBatch">Bir turda en fazla kaç protokol?</label>
-                                @* TAVAN 500'DEN 5000'E CIKARILDI (2026-10-09, kullanici istegi:
-                                   "tur mur koymasak, 01.10'dan itibaren tum veriyi gondersek").
-                                   Birikmis veriyi tek turda kapatmak icin 500 yetmiyordu; devreye
-                                   alim sonrasi 1.367 uygun protokol vardi. Gereksiz tekrar
-                                   gonderim durduruldugu icin (2026-10-08) tur basina is da ciddi
-                                   olcude azaldi, buyuk parti artik makul. *@
-                                <input type="number" id="autoBatch" asp-for="AutoSendBatchSize" min="1" max="5000" />
-                                <span asp-validation-for="AutoSendBatchSize" style="display:block; margin-top:6px; font-size:12.5px; color:var(--danger);"></span>
-                                <span class="field-hint">
-                                    Birikmiş veriyi tek seferde kapatmak için yüksek tutun (ör. 2000).
-                                    Uzun süren bir tur gece işlerini (takılanlar, gün sonu maili) geciktirir;
-                                    &ldquo;Durdur&rdquo; tur ortasında da geçerlidir.
-                                </span></div>
+                @* ---- KART 1: TUR ZAMANLAMASI ---- *@
+                <div class="card card-pad settings-card">
+                    <p class="section-title">Tur zamanlaması</p>
+                    <p class="card-desc">Döngünün ne sıklıkta ve bir turda ne kadar iş yapacağı.</p>
+                    <form method="post" asp-page-handler="Zamanlama" style="display:flex; flex-direction:column; flex:1;">
+                        <div class="field">
+                            <label for="autoInterval">Tur aralığı (dakika)</label>
+                            <input type="number" id="autoInterval" asp-for="AutoSendIntervalMinutes" min="5" max="1440" />
+                            <span class="field-hint">Bir tur bittikten sonra bu kadar beklenir, sonra yeni tur başlar.</span>
+                            <span asp-validation-for="AutoSendIntervalMinutes" class="field-hata"></span>
                         </div>
-                        <div class="field-row-2">
-                            @* DEVRE KESICI 2026-10-09'DA EKRANA GELDI. Koda gomuluyken,
-                               bakanlik tarafinda uzun suren bir kesinti yasandiginda esigi
-                               gecici olarak yukseltmenin yolu yoktu. *@
-                            <div class="field">
-                                <label for="devreKesici">Üst üste kaç bağlantı hatasında tur bırakılsın?</label>
-                                <input type="number" id="devreKesici" asp-for="DevreKesiciSiniri" min="1" max="100" />
-                                <span class="field-hint">
-                                    Yalnızca <b>bağlantı/kimlik</b> hataları sayılır; bakanlığın reddettiği bir kayıt (ör. geçersiz ICD kodu)
-                                    buna dahil değildir. TRƏS ulaşılamazken turun saatlerce zaman aşımında beklemesini önler.
-                                </span>
-                                <span asp-validation-for="DevreKesiciSiniri" style="display:block; margin-top:6px; font-size:12.5px; color:var(--danger);"></span>
-                            </div>
+                        <div class="field">
+                            <label for="autoBatch">Bir turda en fazla kaç protokol</label>
+                            <input type="number" id="autoBatch" asp-for="AutoSendBatchSize" min="1" max="5000" />
+                            <span class="field-hint">Birikmiş iş varsa yüksek tutun (ör. 2000). Ölçülen hız saatte ~1.400 protokol.
+                            &ldquo;Durdur&rdquo; tur ortasında da geçerlidir.</span>
+                            <span asp-validation-for="AutoSendBatchSize" class="field-hata"></span>
                         </div>
-                        <div class="toggle-row">
-                            <input type="checkbox" id="autoYatan" asp-for="AutoSendYatanEnabled" />
-                            <label for="autoYatan">Yatan protokolleri otomatik gönderime dahil et</label>
-                        </div>
-                        <span class="field-hint" style="display:block; margin:-4px 0 14px;">
-                            İşaretli değilse yatan hastaların protokolleri otomatik gönderilmez (takılanlar turu dahil);
-                            <strong>Yatan Hastalar</strong> ekranından arşiv tarafından elle gönderilir.
-                        </span>
-                        <div class="field-row-2">
-                            <div class="field">
-                                <label for="minYas">Kapandıktan kaç gün sonra gönderilsin?</label>
-                                <input type="number" id="minYas" asp-for="MinProtokolYasiGun" min="0" max="30" />
-                                <span class="field-hint">1 = aynı gün gönderilmez. Protokol kapandığı gün geciken sonuç düşebilir, epikriz düzeltilebilir.</span>
-                            </div>
-                            <div class="field">
-                                <label for="takilanSaat">Takılanlar hangi saatte denensin?</label>
-                                <input type="number" id="takilanSaat" asp-for="TakilanDenemeSaati" min="0" max="23" />
-                                <span class="field-hint">Günde bir kez. Eksik giderilmişse (LOINC kodu verilmiş, sonuç girilmiş) kayıt kendiliğinden gider.</span>
-                            </div>
-                        </div>
-                        <div class="field-row-2">
-                            <div class="field">
-                                <label for="floorDate">Devreye alım tarihi &mdash; bundan önce açılan protokoller gönderilmesin</label>
-                                <input type="date" id="floorDate" asp-for="SendFloorDate" />
-                                <span class="field-hint">Boş bırakılırsa sınır yok. Sistem devreye girmeden önceki
-                                arşivin bakanlığa gitmesini engeller.
-                                <strong>Ölçüt protokolün açılışı</strong> &mdash; kapanışı bu tarihten sonraya sarksa
-                                bile gönderilmez, çünkü epizot devreye alımdan önce başlamıştır. Devreye alım gününü
-                                aşan uzun yatışlar da bu nedenle kapsam dışında kalır.
-                                <strong>Elle gönderimi etkilemez</strong>: Protokol Listesi'nden eski bir protokolü
-                                bilerek seçip gönderebilirsiniz.</span>
-                            </div>
-                            <div class="field">
-                                <label for="takilanSure">Takılanlar turu en fazla kaç dakika sürsün?</label>
-                                <input type="number" id="takilanSure" asp-for="TakilanSureDakika" min="5" max="300" />
-                                <span class="field-hint">En uzun süredir denenmeyenden başlar, süre dolunca durur; ertesi gece
-                                sıra kalanlara geçer. <strong>Sayı yerine süre</strong> çünkü takılan listesi binlerce protokol
-                                olabiliyor ve her biri tam zincir gönderimi demek &mdash; süre, turun mesai saatine taşmasını
-                                engelleyen tek güvenilir sınır.</span>
-                            </div>
+                        <div class="field">
+                            <label for="devreKesici">Üst üste kaç bağlantı hatasında tur bırakılsın</label>
+                            <input type="number" id="devreKesici" asp-for="DevreKesiciSiniri" min="1" max="100" />
+                            <span class="field-hint">Yalnızca <b>bağlantı/kimlik</b> hataları sayılır; TRƏS ulaşılamazken turun saatlerce
+                            zaman aşımında beklemesini önler. Bakanlığın reddettiği tek bir kayıt sayılmaz.</span>
+                            <span asp-validation-for="DevreKesiciSiniri" class="field-hata"></span>
                         </div>
                         <div class="card-actions">
                             <button type="submit" class="btn btn-primary">Kaydet</button>
-                            @if (Model.Saved && Model.SavedSection == "genel")
-                            {
-                                <span class="rchip success">Kaydedildi</span>
-                            }
+                            @if (Model.Saved && Model.SavedSection == "zamanlama") { <span class="rchip success">Kaydedildi</span> }
+                        </div>
+                    </form>
+                </div>
+
+                @* ---- KART 2: HANGI PROTOKOL NE ZAMAN ---- *@
+                <div class="card card-pad settings-card">
+                    <p class="section-title">Hangi protokol, ne zaman gönderilir</p>
+                    <p class="card-desc">Bir protokolün otomatik gönderime <b>uygun</b> sayılma kuralları. Elle gönderimi etkilemez.</p>
+                    <form method="post" asp-page-handler="Kapsam" style="display:flex; flex-direction:column; flex:1;">
+                        <div class="field">
+                            <label for="minYas">Kapandıktan kaç gün sonra gönderilsin</label>
+                            <input type="number" id="minYas" asp-for="MinProtokolYasiGun" min="0" max="30" />
+                            <span class="field-hint">Takvim günü: <b>1</b> = aynı gün gönderilmez, ertesi gün gider (geciken sonuç ve epikriz
+                            düzeltmesi için). <b>0</b> = kapandıktan sonraki ilk turda.</span>
+                            <span asp-validation-for="MinProtokolYasiGun" class="field-hata"></span>
+                        </div>
+                        <div class="field">
+                            <label for="days">Ayaktan protokol hiç kapanmazsa, açıldıktan kaç gün sonra</label>
+                            <input type="number" id="days" asp-for="OpenProtokolSendAfterDays" min="0" max="365" />
+                            <span class="field-hint">Ayaktan protokollerin bir kısmı Pusula'da hiç kapatılmıyor; bu süre dolunca kapanmış
+                            gibi işlem görür (üstteki bekleme de eklenir).</span>
+                            <span asp-validation-for="OpenProtokolSendAfterDays" class="field-hata"></span>
+                        </div>
+                        <div class="toggle-row" style="margin-top:4px;">
+                            <input type="checkbox" id="autoYatan" asp-for="AutoSendYatanEnabled" />
+                            <label for="autoYatan">Yatan hasta protokollerini otomatik gönder</label>
+                        </div>
+                        <span class="field-hint" style="display:block; margin:-4px 0 12px;">Kapalıysa yatanları arşiv <b>Yatan Hastalar</b>
+                        ekranından elle gönderir. Açıksa ölçüt taburcu tarihidir.</span>
+                        <div class="field">
+                            <label for="yatanTavan">Yatan: taburcu girilmezse açılıştan kaç gün sonra</label>
+                            <input type="number" id="yatanTavan" asp-for="YatanMaxOpenDays" min="1" max="3650" />
+                            <span class="field-hint">Taburcusu hiç girilmeyen yatışların sonsuza dek beklemesini önler.</span>
+                            <span asp-validation-for="YatanMaxOpenDays" class="field-hata"></span>
+                        </div>
+                        <div class="field">
+                            <label for="floorDate">Devreye alım tarihi (bundan önce açılanlar gönderilmez)</label>
+                            <input type="date" id="floorDate" asp-for="SendFloorDate" />
+                            <span class="field-hint">Ölçüt protokolün <b>açılış</b> tarihi. Boş = sınır yok. Eski bir protokolü
+                            Protokol Listesi'nden bilerek elle gönderebilirsiniz.</span>
+                        </div>
+                        <div class="card-actions">
+                            <button type="submit" class="btn btn-primary">Kaydet</button>
+                            @if (Model.Saved && Model.SavedSection == "kapsam") { <span class="rchip success">Kaydedildi</span> }
+                        </div>
+                    </form>
+                </div>
+
+                @* ---- KART 3: HATALAR VE TAKILANLAR ---- *@
+                <div class="card card-pad settings-card span-2">
+                    <p class="section-title">Hatalar ve takılanlar</p>
+                    <p class="card-desc">Gönderimi hata alan kayıt önce gün içinde yeniden denenir; deneme hakkı dolunca
+                    <b>Takılanlar</b>'a geçer ve her gece bir kez daha denenir. Eksik giderildiyse (LOINC kodu verildi, sonuç girildi)
+                    kayıt kendiliğinden gider.</p>
+                    <form method="post" asp-page-handler="Takilan" style="display:flex; flex-direction:column; flex:1;">
+                        <div class="ayar-iki-grup">
+                            <fieldset class="ayar-grup">
+                                <legend>Gün içinde</legend>
+                                <div class="field">
+                                    <label for="retryInterval">Hata sonrası kaç dakika beklensin</label>
+                                    <input type="number" id="retryInterval" asp-for="RetryIntervalMinutes" min="1" max="1440" />
+                                    <span class="field-hint">Tur aralığından kısa bir değer fark yaratmaz.</span>
+                                    <span asp-validation-for="RetryIntervalMinutes" class="field-hata"></span>
+                                </div>
+                                <div class="field">
+                                    <label for="retryMax">Kaç kez denensin</label>
+                                    <input type="number" id="retryMax" asp-for="RetryMaxAttempts" min="1" max="50" />
+                                    <span class="field-hint">Üst üste bu kadar hata alan kayıt Takılanlar'a geçer.</span>
+                                    <span asp-validation-for="RetryMaxAttempts" class="field-hata"></span>
+                                </div>
+                            </fieldset>
+                            <fieldset class="ayar-grup">
+                                <legend>Gece turu (takılanlar)</legend>
+                                <div class="field">
+                                    <label for="takilanSaat">Saat kaçta başlasın (0–23)</label>
+                                    <input type="number" id="takilanSaat" asp-for="TakilanDenemeSaati" min="0" max="23" />
+                                    <span class="field-hint">Günde bir kez.</span>
+                                    <span asp-validation-for="TakilanDenemeSaati" class="field-hata"></span>
+                                </div>
+                                <div class="field">
+                                    <label for="takilanSure">En fazla kaç dakika sürsün</label>
+                                    <input type="number" id="takilanSure" asp-for="TakilanSureDakika" min="5" max="300" />
+                                    <span class="field-hint">En uzun süredir denenmeyenden başlar; süre dolunca durur, kalanlar ertesi geceye kalır.</span>
+                                    <span asp-validation-for="TakilanSureDakika" class="field-hata"></span>
+                                </div>
+                            </fieldset>
+                        </div>
+                        <div class="card-actions">
+                            <button type="submit" class="btn btn-primary">Kaydet</button>
+                            @if (Model.Saved && Model.SavedSection == "takilan") { <span class="rchip success">Kaydedildi</span> }
                         </div>
                     </form>
                 </div>
@@ -300,54 +371,59 @@
 
         <!-- 3. GÖNDERİM PARAMETRELERİ -->
         <section class="settings-panel" id="panel-param">
-            @* MASONRY: bu bolumdeki kartlarin boylari cok farkli (Tarama Araligi uzun,
-               Hata Sonrasi Tekrar Deneme kisa). CSS Grid'de satirlar hizali oldugu icin
-               kisa kartin ALTINDA delik kaliyordu -- kart yuksekligini serbest birakmak
-               bosluğu yok etmedi, yalnizca kartin icinden altina tasidi. Sutun akisinda
-               (CSS columns) kartlar bosluk birakmadan diziliyor. *@
-            <div class="settings-grid settings-grid--masonry">
+            <div class="settings-grid">
 
+                @* ---- GONDERILECEK KAYIT TURLERI (Epikriz kurallari dahil, tek form) ---- *@
                 <div class="card card-pad settings-card">
-                    <p class="section-title">Hata Sonrası Tekrar Deneme</p>
-                    <p class="card-desc">
-                        Bir gönderim hatalı olduğunda (ör. TRƏS geçici olarak yanıt vermiyorsa) sistem
-                        ne kadar sürede ve kaç kez tekrar denesin.
-                        <span class="field-hint">Deneme hakkı dolan kayıt kaybolmaz &mdash;
-                        <strong>Takılanlar</strong> listesine geçer ve orada her gece bir kez daha denenir.
-                        Eksik giderildiğinde (LOINC kodu verildi, sonuç girildi) kendiliğinden gönderilir.</span>
-                    </p>
-                    <form method="post" asp-page-handler="Tekrar" style="display:flex; flex-direction:column; flex:1;">
-                        <div class="field-row-2">
-                            <div class="field"><label for="retryInterval">Kaç dakika sonra tekrar dene?</label>
-                                <input type="number" id="retryInterval" asp-for="RetryIntervalMinutes" min="1" max="1440" />
-                                <span class="field-hint">Az önce denenip hata almış bir protokol bu süre dolmadan
-                                tekrar denenmez. Otomatik gönderim aralığından kısa bir değer fark yaratmaz.</span></div>
-                            <div class="field"><label for="retryMax">En fazla kaç kez dene?</label>
-                                <input type="number" id="retryMax" asp-for="RetryMaxAttempts" min="1" max="50" />
-                                <span class="field-hint">Üst üste bu kadar hata alan kayıt Takılanlar listesine geçer.</span></div>
-                        </div>
+                    <p class="section-title">Gönderilecek kayıt türleri</p>
+                    <p class="card-desc">Bir protokol gönderilirken altındaki kayıtlar da birlikte gider. Kapatılan tür otomatik
+                    gönderimde ve &ldquo;Tümünü Gönder&rdquo;de atlanır; Protokol Detay'daki tek tek gönderim düğmeleri yine çalışır.
+                    <span class="field-hint">Hasta ve Müayinə burada yok: zincirin temeli onlar, ikisi gitmeden hiçbir kayıt gidemez.</span></p>
+                    <form method="post" asp-page-handler="Icerik" style="display:flex; flex-direction:column; flex:1;">
+                        <fieldset class="ayar-grup">
+                            <legend>Muayene kayıtları</legend>
+                            <div class="toggle-row"><input type="checkbox" id="conditionSendEnabled" asp-for="ConditionSendEnabled" />
+                                <label for="conditionSendEnabled">Tanı <span class="ayar-teknik">Condition</span></label></div>
+                            <div class="toggle-row"><input type="checkbox" id="procedureSendEnabled" asp-for="ProcedureSendEnabled" />
+                                <label for="procedureSendEnabled">İşlem (icbari) <span class="ayar-teknik">Procedure</span></label></div>
+                            <div class="toggle-row"><input type="checkbox" id="vitalSignsSendEnabled" asp-for="VitalSignsSendEnabled" />
+                                <label for="vitalSignsSendEnabled">Vital bulgular: ateş, nabız, tansiyon <span class="ayar-teknik">Observation</span></label></div>
+                        </fieldset>
+                        <fieldset class="ayar-grup">
+                            <legend>Tetkik sonuçları</legend>
+                            <div class="toggle-row"><input type="checkbox" id="labSendEnabled" asp-for="LabSendEnabled" />
+                                <label for="labSendEnabled">Laboratuvar sonucu <span class="ayar-teknik">Observation</span></label></div>
+                            <div class="toggle-row"><input type="checkbox" id="radiologyReportSendEnabled" asp-for="RadiologyReportSendEnabled" />
+                                <label for="radiologyReportSendEnabled">Radyoloji raporu <span class="ayar-teknik">DiagnosticReport</span></label></div>
+                            <div class="toggle-row"><input type="checkbox" id="pathologyReportSendEnabled" asp-for="PathologyReportSendEnabled" />
+                                <label for="pathologyReportSendEnabled">Patoloji raporu ve bulguları <span class="ayar-teknik">DiagnosticReport + zinciri</span></label></div>
+                        </fieldset>
+                        <fieldset class="ayar-grup">
+                            <legend>Epikriz</legend>
+                            <div class="toggle-row"><input type="checkbox" id="epikrizSendEnabled" asp-for="EpikrizSendEnabled" />
+                                <label for="epikrizSendEnabled">Epikriz <span class="ayar-teknik">Composition</span></label></div>
+                            <div class="toggle-row"><input type="checkbox" id="epikrizOnlySigned" asp-for="EpikrizOnlySigned" />
+                                <label for="epikrizOnlySigned">Yalnızca Pusula'da kilitlenmiş (hekimin tamamladığı) epikrizler</label></div>
+                        </fieldset>
                         <div class="card-actions">
                             <button type="submit" class="btn btn-primary">Kaydet</button>
-                            @if (Model.Saved && Model.SavedSection == "tekrar")
-                            {
-                                <span class="rchip success">Kaydedildi</span>
-                            }
+                            @if (Model.Saved && Model.SavedSection == "icerik") { <span class="rchip success">Kaydedildi</span> }
                         </div>
                     </form>
                 </div>
 
+                @* ---- TARAMA ARALIGI (teknik) ---- *@
                 <div class="card card-pad settings-card">
-                    <p class="section-title">Tarama Aralığı</p>
+                    <p class="section-title">Tarama aralığı <span class="ayar-teknik">teknik</span></p>
                     <p class="card-desc">
-                        Bekleyen işler hesaplanırken Pusula'da <b>ne kadar geriye</b> bakılacağını belirler.
-                        Otomatik gönderim döngüsü ve iptal senkronu da aynı aralığı kullanır.
-                        Aralık ne kadar genişse tarama o kadar uzun sürer ve hastane veritabanına o kadar yük biner
-                        &mdash; ölçüldü: 60 günlük pencere <span class="mono">850.327</span> aday satır tarıyor.
+                        Bekleyen işler hesaplanırken Pusula'da <b>ne kadar geriye</b> bakılacağı. Otomatik gönderim ve iptal senkronu
+                        bu aralığın dışındaki protokolleri görmez. Aralık genişledikçe tarama uzar ve Pusula'ya yük biner
+                        (60 günlük pencere <span class="mono">850.327</span> aday satır tarıyor).
                     </p>
                     <form method="post" asp-page-handler="Tarama" style="display:flex; flex-direction:column; flex:1;">
                         <div class="toggle-row">
                             <input type="radio" id="scanPreset" asp-for="PendingScanMode" value="Preset" />
-                            <label for="scanPreset">Hazır aralık kullan</label>
+                            <label for="scanPreset">Hazır aralık</label>
                         </div>
                         <div class="field" style="max-width:260px; margin-left:26px;">
                             <select asp-for="PendingScanPresetDays">
@@ -356,182 +432,39 @@
                                     <option value="@a.Gun">@a.Ad (@a.Gun gün)</option>
                                 }
                             </select>
-                            <span asp-validation-for="PendingScanPresetDays" style="display:block; margin-top:6px; font-size:12.5px; color:var(--danger);"></span>
+                            <span asp-validation-for="PendingScanPresetDays" class="field-hata"></span>
                         </div>
-
-                        <div class="toggle-row" style="margin-top:14px;">
+                        <div class="toggle-row" style="margin-top:10px;">
                             <input type="radio" id="scanDate" asp-for="PendingScanMode" value="Date" />
                             <label for="scanDate">Belirli bir tarihten itibaren</label>
                         </div>
                         <div class="field" style="max-width:260px; margin-left:26px;">
                             <input type="date" asp-for="PendingScanFromDate" />
-                            <span asp-validation-for="PendingScanFromDate" style="display:block; margin-top:6px; font-size:12.5px; color:var(--danger);"></span>
+                            <span asp-validation-for="PendingScanFromDate" class="field-hata"></span>
                         </div>
+                        <p class="card-desc" style="margin-top:6px;">Şu an <b>@Model.PendingScanEffectiveFrom.ToString("dd.MM.yyyy")</b> tarihinden itibaren taranıyor.</p>
 
-                        <p class="card-desc" style="margin-top:14px;">
-                            Şu anki ayarla <b>@Model.PendingScanEffectiveFrom.ToString("dd.MM.yyyy")</b>
-                            tarihinden itibaren taranıyor.
-                        </p>
-
-                        <hr style="border:0; border-top:1px solid var(--border); margin:16px 0 14px;" />
-
-                        <div class="toggle-row">
-                            <input type="checkbox" id="scanIncremental" asp-for="PendingScanIncrementalEnabled" />
-                            <label for="scanIncremental">Artımlı tarama (önerilir)</label>
-                        </div>
-                        <p class="card-desc" style="margin-left:26px;">
-                            Açıkken saatlik döngü yukarıdaki pencerenin tamamını değil, <b>son taramadan bu yana</b>
-                            tamamlananları sorar. Hâlâ gönderilememiş bir kalem varsa pencere kendiliğinden
-                            o tarihe kadar genişler &mdash; yani takılan hiçbir kayıt listeden düşmez.
-                            Yukarıdaki pencere <b>üst sınır</b> olarak kalır.
-                            Kapalıyken eski davranış (her turda tam pencere) geçerlidir.
-                        </p>
-                        <div class="field" style="max-width:260px; margin-left:26px;">
-                            <label for="sweepHour">Gecelik tam süpürme saati</label>
-                            <input type="number" id="sweepHour" asp-for="PendingScanFullSweepHour" min="0" max="23" />
-                            <span class="card-desc" style="display:block; margin-top:6px;">
-                                Günde bir kez tam pencere taranır &mdash; geriye dönük düzeltmeler
-                                (onay tarihi sonradan değiştirilen kayıtlar) bu turda yakalanır.
-                            </span>
-                            <span asp-validation-for="PendingScanFullSweepHour" style="display:block; margin-top:6px; font-size:12.5px; color:var(--danger);"></span>
-                        </div>
-                        <div class="card-actions">
-                            <button type="submit" class="btn btn-primary">Kaydet</button>
-                            @if (Model.Saved && Model.SavedSection == "tarama")
-                            {
-                                <span class="rchip success">Kaydedildi</span>
-                            }
-                        </div>
-                    </form>
-                </div>
-
-                <div class="card card-pad settings-card">
-                    <p class="section-title">Kapanmamış Protokoller</p>
-                    <p class="card-desc">
-                        Varsayılan kural: bir protokol kapanana kadar (<span class="mono">KapanisTarihi</span> dolana kadar)
-                        Müayinə gönderilmez. Aşağıdaki gün sayısı aşıldığında, henüz kapanmamış olsa bile gönderime
-                        <b>uygun</b> sayılır.
-                    </p>
-                    <form method="post" asp-page-handler="Protokol" style="display:flex; flex-direction:column; flex:1;">
-                        <div class="field-row-2">
-                            <div class="field">
-                                <label for="days">Ayaktan: kaç gün sonra gönderime uygun say?</label>
-                                <input type="number" id="days" asp-for="OpenProtokolSendAfterDays" min="0" max="365" />
-                                <span class="field-hint">Ayaktan protokollerde kapanış çoğu zaman hiç yapılmıyor; bu süre dolunca yine de gönderilir.</span>
-                                <span asp-validation-for="OpenProtokolSendAfterDays" style="display:block; margin-top:6px; font-size:12.5px; color:var(--danger);"></span>
+                        <fieldset class="ayar-grup" style="margin-top:8px;">
+                            <legend>Artımlı tarama</legend>
+                            <div class="toggle-row">
+                                <input type="checkbox" id="scanIncremental" asp-for="PendingScanIncrementalEnabled" />
+                                <label for="scanIncremental">Açık (önerilir)</label>
                             </div>
-                            @* YATAN TAVANI 2026-10-09'DA EKRANA GELDI. Deger koda gomuluydu
-                               (90 gun), yani degistirmenin yolu yoktu. Olculdu (01.10-09.10):
-                               97 yatan protokolun taburcusu hic girilmemis -- bu tavan tam da
-                               onlari kurtaran kural, ve suresi hastaneye gore degisebilir. *@
-                            <div class="field">
-                                <label for="yatanTavan">Yatan: taburcu girilmezse kaç gün sonra gönder?</label>
-                                <input type="number" id="yatanTavan" asp-for="YatanMaxOpenDays" min="1" max="3650" />
-                                <span class="field-hint">Yatanda kural &ldquo;taburcu olunca gönder&rdquo;. Taburcu hiç girilmezse protokol sonsuza dek beklerdi; bu süre o kayıtları kurtarır.</span>
-                                <span asp-validation-for="YatanMaxOpenDays" style="display:block; margin-top:6px; font-size:12.5px; color:var(--danger);"></span>
+                            <span class="field-hint" style="display:block; margin:-4px 0 10px;">Her turda tüm pencere yerine yalnızca
+                            <b>son taramadan bu yana</b> tamamlananlar sorulur; gönderilememiş kalem varsa pencere kendiliğinden genişler.</span>
+                            <div class="field" style="max-width:260px;">
+                                <label for="sweepHour">Gecelik tam tarama saati (0–23)</label>
+                                <input type="number" id="sweepHour" asp-for="PendingScanFullSweepHour" min="0" max="23" />
+                                <span class="field-hint">Günde bir kez tam pencere taranır; geriye dönük düzeltmeler bu turda yakalanır.</span>
+                                <span asp-validation-for="PendingScanFullSweepHour" class="field-hata"></span>
                             </div>
-                        </div>
+                        </fieldset>
                         <div class="card-actions">
                             <button type="submit" class="btn btn-primary">Kaydet</button>
-                            @if (Model.Saved && Model.SavedSection == "protokol")
-                            {
-                                <span class="rchip success">Kaydedildi</span>
-                            }
+                            @if (Model.Saved && Model.SavedSection == "tarama") { <span class="rchip success">Kaydedildi</span> }
                         </div>
                     </form>
                 </div>
-
-                <div class="card card-pad settings-card">
-                    <p class="section-title">Epikriz (Composition) Kuralları</p>
-                    <p class="card-desc">
-                        Epikriz gönderimini burada tamamen kapatabilir, ya da Pusula'da henüz
-                        <b>kilitlenmemiş</b> (hekim tarafından tamamlanmamış) epikrizlerin gönderilmesini
-                        engelleyebilirsiniz.
-                    </p>
-                    <form method="post" asp-page-handler="Epikriz" style="display:flex; flex-direction:column; flex:1;">
-                        <div class="toggle-row">
-                            <input type="checkbox" id="epikrizSendEnabled" asp-for="EpikrizSendEnabled" />
-                            <label for="epikrizSendEnabled">Epikriz (Composition) gönderimini etkinleştir</label>
-                        </div>
-                        <div class="toggle-row">
-                            <input type="checkbox" id="epikrizOnlySigned" asp-for="EpikrizOnlySigned" />
-                            <label for="epikrizOnlySigned">Sadece Pusula'da kilitlenmiş (tamamlanmış) epikrizleri gönder</label>
-                        </div>
-                        <div class="card-actions">
-                            <button type="submit" class="btn btn-primary">Kaydet</button>
-                            @if (Model.Saved && Model.SavedSection == "epikriz")
-                            {
-                                <span class="rchip success">Kaydedildi</span>
-                            }
-                        </div>
-                    </form>
-                </div>
-
-                <div class="card card-pad settings-card">
-                    <p class="section-title">Kayıt Türü Anahtarları</p>
-                    @* ACIKLAMA DUZELTILDI (2026-10-09): eski metin hepsinin Encounter
-                       cascade'inden gittigini soyluyordu, ama laboratuvar ve vital
-                       ProtocolFullSyncService'ten gidiyor. Daha onemlisi o iki tur
-                       listede HIC YOKTU -- yani gonderimini kapatmanin yolu da yoktu. *@
-                    <p class="card-desc">
-                        Bir protokol gönderilirken altındaki kayıtlar da birlikte gider; burada hangi
-                        türlerin gideceğini seçersiniz. Kapatılan tür hem otomatik döngüde hem de
-                        &ldquo;Tümünü Gönder&rdquo;de atlanır &mdash; Protokol Detay'daki <em>tek tek</em>
-                        gönderim düğmeleri yine çalışır.
-                    </p>
-                    <p class="card-desc">
-                        Müayinə (Encounter) ve Hasta (Patient) burada yok, çünkü onlar zincirin temeli:
-                        ikisi gönderilmeden altındaki hiçbir kayıt gönderilemez. Epikrizin kendi ayrı
-                        kartı var (imzalı/imzasız seçeneği olduğu için).
-                    </p>
-                    <form method="post" asp-page-handler="TaniIslem" style="display:flex; flex-direction:column; flex:1;">
-                        <div class="toggle-row">
-                            <input type="checkbox" id="conditionSendEnabled" asp-for="ConditionSendEnabled" />
-                            <label for="conditionSendEnabled">Tanı (Condition) otomatik gönderimini etkinleştir</label>
-                        </div>
-                        <div class="toggle-row">
-                            <input type="checkbox" id="procedureSendEnabled" asp-for="ProcedureSendEnabled" />
-                            <label for="procedureSendEnabled">İşlem (Procedure) otomatik gönderimini etkinleştir</label>
-                        </div>
-                        @* Bu ikisi kod tarafinda aylardir okunuyordu ama ekranda karsiligi
-                           yoktu -- yani gonderimi kapatan bir dugme vardi, kullanici
-                           goremiyordu (ayar denetimi, 2026-10-08). *@
-                        <div class="toggle-row">
-                            <input type="checkbox" id="radiologyReportSendEnabled" asp-for="RadiologyReportSendEnabled" />
-                            <label for="radiologyReportSendEnabled">Radyoloji raporu (DiagnosticReport) otomatik gönderimini etkinleştir</label>
-                        </div>
-                        <div class="toggle-row">
-                            <input type="checkbox" id="pathologyReportSendEnabled" asp-for="PathologyReportSendEnabled" />
-                            <label for="pathologyReportSendEnabled">Patoloji raporu (DiagnosticReport + zinciri) otomatik gönderimini etkinleştir</label>
-                        </div>
-                        @* LABORATUVAR VE VITAL 2026-10-09'DA EKLENDI. Ikisi de aylardir
-                           gonderiliyordu ama ekranda anahtari yoktu. Laboratuvar hacmin en
-                           buyuk kalemi (haftada ~42.000 kayit) -- bir sorun ciktiginda tek
-                           basina durdurulabilmesi gereken ilk sey o. *@
-                        <div class="toggle-row">
-                            <input type="checkbox" id="labSendEnabled" asp-for="LabSendEnabled" />
-                            <label for="labSendEnabled">Laboratuvar sonucu (Observation) otomatik gönderimini etkinleştir</label>
-                        </div>
-                        <div class="toggle-row">
-                            <input type="checkbox" id="vitalSignsSendEnabled" asp-for="VitalSignsSendEnabled" />
-                            <label for="vitalSignsSendEnabled">Vital bulgular (Observation &mdash; ateş, nabız, tansiyon) otomatik gönderimini etkinleştir</label>
-                        </div>
-                        <div class="card-actions">
-                            <button type="submit" class="btn btn-primary">Kaydet</button>
-                            @if (Model.Saved && Model.SavedSection == "tanislem")
-                            {
-                                <span class="rchip success">Kaydedildi</span>
-                            }
-                        </div>
-                    </form>
-                </div>
-
-                @* "Lab Kurallari -- Hazir degil" karti 2026-10-09'da KALDIRILDI.
-                   "Lab sonucu gonderimi icin mapper henuz yazilmadi" diyordu; oysa
-                   laboratuvar aylardir gonderiliyor (haftada ~42.000 kayit) ve artik
-                   Kayit Turu Anahtarlari kartinda kendi acma/kapama anahtari var.
-                   Yanlis bilgi veren bir yer tutucu, hic olmayan bir karttan kotu. *@
-
             </div>
         </section>
 
@@ -748,8 +681,8 @@
     var savedTab = Model.SavedSection switch
     {
         "veritabani" or "ortam" => "ortam",
-        "genel" => "oto",
-        "tekrar" or "protokol" or "epikriz" or "tanislem" => "param",
+        "oto" or "zamanlama" or "kapsam" or "takilan" => "oto",
+        "icerik" or "tarama" => "param",
         "mail" => "mail",
         _ => null,
     };

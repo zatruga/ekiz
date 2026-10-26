@@ -209,14 +209,6 @@ public class AyarlarModel(
         return await SavedAsync("veritabani", ct);
     }
 
-    public async Task<IActionResult> OnPostProtokolAsync(CancellationToken ct)
-    {
-        if (!ModelState.IsValid) { await LoadAsync(ct, skipProtokol: true); return Page(); }
-        await settings.SetIntAsync(SettingsStore.OpenProtokolSendAfterDaysKey, OpenProtokolSendAfterDays, ct);
-        await settings.SetIntAsync(SettingsStore.YatanMaxOpenDaysKey, YatanMaxOpenDays, ct);
-        return await SavedAsync("protokol", ct);
-    }
-
     // Tarama araligi. Iki mod tek formda: hazir aralik (gun sayisi) ya da belirli tarih.
     // Secilmeyen modun alani DOGRULANMAZ -- ornegin hazir aralik seciliyken bos birakilmis
     // bir tarih kutusu formu gecersiz kilmamali.
@@ -327,55 +319,62 @@ public class AyarlarModel(
     {
         await settings.SetBoolAsync(SettingsStore.AutoSendEncounterEnabledKey, acik, ct);
         logger.LogWarning("Otomatik gonderim {Durum} (Ayarlar sayfasindan).", acik ? "BASLATILDI" : "DURDURULDU");
-        return await SavedAsync("genel", ct);
+        return await SavedAsync("oto", ct);
     }
 
-    public async Task<IActionResult> OnPostGenelAsync(CancellationToken ct)
+    // ==== OTOMATIK GONDERIM AYARLARI -- SORUYA GORE GRUPLU (2026-10-26) ====
+    // KULLANICI: "otomatik gonderim ayarlari da gonderim parametre alani da birbirine
+    // karismis". Eskiden "hangi protokol ne zaman gider" sorusunun ayarlari iki sekmeye
+    // dagilmisti (ayni gun kurali bir kartta, acik protokol kurali obur sekmede), gece
+    // takilanlar turu ile hata sonrasi tekrar deneme de ayri yerlerdeydi. Simdi her kart
+    // tek bir soruyu cevapliyor ve kendi formu/Kaydet'i var:
+    //   Zamanlama -- tur ne siklikla, ne buyuklukte calisir
+    //   Kapsam    -- hangi protokol, ne zaman gonderime uygun olur
+    //   Takilan   -- hata alan kayit ne zaman yeniden denenir, gece turu
+    //   Icerik    -- protokolun hangi kayit turleri gider (Gonderim Parametreleri sekmesi)
+    // Gecersiz deger: LoadAsync digerlerini doldurur, girilen deger ModelState'ten ekranda kalir.
+
+    public async Task<IActionResult> OnPostZamanlamaAsync(CancellationToken ct)
     {
-        if (!ModelState.IsValid) { await LoadAsync(ct, skipGenel: true); return Page(); }
-        // AutoSend.Patient.Enabled ARTIK YAZILMIYOR (2026-10-03): o kutu kaydediliyordu ama
-        // HICBIR SEY okumuyordu -- hasta zaten protokol zincirinin parcasi olarak gidiyor.
-        // Arkasinda calisan bir sey olmayan bir anahtar, kullaniciya yanlis bir kontrol
-        // duygusu veriyordu; kutu ekrandan da kaldirildi.
-        //
-        // Dongunun acma/kapama anahtari da burada DEGIL: kendi dugmesi ve onayi var
-        // (bkz. OnPostOtomatikAsync). Canli veri yazan bir donguyu baslatmak, bir sayiyi
-        // degistirmekle ayni jest olmamali.
+        if (!ModelState.IsValid) { await LoadAsync(ct); return Page(); }
         await settings.SetIntAsync(SettingsStore.AutoSendIntervalMinutesKey, AutoSendIntervalMinutes, ct);
         await settings.SetIntAsync(SettingsStore.AutoSendBatchSizeKey, AutoSendBatchSize, ct);
-        await settings.SetBoolAsync(SettingsStore.AutoSendYatanEnabledKey, AutoSendYatanEnabled, ct);
         await settings.SetIntAsync(SettingsStore.DevreKesiciSiniriKey, DevreKesiciSiniri, ct);
-        await settings.SetIntAsync(SettingsStore.MinProtokolYasiGunKey, MinProtokolYasiGun, ct);
-        await settings.SetStringAsync(SettingsStore.SendFloorDateKey, Clean(SendFloorDate), ct);
-        await settings.SetIntAsync(SettingsStore.StuckRetryHourKey, TakilanDenemeSaati, ct);
-        await settings.SetIntAsync(SettingsStore.StuckRetryMaxMinutesKey, TakilanSureDakika, ct);
-        return await SavedAsync("genel", ct);
+        return await SavedAsync("zamanlama", ct);
     }
 
-    public async Task<IActionResult> OnPostTekrarAsync(CancellationToken ct)
+    public async Task<IActionResult> OnPostKapsamAsync(CancellationToken ct)
     {
-        if (!ModelState.IsValid) { await LoadAsync(ct, skipTekrar: true); return Page(); }
+        if (!ModelState.IsValid) { await LoadAsync(ct); return Page(); }
+        await settings.SetStringAsync(SettingsStore.SendFloorDateKey, Clean(SendFloorDate), ct);
+        await settings.SetIntAsync(SettingsStore.MinProtokolYasiGunKey, MinProtokolYasiGun, ct);
+        await settings.SetIntAsync(SettingsStore.OpenProtokolSendAfterDaysKey, OpenProtokolSendAfterDays, ct);
+        await settings.SetBoolAsync(SettingsStore.AutoSendYatanEnabledKey, AutoSendYatanEnabled, ct);
+        await settings.SetIntAsync(SettingsStore.YatanMaxOpenDaysKey, YatanMaxOpenDays, ct);
+        return await SavedAsync("kapsam", ct);
+    }
+
+    public async Task<IActionResult> OnPostTakilanAsync(CancellationToken ct)
+    {
+        if (!ModelState.IsValid) { await LoadAsync(ct); return Page(); }
         await settings.SetIntAsync(SettingsStore.RetryIntervalMinutesKey, RetryIntervalMinutes, ct);
         await settings.SetIntAsync(SettingsStore.RetryMaxAttemptsKey, RetryMaxAttempts, ct);
-        return await SavedAsync("tekrar", ct);
+        await settings.SetIntAsync(SettingsStore.StuckRetryHourKey, TakilanDenemeSaati, ct);
+        await settings.SetIntAsync(SettingsStore.StuckRetryMaxMinutesKey, TakilanSureDakika, ct);
+        return await SavedAsync("takilan", ct);
     }
 
-    public async Task<IActionResult> OnPostEpikrizAsync(CancellationToken ct)
-    {
-        await settings.SetBoolAsync(SettingsStore.EpikrizSendEnabledKey, EpikrizSendEnabled, ct);
-        await settings.SetBoolAsync(SettingsStore.EpikrizOnlySignedKey, EpikrizOnlySigned, ct);
-        return await SavedAsync("epikriz", ct);
-    }
-
-    public async Task<IActionResult> OnPostTaniIslemAsync(CancellationToken ct)
+    public async Task<IActionResult> OnPostIcerikAsync(CancellationToken ct)
     {
         await settings.SetBoolAsync(SettingsStore.ConditionSendEnabledKey, ConditionSendEnabled, ct);
         await settings.SetBoolAsync(SettingsStore.ProcedureSendEnabledKey, ProcedureSendEnabled, ct);
-        await settings.SetBoolAsync(SettingsStore.RadiologyReportSendEnabledKey, RadiologyReportSendEnabled, ct);
-        await settings.SetBoolAsync(SettingsStore.PathologyReportSendEnabledKey, PathologyReportSendEnabled, ct);
         await settings.SetBoolAsync(SettingsStore.LabSendEnabledKey, LabSendEnabled, ct);
         await settings.SetBoolAsync(SettingsStore.VitalSignsSendEnabledKey, VitalSignsSendEnabled, ct);
-        return await SavedAsync("tanislem", ct);
+        await settings.SetBoolAsync(SettingsStore.RadiologyReportSendEnabledKey, RadiologyReportSendEnabled, ct);
+        await settings.SetBoolAsync(SettingsStore.PathologyReportSendEnabledKey, PathologyReportSendEnabled, ct);
+        await settings.SetBoolAsync(SettingsStore.EpikrizSendEnabledKey, EpikrizSendEnabled, ct);
+        await settings.SetBoolAsync(SettingsStore.EpikrizOnlySignedKey, EpikrizOnlySigned, ct);
+        return await SavedAsync("icerik", ct);
     }
 
     // ==== E-POSTA (2026-10-23 yeniden duzenlendi) ====
