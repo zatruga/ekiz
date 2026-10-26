@@ -24,7 +24,8 @@ namespace PusulaEHealthSync.Sync;
 public class PendingWorkService(
     PusulaRepository repository,
     SyncLogStore syncLog,
-    SettingsStore settings)
+    SettingsStore settings,
+    Microsoft.Extensions.Logging.ILogger<PendingWorkService> logger)
 {
     // Patoloji immunohistokimya ile haftalar surebiliyor; pencere bunu rahat kapsamali.
     // ARTIK SADECE VARSAYILAN: gercek pencere Ayarlar'dan geliyor (bkz. TaramaBaslangiciAsync).
@@ -112,6 +113,7 @@ public class PendingWorkService(
             SonHesaplamaUtc = DateTime.UtcNow;
             SonTaramaBaslangici = baslangic;
             SonTaramaBitisi = null;
+            await IzBirakAsync(sonuc, baslangic, null, ct);
 
             // ISARETLER YALNIZCA BASARILI TARAMADAN SONRA ILERLER. Tarama ortasinda
             // istisna olursa buraya hic gelinmez, yani bir sonraki tur ayni yerden
@@ -198,6 +200,52 @@ public class PendingWorkService(
     public DateTime? SonTaramaBaslangici { get; private set; }
     public DateTime? SonTaramaBitisi { get; private set; }
 
+    // ==== SON TARAMANIN KALICI OZETI (2026-10-26) ====
+    // KULLANICI: "Genel Bakis'ta 'Geriye ne kaldi' kismi neden bos?" -- 2026-10-23'ten
+    // beri tarama PusulaSyncWorker servisinde (ayri surec) calisiyor; SonSonuc o surecin
+    // belleginde kaliyordu, Web hic gormuyordu ve "Henuz tarama yapilmadi" yaziyordu.
+    // Artik her tarama kucuk bir ozet (kapsam + tur sayimlari + aralik) SettingsStore'a
+    // yaziyor; Web kendi bellegindeki sonuctan daha yeniyse bunu okuyor.
+    public record TaramaOzeti(PendingKapsam Kapsam, Dictionary<string, int> OzetSayimlar,
+                              DateTime HesaplamaUtc, DateTime? Baslangic, DateTime? Bitis);
+
+    private async Task IzBirakAsync(PendingWorkResult sonuc, DateTime baslangic, DateTime? bitis, CancellationToken ct)
+    {
+        try
+        {
+            var ozet = new TaramaOzeti(sonuc.Kapsam, sonuc.OzetSayimlar, DateTime.UtcNow, baslangic, bitis);
+            await settings.SetStringAsync(SettingsStore.PendingScanSonOzetKey,
+                System.Text.Json.JsonSerializer.Serialize(ozet), ct);
+        }
+        catch (Exception ex)
+        {
+            // Ozet yazilamazsa gonderim etkilenmemeli -- yalnizca ekran eski kalir.
+            logger.LogWarning(ex, "Tarama ozeti kaydedilemedi.");
+        }
+    }
+
+    // Bu surecin bellegindeki sonuc ile kalici ozetten YENI olani.
+    public async Task<TaramaOzeti?> SonTaramaOzetiAsync(CancellationToken ct = default)
+    {
+        TaramaOzeti? bellek = SonSonuc is { } s && SonHesaplamaUtc is { } z
+            ? new TaramaOzeti(s.Kapsam, s.OzetSayimlar, z, SonTaramaBaslangici, SonTaramaBitisi)
+            : null;
+        TaramaOzeti? kalici = null;
+        try
+        {
+            var ham = await settings.GetStringAsync(SettingsStore.PendingScanSonOzetKey, "", ct);
+            if (!string.IsNullOrWhiteSpace(ham))
+                kalici = System.Text.Json.JsonSerializer.Deserialize<TaramaOzeti>(ham);
+        }
+        catch (Exception ex)
+        {
+            logger.LogWarning(ex, "Tarama ozeti okunamadi.");
+        }
+        if (bellek is null) return kalici;
+        if (kalici is null) return bellek;
+        return kalici.HesaplamaUtc > bellek.HesaplamaUtc ? kalici : bellek;
+    }
+
     // scanDays null ise pencere Ayarlar'dan okunur. Sayi verilirse (Bekleyen Isler
     // sayfasindaki elle "gun" kutusu) o tur icin ayar GECICI olarak ezilir.
     // toLocalExclusive: bitis siniri (haric). null = sinir yok -- otomatik dongu boyle
@@ -220,6 +268,10 @@ public class PendingWorkService(
             SonHesaplamaUtc = DateTime.UtcNow;
             SonTaramaBaslangici = baslangic;
             SonTaramaBitisi = toLocalExclusive;
+            // Elle verilen aralik (Bekleyen Isler'deki tarih secimi) kalici ozete yazilmaz:
+            // Genel Bakis'in "Geriye ne kaldi"si dongunun gercek penceresini anlatmali.
+            if (fromLocalOverride is null && toLocalExclusive is null && scanDays is null)
+                await IzBirakAsync(sonuc, baslangic, null, ct);
             return sonuc;
         }
         finally { _refreshLock.Release(); }

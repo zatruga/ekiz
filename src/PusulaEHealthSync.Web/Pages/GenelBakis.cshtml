@@ -262,7 +262,7 @@ else if (!Model.AktifOrtamCanli)
 @* ======================= IKI AYRI SORU =======================
    Sol: SECILI DONEMDE ne yaptik (SyncLog'a bu pencerede yazilan canli satirlar -- hic
    denenmemis kalemi goremez). Sag: geriye ne kaldi (tarama -- donemden bagimsiz). *@
-<div class="gb-split">
+<div class="gb-split gb-esit">
     <section class="card card-pad">
         <p class="gb-kart-ust-etiket">Durak 3 &rarr; 4 arası &middot; @Model.PeriodFromDate.ToString("dd.MM") &ndash; @Model.PeriodToDate.ToString("dd.MM.yyyy")</p>
         <h2 class="gb-kart-baslik">Bu dönemde ne yaptık</h2>
@@ -698,7 +698,7 @@ else if (!Model.AktifOrtamCanli)
 
    IKISI YAN YANA: ayni gorsel dili paylasiyorlar ve ikisi de tam genislikteyken
    sayfa gereksiz yere uzuyordu. *@
-<div class="gb-split">
+<div class="gb-split gb-esit">
     <div class="card card-pad accent-warning">
         <p class="section-title">Eksik Veri Sebepleri</p>
         <p class="card-desc">
@@ -711,6 +711,7 @@ else if (!Model.AktifOrtamCanli)
         }
         else
         {
+            @:<div class="gb-kaydir">
             foreach (var s in o.EksikSebepleri)
             {
                 <div class="gb-sebep warning" role="button" tabindex="0" data-durum="eksik" data-kategori="@s.Kategori"
@@ -734,6 +735,7 @@ else if (!Model.AktifOrtamCanli)
                     </span>
                 </div>
             }
+            @:</div>
         }
     </div>
 
@@ -749,6 +751,7 @@ else if (!Model.AktifOrtamCanli)
         }
         else
         {
+            @:<div class="gb-kaydir">
             foreach (var s in o.HataSebepleri)
             {
                 <div class="gb-sebep danger" role="button" tabindex="0" data-durum="hata" data-kategori="@s.Kategori"
@@ -772,6 +775,7 @@ else if (!Model.AktifOrtamCanli)
                     </span>
                 </div>
             }
+            @:</div>
         }
     </div>
 </div>

@@ -286,14 +286,16 @@ public class GenelBakisModel(
             _ => (today.AddDays(-6), today),
         };
 
-        // BEKLEYEN ISLER KAPSAMI -- ONBELLEGIN DISINDA, bellekteki nesneden okunuyor
-        // (bedeli yok) ve DONEMDEN BAGIMSIZ. Donem onbellegine koysaydik, kullanici
-        // donemi degistirince iki dakika boyunca eski tarama sonucunu gorurdu.
-        Kapsam = pendingWork.SonSonuc?.Kapsam;
-        KapsamZamaniUtc = pendingWork.SonHesaplamaUtc;
-        KapsamBaslangic = pendingWork.SonTaramaBaslangici;
-        KapsamBitis = pendingWork.SonTaramaBitisi;
-        BekleyenTurler = pendingWork.SonSonuc?.OzetSayimlar
+        // BEKLEYEN ISLER KAPSAMI -- ONBELLEGIN DISINDA ve DONEMDEN BAGIMSIZ. Donem
+        // onbellegine koysaydik, kullanici donemi degistirince iki dakika boyunca eski
+        // tarama sonucunu gorurdu. Kaynak: son taramanin kalici ozeti -- tarama Worker
+        // servisinde calisiyor, bellekteki SonSonuc Web'de bos kaliyordu (2026-10-26).
+        var tarama = await pendingWork.SonTaramaOzetiAsync(ct);
+        Kapsam = tarama?.Kapsam;
+        KapsamZamaniUtc = tarama?.HesaplamaUtc;
+        KapsamBaslangic = tarama?.Baslangic;
+        KapsamBitis = tarama?.Bitis;
+        BekleyenTurler = tarama?.OzetSayimlar
             .Where(kv => kv.Value > 0).OrderByDescending(kv => kv.Value).ToList() ?? [];
 
         // HAT'IN 1. DURAGI: taramanin araliginda Pusula'da acilan protokol. Ayni aralik --

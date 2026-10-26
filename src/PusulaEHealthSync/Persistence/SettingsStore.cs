@@ -87,6 +87,10 @@ public class SettingsStore
     // Varsayilan ACIK: parametre eklenmeden onceki davranis buydu, dagitim onu degistirmesin.
     // Kural PendingWorkService'te uygulanir -- iki tur da (saatlik, takilanlar) oradan okur.
     public const string AutoSendYatanEnabledKey = "AutoSend.Yatan.Enabled";
+
+    // Son bekleyen-is taramasinin ozeti (JSON) -- Worker yazar, Web okur
+    // (bkz. PendingWorkService.SonTaramaOzetiAsync).
+    public const string PendingScanSonOzetKey = "PendingScan.SonOzet";
     public const bool AutoSendYatanEnabledDefault = true;
 
     // SON TURUN IZI. Ayarlar sayfasindaki durum kutusu bunlari gosteriyor -- "acik" yazan
