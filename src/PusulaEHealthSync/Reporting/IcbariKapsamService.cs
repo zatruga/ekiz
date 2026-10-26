@@ -29,8 +29,11 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
     public enum Durum { Gitti, Eksik, Hatali, Denenmedi }
 
     // KayitId: son denemenin SyncLog kaydi (Detay sayfasina baglanti); denenmemisse null.
+    // Zincir / ZincirSebep: protokolun icbari DISI kayitlarinin (muayene, tani, epikriz, lab,
+    // radyoloji...) en kotu durumu -- protokolun her kalemine ayni deger yaziliyor.
     public record Kalem(IcbariIslemRecord Islem, Durum Durum, string Sebep, string? Mesaj, DateTime? SonDenemeUtc,
-                        long? KayitId = null, bool Muayene = false);
+                        long? KayitId = null, bool Muayene = false,
+                        Durum? Zincir = null, string? ZincirSebep = null, string? ZincirMesaj = null);
 
     public const string MuayeneKalemi = "Muayene (icbari kodlu işlem yok)";
 
@@ -39,9 +42,16 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
     //   hepsi gitti -> Gitti; degilse EN KOTU KAZANIR: Hatali > Eksik > Denenmedi.
     // Aktivite Akisi'ndaki protokol sinifiyla ayni kural -- iki ekran ayni protokole ayni
     // sinifi versin.
+    //
+    // ZINCIR DE SAYILIR (2026-10-26, kullanici: "epikriz gonderilememesine ragmen tamami
+    // gonderilmis olarak gosteriliyor"). Icbari islemlerin hepsi gitse de protokolun baska
+    // bir kaydi (epikriz, muayene...) takiliysa protokol "tamami gonderildi" DEGIL.
     public record ProtokolKalemi(int ProtokolId, string? Hasta, List<Kalem> Kalemler)
     {
-        public Durum Durum { get; } = ProtokolDurumu(Kalemler);
+        public Durum Durum { get; } = EnKotu(ProtokolDurumu(Kalemler), Kalemler.FirstOrDefault()?.Zincir);
+        public string? ZincirSebep => Kalemler.FirstOrDefault()?.ZincirSebep;
+        public string? ZincirMesaj => Kalemler.FirstOrDefault()?.ZincirMesaj;
+        public bool ZincirTakili => Kalemler.FirstOrDefault()?.Zincir is Durum.Eksik or Durum.Hatali;
         public bool IslemYok => Kalemler.All(k => k.Muayene);
         public int IslemSayisi => Kalemler.Count(k => !k.Muayene);
         public int Gitti => Kalemler.Count(k => k.Durum == Durum.Gitti);
@@ -57,6 +67,13 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
         if (liste.Any(k => k.Durum == Durum.Eksik)) return Durum.Eksik;
         return Durum.Denenmedi;
     }
+
+    private static Durum EnKotu(Durum islem, Durum? zincir) => zincir switch
+    {
+        Durum.Hatali => Durum.Hatali,
+        Durum.Eksik when islem is Durum.Gitti or Durum.Denenmedi => Durum.Eksik,
+        _ => islem,
+    };
 
     public static List<ProtokolKalemi> Protokollere(IEnumerable<Kalem> kalemler) => kalemler
         .GroupBy(k => k.Islem.ProtokolId)
@@ -141,11 +158,37 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
             return new Kalem(i, durum, sebep, mesaj, son?.CreatedAtUtc, son?.Id, muayene);
         }
 
-        return islemler.Select(i => KalemKur(i, durumlar.GetValueOrDefault(i.IslemId), false))
+        var kalemler = islemler.Select(i => KalemKur(i, durumlar.GetValueOrDefault(i.IslemId), false))
             .Concat(islemsizler.Select(p => KalemKur(
                 new IcbariIslemRecord { IslemId = 0, ProtokolId = p.ProtokolId, PatientName = p.Hasta,
                                         HizmetAdi = MuayeneKalemi, IcbariAdi = "" },
                 muayeneDurumlari.GetValueOrDefault(p.ProtokolId), true)))
+            .ToList();
+
+        // ZINCIRIN GERI KALANI: protokolun icbari islemleri DISINDAKI kayitlari, kayit basina
+        // son deneme (Aktivite Akisi'yla ayni kural; Hasta kaydi siniflamaya girmez --
+        // AkisGrupOzeti.Siniflanan). Icbari Procedure'lar zaten kalemlerde sayildi.
+        var icbariIslemIdleri = islemler.Select(i => i.IslemId).ToHashSet();
+        var zincir = (await syncLog.QueryOzetByProtokolIdsAsync(
+                kalemler.Select(k => k.Islem.ProtokolId).Distinct().ToList(), [], null, ortam, ct))
+            .Where(o => o.ProtokolId is not null && o.ResourceType != "Patient"
+                     && !(o.ResourceType == "Procedure" && icbariIslemIdleri.Contains(o.PusulaId)))
+            .GroupBy(o => (o.ResourceType, o.PusulaId))
+            .Select(g => g.MaxBy(o => o.SonId)!)
+            .Where(o => o.Status is SyncStatus.Failed or SyncStatus.Skipped)
+            .GroupBy(o => o.ProtokolId!.Value)
+            .ToDictionary(g => g.Key, g =>
+            {
+                var enKotu = g.OrderByDescending(o => o.Status == SyncStatus.Failed).ThenByDescending(o => o.SonId).First();
+                var turler = string.Join(", ", g.Select(o => SyncLogEntry.ResourceTypeLabel(o.ResourceType)).Distinct());
+                return (Durum: enKotu.Status == SyncStatus.Failed ? Durum.Hatali : Durum.Eksik,
+                        Sebep: $"{turler} — {SyncLogEntry.ErrorCategory(enKotu.HataMesaji).Label}",
+                        Mesaj: enKotu.HataMesaji);
+            });
+
+        return kalemler.Select(k => zincir.TryGetValue(k.Islem.ProtokolId, out var z)
+                ? k with { Zincir = z.Durum, ZincirSebep = z.Sebep, ZincirMesaj = z.Mesaj }
+                : k)
             .ToList();
     }
 
@@ -228,6 +271,10 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
                 .GroupBy(k => (k.Sebep, k.Durum))
                 .Select(g => new SebepSatiri(g.Key.Sebep, g.Key.Durum,
                     g.Select(k => k.Islem.ProtokolId).Distinct().Count(), g.Count(k => !k.Muayene)))
+                // Zincirin geri kalaninda takilan protokoller -- islem sayisi yok (0).
+                .Concat(protokoller.Where(p => p.ZincirTakili)
+                    .GroupBy(p => (Sebep: p.ZincirSebep!, Durum: p.Kalemler[0].Zincir!.Value))
+                    .Select(g => new SebepSatiri(g.Key.Sebep, g.Key.Durum, g.Count(), 0)))
                 .OrderByDescending(s => s.Protokol)
                 .ToList(),
             // En cok GITMEYEN hizmet once (protokol sayisina gore): "neyi duzeltirsem en cok

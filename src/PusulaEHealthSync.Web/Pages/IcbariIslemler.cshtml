@@ -125,7 +125,7 @@
             <span><input type="checkbox" aria-label="Sayfadakilerin tümünü seç" onchange="document.querySelectorAll('.ic-sec').forEach(c => c.checked = this.checked)" /></span>
             <span>Hasta · protokol</span>
             <span>Gönderim zinciri</span>
-            <span>İcbari durum</span>
+            <span>Durum</span>
             <span class="akis-sag">İcbari işlem</span>
             <span></span>
         </div>
@@ -200,9 +200,14 @@
                                     title="Bu protokolün tüm zincirini gönder (müayinə, tanı, işlem, epikriz, laboratuvar, radyoloji, patoloji)">Gönder</button>
                         </form>
                     </span>
-                    @if (sebepler.Count > 0)
+                    @if (sebepler.Count > 0 || p.ZincirTakili)
                     {
                         <span class="akis-satir-sebep">
+                            @if (p.ZincirTakili)
+                            {
+                                <strong class="akis-renk--@IcbariIslemlerModel.AkisCss(p.Kalemler[0].Zincir!.Value)" title="@p.ZincirMesaj">@p.ZincirSebep</strong>
+                                if (sebepler.Count > 0) { <text> · </text> }
+                            }
                             @for (var i = 0; i < sebepler.Count; i++)
                             {
                                 var g = sebepler[i];
@@ -215,39 +220,90 @@
                     }
                 </summary>
 
+                @* PROTOKOLUN TUM KAYITLARI VE DENEMELERI -- Aktivite Akisi'nin acilan tablosu
+                   (kullanici 2026-10-26: "protokole ait tum islemlerin durumunu gostermeli, en
+                   son gonderilen degil"). Hic denenmemis icbari islemler SyncLog'da yok; onlar
+                   tablonun ustunde ayrica yaziyor. *@
+                @{
+                    var denenmemis = p.Kalemler.Where(k => k.KayitId is null && !k.Muayene).ToList();
+                }
+                @if (denenmemis.Count > 0)
+                {
+                    <div class="ic-denenmemis">
+                        <strong>Henüz denenmemiş icbari işlem (@denenmemis.Count):</strong>
+                        @string.Join(" · ", denenmemis.GroupBy(k => IcbariKapsamService.HizmetAdi(k.Islem)).Select(g => g.Count() > 1 ? $"{g.Key} ×{g.Count()}" : g.Key))
+                        <span class="text-muted"> — @denenmemis[0].Sebep</span>
+                    </div>
+                }
                 <div class="table-wrap akis-grup-tablo">
                     <table>
                         <thead>
                             <tr>
-                                <th>Hizmet</th>
-                                <th>İcbari karşılığı</th>
+                                <th style="width:104px;">Tarih / Saat</th>
+                                <th style="width:150px;">Tür</th>
+                                <th style="width:110px;">Pusula Id</th>
+                                <th style="width:104px;" title="Kaydın Pusula'daki tarihi: sonuç onayı, işlem zamanı, muayene başlangıcı…">Pusula Tarihi</th>
+                                <th style="width:26%;">Gönderim içeriği</th>
                                 <th style="width:130px;">Durum</th>
-                                <th>Sebep / TRƏS mesajı</th>
-                                <th style="width:130px;">Son deneme</th>
+                                <th style="width:80px;">İşlem</th>
+                                <th>Mesaj</th>
                                 <th style="width:72px;"></th>
                             </tr>
                         </thead>
                         <tbody>
-                            @foreach (var k in p.Kalemler.OrderBy(k => k.Durum == IcbariKapsamService.Durum.Gitti))
+                            @if (s.Akis.Kayitlar.Count == 0)
+                            {
+                                <tr><td colspan="9" class="text-muted">Bu protokol için canlı ortamda henüz gönderim denemesi yok.</td></tr>
+                            }
+                            @foreach (var e in s.Akis.Kayitlar)
                             {
                                 <tr>
-                                    <td>@IcbariKapsamService.HizmetAdi(k.Islem)</td>
-                                    <td class="text-muted">@(string.IsNullOrWhiteSpace(k.Islem.IcbariAdi) ? "—" : k.Islem.IcbariAdi)</td>
-                                    <td><span class="badge @IcbariIslemlerModel.DurumCss(k.Durum)"><span class="badge-dot"></span>@IcbariIslemlerModel.DurumAdi(k.Durum)</span></td>
-                                    <td class="cell-wide text-muted">
-                                        @if (k.Durum != IcbariKapsamService.Durum.Gitti)
-                                        {
-                                            <span>@k.Sebep</span>
-                                            @if (!string.IsNullOrWhiteSpace(k.Mesaj)) { <div title="@k.Mesaj">@PusulaEHealthSync.Persistence.SyncLogEntry.FriendlyError(k.Mesaj)</div> }
-                                        }
-                                        else { <text>-</text> }
+                                    <td class="mono text-muted">
+                                        @{ var zaman = AzTime.ToLocal(e.CreatedAtUtc); }
+                                        @zaman.ToString("HH:mm:ss")
+                                        <span class="akis-satir-tarih">@zaman.ToString("dd.MM.yyyy")</span>
                                     </td>
-                                    <td class="mono text-muted">@(k.SonDenemeUtc is { } kd ? AzTime.ToLocal(kd).ToString("dd.MM.yyyy HH:mm", tr) : "—")</td>
-                                    <td>
-                                        @if (k.KayitId is { } kid)
+                                    <td><span class="badge @PusulaEHealthSync.Persistence.SyncLogEntry.ResourceTypeCssClass(e.ResourceType)">@PusulaEHealthSync.Persistence.SyncLogEntry.ResourceTypeLabel(e.ResourceType)</span></td>
+                                    <td class="mono">@e.PusulaId.ToString(System.Globalization.CultureInfo.InvariantCulture)</td>
+                                    <td class="mono text-muted">
+                                        @if (PusulaEHealthSync.Web.Pages.AktiviteModel.PusulaTarihi(e) is { } pt)
                                         {
-                                            <a asp-page="/Detail" asp-route-id="@kid" asp-route-fromProtokol="@p.ProtokolId" class="btn btn-outline btn-sm">Detay</a>
+                                            @pt.ToString("HH:mm:ss")
+                                            <span class="akis-satir-tarih">@pt.ToString("dd.MM.yyyy")</span>
                                         }
+                                        else { <span class="text-faint">—</span> }
+                                    </td>
+                                    <td>
+                                        @if (e.ResourceType == "Encounter" && pr?.BolumAdi is { Length: > 0 } muayeneBolum)
+                                        {
+                                            <span>@muayeneBolum</span>
+                                        }
+                                        else if (e.ResourceType == "Patient")
+                                        {
+                                            <span>@(string.IsNullOrWhiteSpace(e.PatientFullName) ? "—" : e.PatientFullName)</span>
+                                            @if (!string.IsNullOrWhiteSpace(e.Fin)) { <span class="mono text-muted" style="margin-left:6px;">@e.Fin</span> }
+                                        }
+                                        else if (Model.Aciklamalar.TryGetValue((e.ResourceType, e.PusulaId), out var icerik))
+                                        {
+                                            @if (e.ResourceType == "Composition") { <span class="text-muted">Yazan:</span> }
+                                            <span>@icerik</span>
+                                        }
+                                        else { <span class="text-faint">—</span> }
+                                    </td>
+                                    <td>
+                                        @{ var (aBadgeClass, aBadgeLabel) = PusulaEHealthSync.Persistence.SyncLogEntry.StatusBadge(e); }
+                                        <span class="badge @aBadgeClass"><span class="badge-dot"></span>@aBadgeLabel</span>
+                                    </td>
+                                    <td class="text-muted">@(e.Operation?.ToString() ?? "-")</td>
+                                    <td class="cell-wide text-muted">
+                                        @if (e.Status == PusulaEHealthSync.Persistence.SyncStatus.Failed && e.Message is not null)
+                                        {
+                                            <span title="@e.Message">@PusulaEHealthSync.Persistence.SyncLogEntry.FriendlyError(e.Message)</span>
+                                        }
+                                        else { @(e.Message ?? "-") }
+                                    </td>
+                                    <td>
+                                        <a asp-page="/Detail" asp-route-id="@e.Id" asp-route-fromProtokol="@p.ProtokolId" class="btn btn-outline btn-sm">Detay</a>
                                     </td>
                                 </tr>
                             }

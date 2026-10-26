@@ -46,6 +46,9 @@ public class IcbariIslemlerModel(
     public IcbariOzeti Ozet { get; private set; } = IcbariOzeti.Bos;
     public List<Satir> Satirlar { get; private set; } = [];
 
+    // Acilan satirdaki "Gonderim icerigi" sutunu -- Aktivite ile ayni cozum.
+    public Dictionary<(string, int), string> Aciklamalar { get; } = new();
+
     // SATIR = Aktivite Akisi'ndaki satirin AYNISI (kullanici 2026-10-26: "icbari islemler
     // aktivite akisindaki gibi olmali, protokol detaylari vs ayni"). Akis: protokolun TUM
     // gonderim zinciri (Live) -- YatanHastalarModel.AkisKur ile ayni katlama. Icbari: o
@@ -96,7 +99,7 @@ public class IcbariIslemlerModel(
         var sonIdler = ids.Select(id => protokolBasina[id].Select(o => o.SonId).DefaultIfEmpty(0).Max()).ToList();
         var zamanlar = await syncLog.GetZamanlarAsync(sonIdler.Where(i => i > 0).ToList(), ct);
 
-        return sayfa.Select((p, i) =>
+        var satirlar = sayfa.Select((p, i) =>
         {
             var protokol = protokoller.GetValueOrDefault(p.ProtokolId)
                 ?? new ProtokolListItem { ProtokolId = p.ProtokolId, HastaAdi = p.Hasta };
@@ -105,6 +108,37 @@ public class IcbariIslemlerModel(
             return new Satir(p, YatanHastalarModel.AkisKur(protokol, kaynak),
                 zamanlar.TryGetValue(sonIdler[i], out var z) ? z : null);
         }).ToList();
+
+        // PROTOKOLUN TUM KAYITLARI VE TUM DENEMELERI (kullanici 2026-10-26: "protokole ait
+        // tum islemlerin durumunu gostermeli, en son gonderilen degil"). Aktivite Akisi'nin
+        // acilan tablosuyla ayni kaynak: kayit basina butun gecmis, tarih suzgeci yok.
+        var denemeler = (await syncLog.GetByRecordsAsync(
+                satirlar.SelectMany(s => s.Akis.Ozet.Kayitlar.Select(k => (k.ResourceType, k.PusulaId))).ToList(),
+                null, null, ct, "Live"))
+            .ToLookup(e => (e.ResourceType, e.PusulaId));
+        satirlar = satirlar.Select(s => s with
+        {
+            Akis = s.Akis with
+            {
+                Kayitlar = s.Akis.Ozet.Kayitlar.SelectMany(k => denemeler[(k.ResourceType, k.PusulaId)])
+                    .OrderByDescending(e => e.Id).ToList(),
+            },
+        }).ToList();
+
+        foreach (var tip in satirlar.SelectMany(s => s.Akis.Kayitlar).GroupBy(e => e.ResourceType))
+        {
+            if (!PusulaRepository.AciklamaDestekleniyorMu(tip.Key) || tip.Key == "Patient") continue;
+            try
+            {
+                foreach (var kv in await repository.KayitAciklamalariAsync(tip.Key, tip.Select(e => e.PusulaId).Distinct().ToList(), ct))
+                    Aciklamalar[(tip.Key, kv.Key)] = kv.Value;
+            }
+            catch (Exception ex)
+            {
+                logger.LogWarning(ex, "Icbari Islemler: {Tip} kayit adlari okunamadi.", tip.Key);
+            }
+        }
+        return satirlar;
     }
 
     // Faturalama ekibine: suzulmus protokollerin ISLEMLERI (satir = islem), sayfalama yok.
@@ -233,6 +267,7 @@ public class IcbariIslemlerModel(
                 ? p.Kalemler.Any(k => (string.IsNullOrEmpty(Sebep) || k.Sebep == Sebep)
                                    && (string.IsNullOrEmpty(Hizmet) || HizmetAdi(k.Islem) == Hizmet)
                                    && KalemDurumuUyar(k))
+                  || (!string.IsNullOrEmpty(Sebep) && string.IsNullOrEmpty(Hizmet) && p.ZincirSebep == Sebep)
                 : ProtokolDurumuUyar(p))
             .Where(p => string.IsNullOrEmpty(aranan)
                 || p.ProtokolId.ToString(System.Globalization.CultureInfo.InvariantCulture).Contains(aranan)

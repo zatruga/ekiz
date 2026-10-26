@@ -2595,3 +2595,5 @@ div.gb-sebep.danger:hover { background: var(--danger-soft); }
 @media (prefers-color-scheme: dark) {
   :root:not([data-theme="light"]) .akis-filtre-tarih input { color-scheme: dark; }
 }
+/* Icbari Islemler -- acilan satirda henuz denenmemis icbari islemler (SyncLog'da yoklar). */
+.ic-denenmemis { padding: 10px 18px; font-size: 12.5px; border-top: 1px solid var(--border); background: var(--bg-elevated); }
