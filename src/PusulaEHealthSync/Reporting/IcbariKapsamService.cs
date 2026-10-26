@@ -1,5 +1,6 @@
 using PusulaEHealthSync.Db;
 using PusulaEHealthSync.Persistence;
+using PusulaEHealthSync.Sync;
 
 namespace PusulaEHealthSync.Reporting;
 
@@ -17,7 +18,7 @@ namespace PusulaEHealthSync.Reporting;
 // Kume PusulaRepository.GetIcbariIslemlerAsync -- gonderimle BIREBIR ayni eslesme kurallari.
 //
 // SALT OKUNUR: Pusula'ya yalnizca SELECT.
-public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncLog)
+public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncLog, SettingsStore settings)
 {
     public enum Durum { Gitti, Eksik, Hatali, Denenmedi }
 
@@ -85,27 +86,90 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
         var durumlar = await syncLog.GetLatestByPusulaIdsAsync(
             "Procedure", islemler.Select(i => i.IslemId).ToList(), ct, govdeleriGetir: false, ortamZorla: ortam);
 
+        static Durum DurumBul(SyncLogEntry? son) => son switch
+        {
+            null => Durum.Denenmedi,
+            // Silinmis (Delete) son kayit "gitti" sayilmaz -- TRƏS'te artik yok.
+            { Status: SyncStatus.Success, Operation: SyncOperation.Delete } => Durum.Denenmedi,
+            { Status: SyncStatus.Success } => Durum.Gitti,
+            { Status: SyncStatus.Skipped } => Durum.Eksik,
+            _ => Durum.Hatali,
+        };
+
+        // DENENMEMIS ISLEMLERIN SEBEBI (2026-10-26, kullanici: "eksik kalanlari tikliyorum,
+        // 'henuz gonderilmedi' verisi geliyor"). "Henuz gonderilmedi" bir sebep degil --
+        // cogu, gonderim kurali geregi BEKLIYOR (hasta yatiyor, protokol acik). Sebep
+        // gonderimin KENDI kuralindan (PendingWorkService.IsEligible) cikariliyor; ekran ile
+        // gonderim ayri kural kullanirsa ekranda "kuyrukta" yazan protokol gitmez.
+        var denenmemisProtokoller = islemler
+            .Where(i => DurumBul(durumlar.GetValueOrDefault(i.IslemId)) == Durum.Denenmedi)
+            .Select(i => i.ProtokolId).Distinct().ToList();
+        var sebepler = await DenenmemeSebepleriAsync(denenmemisProtokoller, ortam, ct);
+
         return islemler.Select(i =>
         {
             var son = durumlar.GetValueOrDefault(i.IslemId);
-            // Silinmis (Delete) son kayit "gitti" sayilmaz -- TRƏS'te artik yok.
-            var durum = son switch
+            var durum = DurumBul(son);
+            var (sebep, mesaj) = durum switch
             {
-                null => Durum.Denenmedi,
-                { Status: SyncStatus.Success, Operation: SyncOperation.Delete } => Durum.Denenmedi,
-                { Status: SyncStatus.Success } => Durum.Gitti,
-                { Status: SyncStatus.Skipped } => Durum.Eksik,
-                _ => Durum.Hatali,
+                Durum.Gitti => ("Gönderildi", (string?)null),
+                Durum.Denenmedi => sebepler.GetValueOrDefault(i.ProtokolId, (HenuzGonderilmedi, null)),
+                _ => (SyncLogEntry.ErrorCategory(son!.Message).Label, son!.Message),
             };
-            var sebep = durum switch
-            {
-                Durum.Gitti => "Gönderildi",
-                Durum.Denenmedi => HenuzGonderilmedi,
-                _ => SyncLogEntry.ErrorCategory(son!.Message).Label,
-            };
-            return new Kalem(i, durum, sebep, durum is Durum.Eksik or Durum.Hatali ? son!.Message : null,
-                son?.CreatedAtUtc);
+            return new Kalem(i, durum, sebep, mesaj, son?.CreatedAtUtc);
         }).ToList();
+    }
+
+    // Protokol -> (sabit kategori, ayrintili metin). Kategori sabit ki gruplanabilsin
+    // ("12 gundur acik" ile "13 gundur acik" ayri satir olmasin); ayrinti ipucunda.
+    private async Task<Dictionary<int, (string Sebep, string? Ayrinti)>> DenenmemeSebepleriAsync(
+        List<int> protokolIdleri, string ortam, CancellationToken ct)
+    {
+        var sonuc = new Dictionary<int, (string, string?)>();
+        if (protokolIdleri.Count == 0) return sonuc;
+
+        var protokoller = await repository.GetProtokollerByIdsAsync(protokolIdleri, ct);
+        var openAfterDays = await settings.GetIntAsync(
+            SettingsStore.OpenProtokolSendAfterDaysKey, SettingsStore.OpenProtokolSendAfterDaysDefault, ct);
+        var minYas = await settings.GetIntAsync(
+            SettingsStore.MinProtokolYasiGunKey, SettingsStore.MinProtokolYasiGunDefault, ct);
+        var yatanTavan = await settings.GetIntAsync(
+            SettingsStore.YatanMaxOpenDaysKey, SettingsStore.YatanMaxOpenDaysDefault, ct);
+        var yatanOtomatik = await settings.GetBoolAsync(
+            SettingsStore.AutoSendYatanEnabledKey, SettingsStore.AutoSendYatanEnabledDefault, ct);
+        var tabanHam = await settings.GetStringAsync(SettingsStore.SendFloorDateKey, "", ct);
+        DateOnly? taban = DateOnly.TryParseExact(tabanHam, "yyyy-MM-dd",
+            System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var t)
+            ? t : null;
+
+        // MUAYENE GITMEDIYSE ISLEMLER HIC DENENMEZ: Procedure zincirin icinde, muayeneden
+        // sonra gidiyor. Uygun gorunen ama denenmemis bir protokolde sebep cogu zaman bu
+        // (ornegin hastanin FIN'i bos) -- "kuyrukta" demek yanlis olurdu.
+        var muayeneler = await syncLog.GetLatestByPusulaIdsAsync(
+            "Encounter", protokolIdleri, ct, govdeleriGetir: false, ortamZorla: ortam);
+
+        foreach (var (pid, p) in protokoller)
+        {
+            if (taban is { } tb && p.AcilisTarihi is { } acilis && DateOnly.FromDateTime(acilis) < tb)
+            {
+                sonuc[pid] = ("Kapsam dışı — devreye alımdan önce açılmış", null);
+                continue;
+            }
+            var (uygun, neden) = PendingWorkService.IsEligible(p, openAfterDays, minYas, yatanTavan);
+            if (uygun && muayeneler.GetValueOrDefault(pid) is { Status: not SyncStatus.Success } muayene)
+                sonuc[pid] = ($"Muayene gönderilemedi — {SyncLogEntry.ErrorCategory(muayene.Message).Label}", muayene.Message);
+            else if (uygun)
+                sonuc[pid] = !yatanOtomatik && p.GelisTipiId == "Y"
+                    ? ("Yatan — otomatik dışı, elle gönderilecek", PendingWorkService.YatanOtomatikDisiSebep)
+                    : ("Kuyrukta — sıradaki turda gönderilecek", null);
+            else if (p.GelisTipiId == "Y" && p.TaburcuTarihi is null && p.KapanisTarihi is null)
+                sonuc[pid] = ("Sırası gelmedi — hasta yatıyor", neden);
+            else if (p.KapanisTarihi is null && p.GelisTipiId != "Y")
+                sonuc[pid] = ($"Sırası gelmedi — protokol açık ({openAfterDays} gün beklenir)", neden);
+            else
+                sonuc[pid] = ("Sırası gelmedi — bugün kapandı", neden);
+        }
+        return sonuc;
     }
 
     public static IcbariOzeti Ozetle(List<Kalem> kalemler, int hizmetTavan = 10)

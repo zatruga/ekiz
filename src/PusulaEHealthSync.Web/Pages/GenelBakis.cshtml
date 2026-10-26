@@ -475,7 +475,7 @@ else if (!Model.AktifOrtamCanli)
             </a>
             <a asp-page="/IcbariIslemler" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="gitmedi" class="gb-icbari-hucre" target="_blank" rel="noopener">
                 <span class="gb-icbari-sayi num" style="color:var(--akis-hata);">@ic.Gitmedi.Protokol.ToString("N0")</span>
-                <span class="gb-icbari-ad">eksik kalan protokol · @pYuzde(ic.Gitmedi.Protokol)</span>
+                <span class="gb-icbari-ad">tamamı gitmeyen protokol · @pYuzde(ic.Gitmedi.Protokol)</span>
                 <span class="gb-icbari-alt">@ic.Gitmedi.Islem.ToString("N0") işlem TRƏS'te yok</span>
             </a>
         </div>
@@ -489,7 +489,7 @@ else if (!Model.AktifOrtamCanli)
         <div class="gb-icbari-kirilim">
             @foreach (var (anahtar, ad, sayi, renk, aciklama) in new[]
             {
-                ("denenmedi", "Henüz denenmedi", ic.Denenmedi, "var(--text-faint)", "sırası gelmedi ya da kuyrukta"),
+                ("denenmedi", "Henüz denenmedi", ic.Denenmedi, "var(--text-faint)", "çoğu kural gereği bekliyor — sebebi aşağıda"),
                 ("eksik", "Eksik verili", ic.Eksik, "var(--akis-eksik)", "Pusula'da veri/tanım eksik"),
                 ("hatali", "Hatalı", ic.Hatali, "var(--akis-hata)", "TRƏS reddetti"),
             })

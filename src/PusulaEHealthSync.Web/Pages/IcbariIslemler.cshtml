@@ -64,7 +64,7 @@
         {
             ((string?)null, "Tümü", o.Toplam, "neutral"),
             ("gitti", "Tamamı gönderildi", o.Gitti, "success"),
-            ("gitmedi", "Eksik kalan", o.Gitmedi, "danger"),
+            ("gitmedi", "Tamamı gitmeyen", o.Gitmedi, "danger"),
             ("denenmedi", "Henüz denenmedi", o.Denenmedi, "neutral"),
             ("eksik", "Eksik verili", o.Eksik, "warning"),
             ("hatali", "Hatalı", o.Hatali, "danger"),
@@ -149,7 +149,7 @@
                                         <li>
                                             <span class="badge @IcbariIslemlerModel.DurumCss(k.Durum)">@IcbariIslemlerModel.DurumAdi(k.Durum)</span>
                                             @IcbariKapsamService.HizmetAdi(k.Islem)
-                                            @if (k.Durum != IcbariKapsamService.Durum.Gitti && k.Durum != IcbariKapsamService.Durum.Denenmedi)
+                                            @if (k.Durum != IcbariKapsamService.Durum.Gitti)
                                             {
                                                 <span class="text-muted" title="@k.Mesaj"> · @k.Sebep</span>
                                             }
