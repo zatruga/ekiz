@@ -1,0 +1,97 @@
+@model PusulaEHealthSync.Web.Pages.BekleyenIslerModel.NedenSonucu
+@using PusulaEHealthSync.Persistence
+@using PusulaEHealthSync.Sync
+@using PusulaEHealthSync.Web
+@{
+    string Kalemler(IEnumerable<PendingItem> xs) => string.Join(", ", xs
+        .GroupBy(i => i.Baslik).OrderByDescending(g => g.Count())
+        .Select(g => g.Count() > 1 ? $"{g.Key} ({g.Count()})" : g.Key));
+}
+@* "BU PROTOKOL NEDEN GITMEDI?" -- son taramadan adim adim cevap. Adimlar gonderim
+   zincirinin sirasiyla: kural -> muayene -> bekleyen kalemler -> takili kalemler. *@
+@if (Model.Bulunan.Count == 0)
+{
+    <div class="bk-cevap bk-cevap-bos">
+        <p><strong>@Model.Sorgu</strong> için seçili aralıkta bekleyen ya da takılı kalem yok.</p>
+        <p class="text-muted">Ya tamamı gönderildi, ya da tarama kapsamı dışında: reçete/iptal protokolü, devreye alım tarihinden önce açılmış, ya da sonuçlanma tarihi aralık dışında.</p>
+        @if (Model.ProtokolNo is { } no)
+        {
+            <a asp-page="/Protokol" asp-route-id="@no" target="_blank" rel="noopener">Protokol detayında aç ↗</a>
+        }
+    </div>
+}
+else
+{
+    @if (Model.Toplam > Model.Bulunan.Count)
+    {
+        <p class="text-muted">@Model.Toplam protokol eşleşti, ilk @Model.Bulunan.Count gösteriliyor — aramayı daraltın.</p>
+    }
+    @foreach (var (bekleyen, takili) in Model.Bulunan)
+    {
+        var p = (bekleyen ?? takili)!;
+        var pr = p.Protokol;
+        var muayeneBekliyor = bekleyen?.Items.FirstOrDefault(i => i.ResourceType == "Encounter");
+        var muayeneTakili = takili?.Items.FirstOrDefault(i => i.ResourceType == "Encounter");
+        var bekleyenKalemler = bekleyen?.Items.Where(i => i.ResourceType != "Encounter").ToList() ?? [];
+        var takiliGruplar = takili is null ? [] : takili.Items
+            .Where(i => i.ResourceType != "Encounter")
+            .GroupBy(i => BekleyenDokum.TakiliSebebi(takili, i))
+            .OrderByDescending(g => g.Count())
+            .ToList();
+        var kural = BekleyenDokum.KuralSebebi(p);
+        var vurgu = takiliGruplar.Count > 0 || muayeneTakili is not null ? "bk-cevap-kirmizi"
+                  : p.Eligible ? "bk-cevap-yesil" : "bk-cevap-sari";
+
+        <div class="bk-cevap @vurgu">
+            <div class="bk-cevap-bas">
+                <a class="mono" asp-page="/Protokol" asp-route-id="@pr.ProtokolId" target="_blank" rel="noopener"><strong>@pr.ProtokolId</strong></a>
+                <span>@pr.HastaAdiSoyadi · @(pr.GelisTipiId switch { "Y" => "Yatan", "G" => "Günübirlik", _ => "Ayaktan" }) · @pr.BolumAdi · @pr.DoktorAdiSoyadi</span>
+                <span class="text-muted">açılış @(pr.AcilisTarihi?.ToString("dd.MM.yyyy HH:mm") ?? "-")@(pr.KapanisTarihi is { } k ? " · kapanış " + k.ToString("dd.MM.yyyy HH:mm") : " · kapanmadı")</span>
+            </div>
+            <ol class="bk-adimlar">
+                <li>
+                    @if (p.Eligible)
+                    {
+                        <b class="text-success">Kural tamam</b> <text>— gönderime uygun.</text>
+                    }
+                    else
+                    {
+                        <b class="bk-sari">@kural.Etiket</b> <text>— </text>@p.NotEligibleReason
+                    }
+                </li>
+                <li>
+                    @if (muayeneTakili is not null)
+                    {
+                        var s = BekleyenDokum.TakiliSebebi(takili!, muayeneTakili);
+                        <b class="text-danger">Muayene gidemiyor</b> <text>— @s.Etiket (@s.Kim). Muayene gitmeden protokolün hiçbir kalemi gidemez.</text>
+                        <div class="text-muted bk-ham">@SyncLogEntry.FriendlyError(muayeneTakili.SonDeneme?.Message)</div>
+                    }
+                    else if (muayeneBekliyor is not null)
+                    {
+                        <b class="bk-sari">Muayene henüz gönderilmedi</b> <text>— @(p.Eligible ? "sırada, kalemlerle birlikte gidecek." : "kural sağlanınca gidecek.")</text>
+                    }
+                    else
+                    {
+                        <b class="text-success">Muayene gönderildi</b>
+                    }
+                </li>
+                @if (bekleyenKalemler.Count > 0)
+                {
+                    <li><b class="bk-sari">@bekleyenKalemler.Count kalem sırada</b> — @Kalemler(bekleyenKalemler)</li>
+                }
+                @foreach (var g in takiliGruplar)
+                {
+                    <li>
+                        <b class="@(g.Key.Asama == Asama.PusulaIsi ? "bk-sari" : "text-danger")">@g.Count() kalem takılı: @g.Key.Etiket</b>
+                        <text> — @Kalemler(g). Kim: @g.Key.Kim, @g.Key.NeZaman gider.</text>
+                    </li>
+                }
+                @if (bekleyenKalemler.Count == 0 && takiliGruplar.Count == 0 && muayeneTakili is null && muayeneBekliyor is null)
+                {
+                    <li class="text-muted">Bekleyen başka kalem yok.</li>
+                }
+            </ol>
+            <a asp-page="/Protokol" asp-route-id="@pr.ProtokolId" target="_blank" rel="noopener">Protokol detayında aç ↗</a>
+        </div>
+    }
+}

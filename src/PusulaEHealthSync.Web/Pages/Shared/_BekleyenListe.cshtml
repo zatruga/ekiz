@@ -1,0 +1,81 @@
+@model PusulaEHealthSync.Web.SebepGrubu
+@using PusulaEHealthSync.Persistence
+@using PusulaEHealthSync.Sync
+@using PusulaEHealthSync.Web
+@{
+    var tr = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+    const int Tavan = 2000;
+    var asamaAdi = Model.Asama switch
+    {
+        Asama.Hazir => "Hazır",
+        Asama.Kural => "Kural gereği bekliyor",
+        Asama.PusulaIsi => "Pusula'da iş bekliyor",
+        _ => "Veri düzeltilmeli",
+    };
+    var satirlar = Model.Uyeler.OrderBy(u => u.Protokol.Protokol.AcilisTarihi).Take(Tavan).ToList();
+
+    // Satirin "detay" metni: kural grubunda protokolun sebebi, takili grupta kalemin
+    // kendi mesaji (ayni sebebin altinda farkli panel/hizmet adlari olabiliyor).
+    static string Detay(PendingProtocol p, List<PendingItem> kalemler)
+    {
+        if (p.NotEligibleReason is { } r && kalemler == p.Items) return r;
+        return kalemler
+            .Select(i => i.GonderilemezSebep ?? SyncLogEntry.FriendlyError(i.SonDeneme?.Message))
+            .Where(x => !string.IsNullOrWhiteSpace(x))
+            .GroupBy(x => x).OrderByDescending(g => g.Count()).Select(g => g.Key)
+            .FirstOrDefault() ?? "";
+    }
+}
+@* BEKLEYEN ISLER -- "LISTELE" PENCERESI (fetch ile <dialog>'a). Genel Bakis'taki sebep
+   penceresiyle ayni iskelet (gb-liste-*). *@
+<div class="gb-liste-bas">
+    <div>
+        <p class="gb-liste-ust">@asamaAdi</p>
+        <h2 id="gb-liste-baslik" class="gb-liste-baslik">@Model.Etiket</h2>
+        <p class="gb-liste-acik">
+            @if (Model.Asama is Asama.PusulaIsi or Asama.Veri) { <text>Kim: <strong>@Model.Kim</strong> · </text> }
+            Ne zaman gider: @Model.NeZaman
+        </p>
+        <p class="gb-liste-acik num">
+            @Model.Protokol.ToString("N0", tr) protokol · @Model.Kalem.ToString("N0", tr) kalem
+            @if (Model.Protokol > Tavan) { <text>· en eski @Tavan.ToString("N0", tr) protokol gösteriliyor</text> }
+        </p>
+    </div>
+    <button type="button" class="btn btn-outline btn-sm" onclick="this.closest('dialog').close()" aria-label="Kapat">Kapat</button>
+</div>
+
+<div class="gb-liste-arac">
+    <input type="search" class="gb-tablo-ara" placeholder="Listede ara (protokol, hasta, bölüm, doktor)" aria-label="Listede ara" oninput="bkListeAra(this)" />
+</div>
+
+<div class="gb-liste-govde">
+    <div class="table-wrap">
+    <table>
+        <thead>
+            <tr><th>Protokol</th><th>Hasta</th><th>Tip</th><th>Bölüm · doktor</th><th>Kalemler</th><th>Detay</th></tr>
+        </thead>
+        <tbody>
+        @foreach (var (p, kalemler) in satirlar)
+        {
+            var pr = p.Protokol;
+            <tr>
+                <td class="mono">
+                    <a asp-page="/Protokol" asp-route-id="@pr.ProtokolId" target="_blank" rel="noopener">@pr.ProtokolId</a>
+                    <div class="text-muted">@(pr.AcilisTarihi?.ToString("dd.MM.yyyy") ?? "-")@(pr.KapanisTarihi is { } k ? " → " + k.ToString("dd.MM") : "")</div>
+                </td>
+                <td>@pr.HastaAdiSoyadi<div class="text-muted mono">@pr.Fin</div></td>
+                <td>@(pr.GelisTipiId switch { "Y" => "Yatan", "G" => "Günübirlik", _ => "Ayaktan" })</td>
+                <td>@pr.BolumAdi<div class="text-muted">@pr.DoktorAdiSoyadi</div></td>
+                <td>
+                    @foreach (var g in kalemler.GroupBy(i => i.Baslik).OrderByDescending(g => g.Count()))
+                    {
+                        <span class="badge neutral">@g.Key @(g.Count() > 1 ? $"({g.Count()})" : "")</span>
+                    }
+                </td>
+                <td class="text-muted bk-detay">@Detay(p, kalemler)</td>
+            </tr>
+        }
+        </tbody>
+    </table>
+    </div>
+</div>

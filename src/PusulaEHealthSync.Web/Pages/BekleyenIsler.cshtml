@@ -1,26 +1,26 @@
 @page
 @model PusulaEHealthSync.Web.Pages.BekleyenIslerModel
 @using PusulaEHealthSync.Persistence
+@using PusulaEHealthSync.Web
 @{
     ViewData["Title"] = "Bekleyen İşler";
-    ViewData["Genis"] = true;   // 10+ sutunlu veri tablosu -- genislik sinirindan muaf
+    var tr = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+    string N(int x) => x.ToString("N0", tr);
 }
+
+@* ===== YENI DUZEN (2026-10-27) =====
+   KULLANICI: "cok fazla sayi var, insan hicbir sey anlamiyor, daha ozet bir ekran olsun".
+   Tasarim tuvalinde A (akis: protokol nerede bekliyor) ile C (bu protokol neden gitmedi?)
+   secildi. Eski kalem/protokol kartlari ve uzun listeler en altta, katlanmis. *@
 
 <p class="breadcrumb"><a asp-page="/Index">Protokol Listesi</a> / Bekleyen İşler</p>
 <div class="page-header">
     <div>
         <h1 class="page-title">Bekleyen İşler</h1>
-        <p class="page-subtitle">Pusula'da sonuçlanmış ama TRƏS'e henüz gönderilmemiş kayıtlar -- bu sayfa hiçbir şey göndermez</p>
+        <p class="page-subtitle">Pusula'da hazır olup TRƏS'e henüz gitmemiş olanlar: ne zaman gidecek, neden gitmiyor, kim ne yapmalı. Bu sayfa hiçbir şey göndermez.</p>
     </div>
-    <form method="post" asp-page-handler="Yenile" class="filter-bar" style="margin:0; gap:10px; align-items:flex-end;">
-        <div class="field" style="margin:0;">
-            <label for="baslangic">Başlangıç</label>
-            <input type="date" id="baslangic" name="Baslangic" value="@Model.EtkinBaslangic.ToString("yyyy-MM-dd")" />
-        </div>
-        <div class="field" style="margin:0;">
-            <label for="bitis">Bitiş</label>
-            <input type="date" id="bitis" name="Bitis" value="@Model.EtkinBitis.ToString("yyyy-MM-dd")" />
-        </div>
+    <form method="post" asp-page-handler="Yenile" class="bk-arac">
+        <partial name="_TarihSecici" model="Model.TarihSecici" />
         <button type="submit" class="btn btn-primary">Yeniden Hesapla</button>
     </form>
 </div>
@@ -30,7 +30,7 @@
     <div class="alert alert-warning" style="margin-bottom:14px;">@Model.UyariMesaji</div>
 }
 
-@if (Model.Sonuc is null)
+@if (Model.Sonuc is null || Model.Dokum is null)
 {
     <div class="empty-state">
         <p>Henüz hesaplanmadı.</p>
@@ -39,300 +39,300 @@
             <strong>@Model.EtkinBaslangic.ToString("dd.MM.yyyy") - @Model.EtkinBitis.ToString("dd.MM.yyyy")</strong>
         </p>
         <p class="text-muted">
-            Tam tarama canlı veride yaklaşık 15 saniye sürüyor, bu yüzden sayfa her açılışta hesaplamıyor.
-            Yukarıdaki <strong>Yeniden Hesapla</strong> ile başlatabilirsiniz; otomatik gönderim açıksa
-            her turda kendiliğinden tazelenir.
+            Tam tarama canlı veride birkaç saniye ile birkaç dakika arası sürüyor, bu yüzden sayfa her açılışta hesaplamıyor.
+            Yukarıdaki <strong>Yeniden Hesapla</strong> ile başlatabilirsiniz.
         </p>
     </div>
 }
 else
 {
-    <div class="filter-bar">
-        <span>
-            Son hesaplama:
-            <strong>@(Model.SonHesaplamaUtc is null ? "-" : AzTime.ToLocal(Model.SonHesaplamaUtc.Value).ToString("yyyy-MM-dd HH:mm"))</strong>
-            &middot; <strong>@Model.EtkinBaslangic.ToString("dd.MM.yyyy") - @Model.EtkinBitis.ToString("dd.MM.yyyy")</strong> aralığı taranıyor
-        </span>
-        <span>
-            Otomatik gönderim:
-            @if (Model.OtomatikGonderimAcik)
-            {
-                <strong>açık</strong>
-            }
-            else
-            {
-                <strong class="text-muted">kapalı</strong>
-                <text>-- Ayarlar sayfasından açabilirsiniz</text>
-            }
-        </span>
-        <span>
-            @* Otomatik gönderim CANLI ortama yazarken bunun ekranda tahmine bırakılmaması
-               gerekiyor -- rozet hem kelimeyle hem renkle söylüyor. *@
-            Ortam:
-            @if (Model.Ortam == "Live")
-            {
-                <span class="badge danger"><span class="badge-dot"></span>CANLI</span>
-            }
-            else
-            {
-                <span class="badge neutral"><span class="badge-dot"></span>Test / Sandbox</span>
-            }
-        </span>
-    </div>
-
-    @* ===== KAPSAM: PAY VE PAYDA (KULLANICI ISTEGI 2026-10-08) =====
-       "bekleyen islerde hasta sayisini da yazalim, kac hasta kaci gitmis vs."
-
-       Sayfa bugune kadar yalnizca BEKLEYENI gosteriyordu ve "412 bekleyen protokol"
-       rakami tek basina iyi mi kotu mu belli degildi: 412/430 ise is daha baslamamis,
-       412/9.000 ise neredeyse bitmis demek. Payda olmadan pay anlamsiz.
-
-       BIRIM PROTOKOL, "HASTA" DEGIL: gonderim birimi protokol ve ayni hastanin aralikta
-       birden fazla protokolu olabiliyor. Etiketler bunu acikca yaziyor ki iki ayri sayi
-       birbirine karismasin. *@
+    var d = Model.Dokum;
     var kapsam = Model.Sonuc.Kapsam;
-    @* ILERLEME KALEM DUZEYINDE OKUNUR, PROTOKOL DUZEYINDE DEGIL.
-       Ilk halde buyuk rakam "tamamlanan protokol"du ve kullanici hakli olarak sasirdi:
-       ekranda 9 yaziyordu, "bir haftadir ne gonderiyoruz" diye sordu. Olcu keskindi --
-       protokolun TEK BIR kalemi bile eksikse tamamlanmamis sayiliyordu, oysa acik bir
-       protokole gun boyu yeni laboratuvar sonucu dusuyor. Yani sayi isin yapilmadigini
-       degil, BITMEDIGINI olcuyordu. Buyuk rakam artik gercekten gonderilen kalem. *@
-    <div class="stat-grid">
-        <div class="stat-card success">
-            <div class="stat-label">Gönderilen kalem</div>
-            <div class="stat-value success">@kapsam.GonderilmisKalem</div>
-            <div class="stat-foot">taranan @kapsam.TarananKalem kalemin %@kapsam.GonderilmisKalemYuzde'i</div>
-        </div>
-        <div class="stat-card warning">
-            <div class="stat-label">Bekleyen kalem</div>
-            <div class="stat-value warning">@kapsam.BekleyenKalem</div>
-            <div class="stat-foot">@Model.Sonuc.ToplamProtokolSayisi protokole dağılıyor</div>
-        </div>
-        <div class="stat-card danger">
-            <div class="stat-label">Takılan kalem</div>
-            <div class="stat-value danger">@kapsam.TakilanKalem</div>
-            <div class="stat-foot">@Model.Sonuc.ToplamTakilanProtokolSayisi protokolde, mevcut veriyle gönderilemiyor</div>
-        </div>
-        <div class="stat-card">
-            <div class="stat-label">Taranan protokol</div>
-            <div class="stat-value">@kapsam.TarananProtokol</div>
-            <div class="stat-foot">aralıkta gönderilecek kalemi olanlar &mdash; aynı hastanın birden fazla protokolü olabilir</div>
-        </div>
-    </div>
+    var hazir = d.Grup("hazir");
+    var hazirSayi = hazir?.Protokol ?? 0;
+    var turSayisi = Model.PartiBoyutu <= 0 ? 0 : (hazirSayi + Model.PartiBoyutu - 1) / Model.PartiBoyutu;
+    var bugun = DateTime.Today;
+    string EnEski(SebepGrubu g) => g.EnEski is { } t ? $"{Math.Max(0, (bugun - t.Date).Days)} gün" : "—";
 
-    @* Protokol duzeyindeki dagilim: "9 tamamlandi" rakamini tek basina gormek yaniltiyordu,
-       yaninda "kac tanesi kismen gitti" ve "kac tanesine hic dokunulmadi" olunca anlam
-       kazaniyor. Asil kotu haber HIC GONDERILMEMIS olanlardir, tamamlanmamis olanlar degil. *@
-    <p class="section-title" style="margin-top:22px">Protokollerin durumu</p>
-    <div class="stat-grid">
-        <div class="stat-card success">
-            <div class="stat-label">Tamamlanmış</div>
-            <div class="stat-value success">@kapsam.TamamlananProtokol</div>
-            <div class="stat-foot">tek bir kalemi bile eksik değil (%@kapsam.TamamlananYuzde)</div>
-        </div>
-        <div class="stat-card warning">
-            <div class="stat-label">Kısmen gönderilmiş</div>
-            <div class="stat-value warning">@kapsam.KismenGonderilmisProtokol</div>
-            <div class="stat-foot">bir kısmı gitti, kalanı sırada &mdash; açık protokole yeni sonuç düştükçe burası dolar</div>
-        </div>
-        <div class="stat-card danger">
-            <div class="stat-label">Hiç gönderilmemiş</div>
-            <div class="stat-value danger">@kapsam.HicGonderilmemisProtokol</div>
-            <div class="stat-foot">hiçbir kalemi TRƏS'e gitmemiş</div>
-        </div>
-    </div>
-
-    @* IKI EKRAN AYNI SEYI OLCMUYOR -- kullanici 2026-10-08'de bu iki sayiyi yan yana
-       koyup hakli olarak "tutmuyor" dedi. Fark tasarimsal, hata degil; ama ekranda
-       yazmadikca her bakista yeniden sorulacak bir soru. *@
-    <p class="text-muted" style="margin:14px 0 0; font-size:13px;">
-        <strong>Aktivite Akışı'ndaki sayılarla karşılaştırmayın:</strong> orası
-        <em>o tarihte yapılan denemelerin</em> sonucunu gösterir (&ldquo;bugün bir şey ters gitti mi?&rdquo;),
-        burası ise <em>Pusula'da hazır olup hâlâ gitmemiş olanı</em> (&ldquo;geriye ne kaldı?&rdquo;).
-        Bir hasta Aktivite'de &ldquo;sorunsuz&rdquo; görünürken burada bekleyen kalemi olabilir &mdash;
-        o gün gönderilenler başarılı olmuş, ama hepsi gönderilmemiştir.
+    <p class="bk-durum">
+        Son hesaplama <strong>@(Model.SonHesaplamaUtc is null ? "-" : AzTime.ToLocal(Model.SonHesaplamaUtc.Value).ToString("dd.MM.yyyy HH:mm"))</strong>
+        · <strong>@Model.EtkinBaslangic.ToString("dd.MM.yyyy") – @Model.EtkinBitis.ToString("dd.MM.yyyy")</strong>
+        · otomatik gönderim @if (Model.OtomatikGonderimAcik) { <strong class="text-success">açık</strong> } else { <strong class="text-danger">kapalı</strong> }
+        · @if (Model.Ortam == "Live") { <span class="badge danger"><span class="badge-dot"></span>CANLI</span> } else { <span class="badge neutral"><span class="badge-dot"></span>Test / Sandbox</span> }
     </p>
 
-    <p class="section-title" style="margin-top:22px">Bekleyen kalemler, türüne göre</p>
-    <div class="stat-grid">
-        @foreach (var kv in Model.Sonuc.OzetSayimlar.OrderByDescending(k => k.Value))
+    @if (d.Kirpik)
+    {
+        <div class="alert alert-warning">Bu sonuç kırpılmış bir taramadan geliyor; sayılar eksik olabilir. <strong>Yeniden Hesapla</strong> ile tam tarama yapın.</div>
+    }
+
+    @* ===== OZET: TEK CUMLE + TEK CUBUK ===== *@
+    <section class="card bk-ozet">
+        <p class="bk-cumle">
+            <strong class="num">@N(d.Taranan)</strong> protokolün <strong class="num text-success">@N(d.Tamam)</strong>'i tamamen gitti.
+            <strong class="num bk-mavi">@N(d.Bekliyor)</strong> protokol sırasını bekliyor — kendiliğinden gidecek.
+            <strong class="num text-danger">@N(d.YalnizTakili)</strong> protokolde birinin bir şey yapması gerekiyor.
+        </p>
+        @{
+            var parcalar = new[] { (d.Tamam, "bk-r-tamam", "Tamam"), (d.Bekliyor, "bk-r-sira", "Sırasını bekliyor"),
+                                   (d.YalnizTakili, "bk-r-takili", "Müdahale gerekiyor"), (d.KapsamDisi, "bk-r-dis", "Kapsam dışı") };
+        }
+        <div class="bk-cubuk" role="img" aria-label="Protokollerin dağılımı">
+            @foreach (var (sayi, sinif, _) in parcalar.Where(x => x.Item1 > 0))
+            {
+                <span class="@sinif" style="flex:@sayi"></span>
+            }
+        </div>
+        <ul class="bk-lejant">
+            @foreach (var (sayi, sinif, ad) in parcalar)
+            {
+                <li><span class="bk-nokta @sinif" aria-hidden="true"></span>@ad <strong class="num">@N(sayi)</strong></li>
+            }
+        </ul>
+        @if (d.KapsamDisi > 0)
         {
-            <div class="stat-card">
-                <div class="stat-label">@kv.Key</div>
-                <div class="stat-value">@kv.Value</div>
-            </div>
+            <p class="bk-dipnot">Kapsam dışı: reçete ve iptal protokolleri, devreye alım tarihinden önce açılanlar — gönderilmezler.</p>
+        }
+    </section>
+
+    @* ===== DORT ASAMA ===== *@
+    var asamalar = new[]
+    {
+        (Asama.Hazir, "1 · Hazır", "bk-a-hazir", $"sıradaki turlarda gider" + (turSayisi > 1 ? $" (~{turSayisi} tur)" : "")),
+        (Asama.Kural, "2 · Kural gereği bekliyor", "bk-a-kural", "süresi dolunca kendiliğinden gider"),
+        (Asama.PusulaIsi, "3 · Pusula'da iş bekliyor", "bk-a-pusula", "onay, rapor, epikriz yazılınca gider"),
+        (Asama.Veri, "4 · Veri düzeltilmeli", "bk-a-veri", "düzeltilmezse hiç gitmez"),
+    };
+    <div class="bk-asamalar">
+        @foreach (var (a, ad, sinif, alt) in asamalar)
+        {
+            <a class="bk-asama @sinif" href="#asama-@((int)a)">
+                <span class="bk-asama-ad">@ad</span>
+                <span class="bk-asama-sayi num">@N(d.AsamaProtokol(a))</span>
+                <span class="bk-asama-alt">protokol · @alt</span>
+            </a>
         }
     </div>
+    <p class="bk-dipnot">Bir protokol birden fazla aşamada görünebilir: örneğin muayenesi gitmiş ama epikrizi yazılmamış ve bir tetkikinin eşleşmesi eksik olabilir.</p>
 
-    @if (Model.Sonuc.Protokoller.Count == 0)
+    @* ===== BU PROTOKOL NEDEN GITMEDI? (tasarim C) ===== *@
+    <section class="card bk-sorgu">
+        <form method="get" class="bk-sorgu-form" onsubmit="bkNeden(event)">
+            <label for="bk-q" class="bk-sorgu-baslik">Bu protokol neden gitmedi?</label>
+            <div class="bk-sorgu-satir">
+                <input id="bk-q" name="q" type="search" autocomplete="off" placeholder="Protokol no, hasta adı ya da FIN" />
+                <button type="submit" class="btn btn-primary">Sorgula</button>
+            </div>
+        </form>
+        <div id="bk-neden" aria-live="polite"></div>
+    </section>
+
+    @* ===== ASAMA TABLOLARI ===== *@
+    @foreach (var (a, ad, sinif, _) in asamalar.Where(x => x.Item1 != Asama.Hazir))
     {
-        <div class="empty-state"><p>Bekleyen iş yok -- her şey gönderilmiş görünüyor.</p></div>
-    }
-    else
-    {
-        <p class="text-muted" style="margin:16px 0 8px">
-            En eski bekleyen kayıt önce olmak üzere @Model.Sonuc.Protokoller.Count protokol listeleniyor
-            (toplam @Model.Sonuc.ToplamProtokolSayisi).
-        </p>
-        <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th>Protokol</th>
-                    <th>Hasta</th>
-                    <th>Tip</th>
-                    <th>Bekleyen kalemler</th>
-                    <th>Durum</th>
-                </tr>
-            </thead>
-            <tbody>
-            @{ var uygunSira = 1; }
-            @foreach (var p in Model.Sonuc.Protokoller)
+        var gruplar = (a == Asama.Kural
+            ? d.AsamaGruplari(Asama.Hazir).Concat(d.AsamaGruplari(Asama.Kural))
+            : d.AsamaGruplari(a)).ToList();
+        var kalemli = a != Asama.Kural;
+        <section class="card bk-tablo @sinif" id="asama-@((int)a)">
+            <h2 class="bk-tablo-baslik">
+                <span>@(a == Asama.Kural ? "1–2 · Kendiliğinden gidecekler" : ad)</span>
+                @if (a == Asama.Kural) { <a asp-page="/Ayarlar" class="bk-tablo-link">Kurallar: Ayarlar › Otomatik Gönderim</a> }
+            </h2>
+            @if (gruplar.Count == 0)
             {
-                <tr>
-                    <td class="mono">
-                        <a asp-page="/Protokol" asp-route-id="@p.Protokol.ProtokolId">@p.Protokol.ProtokolId</a>
-                        <div class="text-muted">@(p.Protokol.AcilisTarihi?.ToString("dd.MM.yyyy") ?? "-")</div>
-                    </td>
-                    <td>
-                        @p.Protokol.HastaAdi @p.Protokol.HastaSoyadi
-                        <div class="text-muted mono">@p.Protokol.Fin</div>
-                    </td>
-                    <td>
-                        @(p.Protokol.GelisTipiId switch { "Y" => "Yatan", "G" => "Günübirlik", _ => "Ayaktan" })
-                    </td>
-                    <td>
-                        @foreach (var grup in p.Items.GroupBy(i => i.Baslik).OrderByDescending(g => g.Count()))
-                        {
-                            <span class="badge neutral">@grup.Key @(grup.Count() > 1 ? $"({grup.Count()})" : "")</span>
-                        }
-                    </td>
-                    @* ===== NEDEN BEKLIYOR (KULLANICI ISTEGI 2026-10-08) =====
-                       "burada neden gonderim beklediğini de yazalım."
+                <p class="bk-bos">Bu aşamada bekleyen protokol yok.</p>
+            }
+            else
+            {
+                <div class="table-wrap">
+                <table>
+                    <thead>
+                        <tr>
+                            <th>@(a == Asama.Kural ? "Durum" : "Sebep")</th>
+                            <th class="num-col">Protokol</th>
+                            @if (kalemli) { <th class="num-col">Kalem</th> }
+                            <th>@(a == Asama.Kural ? "Ne zaman gider" : "Kim")</th>
+                            <th>En eski</th>
+                            <th></th>
+                        </tr>
+                    </thead>
+                    <tbody>
+                    @foreach (var g in gruplar)
+                    {
+                        <tr>
+                            <td>@g.Etiket</td>
+                            <td class="num-col num">@N(g.Protokol)</td>
+                            @if (kalemli) { <td class="num-col num">@N(g.Kalem)</td> }
+                            <td>
+                                @if (a == Asama.Kural)
+                                {
+                                    @(g.Anahtar == "hazir" && !Model.OtomatikGonderimAcik ? "otomatik gönderim kapalı — elle" : g.NeZaman)
+                                }
+                                else
+                                {
+                                    @g.Kim <span class="text-muted">· @g.NeZaman</span>
+                                }
+                            </td>
+                            <td class="text-muted">@EnEski(g)</td>
+                            <td class="bk-eylem"><button type="button" class="btn btn-outline btn-sm" onclick="bkListele('@g.Anahtar')">Listele</button></td>
+                        </tr>
+                    }
+                    </tbody>
+                </table>
+                </div>
+            }
+        </section>
+    }
 
-                       Uygun OLMAYANLARIN sebebi zaten yaziliyordu. Eksik olan UYGUN
-                       olanlardi: ekranda "Gönderim bekliyor" yaziyordu ve kullanici
-                       hakli olarak "uygunsa neden hala gitmedi" diye soruyordu. Cevap
-                       sira: dongu her turda en fazla PartiBoyutu protokol gonderiyor.
-                       Liste zaten uygun olanlari basa aliyor (bkz. KirpUygunOnce), yani
-                       satirin listedeki yeri gercek sirasidir. *@
-                    <td>
-                        @if (p.Eligible)
-                        {
-                            @if (uygunSira <= Model.PartiBoyutu)
+    @* ===== ESKI AYRINTILAR -- KATLANMIS ===== *@
+    <details class="card bk-ayrinti">
+        <summary>Ayrıntılı sayılar ve protokol listeleri</summary>
+
+        <div class="stat-grid" style="margin-top:14px">
+            <div class="stat-card success"><div class="stat-label">Gönderilen kalem</div><div class="stat-value success">@N(kapsam.GonderilmisKalem)</div><div class="stat-foot">taranan @N(kapsam.TarananKalem) kalemin %@kapsam.GonderilmisKalemYuzde'i</div></div>
+            <div class="stat-card warning"><div class="stat-label">Bekleyen kalem</div><div class="stat-value warning">@N(kapsam.BekleyenKalem)</div><div class="stat-foot">@N(Model.Sonuc.ToplamProtokolSayisi) protokolde</div></div>
+            <div class="stat-card danger"><div class="stat-label">Takılan kalem</div><div class="stat-value danger">@N(kapsam.TakilanKalem)</div><div class="stat-foot">@N(Model.Sonuc.ToplamTakilanProtokolSayisi) protokolde</div></div>
+            <div class="stat-card"><div class="stat-label">Kısmen gönderilmiş protokol</div><div class="stat-value">@N(kapsam.KismenGonderilmisProtokol)</div><div class="stat-foot">hiç gönderilmemiş: @N(kapsam.HicGonderilmemisProtokol)</div></div>
+        </div>
+
+        <p class="text-muted" style="margin:14px 0 0; font-size:13px;">
+            <strong>Aktivite Akışı'ndaki sayılarla karşılaştırmayın:</strong> orası o tarihte yapılan denemelerin sonucunu,
+            burası Pusula'da hazır olup hâlâ gitmemiş olanı gösterir.
+        </p>
+
+        @if (Model.Sonuc.Protokoller.Count > 0)
+        {
+            <p class="section-title" style="margin-top:22px">Bekleyen protokoller — gönderim sırasıyla (ilk @N(Math.Min(Model.Sonuc.Protokoller.Count, BekleyenIslerModel.AyrintiSatirSiniri)) / @N(Model.Sonuc.Protokoller.Count))</p>
+            <div class="table-wrap">
+            <table>
+                <thead><tr><th>Protokol</th><th>Hasta</th><th>Tip</th><th>Bekleyen kalemler</th><th>Durum</th></tr></thead>
+                <tbody>
+                @{ var uygunSira = 1; }
+                @foreach (var p in Model.Sonuc.Protokoller.Take(BekleyenIslerModel.AyrintiSatirSiniri))
+                {
+                    <tr>
+                        <td class="mono">
+                            <a asp-page="/Protokol" asp-route-id="@p.Protokol.ProtokolId">@p.Protokol.ProtokolId</a>
+                            <div class="text-muted">@(p.Protokol.AcilisTarihi?.ToString("dd.MM.yyyy") ?? "-")</div>
+                        </td>
+                        <td>@p.Protokol.HastaAdiSoyadi<div class="text-muted mono">@p.Protokol.Fin</div></td>
+                        <td>@(p.Protokol.GelisTipiId switch { "Y" => "Yatan", "G" => "Günübirlik", _ => "Ayaktan" })</td>
+                        <td>
+                            @foreach (var grup in p.Items.GroupBy(i => i.Baslik).OrderByDescending(g => g.Count()))
                             {
-                                <span class="badge warning"><span class="badge-dot"></span>Sıradaki turda</span>
-                                <div class="text-muted">Sırada @uygunSira. &mdash; bu tur gönderilecek</div>
+                                <span class="badge neutral">@grup.Key @(grup.Count() > 1 ? $"({grup.Count()})" : "")</span>
+                            }
+                        </td>
+                        <td>
+                            @if (p.Eligible)
+                            {
+                                var tur = Model.PartiBoyutu <= 0 ? 1 : (uygunSira + Model.PartiBoyutu - 1) / Model.PartiBoyutu;
+                                <span class="badge warning"><span class="badge-dot"></span>@(tur == 1 ? "Sıradaki turda" : "Gönderim bekliyor")</span>
+                                <div class="text-muted">Sırada @uygunSira. @(tur > 1 ? $"— yaklaşık {tur}. turda ({SureMetni(tur * Model.TurAraligiDakika)})" : "")</div>
+                                uygunSira++;
                             }
                             else
                             {
-                                @* Kacinci turda sirasi gelecek: parti boyutuna bolunur. *@
-                                var turSayisi = (uygunSira + Model.PartiBoyutu - 1) / Model.PartiBoyutu;
-                                <span class="badge warning"><span class="badge-dot"></span>Gönderim bekliyor</span>
-                                <div class="text-muted">
-                                    Sırada @uygunSira. &mdash; tur başına @Model.PartiBoyutu protokol,
-                                    yaklaşık @turSayisi. turda (@SureMetni(turSayisi * Model.TurAraligiDakika))
-                                </div>
+                                <span class="badge neutral"><span class="badge-dot"></span>Henüz uygun değil</span>
+                                <div class="text-muted">@p.NotEligibleReason</div>
                             }
-                            @if (!Model.OtomatikGonderimAcik)
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+            </div>
+        }
+
+        @if (Model.Sonuc.TakilanProtokoller.Count > 0)
+        {
+            <p class="section-title" style="margin-top:22px">Takılı protokoller (ilk @N(Math.Min(Model.Sonuc.TakilanProtokoller.Count, BekleyenIslerModel.AyrintiSatirSiniri)) / @N(Model.Sonuc.TakilanProtokoller.Count))</p>
+            <div class="table-wrap">
+            <table>
+                <thead><tr><th>Protokol</th><th>Hasta</th><th>Takılan kalemler</th><th>Sebep</th></tr></thead>
+                <tbody>
+                @foreach (var p in Model.Sonuc.TakilanProtokoller.Take(BekleyenIslerModel.AyrintiSatirSiniri))
+                {
+                    <tr>
+                        <td class="mono">
+                            <a asp-page="/Protokol" asp-route-id="@p.Protokol.ProtokolId">@p.Protokol.ProtokolId</a>
+                            <div class="text-muted">@(p.Protokol.AcilisTarihi?.ToString("dd.MM.yyyy") ?? "-")</div>
+                        </td>
+                        <td>@p.Protokol.HastaAdiSoyadi<div class="text-muted mono">@p.Protokol.Fin</div></td>
+                        <td>
+                            @foreach (var grup in p.Items.GroupBy(i => i.Baslik).OrderByDescending(g => g.Count()))
                             {
-                                <div class="text-faint">Otomatik gönderim kapalı &mdash; sıra ilerlemiyor</div>
+                                <span class="badge neutral">@grup.Key @(grup.Count() > 1 ? $"({grup.Count()})" : "")</span>
                             }
-                            uygunSira++;
-                        }
-                        else
-                        {
-                            <span class="badge neutral"><span class="badge-dot"></span>Henüz uygun değil</span>
-                            <div class="text-muted">@p.NotEligibleReason</div>
-                        }
-                    </td>
-                </tr>
+                        </td>
+                        <td class="text-muted">
+                            @string.Join(" · ", p.Items.Select(i => BekleyenDokum.TakiliSebebi(p, i).Etiket).Distinct())
+                        </td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+            </div>
+        }
+    </details>
+
+    <dialog id="gb-liste" class="gb-liste-pencere" aria-labelledby="gb-liste-baslik">
+        <div class="gb-liste-icerik"></div>
+    </dialog>
+
+    <script>
+        // Sayfa parametreleri ayni kalsin diye handler'lar mevcut adrese eklenir.
+        function bkAdres(handler, params) {
+            const u = new URL(location.href);
+            u.searchParams.set('handler', handler);
+            for (const [k, v] of Object.entries(params)) u.searchParams.set(k, v);
+            return u;
+        }
+        // Hata metni duz metin olarak yazilir (innerHTML degil).
+        function bkMesaj(kap, etiket, sinif, metin) {
+            const el = document.createElement(etiket);
+            el.className = sinif;
+            el.textContent = metin;
+            kap.replaceChildren(el);
+        }
+        async function bkListele(anahtar) {
+            const pencere = document.getElementById('gb-liste');
+            const icerik = pencere.querySelector('.gb-liste-icerik');
+            icerik.innerHTML = '<div class="gb-liste-yukleniyor">Liste hazırlanıyor…</div>';
+            if (!pencere.open) pencere.showModal();
+            try {
+                const r = await fetch(bkAdres('Liste', { anahtar }), { headers: { 'X-Requested-With': 'fetch' } });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                icerik.innerHTML = await r.text();
+            } catch (e) {
+                bkMesaj(icerik, 'div', 'gb-liste-yukleniyor', 'Liste alınamadı (' + e.message + ').');
             }
-            </tbody>
-        </table>
-        </div>
-    }
-
-    @* ============ TAKILANLAR (2026-10-03) ============
-       KULLANICI KARARI: "bekleyenleri ayrı bir listeye alalım. onlar için ayrıca deneme
-       yapsın. bizim ana gönderim listesine sayıları hiç karışmasın."
-
-       Buradakiler MEVCUT VERIYLE gonderilemeyen kalemler: LOINC kodu olmayan tetkik,
-       sonuc degeri bos panel satiri, Icbari eslesmesi olmayan hizmet, ya da ust uste
-       basarisiz olmus kayit. Yukaridaki sayilara KARISMIYORLAR -- karissalardi "bekleyen
-       is" sayisi hicbir zaman azalmayan, anlamsiz bir rakam olurdu (olculdu: 30 gunde
-       4.289 protokol).
-
-       Otomatik dongu bunlari saatlik turda HIC denemiyor; gunde bir kez, gece kendi
-       turunda deniyor (bkz. AutoSyncWorker.TakilanlariDeneAsync). Yani eksik giderilince
-       kayit kendiliginden gider, elle is gerekmez. *@
-    @if (Model.Sonuc.ToplamTakilanProtokolSayisi > 0)
-    {
-        <p class="section-title" style="margin-top:28px">Takılanlar</p>
-        <div class="alert alert-warning" style="margin-bottom:12px">
-            <strong>@Model.Sonuc.ToplamTakilanProtokolSayisi protokolde</strong>, mevcut Pusula verisiyle
-            gönderilemeyecek kalem var. Yukarıdaki sayılara dahil <strong>değiller</strong>.
-            Otomatik gönderim bunları saatlik turda denemez; günde bir kez, gece yeniden dener —
-            eksik giderildiğinde kayıt kendiliğinden gider.
-        </div>
-
-        <div class="stat-grid">
-            @foreach (var kv in Model.Sonuc.TakilanOzetSayimlar.OrderByDescending(k => k.Value))
-            {
-                <div class="stat-card">
-                    <div class="stat-label">@kv.Key</div>
-                    <div class="stat-value">@kv.Value</div>
-                </div>
+        }
+        document.getElementById('gb-liste').addEventListener('click', e => {
+            if (e.target === e.currentTarget) e.currentTarget.close();
+        });
+        function bkListeAra(kutu) {
+            const aranan = kutu.value.trim().toLocaleLowerCase('tr');
+            kutu.closest('.gb-liste-icerik').querySelectorAll('tbody tr').forEach(tr => {
+                tr.hidden = aranan !== '' && !tr.textContent.toLocaleLowerCase('tr').includes(aranan);
+            });
+        }
+        async function bkNeden(e) {
+            e.preventDefault();
+            const q = document.getElementById('bk-q').value.trim();
+            const hedef = document.getElementById('bk-neden');
+            if (!q) { hedef.innerHTML = ''; return; }
+            hedef.innerHTML = '<p class="text-muted">Aranıyor…</p>';
+            try {
+                const r = await fetch(bkAdres('Neden', { q }), { headers: { 'X-Requested-With': 'fetch' } });
+                if (!r.ok) throw new Error('HTTP ' + r.status);
+                hedef.innerHTML = await r.text();
+            } catch (err) {
+                bkMesaj(hedef, 'p', 'text-muted', 'Sorgulanamadı (' + err.message + ').');
             }
-        </div>
-
-        <div class="table-wrap">
-        <table>
-            <thead>
-                <tr>
-                    <th>Protokol</th>
-                    <th>Hasta</th>
-                    <th>Takılan kalemler</th>
-                    <th>Sebep</th>
-                </tr>
-            </thead>
-            <tbody>
-            @foreach (var p in Model.Sonuc.TakilanProtokoller)
-            {
-                <tr>
-                    <td class="mono">
-                        <a asp-page="/Protokol" asp-route-id="@p.Protokol.ProtokolId">@p.Protokol.ProtokolId</a>
-                        <div class="text-muted">@(p.Protokol.AcilisTarihi?.ToString("dd.MM.yyyy") ?? "-")</div>
-                    </td>
-                    <td>
-                        @p.Protokol.HastaAdi @p.Protokol.HastaSoyadi
-                        <div class="text-muted mono">@p.Protokol.Fin</div>
-                    </td>
-                    <td>
-                        @foreach (var grup in p.Items.GroupBy(i => i.Baslik).OrderByDescending(g => g.Count()))
-                        {
-                            <span class="badge neutral">@grup.Key @(grup.Count() > 1 ? $"({grup.Count()})" : "")</span>
-                        }
-                    </td>
-                    <td>
-                        @* En sik gorulen sebep: yirmi kalem ayni eksikten takildiysa yirmi
-                           satir degil tek cumle gosterilmeli. *@
-                        @{
-                            var sebep = p.Items
-                                .Where(i => i.SonDeneme?.Message is not null)
-                                .GroupBy(i => SyncLogEntry.FriendlyError(i.SonDeneme!.Message))
-                                .OrderByDescending(g => g.Count())
-                                .Select(g => g.Key)
-                                .FirstOrDefault();
-                        }
-                        <div class="text-muted">@(sebep ?? "Sebep kayıtlı değil.")</div>
-                    </td>
-                </tr>
-            }
-            </tbody>
-        </table>
-        </div>
-    }
+        }
+    </script>
 }
 
 @functions {

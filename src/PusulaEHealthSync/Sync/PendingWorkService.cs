@@ -481,7 +481,8 @@ public class PendingWorkService(
                             : string.IsNullOrWhiteSpace(c.Aciklama)
                                 ? c.GonderilemezSebep
                                 : $"{c.Aciklama} -- {c.GonderilemezSebep}",
-                        sentLookup.GetValueOrDefault((c.ResourceType, c.PusulaId))))
+                        sentLookup.GetValueOrDefault((c.ResourceType, c.PusulaId)),
+                        c.GonderilemezSebep))
                     .OrderBy(i => i.SonuclanmaTarihi)
                     .ToList();
 
@@ -784,7 +785,11 @@ public record PendingItem(
     int PusulaId,
     DateTime SonuclanmaTarihi,
     string? Aciklama,
-    SyncLogEntry? SonDeneme);
+    SyncLogEntry? SonDeneme,
+    // Gonderim sorgusunun bu kalemi neden secmedigi (lab/rad onayi yok, Icbari eslesmesi
+    // yok...). Aciklama'ya da gomulu ama Bekleyen Isler'in sebep dokumu (2026-10-27)
+    // metni ayristirmadan gruplayabilsin diye ayrica tasiniyor.
+    string? GonderilemezSebep = null);
 
 public record PendingProtocol(
     ProtokolListItem Protokol,

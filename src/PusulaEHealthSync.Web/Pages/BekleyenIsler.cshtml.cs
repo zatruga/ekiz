@@ -67,16 +67,70 @@ public class BekleyenIslerModel(PendingWorkService pendingWork, SettingsStore se
         await AralikHesaplaAsync(ct);
         Sonuc = pendingWork.SonSonuc;
         SonHesaplamaUtc = pendingWork.SonHesaplamaUtc;
+        if (Sonuc is not null) Dokum = BekleyenDokum.Hesapla(Sonuc);
     }
 
-    public async Task<IActionResult> OnPostYenileAsync(CancellationToken ct)
+    public TarihSecici TarihSecici => new(EtkinBaslangic, EtkinBitis, "Sonuçlanma",
+        "Pusula'da bu aralıkta sonuçlanan kalemler taranır");
+
+    // Asama/sebep dokumu (bkz. BekleyenDokum). Sonuc yoksa null.
+    public BekleyenDokum? Dokum { get; private set; }
+
+    // Eski ayrintili tablolar artik sayfanin altinda, katlanmis; tarama kirpilmadigi icin
+    // binlerce satir olabilir -- ekrana bu kadari basiliyor.
+    public const int AyrintiSatirSiniri = 200;
+
+    // "LISTELE" PENCERESI -- bir sebep satirinin protokolleri (fetch ile <dialog>'a).
+    public IActionResult OnGetListe(string anahtar)
     {
+        var s = pendingWork.SonSonuc;
+        if (s is null) return Content("Önce hesaplayın.");
+        var grup = BekleyenDokum.Hesapla(s).Grup(anahtar);
+        return grup is null ? Content("Bu sebepte protokol kalmadı — sayfayı yenileyin.") : Partial("_BekleyenListe", grup);
+    }
+
+    // "BU PROTOKOL NEDEN GITMEDI?" (tasarim C). Protokol no ya da hasta adi; son taramadan
+    // cevaplanir -- Pusula'ya gitmez.
+    public record NedenSonucu(string Sorgu, List<(PendingProtocol? Bekleyen, PendingProtocol? Takili)> Bulunan,
+                              int? ProtokolNo, int Toplam);
+
+    public IActionResult OnGetNeden(string? q)
+    {
+        var s = pendingWork.SonSonuc;
+        if (s is null) return Content("Önce hesaplayın.");
+        q = (q ?? "").Trim();
+        if (q.Length == 0) return Content("");
+
+        var bekleyen = s.Protokoller.ToDictionary(p => p.Protokol.ProtokolId);
+        var takili = s.TakilanProtokoller.ToDictionary(p => p.Protokol.ProtokolId);
+        var tr = System.Globalization.CultureInfo.GetCultureInfo("tr-TR");
+        int? no = int.TryParse(q, out var n) ? n : null;
+        bool Uyar(PendingProtocol p) => no is { } x
+            ? p.Protokol.ProtokolId == x
+            : tr.CompareInfo.IndexOf(p.Protokol.HastaAdiSoyadi, q, System.Globalization.CompareOptions.IgnoreCase) >= 0
+              || (p.Protokol.Fin ?? "").Equals(q, StringComparison.OrdinalIgnoreCase);
+
+        var idler = s.Protokoller.Where(Uyar).Concat(s.TakilanProtokoller.Where(Uyar))
+            .Select(p => p.Protokol.ProtokolId).Distinct().ToList();
+        var bulunan = idler.Take(10)
+            .Select(id => (bekleyen.GetValueOrDefault(id), takili.GetValueOrDefault(id)))
+            .ToList();
+        return Partial("_BekleyenNeden", new NedenSonucu(q, bulunan, no, idler.Count));
+    }
+
+    // Tarih secici (_TarihSecici) gizli From/To alanlariyla gonderiyor.
+    public async Task<IActionResult> OnPostYenileAsync(DateOnly? from, DateOnly? to, CancellationToken ct)
+    {
+        Baslangic ??= from;
+        Bitis ??= to;
         await AralikHesaplaAsync(ct);
 
         // Bitis gun sonuna kadar dahil -> ertesi gunun 00:00'i (haric) gonderiliyor.
+        // KIRPILMIYOR (2026-10-27): sebep dokumu ve protokol sorgusu TUM kumeye bakmali;
+        // kirpma yalnizca bellekte siralama, ag cagrisi yok.
         await pendingWork.RefreshAsync(
             scanDays: null,
-            maxProtocols: 200,
+            maxProtocols: int.MaxValue,
             ct: ct,
             fromLocalOverride: EtkinBaslangic.ToDateTime(TimeOnly.MinValue),
             toLocalExclusive: EtkinBitis.AddDays(1).ToDateTime(TimeOnly.MinValue));
