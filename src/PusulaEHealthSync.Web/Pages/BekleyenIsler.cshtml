@@ -13,11 +13,12 @@
    Tasarim tuvalinde A (akis: protokol nerede bekliyor) ile C (bu protokol neden gitmedi?)
    secildi. Eski kalem/protokol kartlari ve uzun listeler en altta, katlanmis. *@
 
+<div class="bk-sayfa">
 <p class="breadcrumb"><a asp-page="/Index">Protokol Listesi</a> / Bekleyen İşler</p>
 <div class="page-header">
     <div>
         <h1 class="page-title">Bekleyen İşler</h1>
-        <p class="page-subtitle">Pusula'da hazır olup TRƏS'e henüz gitmemiş olanlar: ne zaman gidecek, neden gitmiyor, kim ne yapmalı. Bu sayfa hiçbir şey göndermez.</p>
+        <p class="page-subtitle">Pusula'da hazır olup TRƏS'e gitmemiş olanlar · bu sayfa hiçbir şey göndermez</p>
     </div>
     <form method="post" asp-page-handler="Yenile" class="bk-arac">
         <partial name="_TarihSecici" model="Model.TarihSecici" />
@@ -106,11 +107,22 @@ else
     <div class="bk-asamalar">
         @foreach (var (a, ad, sinif, alt) in asamalar)
         {
-            <a class="bk-asama @sinif" href="#asama-@((int)a)">
-                <span class="bk-asama-ad">@ad</span>
-                <span class="bk-asama-sayi num">@N(d.AsamaProtokol(a))</span>
-                <span class="bk-asama-alt">protokol · @alt</span>
-            </a>
+            @if (a == Asama.Hazir)
+            {
+                <button type="button" class="bk-asama @sinif" onclick="bkListele('hazir')" @(hazirSayi == 0 ? "disabled" : "")>
+                    <span class="bk-asama-ad">@ad</span>
+                    <span class="bk-asama-sayi num">@N(d.AsamaProtokol(a))</span>
+                    <span class="bk-asama-alt">@alt</span>
+                </button>
+            }
+            else
+            {
+                <a class="bk-asama @sinif" href="#asama-@((int)a)">
+                    <span class="bk-asama-ad">@ad</span>
+                    <span class="bk-asama-sayi num">@N(d.AsamaProtokol(a))</span>
+                    <span class="bk-asama-alt">@alt</span>
+                </a>
+            }
         }
     </div>
     <p class="bk-dipnot">Bir protokol birden fazla aşamada görünebilir: örneğin muayenesi gitmiş ama epikrizi yazılmamış ve bir tetkikinin eşleşmesi eksik olabilir.</p>
@@ -127,17 +139,17 @@ else
         <div id="bk-neden" aria-live="polite"></div>
     </section>
 
-    @* ===== ASAMA TABLOLARI ===== *@
+    @* ===== ASAMA TABLOLARI (tasarim A; protokol sutunundaki cubuk tasarim C'den) ===== *@
     @foreach (var (a, ad, sinif, _) in asamalar.Where(x => x.Item1 != Asama.Hazir))
     {
-        var gruplar = (a == Asama.Kural
-            ? d.AsamaGruplari(Asama.Hazir).Concat(d.AsamaGruplari(Asama.Kural))
-            : d.AsamaGruplari(a)).ToList();
-        var kalemli = a != Asama.Kural;
-        <section class="card bk-tablo @sinif" id="asama-@((int)a)">
+        var gruplar = d.AsamaGruplari(a).ToList();
+        var kural = a == Asama.Kural;
+        var enCok = gruplar.Count == 0 ? 1 : Math.Max(1, gruplar.Max(g => g.Protokol));
+        var (no, baslik) = (ad[..1], ad[4..]);
+        <section class="bk-tablo @sinif" id="asama-@((int)a)">
             <h2 class="bk-tablo-baslik">
-                <span>@(a == Asama.Kural ? "1–2 · Kendiliğinden gidecekler" : ad)</span>
-                @if (a == Asama.Kural) { <a asp-page="/Ayarlar" class="bk-tablo-link">Kurallar: Ayarlar › Otomatik Gönderim</a> }
+                <span><span class="bk-no">@no</span> · @baslik</span>
+                @if (kural) { <a asp-page="/Ayarlar" class="bk-tablo-link">Ayarlar › Otomatik Gönderim</a> }
             </h2>
             @if (gruplar.Count == 0)
             {
@@ -145,16 +157,16 @@ else
             }
             else
             {
-                <div class="table-wrap">
-                <table>
+                <div class="bk-kaydir">
+                <table class="bk-t">
                     <thead>
                         <tr>
-                            <th>@(a == Asama.Kural ? "Durum" : "Sebep")</th>
-                            <th class="num-col">Protokol</th>
-                            @if (kalemli) { <th class="num-col">Kalem</th> }
-                            <th>@(a == Asama.Kural ? "Ne zaman gider" : "Kim")</th>
+                            <th>@(kural ? "Kural" : "Sebep")</th>
+                            <th class="bk-t-cubuk">Protokol</th>
+                            @if (!kural) { <th class="num-col">Kalem</th> }
+                            <th>@(kural ? "Ne zaman gider" : "Kim")</th>
                             <th>En eski</th>
-                            <th></th>
+                            <th><span class="sr-only">Liste</span></th>
                         </tr>
                     </thead>
                     <tbody>
@@ -162,20 +174,14 @@ else
                     {
                         <tr>
                             <td>@g.Etiket</td>
-                            <td class="num-col num">@N(g.Protokol)</td>
-                            @if (kalemli) { <td class="num-col num">@N(g.Kalem)</td> }
-                            <td>
-                                @if (a == Asama.Kural)
-                                {
-                                    @(g.Anahtar == "hazir" && !Model.OtomatikGonderimAcik ? "otomatik gönderim kapalı — elle" : g.NeZaman)
-                                }
-                                else
-                                {
-                                    @g.Kim <span class="text-muted">· @g.NeZaman</span>
-                                }
+                            <td class="bk-t-cubuk">
+                                <span class="bk-mini"><span style="width:@((g.Protokol * 100.0 / enCok).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))%"></span></span>
+                                <span class="num">@N(g.Protokol)</span>
                             </td>
+                            @if (!kural) { <td class="num-col num">@N(g.Kalem)</td> }
+                            <td>@(kural ? g.NeZaman : g.Kim)</td>
                             <td class="text-muted">@EnEski(g)</td>
-                            <td class="bk-eylem"><button type="button" class="btn btn-outline btn-sm" onclick="bkListele('@g.Anahtar')">Listele</button></td>
+                            <td class="bk-eylem"><button type="button" class="bk-link" onclick="bkListele('@g.Anahtar')">Listele</button></td>
                         </tr>
                     }
                     </tbody>
@@ -334,6 +340,8 @@ else
         }
     </script>
 }
+
+</div>
 
 @functions {
     // Dakikayi okunur sureye cevirir. 180 dakika yerine "3 saat" yazmak, zaten tahmini

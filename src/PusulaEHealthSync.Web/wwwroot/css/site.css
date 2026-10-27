@@ -2733,15 +2733,33 @@ div.gb-sebep.danger:hover { background: var(--danger-soft); }
 .bk-adimlar { margin: 0; padding-left: 20px; display: flex; flex-direction: column; gap: 6px; line-height: 1.5; }
 .bk-ham { font-size: 12.5px; margin-top: 2px; }
 
-.bk-tablo { padding: 0; margin-bottom: 16px; overflow: hidden; border-top-width: 3px; }
-.bk-tablo.bk-a-kural { border-top-color: var(--primary); }
-.bk-tablo.bk-a-pusula { border-top-color: var(--warning); }
-.bk-tablo.bk-a-veri { border-top-color: var(--danger); }
-.bk-tablo-baslik { margin: 0; padding: 14px 18px; font-size: 15px; display: flex; justify-content: space-between; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
-.bk-tablo-link { font-size: 13px; font-weight: 400; }
-.bk-tablo .table-wrap { border: 0; border-radius: 0; margin: 0; }
+.bk-sayfa { max-width: 1180px; margin: 0 auto; }
+.bk-tablo { background: var(--surface); border: 1px solid var(--border); border-radius: var(--radius); overflow: hidden; margin-bottom: 16px; }
+.bk-tablo-baslik { margin: 0; padding: 16px 20px; font-family: var(--font-body); font-size: 15px; font-weight: 600; display: flex; justify-content: space-between; align-items: baseline; gap: 12px; flex-wrap: wrap; border-bottom: 1px solid var(--border); }
+.bk-tablo-link { font-size: 13px; font-weight: 400; color: var(--text-muted); }
+.bk-tablo-link:hover { color: var(--primary); }
+.bk-a-kural .bk-no { color: var(--primary); }
+.bk-a-pusula .bk-no { color: var(--warning); }
+.bk-a-veri .bk-no { color: var(--danger); }
+.bk-kaydir { overflow-x: auto; }
+table.bk-t { width: 100%; border-collapse: collapse; font-size: 14px; margin: 0; }
+table.bk-t th { text-align: left; font-family: var(--font-body); font-size: 12px; font-weight: 500; letter-spacing: 0; text-transform: none; color: var(--text-muted); background: none; padding: 10px 12px; border: 0; white-space: nowrap; }
+table.bk-t td { padding: 12px; border: 0; border-top: 1px solid var(--border); vertical-align: middle; }
+table.bk-t tbody tr:hover td { background: var(--surface-hover); }
+table.bk-t th:first-child, table.bk-t td:first-child { padding-left: 20px; }
+table.bk-t th:last-child, table.bk-t td:last-child { padding-right: 20px; }
+.bk-t-cubuk { white-space: nowrap; width: 190px; }
+.bk-mini { display: inline-block; width: 110px; height: 8px; border-radius: 4px; background: var(--surface-hover); overflow: hidden; vertical-align: middle; margin-right: 10px; }
+.bk-mini > span { display: block; height: 100%; min-width: 2px; border-radius: 4px; }
+.bk-a-kural .bk-mini > span { background: var(--primary); }
+.bk-a-pusula .bk-mini > span { background: var(--warning); }
+.bk-a-veri .bk-mini > span { background: var(--danger); }
+.bk-link { background: none; border: 0; padding: 4px 0; font: inherit; color: var(--primary); cursor: pointer; }
+.bk-link:hover { text-decoration: underline; }
 .bk-eylem { text-align: right; white-space: nowrap; }
-.bk-bos { margin: 0; padding: 16px 18px; color: var(--text-muted); }
+.bk-bos { margin: 0; padding: 16px 20px; color: var(--text-muted); }
+button.bk-asama { font: inherit; text-align: left; cursor: pointer; width: 100%; }
+button.bk-asama:disabled { cursor: default; }
 .bk-detay { max-width: 420px; font-size: 12.5px; }
 
 .bk-ayrinti { padding: 0 18px; margin-top: 8px; }
