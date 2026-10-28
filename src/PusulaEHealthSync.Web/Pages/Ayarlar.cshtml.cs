@@ -15,6 +15,7 @@ namespace PusulaEHealthSync.Web.Pages;
 // yazilmadan bu alanin kaydedilmesinin bir anlami yok, bu yuzden formsuz.
 public class AyarlarModel(
     SettingsStore settings,
+    PusulaEHealthSync.Db.PusulaRepository pusulaRepository,
     GunSonuRaporService gunSonuRapor,
     MailSender mailSender,
     MailAyarlari mailAyarlari,
@@ -130,9 +131,15 @@ public class AyarlarModel(
     public bool EpikrizSendEnabled { get; set; }
     [BindProperty]
     public bool EpikrizOnlySigned { get; set; }
-    // Bos epikrizin eksik sayilmadigi bolumler (bkz. EpikrizMuafiyeti).
+    // Bos epikrizin eksik sayilmadigi bolumler (bkz. EpikrizMuafiyeti). ELLE YAZMA YOK
+    // (kullanici istegi 2026-10-28): Pusula'daki bolumlerden isaretleniyor -- ad yanlis
+    // yazilirsa kural sessizce hic calismiyordu.
     [BindProperty]
-    public string? EpikrizMuafBolumler { get; set; }
+    public List<string> EpikrizMuafBolumler { get; set; } = [];
+    // Isaretlenebilir liste: son 90 gunde protokol acilmis bolumler + zaten secili olanlar
+    // (artik kullanilmasa da secimi kaybolmasin). Pusula'ya ulasilamazsa yalnizca seciliiler.
+    public List<string> BolumSecenekleri { get; private set; } = [];
+    public bool BolumListesiOkunamadi { get; private set; }
 
     // -- Tanı (Condition) / İşlem (Procedure) ------------------------------------------------
     [BindProperty]
@@ -379,7 +386,8 @@ public class AyarlarModel(
         await settings.SetBoolAsync(SettingsStore.EpikrizOnlySignedKey, EpikrizOnlySigned, ct);
         // Bicim duzeltilerek yaziliyor ("a;b" -> "a; b"); bos birakilirsa muaf bolum yok.
         await settings.SetStringAsync(SettingsStore.EpikrizMuafBolumlerKey,
-            string.Join("; ", PusulaEHealthSync.Sync.EpikrizMuafiyeti.Ayristir(EpikrizMuafBolumler)), ct);
+            string.Join("; ", EpikrizMuafBolumler.Where(b => !string.IsNullOrWhiteSpace(b)).Select(b => b.Trim())
+                .Distinct(StringComparer.CurrentCultureIgnoreCase)), ct);
         return await SavedAsync("icerik", ct);
     }
 
@@ -630,8 +638,23 @@ public class AyarlarModel(
 
         EpikrizSendEnabled = await settings.GetBoolAsync(SettingsStore.EpikrizSendEnabledKey, true, ct);
         EpikrizOnlySigned = await settings.GetBoolAsync(SettingsStore.EpikrizOnlySignedKey, true, ct);
-        EpikrizMuafBolumler = await settings.GetStringAsync(
-            SettingsStore.EpikrizMuafBolumlerKey, SettingsStore.EpikrizMuafBolumlerDefault, ct);
+        var secili = PusulaEHealthSync.Sync.EpikrizMuafiyeti.Ayristir(await settings.GetStringAsync(
+            SettingsStore.EpikrizMuafBolumlerKey, SettingsStore.EpikrizMuafBolumlerDefault, ct));
+        EpikrizMuafBolumler = [.. secili];
+        var tr = StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("tr-TR"), true);
+        List<string> kullanilan = [];
+        try
+        {
+            kullanilan = (await pusulaRepository.GetUsedDepartmentsAsync(90, ct))
+                .Select(b => b.Adi).Where(a => !string.IsNullOrWhiteSpace(a)).Select(a => a!.Trim()).ToList();
+        }
+        catch (Exception ex)
+        {
+            BolumListesiOkunamadi = true;
+            logger.LogWarning(ex, "Ayarlar: Pusula bolum listesi okunamadi, yalnizca secili bolumler gosteriliyor.");
+        }
+        BolumSecenekleri = [.. secili.OrderBy(a => a, tr)
+            .Concat(kullanilan.Where(a => !secili.Contains(a)).Distinct(StringComparer.CurrentCultureIgnoreCase).OrderBy(a => a, tr))];
 
         ConditionSendEnabled = await settings.GetBoolAsync(SettingsStore.ConditionSendEnabledKey, true, ct);
         ProcedureSendEnabled = await settings.GetBoolAsync(SettingsStore.ProcedureSendEnabledKey, true, ct);

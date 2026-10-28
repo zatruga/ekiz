@@ -405,9 +405,22 @@
                             <div class="toggle-row"><input type="checkbox" id="epikrizOnlySigned" asp-for="EpikrizOnlySigned" />
                                 <label for="epikrizOnlySigned">Yalnızca Pusula'da kilitlenmiş (hekimin tamamladığı) epikrizler</label></div>
                             <div class="field" style="margin-top:10px;">
-                                <label for="epikrizMuafBolumler">Epikriz beklenmeyen bölümler</label>
-                                <input type="text" id="epikrizMuafBolumler" asp-for="EpikrizMuafBolumler" placeholder="Laboratoriya; Radiologiya" />
-                                <p class="field-hint">Bu bölümlerin protokollerinde boş epikriz <b>eksik sayılmaz</b> (yalnızca tetkik için açılan protokoller). Pusula'daki bölüm adını yazın, birden fazlaysa <code>;</code> ile ayırın.</p>
+                                <span class="ayar-alt-baslik">Epikriz beklenmeyen bölümler</span>
+                                <p class="field-hint" style="margin:2px 0 6px;">İşaretli bölümlerin protokollerinde boş epikriz <b>eksik sayılmaz</b> (yalnızca tetkik için açılan protokoller). Liste son 90 günde protokol açılmış bölümlerden; işaretliler en üstte.</p>
+                                @if (Model.BolumListesiOkunamadi)
+                                {
+                                    <p class="field-hint" style="color:var(--danger);">Pusula'ya ulaşılamadı — yalnızca şu an seçili bölümler gösteriliyor.</p>
+                                }
+                                <input type="search" class="ayar-bolum-ara" placeholder="Bölüm ara" aria-label="Bölüm ara"
+                                       oninput="var q=this.value.toLocaleLowerCase('tr');this.nextElementSibling.querySelectorAll('label').forEach(function(l){l.hidden=q&&l.textContent.toLocaleLowerCase('tr').indexOf(q)<0;})" />
+                                <div class="ayar-bolum-liste">
+                                    @foreach (var b in Model.BolumSecenekleri)
+                                    {
+                                        <label class="ayar-bolum"><input type="checkbox" name="EpikrizMuafBolumler" value="@b"
+                                               checked="@Model.EpikrizMuafBolumler.Contains(b, StringComparer.CurrentCultureIgnoreCase)" /> @b</label>
+                                    }
+                                </div>
+                                <p class="field-hint" style="margin-top:4px;">Seçili: <b>@(Model.EpikrizMuafBolumler.Count == 0 ? "yok" : string.Join(", ", Model.EpikrizMuafBolumler))</b></p>
                             </div>
                         </fieldset>
                         <div class="card-actions">
