@@ -300,8 +300,13 @@ public class GenelBakisModel(
 
         // HAT'IN 1. DURAGI: taramanin araliginda Pusula'da acilan protokol. Ayni aralik --
         // donemin degil -- yoksa ilk durak ile ikincisi farkli kumeleri anlatirdi.
-        if (KapsamBaslangic is { } kb && KapsamBitis is { } kbit)
+        // BITIS NULL = "BUGUNE KADAR" (2026-10-28): Worker'in dongu taramasi bitis siniri
+        // vermiyor (RefreshAsync/IzBirakAsync bitis: null), eski kosul ikisini birden
+        // istedigi icin canli sunucuda bu durak hep "—" kaliyordu. Bitis yoksa yarinin
+        // 00:00'i (haric) kullaniliyor -- ekrandaki "01.10 – bugun" ile ayni aralik.
+        if (KapsamBaslangic is { } kb)
         {
+            var kbit = KapsamBitis ?? DateTime.Today.AddDays(1);
             try
             {
                 TaramaAraligindaAcilan = await onbellek.GetOrCreateAsync(
