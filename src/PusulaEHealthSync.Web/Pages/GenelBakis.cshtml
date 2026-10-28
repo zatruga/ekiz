@@ -513,32 +513,16 @@ else if (!Model.AktifOrtamCanli)
 
         <div class="gb-split" style="margin:20px 0 0;">
             <div>
-                <p class="section-title" style="margin-bottom:8px;">Gönderilmeme sebepleri <span class="text-muted" style="font-weight:400; text-transform:none; letter-spacing:0;">· protokol (gitmeyen icbari işlem)</span></p>
-                @{
-                    var enCokSebep = ic.Sebepler.Count == 0 ? 1 : ic.Sebepler.Max(x => x.Protokol);
-                    // Her protokol tek satirda; toplam = tamami gitmeyen. 8'den fazlaysa kalanlar
-                    // "Diger sebepler"de toplanir ki toplam bozulmasin.
-                    var gosterilen = ic.Sebepler.Count > 8 ? ic.Sebepler.Take(7).ToList() : ic.Sebepler;
-                    var kalanSebep = ic.Sebepler.Skip(gosterilen.Count).ToList();
-                }
-                <p class="text-muted" style="font-size:12px; margin:0 0 6px;">Her protokol bir kez, en ağır sebebiyle — toplam <b class="num">@ic.Gitmedi.Protokol.ToString("N0")</b>.</p>
-                @foreach (var sb in gosterilen)
+                <p class="section-title" style="margin-bottom:8px;">Gönderilmeme sebepleri <span class="text-muted" style="font-weight:400; text-transform:none; letter-spacing:0;">· protokol (işlem)</span></p>
+                @{ var enCokSebep = ic.Sebepler.Count == 0 ? 1 : ic.Sebepler.Max(x => x.Protokol); }
+                @foreach (var sb in ic.Sebepler.Take(8))
                 {
                     <a asp-page="/IcbariIslemler" asp-route-From="@fromIso" asp-route-To="@toIso"
                        asp-route-Durum="@PusulaEHealthSync.Reporting.IcbariKapsamService.DurumAnahtari(sb.Durum)" asp-route-Sebep="@sb.Sebep"
                        class="gb-kalan-satir" target="_blank" rel="noopener">
                         <span>@sb.Sebep</span>
                         <span class="gb-kalan-cubuk"><span style="width:@((sb.Protokol * 100.0 / enCokSebep).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))%; background:@(sb.Durum switch { PusulaEHealthSync.Reporting.IcbariKapsamService.Durum.Hatali => "var(--akis-hata)", PusulaEHealthSync.Reporting.IcbariKapsamService.Durum.Eksik => "var(--akis-eksik)", _ => "var(--text-faint)" });"></span></span>
-                        <span class="num gb-kalan-sayi">@sb.Protokol.ToString("N0") <span class="text-muted" style="font-weight:400;">@(sb.Zincir && sb.Islem == 0 ? "· işlemleri gitti" : $"({sb.Islem:N0} işlem)")</span></span>
-                    </a>
-                }
-                @if (kalanSebep.Count > 0)
-                {
-                    var kp = kalanSebep.Sum(x => x.Protokol);
-                    <a asp-page="/IcbariIslemler" asp-route-From="@fromIso" asp-route-To="@toIso" asp-route-Durum="gitmedi" class="gb-kalan-satir" target="_blank" rel="noopener">
-                        <span>Diğer sebepler (@kalanSebep.Count)</span>
-                        <span class="gb-kalan-cubuk"><span style="width:@((kp * 100.0 / enCokSebep).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))%; background:var(--text-faint);"></span></span>
-                        <span class="num gb-kalan-sayi">@kp.ToString("N0") <span class="text-muted" style="font-weight:400;">(@kalanSebep.Sum(x => x.Islem).ToString("N0") işlem)</span></span>
+                        <span class="num gb-kalan-sayi">@sb.Protokol.ToString("N0") <span class="text-muted" style="font-weight:400;">(@sb.Islem.ToString("N0"))</span></span>
                     </a>
                 }
             </div>
