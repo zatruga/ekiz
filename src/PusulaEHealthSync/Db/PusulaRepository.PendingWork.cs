@@ -183,6 +183,32 @@ public partial class PusulaRepository
         return await QueryCandidatesAsync(sql, fromLocal, toLocalExclusive ?? SinirYok, "Composition", "Epikriz", ct);
     }
 
+    // GONDERIMIN GORDUGU EPIKRIZ KUMESI (2026-10-28). GetLockedEpikrizAsync yalnizca kilitli
+    // VE metni dolu kayitlari aliyor; CompositionSyncService ise "Epikriz.OnlySigned" kapaliysa
+    // (sunucuda kapali) kilitsiz kayitlari da deniyor, metni bos olanlari "Epikriz metni bos"
+    // diye atliyor. Tarama bu kayitlari hic gormedigi icin Genel Bakis'in hatti "eksiksiz tamam",
+    // donem karti "eksik verisi var" diyordu -- 7.211 protokol (sunucu kopyasi, 26.10).
+    //
+    // KULLANICI KARARI (2026-10-28): bos epikriz EKSIK sayilir. Bu sorgu kilit kuralini
+    // gonderimle ayni ayardan alir, metin dolulugu sormaz -- dolu/bos ayrimini gonderimin
+    // kendisi (CompositionMapper) yapar, tarama onun SyncLog'a yazdigi sonucu okur.
+    // Tarih: ModifiedDate bos kayitlarda hic yazilmiyor (olculdu), CreatedDate'e dusuluyor.
+    // Olculdu (canli, 01.10-28.10): 21.129 protokol, 1,5 sn.
+    public async Task<List<PendingCandidate>> GetEpikrizAdaylariAsync(
+        DateTime fromLocal, DateTime? toLocalExclusive, bool sadeceKilitli, CancellationToken ct = default)
+    {
+        var kilit = sadeceKilitli ? "AND g.KilitDurumuId = 1" : "";
+        var sql = $@"
+            SELECT g.ProtokolId, g.ProtokolId, MAX(ISNULL(g.ModifiedDate, g.CreatedDate)), 'Epikriz'
+            FROM Tedavi.GenelMuayene g
+            WHERE g.State <> 0 {kilit}
+              AND (g.ModifiedDate >= @From OR g.CreatedDate >= @From)
+            GROUP BY g.ProtokolId
+            HAVING MAX(ISNULL(g.ModifiedDate, g.CreatedDate)) >= @From
+               AND MAX(ISNULL(g.ModifiedDate, g.CreatedDate)) < @To";
+        return await QueryCandidatesAsync(sql, fromLocal, toLocalExclusive ?? SinirYok, "Composition", "Epikriz", ct);
+    }
+
     // IPTAL EDILENLER (Is 3) -- gonderdiklerimizden artik gecerli olmayanlar. Diger
     // sorgularin TERSI yonde calisir: burada Pusula'da "yok olmus" olani ariyoruz.
     // State=0 + IptalTarihi canli veride %100 tutarli (32.400/32.400 olculdu, 2026-09-09).

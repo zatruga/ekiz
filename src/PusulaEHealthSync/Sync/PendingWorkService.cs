@@ -300,6 +300,17 @@ public class PendingWorkService(
         candidates.AddRange(await repository.GetCreatedProceduresAsync(fromLocal, toLocalExclusive, ct));
         candidates.AddRange(await repository.GetLockedEpikrizAsync(fromLocal, toLocalExclusive, ct));
 
+        // 1b) Gonderimin denedigi ama yukaridaki sorgunun gormedigi epikrizler (kilitsiz ya
+        //     da metni bos -- bkz. GetEpikrizAdaylariAsync). YALNIZCA ZATEN LISTEDE OLAN
+        //     protokollere eklenir: yalniz bos bir muayene kaydi olan protokol (tani/recete/
+        //     bos protokol) bilerek gonderilmiyor (kullanici karari 2026-10-22, "boyle
+        //     kalsin"); onu buradan listeye sokmak gonderim dongusune de sokardi.
+        var sadeceKilitli = await settings.GetBoolAsync(SettingsStore.EpikrizOnlySignedKey, true, ct);
+        var listedeki = candidates.Select(c => c.ProtokolId).ToHashSet();
+        var epikrizVar = candidates.Where(c => c.ResourceType == "Composition").Select(c => c.PusulaId).ToHashSet();
+        candidates.AddRange((await repository.GetEpikrizAdaylariAsync(fromLocal, toLocalExclusive, sadeceKilitli, ct))
+            .Where(c => listedeki.Contains(c.ProtokolId) && !epikrizVar.Contains(c.PusulaId)));
+
         // 2) Protokolun KENDISI de bir kalem: Muayine (Encounter) gonderilmemisse altindaki
         //    hicbir sey gonderilemez (hepsi azEncounterId'ye bagli). Bu yuzden aday listesine
         //    her protokol icin bir Encounter kalemi ekleniyor.
