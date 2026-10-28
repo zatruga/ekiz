@@ -53,7 +53,6 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
     public bool Saved { get; set; }
     public int ToplamSayi { get; set; }
     public int PusulaSayi { get; set; }
-    public int MedigateSayi { get; set; }
     public int EksikSayi { get; set; }
     public int GonderilmezSayi { get; set; }
     public int ToplamIstem { get; set; }
@@ -69,27 +68,28 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
     {
         var hepsi = await store.GetAllAsync(ct);
 
+        // TEK KURAL (2026-10-28): Eslesen = kodu var ve gonderilmez degil; Eslesme yok = kodu
+        // yok ve gonderilmez degil. Eslesen + Eslesme yok + Gonderilmez = Tum hizmetler, ve
+        // alttaki liste suzgeci (Esles) ayni ozelliklerden sayiyor.
         ToplamSayi = hepsi.Count;
-        PusulaSayi = hepsi.Count(s => s.Rozet == HizmetMappingStore.KaynakPusula);
-        MedigateSayi = hepsi.Count(s => s.Rozet == HizmetMappingStore.KaynakMedigate);
+        PusulaSayi = hepsi.Count(s => s.Eslesti);
         GonderilmezSayi = hepsi.Count(s => s.Gonderilmez);
-        EksikSayi = hepsi.Count(s => s.PusuladaEksik && !s.Gonderilmez);
+        EksikSayi = hepsi.Count(s => s.Bekliyor);
         KullanilanSayi = hepsi.Count(s => s.Istem > 0);
-        EksikKullanilanSayi = hepsi.Count(s => s.Istem > 0 && s.PusuladaEksik && !s.Gonderilmez);
+        EksikKullanilanSayi = hepsi.Count(s => s.Istem > 0 && s.Bekliyor);
         ToplamIstem = hepsi.Sum(s => s.Istem);
         EslesenIstem = hepsi.Where(s => s.Eslesti).Sum(s => s.Istem);
         Tipler = [.. hepsi.Select(s => s.HizmetTipi).Where(t => !string.IsNullOrWhiteSpace(t)).Distinct().OrderBy(t => t)];
 
         var liste = Durum switch
         {
-            "Pusula" => hepsi.Where(s => s.Rozet == HizmetMappingStore.KaynakPusula),
-            "Medigate" => hepsi.Where(s => s.Rozet == HizmetMappingStore.KaynakMedigate),
-            "Eksik" => hepsi.Where(s => s.PusuladaEksik && !s.Gonderilmez),
+            "Pusula" => hepsi.Where(s => s.Eslesti),
+            "Eksik" => hepsi.Where(s => s.Bekliyor),
             "Gonderilmez" => hepsi.Where(s => s.Gonderilmez),
             // Katalogda 20.613 hizmet var ama 17.008'i son bir yilda HIC istenmemis.
             // Bu filtre gercekten kullanilan kalemlere odaklanmayi sagliyor.
             "Kullanimda" => hepsi.Where(s => s.Istem > 0),
-            "KullanimdaEksik" => hepsi.Where(s => s.Istem > 0 && s.PusuladaEksik && !s.Gonderilmez),
+            "KullanimdaEksik" => hepsi.Where(s => s.Istem > 0 && s.Bekliyor),
             _ => hepsi.AsEnumerable(),
         };
 

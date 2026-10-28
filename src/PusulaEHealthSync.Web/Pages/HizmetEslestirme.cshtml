@@ -34,68 +34,75 @@
     <div class="alert alert-success">Kaydedildi.</div>
 }
 
-<div class="card card-pad" style="margin-bottom:20px;">
-    <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-        <a asp-page="/HizmetEslestirme" asp-route-Durum="Tumu" asp-route-Tip="@Model.Tip" asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon" class="stat-link @(Model.Durum == "Tumu" ? "active" : "")">
-            <span class="stat-value" style="font-size:24px;">@Model.ToplamSayi</span>
-            <span class="text-muted" style="font-size:13px; display:block;">Pusula'daki tüm hizmetler</span>
-        </a>
-        <a asp-page="/HizmetEslestirme" asp-route-Durum="Kullanimda" asp-route-Tip="@Model.Tip" asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon" class="stat-link @(Model.Durum == "Kullanimda" ? "active" : "")">
-            <span class="stat-value" style="font-size:24px;">@Model.KullanilanSayi</span>
-            <span class="text-muted" style="font-size:13px; display:block;">son 1 yılda kullanılan</span>
-        </a>
-        <a asp-page="/HizmetEslestirme" asp-route-Durum="Pusula" asp-route-Tip="@Model.Tip" asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon" class="stat-link @(Model.Durum == "Pusula" ? "active" : "")">
-            <span class="stat-value" style="font-size:24px; color:var(--success);">@Model.PusulaSayi</span>
-            <span class="text-muted" style="font-size:13px; display:block;">Pusula'dan eşleşen</span>
-        </a>
-        <a asp-page="/HizmetEslestirme" asp-route-Durum="Medigate" asp-route-Tip="@Model.Tip" asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon" class="stat-link @(Model.Durum == "Medigate" ? "active" : "")">
-            <span class="stat-value" style="font-size:24px; color:var(--warning);">@Model.MedigateSayi</span>
-            <span class="text-muted" style="font-size:13px; display:block;">Medigate önerisi</span>
-        </a>
-        <a asp-page="/HizmetEslestirme" asp-route-Durum="Eksik" asp-route-Tip="@Model.Tip" asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon" class="stat-link @(Model.Durum == "Eksik" ? "active" : "")">
-            <span class="stat-value" style="font-size:24px; color:var(--danger);">@Model.EksikSayi</span>
-            <span class="text-muted" style="font-size:13px; display:block;">Pusula'da eşleşme yok</span>
-        </a>
-        <a asp-page="/HizmetEslestirme" asp-route-Durum="KullanimdaEksik" asp-route-Tip="@Model.Tip" asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon" class="stat-link @(Model.Durum == "KullanimdaEksik" ? "active" : "")" style="border:1px dashed var(--danger);">
-            <span class="stat-value" style="font-size:24px; color:var(--danger);">@Model.EksikKullanilanSayi</span>
-            <span class="text-muted" style="font-size:13px; display:block;">▶ öncelikli: kullanımda + eşleşme yok</span>
-        </a>
-        <a asp-page="/HizmetEslestirme" asp-route-Durum="Gonderilmez" asp-route-Tip="@Model.Tip" asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon" class="stat-link @(Model.Durum == "Gonderilmez" ? "active" : "")">
-            <span class="stat-value" style="font-size:24px; color:var(--text-muted);">@Model.GonderilmezSayi</span>
-            <span class="text-muted" style="font-size:13px; display:block;">gönderilmez</span>
-        </a>
+@{
+    var oran = Model.ToplamIstem == 0 ? 0 : 100.0 * Model.EslesenIstem / Model.ToplamIstem;
+    var kutular = new (string Durum, string Ad, int Sayi, string Alt, string Css)[]
+    {
+        ("Tumu", "Tüm hizmetler", Model.ToplamSayi, "Pusula kataloğu", ""),
+        ("Kullanimda", "Son 1 yılda kullanılan", Model.KullanilanSayi, "en az bir kez istenmiş", ""),
+        ("Pusula", "Eşleşen", Model.PusulaSayi, "İcbari kodu var, gönderilir", "hz-k-yesil"),
+        ("Eksik", "Eşleşme yok", Model.EksikSayi, "kodu yok, gönderilemez", "hz-k-kirmizi"),
+        ("KullanimdaEksik", "Öncelikli", Model.EksikKullanilanSayi, "kullanımda + eşleşme yok", "hz-k-kirmizi hz-k-oncelik"),
+        ("Gonderilmez", "Gönderilmez", Model.GonderilmezSayi, "bilerek gönderilmiyor", "hz-k-gri"),
+    };
+    var suzgecVar = !string.IsNullOrWhiteSpace(Model.Tip) || !string.IsNullOrWhiteSpace(Model.Ara);
+}
+<section class="card card-pad hz-ust" aria-label="Hizmet özeti">
+    <div class="hz-kutular">
+        @foreach (var k in kutular)
+        {
+            var secili = Model.Durum == k.Durum;
+            <a asp-page="/HizmetEslestirme" asp-route-Durum="@k.Durum" asp-route-Tip="@Model.Tip" asp-route-Ara="@Model.Ara"
+               asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon"
+               class="hz-kutu @k.Css @(secili ? "active" : "")" aria-current="@(secili ? "true" : null)">
+                <span class="hz-kutu-ad">@k.Ad</span>
+                <span class="hz-kutu-sayi">@k.Sayi.ToString("N0")</span>
+                <span class="hz-kutu-alt">@k.Alt</span>
+            </a>
+        }
+    </div>
+    <p class="hz-denklem">
+        Eşleşen <b>@Model.PusulaSayi.ToString("N0")</b> + Eşleşme yok <b>@Model.EksikSayi.ToString("N0")</b>
+        + Gönderilmez <b>@Model.GonderilmezSayi.ToString("N0")</b> = Tüm hizmetler <b>@Model.ToplamSayi.ToString("N0")</b>
+    </p>
 
-        <form method="get" style="margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
-            <input type="hidden" name="Durum" value="@Model.Durum" />
-            <input type="hidden" name="Sira" value="@Model.Sira" />
-            <input type="hidden" name="Yon" value="@Model.Yon" />
-            <select name="Tip" class="form-control" style="width:190px;">
-                <option value="">— tüm hizmet tipleri —</option>
+    <div class="hz-istem">
+        <div class="hz-istem-bas">
+            <span class="text-muted">Bakanlık kodu olan hizmetlerin yıllık istem payı</span>
+            <span><strong>@oran.ToString("0.0")%</strong>
+                  <span class="text-muted">(@Model.EslesenIstem.ToString("N0") / @Model.ToplamIstem.ToString("N0") istem)</span></span>
+        </div>
+        <div class="hz-istem-cubuk"><span style="width:@oran.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)%"></span></div>
+    </div>
+
+    <form method="get" class="hz-suzgec" role="search">
+        <input type="hidden" name="Durum" value="@Model.Durum" />
+        <input type="hidden" name="Sira" value="@Model.Sira" />
+        <input type="hidden" name="Yon" value="@Model.Yon" />
+        <label class="hz-alan">
+            <span>Hizmet tipi</span>
+            <select id="hz-tip" name="Tip" onchange="this.form.submit()">
+                <option value="">Tümü</option>
                 @foreach (var t in Model.Tipler)
                 {
                     <option value="@t" selected="@(Model.Tip == t)">@t</option>
                 }
             </select>
-            <input type="text" name="Ara" value="@Model.Ara" placeholder="hizmet adı veya kod ara"
-                   class="form-control" style="width:210px;" />
-            <button type="submit" class="btn btn-outline btn-sm">Filtrele</button>
-        </form>
-    </div>
-
-    @{
-        var oran = Model.ToplamIstem == 0 ? 0 : 100.0 * Model.EslesenIstem / Model.ToplamIstem;
-    }
-    <div style="margin-top:14px;">
-        <div style="display:flex; justify-content:space-between; font-size:13px; margin-bottom:5px;">
-            <span class="text-muted">Bakanlık kodu olan hizmetlerin yıllık istem payı</span>
-            <span><strong>@oran.ToString("0.0")%</strong>
-                  <span class="text-muted">(@Model.EslesenIstem.ToString("N0") / @Model.ToplamIstem.ToString("N0") istem)</span></span>
-        </div>
-        <div style="height:8px; background:var(--border); border-radius:4px; overflow:hidden;">
-            <div style="height:100%; width:@oran.ToString("0.0")%; background:var(--success);"></div>
-        </div>
-    </div>
-</div>
+        </label>
+        <label class="hz-alan hz-alan-ara">
+            <span>Ara</span>
+            <span class="hz-ara">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input id="hz-ara" type="search" name="Ara" value="@Model.Ara" placeholder="Hizmet adı, Pusula ya da bakanlık kodu" />
+            </span>
+        </label>
+        <button type="submit" class="btn btn-primary btn-sm hz-suzgec-btn">Filtrele</button>
+        @if (suzgecVar)
+        {
+            <a asp-page="/HizmetEslestirme" asp-route-Durum="@Model.Durum" asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon" class="hz-temizle">Süzgeci temizle</a>
+        }
+    </form>
+</section>
 
 <form method="post" asp-page-handler="Excel">
     <input type="hidden" name="Durum" value="@Model.Durum" />

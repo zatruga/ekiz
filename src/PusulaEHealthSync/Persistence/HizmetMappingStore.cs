@@ -59,9 +59,12 @@ public class HizmetMappingStore
         /// Oneri en sonda, cunku o henuz Pusula'ya islenmemis bir TEKLIF -- Icbari kodu varken
         /// onun onune gecmemeli.
         /// </summary>
+        // ONERI ARTIK SAYILMIYOR (2026-10-28): eslesmesi olmayan islem gonderime hic
+        // girmiyor (PusulaRepository.GonderimDisiSebep), yani Medigate onerisi hicbir zaman
+        // kullanilmiyordu -- ama ekranda "eslesen" sayiliyor, ust kartla alt liste farkli
+        // sayi veriyordu. Oneri yalnizca Excel'de "Onerilen Bakanlik Kodu" olarak kaldi.
         public string? EtkinKod => !string.IsNullOrWhiteSpace(AzKod) ? AzKod
-            : !string.IsNullOrWhiteSpace(IcbariKodu) ? IcbariKodu
-            : !string.IsNullOrWhiteSpace(Oneri) ? Oneri : null;
+            : !string.IsNullOrWhiteSpace(IcbariKodu) ? IcbariKodu : null;
 
         public bool Eslesti => !Gonderilmez && EtkinKod is not null;
         public bool Bekliyor => !Gonderilmez && EtkinKod is null;
@@ -197,9 +200,9 @@ public class HizmetMappingStore
             var az = r.IsDBNull(1) ? null : r.GetString(1);
             var icb = r.IsDBNull(2) ? "" : r.GetString(2);
             var oneri = r.IsDBNull(3) ? null : r.GetString(3);
+            // Oneri gonderimde kullanilmaz (bkz. Satir.EtkinKod).
             var kod = !string.IsNullOrWhiteSpace(az) ? az
-                : !string.IsNullOrWhiteSpace(icb) ? icb
-                : !string.IsNullOrWhiteSpace(oneri) ? oneri : null;
+                : !string.IsNullOrWhiteSpace(icb) ? icb : null;
             d[r.GetInt32(0)] = (kod, r.GetInt32(4) == 1);
         }
         return d;

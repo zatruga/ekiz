@@ -2867,3 +2867,52 @@ a.hz-sirala.active span { color: var(--primary); }
 .ayar-bolum { display: flex; align-items: center; gap: 6px; font-size: 13px; padding: 3px 0; cursor: pointer; }
 .ayar-bolum[hidden] { display: none; }
 .ayar-bolum input { margin: 0; accent-color: var(--primary); }
+
+/* ---------------- HIZMET ESLESTIRME: ust kart (2026-10-28) ----------------
+   Alti esit kutu (tiklaninca liste suzulur) + denklem satiri + istem payi + suzgec satiri. */
+.hz-ust { margin-bottom: 20px; display: flex; flex-direction: column; gap: 16px; }
+.hz-kutular { display: grid; grid-template-columns: repeat(6, minmax(0, 1fr)); gap: 10px; }
+@media (max-width: 1280px) { .hz-kutular { grid-template-columns: repeat(3, minmax(0, 1fr)); } }
+@media (max-width: 640px) { .hz-kutular { grid-template-columns: repeat(2, minmax(0, 1fr)); } }
+.hz-kutu {
+  display: flex; flex-direction: column; gap: 4px; min-width: 0;
+  padding: 12px 14px; border: 1px solid var(--border); border-radius: 10px;
+  background: var(--surface); color: var(--text); text-decoration: none;
+  border-top: 3px solid var(--border-strong, var(--border));
+  transition: border-color .15s ease, background-color .15s ease;
+}
+.hz-kutu:hover { background: var(--surface-hover); }
+.hz-kutu.active { background: var(--primary-soft); border-color: var(--primary); border-top-color: var(--primary); }
+.hz-kutu:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
+.hz-kutu-ad { font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }
+.hz-kutu-sayi { font-family: var(--font-heading); font-size: 24px; font-weight: 700; line-height: 1.15; font-variant-numeric: tabular-nums; }
+.hz-kutu-alt { font-size: 12px; color: var(--text-faint); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.hz-k-yesil { border-top-color: var(--success); }
+.hz-k-yesil .hz-kutu-sayi { color: var(--success); }
+.hz-k-kirmizi { border-top-color: var(--danger); }
+.hz-k-kirmizi .hz-kutu-sayi { color: var(--danger); }
+.hz-k-oncelik { background: var(--danger-soft); }
+.hz-k-gri .hz-kutu-sayi { color: var(--text-muted); }
+.hz-denklem { margin: -6px 0 0; font-size: 12.5px; color: var(--text-muted); }
+.hz-denklem b { color: var(--text); font-variant-numeric: tabular-nums; }
+
+.hz-istem-bas { display: flex; justify-content: space-between; flex-wrap: wrap; gap: 4px 12px; font-size: 13px; margin-bottom: 6px; }
+.hz-istem-cubuk { height: 8px; background: var(--surface-hover); border-radius: 4px; overflow: hidden; }
+.hz-istem-cubuk span { display: block; height: 100%; background: var(--success); border-radius: 4px; }
+
+.hz-suzgec { display: flex; flex-wrap: wrap; align-items: flex-end; gap: 10px 12px; padding-top: 14px; border-top: 1px solid var(--border); }
+.hz-alan { display: flex; flex-direction: column; gap: 4px; min-width: 0; }
+.hz-alan > span:first-child { font-size: 11.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-muted); }
+.hz-alan select, .hz-ara input {
+  height: 36px; border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text); font: inherit; font-size: 13.5px; outline: none;
+}
+.hz-alan select { width: 220px; max-width: 100%; padding: 0 10px; }
+.hz-alan select:focus, .hz-ara input:focus { border-color: var(--primary); }
+.hz-alan-ara { flex: 1 1 280px; max-width: 420px; }
+.hz-ara { position: relative; display: block; }
+.hz-ara svg { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-faint); pointer-events: none; }
+.hz-ara input { width: 100%; padding: 0 12px 0 34px; }
+.hz-suzgec-btn { height: 36px; }
+.hz-temizle { font-size: 13px; color: var(--text-muted); align-self: center; padding-bottom: 2px; }
+.hz-temizle:hover { color: var(--primary); }
