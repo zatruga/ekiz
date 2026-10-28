@@ -81,8 +81,22 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
                                         g.ToList()))
         .ToList();
 
-    // Sebep ve hizmet satirlari: ana sayi PROTOKOL, alt sayi ISLEM.
-    public record SebepSatiri(string Sebep, Durum Durum, int Protokol, int Islem);
+    // Protokolun TEK sebebi: protokol sinifini (en kotu kazanir) belirleyen kalem. Once
+    // icbari islemler (kart icbari karti), o sinifta islem yoksa zincir (epikriz, tetkik...).
+    // Ayni sinifta birden cok islem sebebi varsa en cok islemi tutan.
+    public static (string Sebep, Durum Durum, bool Zincir) BirincilSebep(ProtokolKalemi p)
+    {
+        var islem = p.Kalemler.Where(k => k.Durum == p.Durum && k.Durum != Durum.Gitti)
+            .GroupBy(k => k.Sebep).OrderByDescending(g => g.Count()).ThenBy(g => g.Key)
+            .Select(g => g.Key).FirstOrDefault();
+        if (islem is not null) return (islem, p.Durum, false);
+        return (p.ZincirSebep ?? "Diğer", p.Durum, true);
+    }
+
+    // Sebep ve hizmet satirlari: ana sayi PROTOKOL, alt sayi o protokollerde GITMEYEN icbari
+    // islem. Zincir=true: sebep icbari islem degil, zincirin baska kaydi (Islem 0 ise
+    // protokolun icbari islemlerinin hepsi gitmis demek).
+    public record SebepSatiri(string Sebep, Durum Durum, int Protokol, int Islem, bool Zincir = false);
     public record HizmetSatiri(string Hizmet, int Toplam, int Gitti, int ProtokolGitmedi)
     {
         public int Gitmedi => Toplam - Gitti;
@@ -267,14 +281,16 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
             Sinif(Durum.Eksik),
             Sinif(Durum.Hatali),
             Sinif(Durum.Denenmedi),
-            kalemler.Where(k => k.Durum != Durum.Gitti)
-                .GroupBy(k => (k.Sebep, k.Durum))
-                .Select(g => new SebepSatiri(g.Key.Sebep, g.Key.Durum,
-                    g.Select(k => k.Islem.ProtokolId).Distinct().Count(), g.Count(k => !k.Muayene)))
-                // Zincirin geri kalaninda takilan protokoller -- islem sayisi yok (0).
-                .Concat(protokoller.Where(p => p.ZincirTakili)
-                    .GroupBy(p => (Sebep: p.ZincirSebep!, Durum: p.Kalemler[0].Zincir!.Value))
-                    .Select(g => new SebepSatiri(g.Key.Sebep, g.Key.Durum, g.Count(), 0)))
+            // TEK SEBEP (2026-10-28, KULLANICI: tutarsiz sayi guveni sarsar). Her gitmeyen
+            // protokol BIR satirda sayilir -- satirlarin toplami "tamami gitmeyen protokol"
+            // sayisina esit. Eskiden islem sebepleri ve zincir sebepleri ayri ayri sayiliyor,
+            // ayni protokol iki satira dusuyordu (orn. bir islemi "protokol acik" diye
+            // beklerken epikrizi de bos).
+            protokoller.Where(p => p.Durum != Durum.Gitti)
+                .Select(p => (P: p, S: BirincilSebep(p)))
+                .GroupBy(x => x.S)
+                .Select(g => new SebepSatiri(g.Key.Sebep, g.Key.Durum, g.Count(),
+                    g.Sum(x => x.P.Kalemler.Count(k => !k.Muayene && k.Durum != Durum.Gitti)), g.Key.Zincir))
                 .OrderByDescending(s => s.Protokol)
                 .ToList(),
             // En cok GITMEYEN hizmet once (protokol sayisina gore): "neyi duzeltirsem en cok
