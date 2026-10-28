@@ -294,18 +294,64 @@ main.content {
   min-width: 0;
 }
 
-/* mobile topbar fallback (sidebar hidden) */
-.mobile-topbar { display: none; }
+/* ---------- UST CUBUK (2026-10-28) ----------
+   Kaydirmada yerinde kalir (sticky). Genel arama solda, tema + kullanici + cikis sagda.
+   Dar ekranda sol menu gizli oldugu icin marka da burada gorunur ve arama, menunun
+   yerine gecen tek gezinme araci olur. */
+.topbar {
+  position: sticky; top: 0; z-index: 30;
+  height: 56px; display: flex; align-items: center; gap: 16px;
+  padding: 0 40px;
+  background: var(--bg-elevated);
+  border-bottom: 1px solid var(--border);
+}
+.topbar-marka { display: none; font-weight: 700; font-size: 14px; color: var(--text); text-decoration: none; white-space: nowrap; }
+.topbar-sag { margin-left: auto; display: flex; align-items: center; gap: 10px; }
+.topbar-kullanici { display: flex; align-items: center; gap: 9px; min-width: 0; max-width: 220px; }
+.topbar .theme-toggle { width: auto; margin: 0; padding: 7px; }
+.topbar .theme-toggle .moon-label, .topbar .theme-toggle .sun-label { display: none !important; }
+
+.ust-ara { position: relative; flex: 0 1 460px; min-width: 0; }
+.ust-ara-ikon { position: absolute; left: 11px; top: 50%; transform: translateY(-50%); color: var(--text-faint); pointer-events: none; }
+.ust-ara input {
+  width: 100%; height: 36px; padding: 0 34px;
+  border: 1px solid var(--border); border-radius: 8px;
+  background: var(--surface); color: var(--text); font-size: 13.5px; outline: none;
+}
+.ust-ara input:focus { border-color: var(--primary); }
+.ust-ara input::-webkit-search-cancel-button { display: none; }
+.ust-ara-kisayol {
+  position: absolute; right: 9px; top: 50%; transform: translateY(-50%);
+  font: 11px/1 var(--font-heading, monospace); color: var(--text-faint);
+  border: 1px solid var(--border); border-radius: 4px; padding: 2px 5px; pointer-events: none;
+}
+.ust-ara input:focus ~ .ust-ara-kisayol { display: none; }
+.ust-ara-sonuc {
+  position: absolute; left: 0; right: 0; top: calc(100% + 6px); z-index: 40;
+  max-height: min(70vh, 460px); overflow-y: auto; padding: 6px;
+  background: var(--bg-elevated); border: 1px solid var(--border); border-radius: 10px;
+  box-shadow: 0 12px 32px rgba(15, 23, 42, .16);
+}
+.ust-ara-grup { padding: 8px 10px 4px; font-size: 10.5px; font-weight: 600; letter-spacing: .04em; text-transform: uppercase; color: var(--text-faint); }
+.ust-ara-oge { display: block; padding: 8px 10px; border-radius: 7px; color: var(--text); text-decoration: none; font-size: 13.5px; }
+.ust-ara-oge small { display: block; font-size: 11.5px; color: var(--text-muted); margin-top: 1px; }
+.ust-ara-oge mark { background: none; color: var(--primary); font-weight: 600; }
+.ust-ara-oge[aria-selected="true"], .ust-ara-oge:hover { background: var(--surface-hover); }
+.ust-ara-bos { padding: 12px 10px; font-size: 13px; color: var(--text-muted); }
+
 @media (max-width: 900px) {
-  .mobile-topbar {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: 14px 20px;
-    background: var(--bg-elevated);
-    border-bottom: 1px solid var(--border);
-  }
+  /* Sol menu dar ekranda gizli; gezinme ust cubuktaki aramayla. Bu kural eskiden
+     .sidebar tanimindan ONCE yaziliydi ve onun display:flex'i tarafindan eziliyordu --
+     dar ekranda menu hic gizlenmemisti (2026-10-28'de fark edildi). */
+  .sidebar { display: none; }
+  .topbar { padding: 0 16px; gap: 10px; }
+  .topbar-marka { display: inline; }
+  .topbar-kullanici .user-name { display: none; }
+  .ust-ara-kisayol { display: none; }
   main.content { padding: 24px 20px 56px; }
+}
+@media (max-width: 560px) {
+  .topbar-marka { display: none; }
 }
 
 .page-header {
@@ -888,7 +934,7 @@ tbody tr:hover { background: var(--surface-hover); }
   flex-direction: column;
   gap: 22px;
   position: sticky;
-  top: 20px;
+  top: 76px;   /* ust cubuk (56px) + 20px */
 }
 
 .filter-group-title {

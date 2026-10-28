@@ -33,7 +33,7 @@
                 @if (User.IsInRole("Arsiv"))
                 {
                     <div class="nav-section-label">Arşiv</div>
-                    <a asp-page="/YatanHastalar" class="nav-link active">
+                    <a asp-page="/YatanHastalar" data-ara="arşiv taburcu yatış" class="nav-link active">
                         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
                         Yatan Hastalar
                     </a>
@@ -42,81 +42,94 @@
                 {
 
                 <div class="nav-section-label">İzleme</div>
-                <a asp-page="/GenelBakis" class="nav-link @(currentPage is "/GenelBakis" ? "active" : "")">
+                <a asp-page="/GenelBakis" data-ara="özet dashboard hat durak" class="nav-link @(currentPage is "/GenelBakis" ? "active" : "")">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="7" rx="1.5"/><rect x="14" y="3" width="7" height="7" rx="1.5"/><rect x="3" y="14" width="7" height="7" rx="1.5"/><rect x="14" y="14" width="7" height="7" rx="1.5"/></svg>
                     Genel Bakış
                 </a>
-                <a asp-page="/Index" class="nav-link @(currentPage is "/Index" or "/Protokol" ? "active" : "")">
+                <a asp-page="/Index" data-ara="protokol arama hasta fin" class="nav-link @(currentPage is "/Index" or "/Protokol" ? "active" : "")">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="3" width="7" height="9" rx="1.5"/><rect x="14" y="3" width="7" height="5" rx="1.5"/><rect x="14" y="12" width="7" height="9" rx="1.5"/><rect x="3" y="16" width="7" height="5" rx="1.5"/></svg>
                     Protokol Listesi
                 </a>
-                <a asp-page="/Aktivite" class="nav-link @(currentPage is "/Aktivite" or "/Detail" ? "active" : "")">
+                <a asp-page="/Aktivite" data-ara="gönderim log kayıt hata deneme" class="nav-link @(currentPage is "/Aktivite" or "/Detail" ? "active" : "")">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 12h4l3 8 4-16 3 8h4"/></svg>
                     Aktivite Akışı
                 </a>
-                <a asp-page="/BekleyenIsler" class="nav-link @(currentPage is "/BekleyenIsler" ? "active" : "")">
+                <a asp-page="/BekleyenIsler" data-ara="takılı kuyruk sıra neden gitmedi" class="nav-link @(currentPage is "/BekleyenIsler" ? "active" : "")">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M5 22h14"/><path d="M5 2h14"/><path d="M17 22v-4.172a2 2 0 0 0-.586-1.414L12 12l-4.414 4.414A2 2 0 0 0 7 17.828V22"/><path d="M7 2v4.172a2 2 0 0 0 .586 1.414L12 12l4.414-4.414A2 2 0 0 0 17 6.172V2"/></svg>
                     Bekleyen İşler
                 </a>
-                <a asp-page="/IcbariIslemler" class="nav-link @(currentPage is "/IcbariIslemler" ? "active" : "")">
+                <a asp-page="/IcbariIslemler" data-ara="fatura sigorta icbari" class="nav-link @(currentPage is "/IcbariIslemler" ? "active" : "")">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M12 2v20"/><path d="M17 5H9.5a3.5 3.5 0 0 0 0 7h5a3.5 3.5 0 0 1 0 7H6"/></svg>
                     İcbari İşlemler
                 </a>
-                <a asp-page="/YatanHastalar" class="nav-link @(currentPage is "/YatanHastalar" ? "active" : "")">
+                <a asp-page="/YatanHastalar" data-ara="arşiv taburcu yatış" class="nav-link @(currentPage is "/YatanHastalar" ? "active" : "")">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4v16"/><path d="M2 8h18a2 2 0 0 1 2 2v10"/><path d="M2 17h20"/><path d="M6 8v9"/></svg>
                     Yatan Hastalar
                 </a>
 
                 <div class="nav-section-label">Sistem</div>
-                <a asp-page="/BolumEslestirme" class="nav-link @(currentPage is "/BolumEslestirme" ? "active" : "")">
+                <a asp-page="/BolumEslestirme" data-ara="departman" class="nav-link @(currentPage is "/BolumEslestirme" ? "active" : "")">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><rect x="3" y="4" width="7" height="16" rx="1"/><rect x="14" y="4" width="7" height="9" rx="1"/><path d="M14 17h7"/><path d="M14 21h7"/></svg>
                     Bölüm Eşleştirme
                 </a>
-                <a asp-page="/LabLoincEslestirme" class="nav-link @(currentPage is "/LabLoincEslestirme" ? "active" : "")">
+                <a asp-page="/LabLoincEslestirme" data-ara="laboratuvar tetkik loinc" class="nav-link @(currentPage is "/LabLoincEslestirme" ? "active" : "")">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M9 3h6"/><path d="M10 3v6l-5 9a2 2 0 0 0 1.7 3h10.6a2 2 0 0 0 1.7-3l-5-9V3"/><path d="M7 15h10"/></svg>
                     Lab LOINC Eşleştirme
                 </a>
-                <a asp-page="/HizmetEslestirme" class="nav-link @(currentPage is "/HizmetEslestirme" ? "active" : "")">
+                <a asp-page="/HizmetEslestirme" data-ara="işlem procedure kod" class="nav-link @(currentPage is "/HizmetEslestirme" ? "active" : "")">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M3 7h18"/><path d="M3 12h18"/><path d="M3 17h10"/><circle cx="18" cy="17" r="3"/></svg>
                     Hizmet Eşleştirme
                 </a>
                 @* Eslestirme sayfalarinin hemen ardinda: o sayfalarda NEYI duzeltmek
                    gerektigini bu rapor soyluyor. (2026-10-08 kullanici istegi.) *@
-                <a asp-page="/EksikEslestirme" class="nav-link @(currentPage is "/EksikEslestirme" ? "active" : "")">
+                <a asp-page="/EksikEslestirme" data-ara="eksik eşleştirme tetkik" class="nav-link @(currentPage is "/EksikEslestirme" ? "active" : "")">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><path d="M14 2v6h6"/><path d="M9 15h6"/><path d="M9 11h2"/></svg>
                     Gönderilemeyen Tetkikler
                 </a>
-                <a asp-page="/Doktorlar" class="nav-link @(currentPage is "/Doktorlar" ? "active" : "")">
+                <a asp-page="/Doktorlar" data-ara="hekim personel fin" class="nav-link @(currentPage is "/Doktorlar" ? "active" : "")">
                     <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/></svg>
                     Doktorlar
                 </a>
                 @if (User.IsInRole("Admin"))
                 {
-                    <a asp-page="/ServisDurumu" class="nav-link @(currentPage is "/ServisDurumu" ? "active" : "")">
+                    <a asp-page="/ServisDurumu" data-ara="worker servis sağlık" class="nav-link @(currentPage is "/ServisDurumu" ? "active" : "")">
                         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M22 12h-4l-3 9L9 3l-3 9H2"/></svg>
                         Servis Durumu
                     </a>
-                    <a asp-page="/Ayarlar" class="nav-link @(currentPage is "/Ayarlar" ? "active" : "")">
+                    <a asp-page="/Ayarlar" data-ara="parametre konfigürasyon epikriz mail" class="nav-link @(currentPage is "/Ayarlar" ? "active" : "")">
                         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="3"/><path d="M19.4 15a1.65 1.65 0 0 0 .33 1.82l.06.06a2 2 0 1 1-2.83 2.83l-.06-.06a1.65 1.65 0 0 0-1.82-.33 1.65 1.65 0 0 0-1 1.51V21a2 2 0 0 1-4 0v-.09A1.65 1.65 0 0 0 9 19.4a1.65 1.65 0 0 0-1.82.33l-.06.06a2 2 0 1 1-2.83-2.83l.06-.06a1.65 1.65 0 0 0 .33-1.82 1.65 1.65 0 0 0-1.51-1H3a2 2 0 0 1 0-4h.09A1.65 1.65 0 0 0 4.6 9a1.65 1.65 0 0 0-.33-1.82l-.06-.06a2 2 0 1 1 2.83-2.83l.06.06a1.65 1.65 0 0 0 1.82.33H9a1.65 1.65 0 0 0 1-1.51V3a2 2 0 0 1 4 0v.09a1.65 1.65 0 0 0 1 1.51 1.65 1.65 0 0 0 1.82-.33l.06-.06a2 2 0 1 1 2.83 2.83l-.06.06a1.65 1.65 0 0 0-.33 1.82V9a1.65 1.65 0 0 0 1.51 1H21a2 2 0 0 1 0 4h-.09a1.65 1.65 0 0 0-1.51 1z"/></svg>
                         Ayarlar
                     </a>
-                    <a asp-page="/Kullanicilar" class="nav-link @(currentPage is "/Kullanicilar" ? "active" : "")">
+                    <a asp-page="/Kullanicilar" data-ara="şifre rol hesap" class="nav-link @(currentPage is "/Kullanicilar" ? "active" : "")">
                         <svg width="17" height="17" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M17 21v-2a4 4 0 0 0-4-4H5a4 4 0 0 0-4 4v2"/><circle cx="9" cy="7" r="4"/><path d="M23 21v-2a4 4 0 0 0-3-3.87"/><path d="M16 3.13a4 4 0 0 1 0 7.75"/></svg>
                         Kullanıcılar
                     </a>
                 }
                 }
 
-                <div class="sidebar-footer">
-                    <button type="button" class="theme-toggle" onclick="pusulaToggleTheme()" aria-label="Açık/koyu tema değiştir">
-                        <svg class="moon-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
-                        <svg class="sun-icon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66 4.93 19.07M19.07 4.93 17.66 6.34"/></svg>
-                        <span class="moon-label">Koyu tema</span>
-                        <span class="sun-label">Açık tema</span>
-                    </button>
+            </aside>
 
-                    <div class="user-row">
-                        <div style="display:flex; align-items:center; gap:9px; overflow:hidden;">
+            <div class="app-govde">
+                @* UST CUBUK (2026-10-28, ClinicAsist incelemesinden): kaydirmada yerinde kalir;
+                   genel arama + tema + kullanici. Eskiden tema ve kullanici sol menunun altindaydi,
+                   dar ekranda ayri bir "mobile-topbar" vardi -- ikisi bu cubukta birlesti. *@
+                <header class="topbar">
+                    <a asp-page="/Index" class="topbar-marka" aria-label="Ana sayfa">Pusula &rarr; TRƏS</a>
+                    <div class="ust-ara" role="search">
+                        <svg class="ust-ara-ikon" width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                        <input id="ust-ara" type="search" autocomplete="off" spellcheck="false"
+                               placeholder="Sayfa, protokol no, hasta adı ya da FIN ara…" aria-label="Ara"
+                               aria-controls="ust-ara-sonuc" aria-expanded="false"
+                               data-protokol="@(User.IsInRole("Arsiv") ? "0" : "1")" />
+                        <kbd class="ust-ara-kisayol" aria-hidden="true">/</kbd>
+                        <div id="ust-ara-sonuc" class="ust-ara-sonuc" role="listbox" hidden></div>
+                    </div>
+                    <div class="topbar-sag">
+                        <button type="button" class="theme-toggle" onclick="pusulaToggleTheme()" aria-label="Açık/koyu tema değiştir" title="Açık/koyu tema">
+                            <svg class="moon-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M21 12.79A9 9 0 1 1 11.21 3 7 7 0 0 0 21 12.79z"/></svg>
+                            <svg class="sun-icon" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="12" cy="12" r="4"/><path d="M12 2v2M12 20v2M4.93 4.93l1.41 1.41M17.66 17.66l1.41 1.41M2 12h2M20 12h2M6.34 17.66 4.93 19.07M19.07 4.93 17.66 6.34"/></svg>
+                        </button>
+                        <div class="topbar-kullanici">
                             <span class="user-avatar">@(User.FindFirstValue(ClaimTypes.Name)?.Substring(0, 1).ToUpper())</span>
                             <span class="user-name">
                                 @User.FindFirstValue(ClaimTypes.Name)
@@ -131,16 +144,7 @@
                             </button>
                         </form>
                     </div>
-                </div>
-            </aside>
-
-            <div>
-                <div class="mobile-topbar">
-                    <span class="brand-name">Pusula &rarr; TRƏS <span class="accent">Senkron</span></span>
-                    <form method="post" asp-page="/Logout">
-                        <button type="submit" class="btn btn-outline btn-sm">Çıkış</button>
-                    </form>
-                </div>
+                </header>
                 @* GENIS MOD (KULLANICI ISTEGI 2026-10-05): "sağ taraf boş olmasına rağmen
                    tablo sıkışık, ekrana ve çözünürlüğe göre uyum sağlayan bir yapı olsun."
 
@@ -186,5 +190,6 @@
     </script>
     @await RenderSectionAsync("Scripts", required: false)
     <script src="~/js/tarih-secici.js" asp-append-version="true"></script>
+    <script src="~/js/ust-ara.js" asp-append-version="true"></script>
 </body>
 </html>
