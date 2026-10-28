@@ -147,14 +147,13 @@
                         <th style="width:80px; text-align:right;">@Baslik("istem", "İstem/yıl")</th>
                         <th style="width:105px;">@Baslik("azkod", "Bakanlık Kodu")</th>
                         <th>Bakanlık Karşılığı</th>
-                        <th style="width:105px;">@Baslik("kaynak", "Kaynak")</th>
-                        <th style="min-width:260px;">Eşleştir</th>
+                        <th style="width:150px;">Gönderim</th>
                     </tr>
                 </thead>
                 <tbody>
                 @if (Model.Satirlar.Count == 0)
                 {
-                    <tr><td colspan="10" class="text-muted" style="padding:20px;">Kayıt bulunamadı.</td></tr>
+                    <tr><td colspan="9" class="text-muted" style="padding:20px;">Kayıt bulunamadı.</td></tr>
                 }
                 @foreach (var s in Model.Satirlar)
                 {
@@ -195,58 +194,22 @@
                                 <span class="text-muted">Eşleşme yok -- Excel'e alıp Pusula'da eşleştirin.</span>
                             }
                         </td>
+                        @* KAYNAK VE ESLESTIR SUTUNLARI KALDIRILDI (2026-10-28, kullanici): kod bu ekrandan
+                           girilmiyor, Pusula'daki Icbari fiyat listesinden geliyor. Burada tek karar:
+                           bu hizmet bakanliga gitsin mi. "Gonderilmez" isaretli hizmet ne gonderilir ne de
+                           Bekleyen Isler / Icbari kartinda eksik sayilir. *@
                         <td>
                             @if (s.Gonderilmez)
                             {
-                                <span class="badge"><span class="badge-dot"></span>gönderilmez</span>
-                            }
-                            else if (s.Rozet == HizmetMappingStore.KaynakPusula)
-                            {
-                                <span class="badge badge-success"><span class="badge-dot"></span>Pusula</span>
-                            }
-                            else if (s.Rozet == HizmetMappingStore.KaynakMedigate)
-                            {
-                                <span class="badge badge-warning"><span class="badge-dot"></span>Medigate</span>
-                            }
-                            else if (s.Rozet == HizmetMappingStore.KaynakKullanici)
-                            {
-                                <span class="badge badge-warning"><span class="badge-dot"></span>elle</span>
+                                <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
+                                    <span class="badge"><span class="badge-dot"></span>gönderilmez</span>
+                                    <button type="submit" form="s-@s.HizmetId" class="btn btn-outline btn-sm" title="İşareti kaldır; hizmet yeniden gönderime girer">Geri al</button>
+                                </div>
                             }
                             else
                             {
-                                <span class="badge badge-danger"><span class="badge-dot"></span>yok</span>
+                                <button type="submit" form="g-@s.HizmetId" class="btn btn-outline btn-sm" title="Bu hizmet bakanlığa gönderilmez ve eksik olarak sayılmaz">Gönderilmez</button>
                             }
-                        </td>
-                        <td>
-                            <div style="display:flex; gap:5px; align-items:center; flex-wrap:wrap;">
-                                @if (s.AdayListesi.Length > 0)
-                                {
-                                    @* Aday listesi: algoritma 3.052 secenegi birkac tanesine indiriyor,
-                                       karari kullanici veriyor. Secilince ustteki kutuya yaziliyor. *@
-                                    <select class="form-control" style="width:150px;"
-                                            onchange="var i=document.getElementById('k-@s.HizmetId'); if(this.value){i.value=this.value;}">
-                                        <option value="">— aday seç —</option>
-                                        @foreach (var c in s.AdayListesi)
-                                        {
-                                            var cadi = PusulaEHealthSync.Web.Pages.HizmetEslestirmeModel.AzAdiTr(c)
-                                                       ?? PusulaEHealthSync.Web.Pages.HizmetEslestirmeModel.AzAdi(c);
-                                            <option value="@c">@c — @(cadi is null ? "" : cadi.Length > 60 ? cadi[..60] + "…" : cadi)</option>
-                                        }
-                                    </select>
-                                }
-                                <input type="text" form="f-@s.HizmetId" id="k-@s.HizmetId" name="azKod" value="@s.AzKod"
-                                       placeholder="@(s.Oneri ?? s.IcbariKodu)" class="form-control" style="width:95px;" />
-                                <button type="submit" form="f-@s.HizmetId" class="btn btn-primary btn-sm">Kaydet</button>
-                                @if (!s.Gonderilmez)
-                                {
-                                    <button type="submit" form="g-@s.HizmetId" class="btn btn-outline btn-sm">Gönderilmez</button>
-                                }
-                                @if (s.Kaynak == HizmetMappingStore.KaynakKullanici)
-                                {
-                                    <button type="submit" form="r-@s.HizmetId" class="btn btn-outline btn-sm"
-                                            style="border-color:var(--danger); color:var(--danger);">Sıfırla</button>
-                                }
-                            </div>
                         </td>
                     </tr>
                 }
@@ -259,15 +222,6 @@
 @* Satir formlari tablonun DISINDA -- HTML'de form ic ice olamaz, form="..." ile baglaniyor. *@
 @foreach (var s in Model.Satirlar)
 {
-    <form method="post" asp-page-handler="Kaydet" id="f-@s.HizmetId" hidden>
-        <input type="hidden" name="Durum" value="@Model.Durum" />
-        <input type="hidden" name="Tip" value="@Model.Tip" />
-        <input type="hidden" name="Ara" value="@Model.Ara" />
-        <input type="hidden" name="Esles" value="@Model.Esles" />
-        <input type="hidden" name="Sira" value="@Model.Sira" />
-        <input type="hidden" name="Yon" value="@Model.Yon" />
-        <input type="hidden" name="hizmetId" value="@s.HizmetId" />
-    </form>
     <form method="post" asp-page-handler="Gonderilmez" id="g-@s.HizmetId" hidden>
         <input type="hidden" name="Durum" value="@Model.Durum" />
         <input type="hidden" name="Tip" value="@Model.Tip" />
@@ -277,7 +231,7 @@
         <input type="hidden" name="Yon" value="@Model.Yon" />
         <input type="hidden" name="hizmetId" value="@s.HizmetId" />
     </form>
-    <form method="post" asp-page-handler="Sifirla" id="r-@s.HizmetId" hidden>
+    <form method="post" asp-page-handler="Gonderilsin" id="s-@s.HizmetId" hidden>
         <input type="hidden" name="Durum" value="@Model.Durum" />
         <input type="hidden" name="Tip" value="@Model.Tip" />
         <input type="hidden" name="Ara" value="@Model.Ara" />
@@ -290,11 +244,9 @@
 
 <div class="card card-pad" style="margin-top:20px;">
     <p class="text-muted" style="font-size:13px; margin:0;">
-        <strong>Pusula</strong> = eşleşme Pusula'daki İcbari Sigorta Fiyat Listesi'nden geliyor, hazır.
-        <strong>Medigate</strong> = bizim önerimiz, henüz Pusula'ya işlenmedi.
-        <strong>aday seç</strong> = algoritmanın bulduğu yakın kodlar -- öneri değil, aday; kararı siz verirsiniz.
-        <strong>elle</strong> = bu ekrandan girildi.
-        <strong>gönderilmez</strong> = tıbbi işlem değil (yatak ücreti, kafeterya, refakatçi), bakanlığa hiç gitmez.
-        Bu tablo Pusula'ya <em>yazmaz</em>; asıl eşleştirme Pusula'da yapılır.
+        Bakanlık kodu Pusula'daki <strong>İcbari Sigorta Fiyat Listesi</strong>'nden gelir; eşleşmesi olmayan hizmetleri
+        Excel'e alıp Pusula'da eşleştirin. <strong>Gönderilmez</strong>: tıbbi işlem olmayan kalemler (yatak ücreti, kafeterya,
+        refakatçi). İşaretli hizmet bakanlığa gönderilmez ve Bekleyen İşler, Genel Bakış ve İcbari kartında eksik olarak sayılmaz;
+        <strong>Geri al</strong> ile işaret kaldırılır. Bu tablo Pusula'ya <em>yazmaz</em>.
     </p>
 </div>

@@ -24,7 +24,8 @@ namespace PusulaEHealthSync.Reporting;
 // girer, ISLEM sayilarina girmez.
 //
 // SALT OKUNUR: Pusula'ya yalnizca SELECT.
-public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncLog, SettingsStore settings)
+public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncLog, SettingsStore settings,
+                                 HizmetMappingStore hizmetMapping)
 {
     public enum Durum { Gitti, Eksik, Hatali, Denenmedi }
 
@@ -111,7 +112,10 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
     public async Task<List<Kalem>> KalemlerAsync(
         DateTime fromLocal, DateTime toLocalExclusive, string ortam, CancellationToken ct = default)
     {
-        var islemlerGorevi = repository.GetIcbariIslemlerAsync(fromLocal, toLocalExclusive, ct);
+        // "Gonderilmez" isaretli hizmetler faturaya konu olsa da TRƏS'e gitmeyecek -- kartta
+        // eksik sayilmasin (kullanici karari 2026-10-28).
+        var gonderilmez = await hizmetMapping.GetGonderilmezIdleriAsync(ct);
+        var islemlerGorevi = repository.GetIcbariIslemlerAsync(fromLocal, toLocalExclusive, ct, gonderilmez);
         var kurumluGorevi = repository.GetIcbariKurumluProtokollerAsync(fromLocal, toLocalExclusive, ct);
         var islemler = await islemlerGorevi;
         var islemliProtokoller = islemler.Select(i => i.ProtokolId).ToHashSet();

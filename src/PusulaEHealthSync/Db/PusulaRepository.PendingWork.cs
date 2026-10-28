@@ -118,18 +118,27 @@ public partial class PusulaRepository
     // KOSULLAR TEK YERDE (IcbariApply / GonderimDisiSebep): iki sorgu da ayni metni
     // kullaniyor, boylece bir daha birbirinden ayrisamazlar. Bu projede ayni hesabin
     // iki kopyasi bugune kadar uc kez ayrismisti.
+    // haricHizmetler: Hizmet Eslestirme'de "gonderilmez" isaretli hizmetler -- bu islemler
+    // aday bile olmaz, yani Bekleyen Isler'de eksik gorunmez (2026-10-28).
     public async Task<List<PendingCandidate>> GetCreatedProceduresAsync(
-        DateTime fromLocal, DateTime? toLocalExclusive = null, CancellationToken ct = default)
+        DateTime fromLocal, DateTime? toLocalExclusive = null, CancellationToken ct = default,
+        IReadOnlyCollection<int>? haricHizmetler = null)
     {
-        const string sql = @"
+        var sql = @"
             SELECT pi.ProtokolId, pi.Id, pi.CreatedDate, oh.Adi, " + GonderimDisiSebep + @"
             FROM Hasta.ProtokolIslem pi
             INNER JOIN Ortak.Hizmet oh ON oh.Id = pi.HizmetId
             " + IcbariApply + @"
             WHERE pi.State >= 2 AND pi.CreatedDate >= @From AND pi.CreatedDate < @To
-              AND oh.Kodu <> '30105'";
+              AND oh.Kodu <> '30105'" + HizmetHaric(haricHizmetler);
         return await QueryCandidatesAsync(sql, fromLocal, toLocalExclusive ?? SinirYok, "Procedure", "İşlem", ct);
     }
+
+    // "AND pi.HizmetId NOT IN (...)" -- liste yalnizca int, SQL'e kullanici metni girmez.
+    internal static string HizmetHaric(IReadOnlyCollection<int>? idler) =>
+        idler is { Count: > 0 }
+            ? " AND pi.HizmetId NOT IN (" + string.Join(",", idler.Select(i => i.ToString(System.Globalization.CultureInfo.InvariantCulture))) + ")"
+            : "";
 
     // Icbari Sigorta Fiyat Listesi eslesmesi -- GetIslemlerByProtokolIdAsync'teki
     // OUTER APPLY ile BIREBIR AYNI (KurumHizmetKategoriId = 13, paket once).

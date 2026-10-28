@@ -167,6 +167,14 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
         return RedirectToPage("/HizmetEslestirme", Rota(saved: true));
     }
 
+    // "Gonderilmez" isaretini kaldirir; varsa elle girilmis kod korunur.
+    public async Task<IActionResult> OnPostGonderilsinAsync(int hizmetId, CancellationToken ct)
+    {
+        var mevcut = (await store.GetAllAsync(ct)).FirstOrDefault(s => s.HizmetId == hizmetId);
+        await store.SetAsync(hizmetId, mevcut?.AzKod, gonderilmez: false, ct);
+        return RedirectToPage("/HizmetEslestirme", Rota(saved: true));
+    }
+
     public async Task<IActionResult> OnPostSifirlaAsync(int hizmetId, CancellationToken ct)
     {
         await store.SifirlaAsync(hizmetId, ct);

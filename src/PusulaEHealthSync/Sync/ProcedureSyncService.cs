@@ -39,6 +39,16 @@ public class ProcedureSyncService(
     {
         var eslestirme = await hizmetMappingStore.GetMapAsync(ct);
         var azPractitionerId = liveMode ? await PerformerCozAsync(islem, ct) : null;
+        // "GONDERILMEZ" ISARETLI HIZMET GUNLUGE YAZILMAZ (2026-10-28, kullanici: "gonderim
+        // raporunda eksik olarak yer almasin"). Atlandi kaydi yazilsaydi Genel Bakis'in
+        // tablolari ve gun sonu raporu bu islemi "eksik verili" sayardi. Kayit bellekte
+        // donuyor ki cagiran zincir sonucu yine gorebilsin.
+        if (eslestirme.TryGetValue(islem.HizmetId, out var karar) && karar.Gonderilmez)
+        {
+            var bilgi = NewEntry(islem, protokol, SyncStatus.Skipped);
+            bilgi.Message = "Hizmet Eşleştirme ekranında \"gönderilmez\" işaretli -- gönderilmedi, günlüğe yazılmadı";
+            return bilgi;
+        }
         var mapping = ProcedureMapper.Map(islem, azPatientId, azEncounterId, eslestirme, azPractitionerId);
         if (mapping is MappingResult.Skipped atlandi)
         {

@@ -25,6 +25,7 @@ public class PendingWorkService(
     PusulaRepository repository,
     SyncLogStore syncLog,
     SettingsStore settings,
+    HizmetMappingStore hizmetMapping,
     Microsoft.Extensions.Logging.ILogger<PendingWorkService> logger)
 {
     // Patoloji immunohistokimya ile haftalar surebiliyor; pencere bunu rahat kapsamali.
@@ -300,7 +301,9 @@ public class PendingWorkService(
         candidates.AddRange(await repository.GetCompletedLabResultsAsync(fromLocal, toLocalExclusive, ct));
         candidates.AddRange(await repository.GetCompletedRadiologyAsync(fromLocal, toLocalExclusive, ct));
         candidates.AddRange(await repository.GetCompletedPathologyAsync(fromLocal, toLocalExclusive, ct));
-        candidates.AddRange(await repository.GetCreatedProceduresAsync(fromLocal, toLocalExclusive, ct));
+        // Hizmet Eslestirme'de "gonderilmez" isaretli hizmetler aday degil (bkz. HizmetMappingStore).
+        var gonderilmezHizmetler = await hizmetMapping.GetGonderilmezIdleriAsync(ct);
+        candidates.AddRange(await repository.GetCreatedProceduresAsync(fromLocal, toLocalExclusive, ct, gonderilmezHizmetler));
         candidates.AddRange(await repository.GetLockedEpikrizAsync(fromLocal, toLocalExclusive, ct));
 
         // 1b) Gonderimin denedigi ama yukaridaki sorgunun gormedigi epikrizler (kilitsiz ya

@@ -205,6 +205,22 @@ public class HizmetMappingStore
         return d;
     }
 
+    /// <summary>
+    /// "Gonderilmez" isaretli hizmetlerin Id'leri. Tarama ve Icbari karti bu hizmetlerin
+    /// islemlerini HIC aday almaz -- eksik olarak gorunmezler (kullanici karari 2026-10-28).
+    /// </summary>
+    public async Task<HashSet<int>> GetGonderilmezIdleriAsync(CancellationToken ct = default)
+    {
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+        using var cmd = conn.CreateCommand();
+        cmd.CommandText = "SELECT HizmetId FROM HizmetMapping WHERE Gonderilmez = 1";
+        var s = new HashSet<int>();
+        await using var r = await cmd.ExecuteReaderAsync(ct);
+        while (await r.ReadAsync(ct)) s.Add(r.GetInt32(0));
+        return s;
+    }
+
     public async Task<List<Satir>> GetAllAsync(CancellationToken ct = default)
     {
         using var conn = new SqliteConnection(_connectionString);
