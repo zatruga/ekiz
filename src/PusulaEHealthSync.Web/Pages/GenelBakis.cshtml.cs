@@ -383,9 +383,19 @@ public class GenelBakisModel(
 
         // ---- 3) DONEME DUSEN KAYITLAR ----
         // Pencere donemden uzun olabilir; donem kartlari yalnizca donemin gunlerini sayar.
-        var donemKayitlari = pencere.Kayitlar
+        //
+        // SON DENEME KAZANIR (2026-10-28, KULLANICI: "tutarsiz sayilar her zaman kafada soru
+        // isareti birakir, uygulamaya guveni sarsmayalim"). pencere.Kayitlar KAYIT-GUN
+        // listesi: 05.10'da atlanip 20.10'da giden bir kalem burada iki satirdi ve "en kotu
+        // kazanir" protokolu "eksik verisi var"a yaziyordu -- oysa ustteki hat (durak 4) ayni
+        // protokolu "eksiksiz tamam" sayiyordu. Artik her kalem donem icindeki SON denemesiyle
+        // tek satir; Aktivite'nin kartlari da ayni kurali kullaniyor (SyncLogStore
+        // AkisKartlariniHesaplaAsync), yani karttan tiklanan liste ayni sayiyi gosterir.
+        // Satir toplami deneme hacmi oldugu icin kayit-gun listesinden kaliyor.
+        var donemKayitGunleri = pencere.Kayitlar
             .Where(k => k.Gun >= PeriodFromDate && k.Gun <= PeriodToDate)
             .ToList();
+        var donemKayitlari = SonDenemeler(donemKayitGunleri);
 
         // Protokol sinifi DONEM icinde yeniden hesaplaniyor -- pencere sinifini kullanmak,
         // donem disindaki bir hatayi doneme tasirdi.
@@ -398,7 +408,7 @@ public class GenelBakisModel(
         var tamamYuzde = dokunulan == 0 ? 0 : Math.Round(tamam * 100.0 / dokunulan, 1);
 
         var kayitToplam = donemKayitlari.Select(k => (k.ResourceType, k.PusulaId)).Distinct().Count();
-        var satirToplam = donemKayitlari.Sum(k => k.Satir);
+        var satirToplam = donemKayitGunleri.Sum(k => k.Satir);
         var protokolsuz = donemKayitlari
             .Where(k => k.ProtokolId is null)
             .Select(k => (k.ResourceType, k.PusulaId)).Distinct().Count();
@@ -414,8 +424,8 @@ public class GenelBakisModel(
         double deltaYuzde = 0;
         if (deltaVar)
         {
-            var oncekiKayitlar = pencere.Kayitlar
-                .Where(k => k.Gun >= oncekiBas && k.Gun < PeriodFromDate).ToList();
+            var oncekiKayitlar = SonDenemeler(pencere.Kayitlar
+                .Where(k => k.Gun >= oncekiBas && k.Gun < PeriodFromDate).ToList());
             var onceki = ProtokolleriSinifla(oncekiKayitlar);
             if (onceki.Count == 0) deltaVar = false;
             else
@@ -451,6 +461,8 @@ public class GenelBakisModel(
         // Sabit liste YOK: turler verinin kendisinden geliyor. Eski haldeki alti elemanli
         // sabit dizi, yeni bir modul (laboratuvar, radyoloji, patoloji, vital) eklendikce
         // sessizce eksik kaliyordu.
+        // Tur satir toplami ustteki satir toplamiyla ayni kaynaktan (deneme hacmi).
+        var turSatiri = donemKayitGunleri.GroupBy(k => k.ResourceType).ToDictionary(g => g.Key, g => g.Sum(k => k.Satir));
         var turler = donemKayitlari
             .GroupBy(k => k.ResourceType)
             .Select(g =>
@@ -463,7 +475,7 @@ public class GenelBakisModel(
                     TekilSay(g, SyncStatus.Success),
                     TekilSay(g, SyncStatus.Skipped),
                     TekilSay(g, SyncStatus.Failed),
-                    g.Sum(k => k.Satir));
+                    turSatiri.GetValueOrDefault(g.Key));
             })
             .OrderByDescending(t => t.Kayit)
             .ToList();
@@ -798,7 +810,16 @@ public class GenelBakisModel(
         return (bas, bit > bugun ? bugun : bit);
     }
 
-    // "EN KOTU DURUM KAZANIR" -- hata eksigi, eksik basariyi ezer. Ayni kural:
+    // Her kalemin (tur + PusulaId) yalnizca SON denemesi. SonId gunun son SyncLog
+    // Id'si, yani en buyugu tum listedeki son deneme.
+    private static List<KayitDurumu> SonDenemeler(List<KayitDurumu> kayitGunleri) => kayitGunleri
+        .GroupBy(k => (k.ResourceType, k.PusulaId))
+        .Select(g => g.MaxBy(k => k.SonId)!)
+        .ToList();
+
+    // "EN KOTU DURUM KAZANIR" -- FARKLI KALEMLER arasinda: hata eksigi, eksik basariyi
+    // ezer. Ayni kalemin gunler arasindaki gecmisi buraya gelmeden SonDenemeler ile tek
+    // satira indiriliyor (donem kartlari); gunluk trendde her gun kendi icinde sayilir. Ayni kural:
     // ProtokolDurumService, GunSonuRaporService, Aktivite Akisi, SyncLogStore kayit
     // sayimlari. Bes yerde ayni cevap.
     private static Dictionary<int, ProtokolSinifi> ProtokolleriSinifla(List<KayitDurumu> kayitlar)
