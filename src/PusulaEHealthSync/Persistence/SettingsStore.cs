@@ -216,6 +216,14 @@ public class SettingsStore
     public const string EpikrizSendEnabledKey = "Epikriz.SendEnabled";
     public const string EpikrizOnlySignedKey = "Epikriz.OnlySigned";
 
+    // BOS EPIKRIZ MUAF BOLUMLER (KULLANICI KARARI 2026-10-28): bos epikriz EKSIK sayilir,
+    // ama yalnizca tetkik icin acilan bolumlerde (laboratuvar, radyoloji) epikriz beklenmez
+    // -- oranin sorumlu doktoru "epikriz yazmadi" listesinin basina haksiz yere dusuyordu.
+    // ";" ile ayrilmis Pusula bolum ADLARI (Ortak.Bolum.Adi), buyuk/kucuk harf farksiz.
+    // Bkz. EpikrizMuafiyeti.
+    public const string EpikrizMuafBolumlerKey = "Epikriz.MuafBolumler";
+    public const string EpikrizMuafBolumlerDefault = "Laboratoriya; Radiologiya";
+
     // Tanı (Condition) / İşlem (Procedure) -- KULLANICI ISTEGI (2026-08-25): "ama bence
     // göndermeyi otomatik yapabiliriz ... yada bunu parametrik yapıp isteğe göre
     // değiştirilebilir olmalı" -- otomatik cascade (Müayinə ile birlikte) davranışı

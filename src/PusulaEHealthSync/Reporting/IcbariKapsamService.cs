@@ -169,13 +169,29 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
         // son deneme (Aktivite Akisi'yla ayni kural; Hasta kaydi siniflamaya girmez --
         // AkisGrupOzeti.Siniflanan). Icbari Procedure'lar zaten kalemlerde sayildi.
         var icbariIslemIdleri = islemler.Select(i => i.IslemId).ToHashSet();
-        var zincir = (await syncLog.QueryOzetByProtokolIdsAsync(
+        var zincirSon = (await syncLog.QueryOzetByProtokolIdsAsync(
                 kalemler.Select(k => k.Islem.ProtokolId).Distinct().ToList(), [], null, ortam, ct))
             .Where(o => o.ProtokolId is not null && o.ResourceType != "Patient"
                      && !(o.ResourceType == "Procedure" && icbariIslemIdleri.Contains(o.PusulaId)))
             .GroupBy(o => (o.ResourceType, o.PusulaId))
             .Select(g => g.MaxBy(o => o.SonId)!)
             .Where(o => o.Status is SyncStatus.Failed or SyncStatus.Skipped)
+            .ToList();
+
+        // Muaf bolumlerin (laboratuvar, radyoloji) bos epikrizi zinciri kilitlemez -- tarama
+        // ve Genel Bakis ile ayni kural (bkz. EpikrizMuafiyeti). Bolum yalnizca bos epikrizi
+        // olan protokoller icin soruluyor.
+        var bosEpikrizli = zincirSon.Where(o => EpikrizMuafiyeti.BosEpikriz(o.ResourceType, o.Status, o.HataMesaji))
+            .Select(o => o.ProtokolId!.Value).Distinct().ToList();
+        if (bosEpikrizli.Count > 0)
+        {
+            var muaf = await EpikrizMuafiyeti.BolumleriAsync(settings, ct);
+            var bolumler = await repository.GetProtokollerByIdsAsync(bosEpikrizli, ct);
+            zincirSon.RemoveAll(o => EpikrizMuafiyeti.BosEpikriz(o.ResourceType, o.Status, o.HataMesaji)
+                && bolumler.TryGetValue(o.ProtokolId!.Value, out var pr) && pr.BolumAdi is { } b && muaf.Contains(b));
+        }
+
+        var zincir = zincirSon
             .GroupBy(o => o.ProtokolId!.Value)
             .ToDictionary(g => g.Key, g =>
             {

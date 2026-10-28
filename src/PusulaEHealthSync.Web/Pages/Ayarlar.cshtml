@@ -404,6 +404,11 @@
                                 <label for="epikrizSendEnabled">Epikriz <span class="ayar-teknik">Composition</span></label></div>
                             <div class="toggle-row"><input type="checkbox" id="epikrizOnlySigned" asp-for="EpikrizOnlySigned" />
                                 <label for="epikrizOnlySigned">Yalnızca Pusula'da kilitlenmiş (hekimin tamamladığı) epikrizler</label></div>
+                            <div class="field" style="margin-top:10px;">
+                                <label for="epikrizMuafBolumler">Epikriz beklenmeyen bölümler</label>
+                                <input type="text" id="epikrizMuafBolumler" asp-for="EpikrizMuafBolumler" placeholder="Laboratoriya; Radiologiya" />
+                                <p class="field-hint">Bu bölümlerin protokollerinde boş epikriz <b>eksik sayılmaz</b> (yalnızca tetkik için açılan protokoller). Pusula'daki bölüm adını yazın, birden fazlaysa <code>;</code> ile ayırın.</p>
+                            </div>
                         </fieldset>
                         <div class="card-actions">
                             <button type="submit" class="btn btn-primary">Kaydet</button>

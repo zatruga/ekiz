@@ -311,8 +311,16 @@ public class PendingWorkService(
         var sadeceKilitli = await settings.GetBoolAsync(SettingsStore.EpikrizOnlySignedKey, true, ct);
         var listedeki = candidates.Select(c => c.ProtokolId).ToHashSet();
         var epikrizVar = candidates.Where(c => c.ResourceType == "Composition").Select(c => c.PusulaId).ToHashSet();
-        candidates.AddRange((await repository.GetEpikrizAdaylariAsync(fromLocal, toLocalExclusive, sadeceKilitli, ct))
-            .Where(c => listedeki.Contains(c.ProtokolId) && !epikrizVar.Contains(c.PusulaId)));
+        //     Muaf bolumlerin (laboratuvar, radyoloji) bos epikrizi hic aday degil -- bkz.
+        //     EpikrizMuafiyeti. Sorgu aciklama kolonunda bolum adini donduruyor.
+        var muafBolumler = await EpikrizMuafiyeti.BolumleriAsync(settings, ct);
+        foreach (var c in await repository.GetEpikrizAdaylariAsync(fromLocal, toLocalExclusive, sadeceKilitli, ct))
+        {
+            if (!listedeki.Contains(c.ProtokolId) || epikrizVar.Contains(c.PusulaId)) continue;
+            if (c.Aciklama is { } bolum && muafBolumler.Contains(bolum)) continue;
+            c.Aciklama = "Epikriz";
+            candidates.Add(c);
+        }
 
         // 2) Protokolun KENDISI de bir kalem: Muayine (Encounter) gonderilmemisse altindaki
         //    hicbir sey gonderilemez (hepsi azEncounterId'ye bagli). Bu yuzden aday listesine

@@ -130,6 +130,9 @@ public class AyarlarModel(
     public bool EpikrizSendEnabled { get; set; }
     [BindProperty]
     public bool EpikrizOnlySigned { get; set; }
+    // Bos epikrizin eksik sayilmadigi bolumler (bkz. EpikrizMuafiyeti).
+    [BindProperty]
+    public string? EpikrizMuafBolumler { get; set; }
 
     // -- Tanı (Condition) / İşlem (Procedure) ------------------------------------------------
     [BindProperty]
@@ -374,6 +377,9 @@ public class AyarlarModel(
         await settings.SetBoolAsync(SettingsStore.PathologyReportSendEnabledKey, PathologyReportSendEnabled, ct);
         await settings.SetBoolAsync(SettingsStore.EpikrizSendEnabledKey, EpikrizSendEnabled, ct);
         await settings.SetBoolAsync(SettingsStore.EpikrizOnlySignedKey, EpikrizOnlySigned, ct);
+        // Bicim duzeltilerek yaziliyor ("a;b" -> "a; b"); bos birakilirsa muaf bolum yok.
+        await settings.SetStringAsync(SettingsStore.EpikrizMuafBolumlerKey,
+            string.Join("; ", PusulaEHealthSync.Sync.EpikrizMuafiyeti.Ayristir(EpikrizMuafBolumler)), ct);
         return await SavedAsync("icerik", ct);
     }
 
@@ -624,6 +630,8 @@ public class AyarlarModel(
 
         EpikrizSendEnabled = await settings.GetBoolAsync(SettingsStore.EpikrizSendEnabledKey, true, ct);
         EpikrizOnlySigned = await settings.GetBoolAsync(SettingsStore.EpikrizOnlySignedKey, true, ct);
+        EpikrizMuafBolumler = await settings.GetStringAsync(
+            SettingsStore.EpikrizMuafBolumlerKey, SettingsStore.EpikrizMuafBolumlerDefault, ct);
 
         ConditionSendEnabled = await settings.GetBoolAsync(SettingsStore.ConditionSendEnabledKey, true, ct);
         ProcedureSendEnabled = await settings.GetBoolAsync(SettingsStore.ProcedureSendEnabledKey, true, ct);

@@ -194,13 +194,17 @@ public partial class PusulaRepository
     // kendisi (CompositionMapper) yapar, tarama onun SyncLog'a yazdigi sonucu okur.
     // Tarih: ModifiedDate bos kayitlarda hic yazilmiyor (olculdu), CreatedDate'e dusuluyor.
     // Olculdu (canli, 01.10-28.10): 21.129 protokol, 1,5 sn.
+    // ACIKLAMA KOLONU BURADA PROTOKOLUN BOLUM ADI: cagiran taraf muaf bolumleri (bkz.
+    // EpikrizMuafiyeti) ayiklayip aciklamayi "Epikriz"e cevirir.
     public async Task<List<PendingCandidate>> GetEpikrizAdaylariAsync(
         DateTime fromLocal, DateTime? toLocalExclusive, bool sadeceKilitli, CancellationToken ct = default)
     {
         var kilit = sadeceKilitli ? "AND g.KilitDurumuId = 1" : "";
         var sql = $@"
-            SELECT g.ProtokolId, g.ProtokolId, MAX(ISNULL(g.ModifiedDate, g.CreatedDate)), 'Epikriz'
+            SELECT g.ProtokolId, g.ProtokolId, MAX(ISNULL(g.ModifiedDate, g.CreatedDate)), MAX(b.Adi)
             FROM Tedavi.GenelMuayene g
+            INNER JOIN hasta.protokol p ON p.Id = g.ProtokolId
+            LEFT JOIN Ortak.Bolum b ON b.Id = p.BolumId
             WHERE g.State <> 0 {kilit}
               AND (g.ModifiedDate >= @From OR g.CreatedDate >= @From)
             GROUP BY g.ProtokolId

@@ -385,6 +385,16 @@ public class GenelBakisModel(
         // Sandbox gecmisine bakmak isteyen Aktivite Akisi'ndaki ortam seciciyi kullanir.
         var pencere = await protokolDurum.HesaplaAsync(pencereBasUtc, donemBitUtc, ct, "Live");
 
+        // MUAF BOLUMLERIN BOS EPIKRIZI YOK SAYILIR (bkz. EpikrizMuafiyeti) -- tarama da
+        // saymiyor; burada sayilsaydi ayni protokol hatta "tamam", tablolarda "eksik" olurdu.
+        var muafBolumler = await EpikrizMuafiyeti.BolumleriAsync(settings, ct);
+        var kayitlarHepsi = pencere.Kayitlar
+            .Where(k => !(EpikrizMuafiyeti.BosEpikriz(k.ResourceType, k.Durum, k.Mesaj)
+                          && k.ProtokolId is { } mpid
+                          && pencere.ProtokolBilgileri.TryGetValue(mpid, out var mpr)
+                          && mpr.BolumAdi is { } mb && muafBolumler.Contains(mb)))
+            .ToList();
+
         // ---- 3) DONEME DUSEN KAYITLAR ----
         // Pencere donemden uzun olabilir; donem kartlari yalnizca donemin gunlerini sayar.
         //
@@ -396,7 +406,7 @@ public class GenelBakisModel(
         // tek satir; Aktivite'nin kartlari da ayni kurali kullaniyor (SyncLogStore
         // AkisKartlariniHesaplaAsync), yani karttan tiklanan liste ayni sayiyi gosterir.
         // Satir toplami deneme hacmi oldugu icin kayit-gun listesinden kaliyor.
-        var donemKayitGunleri = pencere.Kayitlar
+        var donemKayitGunleri = kayitlarHepsi
             .Where(k => k.Gun >= PeriodFromDate && k.Gun <= PeriodToDate)
             .ToList();
         var donemKayitlari = SonDenemeler(donemKayitGunleri);
@@ -428,7 +438,7 @@ public class GenelBakisModel(
         double deltaYuzde = 0;
         if (deltaVar)
         {
-            var oncekiKayitlar = SonDenemeler(pencere.Kayitlar
+            var oncekiKayitlar = SonDenemeler(kayitlarHepsi
                 .Where(k => k.Gun >= oncekiBas && k.Gun < PeriodFromDate).ToList());
             var onceki = ProtokolleriSinifla(oncekiKayitlar);
             if (onceki.Count == 0) deltaVar = false;
@@ -441,7 +451,7 @@ public class GenelBakisModel(
 
         // ---- 5) GUNLUK TREND (protokol birimi) ----
         var gunBasina = new Dictionary<DateOnly, Dictionary<int, ProtokolSinifi>>();
-        foreach (var gun in pencere.Kayitlar.GroupBy(k => k.Gun))
+        foreach (var gun in kayitlarHepsi.GroupBy(k => k.Gun))
             gunBasina[gun.Key] = ProtokolleriSinifla(gun.ToList());
 
         var trend = new List<GunNoktasi>();
