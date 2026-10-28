@@ -169,7 +169,7 @@
                 </div>
 
             <div class="table-wrap">
-                <table style="min-width:1320px;">
+                <table>
                     <thead>
                         <tr>
                             <th class="checkbox-cell"><input type="checkbox" id="selectAllHeader" onclick="pusulaToggleAllHeader(this)" aria-label="Tümünü seç" /></th>
@@ -241,7 +241,7 @@
                                     </div>
                                 </td>
                                 <td>
-                                    <div style="display:flex; gap:6px;">
+                                    <div style="display:flex; gap:6px; flex-wrap:wrap;">
                                         <a asp-page="/Hasta" asp-route-id="@p.HastaId" class="btn btn-outline btn-sm">Hasta Detay</a>
                                         <a asp-page="/Protokol" asp-route-id="@p.ProtokolId" class="btn btn-outline btn-sm">Protokol Detay</a>
                                     </div>
