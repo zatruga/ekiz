@@ -71,12 +71,14 @@ else
     <section class="card bk-ozet">
         <p class="bk-cumle">
             <strong class="num">@N(d.Taranan)</strong> protokolün <strong class="num text-success">@N(d.Tamam)</strong>'i tamamen gitti.
-            <strong class="num bk-mavi">@N(d.Bekliyor)</strong> protokol sırasını bekliyor — kendiliğinden gidecek.
-            <strong class="num text-danger">@N(d.YalnizTakili)</strong> protokolde birinin bir şey yapması gerekiyor.
+            <strong class="num bk-mavi">@N(d.SiradaToplam)</strong> protokol sırasını bekliyor — kendiliğinden gidecek.
+            <strong class="num text-danger">@N(d.MudahaleToplam)</strong> protokolde birinin bir şey yapması gerekiyor.
         </p>
+        @* Dort parca toplami = taranan (her protokol en agir asamasinda bir kez; bkz.
+           BekleyenDokum). Genel Bakis'in hatti ve kirilimi ayni sayilari gosteriyor. *@
         @{
-            var parcalar = new[] { (d.Tamam, "bk-r-tamam", "Tamam"), (d.Bekliyor, "bk-r-sira", "Sırasını bekliyor"),
-                                   (d.YalnizTakili, "bk-r-takili", "Müdahale gerekiyor"), (d.KapsamDisi, "bk-r-dis", "Kapsam dışı") };
+            var parcalar = new[] { (d.Tamam, "bk-r-tamam", "Tamam"), (d.SiradaToplam, "bk-r-sira", "Sırasını bekliyor"),
+                                   (d.MudahaleToplam, "bk-r-takili", "Müdahale gerekiyor"), (d.KapsamDisi, "bk-r-dis", "Kapsam dışı") };
         }
         <div class="bk-cubuk" role="img" aria-label="Protokollerin dağılımı">
             @foreach (var (sayi, sinif, _) in parcalar.Where(x => x.Item1 > 0))
@@ -111,7 +113,7 @@ else
             {
                 <button type="button" class="bk-asama @sinif" onclick="bkListele('hazir')" @(hazirSayi == 0 ? "disabled" : "")>
                     <span class="bk-asama-ad">@ad</span>
-                    <span class="bk-asama-sayi num">@N(d.AsamaProtokol(a))</span>
+                    <span class="bk-asama-sayi num">@N(d.AsamaSayisi(a))</span>
                     <span class="bk-asama-alt">@alt</span>
                 </button>
             }
@@ -119,13 +121,13 @@ else
             {
                 <a class="bk-asama @sinif" href="#asama-@((int)a)">
                     <span class="bk-asama-ad">@ad</span>
-                    <span class="bk-asama-sayi num">@N(d.AsamaProtokol(a))</span>
+                    <span class="bk-asama-sayi num">@N(d.AsamaSayisi(a))</span>
                     <span class="bk-asama-alt">@alt</span>
                 </a>
             }
         }
     </div>
-    <p class="bk-dipnot">Bir protokol birden fazla aşamada görünebilir: örneğin muayenesi gitmiş ama epikrizi yazılmamış ve bir tetkikinin eşleşmesi eksik olabilir.</p>
+    <p class="bk-dipnot">Her protokol en ağır sebebiyle bir kez sayılır (Veri &gt; Pusula işi &gt; Kural &gt; Hazır); dört kart ile Tamam ve Kapsam dışı toplandığında taranan protokol sayısı çıkar. Aşağıdaki sebep tablolarında ise bir protokol, birden fazla sebebi varsa her birinde görünür.</p>
 
     @* ===== BU PROTOKOL NEDEN GITMEDI? (tasarim C) ===== *@
     <section class="card bk-sorgu">

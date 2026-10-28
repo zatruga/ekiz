@@ -206,14 +206,17 @@ public class PendingWorkService(
     // belleginde kaliyordu, Web hic gormuyordu ve "Henuz tarama yapilmadi" yaziyordu.
     // Artik her tarama kucuk bir ozet (kapsam + tur sayimlari + aralik) SettingsStore'a
     // yaziyor; Web kendi bellegindeki sonuctan daha yeniyse bunu okuyor.
+    // AsamaSayilari 2026-10-28'de eklendi; eski surumun yazdigi ozette yok (null) -- Genel
+    // Bakis o durumda kirilimi gostermez, bir sonraki taramayi bekler.
     public record TaramaOzeti(PendingKapsam Kapsam, Dictionary<string, int> OzetSayimlar,
-                              DateTime HesaplamaUtc, DateTime? Baslangic, DateTime? Bitis);
+                              DateTime HesaplamaUtc, DateTime? Baslangic, DateTime? Bitis,
+                              Dictionary<string, int>? AsamaSayilari = null);
 
     private async Task IzBirakAsync(PendingWorkResult sonuc, DateTime baslangic, DateTime? bitis, CancellationToken ct)
     {
         try
         {
-            var ozet = new TaramaOzeti(sonuc.Kapsam, sonuc.OzetSayimlar, DateTime.UtcNow, baslangic, bitis);
+            var ozet = new TaramaOzeti(sonuc.Kapsam, sonuc.OzetSayimlar, DateTime.UtcNow, baslangic, bitis, sonuc.AsamaSayilari);
             await settings.SetStringAsync(SettingsStore.PendingScanSonOzetKey,
                 System.Text.Json.JsonSerializer.Serialize(ozet), ct);
         }
@@ -228,7 +231,7 @@ public class PendingWorkService(
     public async Task<TaramaOzeti?> SonTaramaOzetiAsync(CancellationToken ct = default)
     {
         TaramaOzeti? bellek = SonSonuc is { } s && SonHesaplamaUtc is { } z
-            ? new TaramaOzeti(s.Kapsam, s.OzetSayimlar, z, SonTaramaBaslangici, SonTaramaBitisi)
+            ? new TaramaOzeti(s.Kapsam, s.OzetSayimlar, z, SonTaramaBaslangici, SonTaramaBitisi, s.AsamaSayilari)
             : null;
         TaramaOzeti? kalici = null;
         try
@@ -601,11 +604,17 @@ public class PendingWorkService(
                 if (i.SonuclanmaTarihi != DateTime.MinValue && (enEski is null || i.SonuclanmaTarihi < enEski))
                     enEski = i.SonuclanmaTarihi;
 
+        // ASAMA SAYILARI KIRPILMAMIS kumeden (bkz. BekleyenDokum, "TEK ASAMA SAYIMI").
+        // Kalici ozete yaziliyor; Genel Bakis hattin kirilimini buradan gosteriyor.
+        var asama = BekleyenDokum.Hesapla(new PendingWorkResult(
+                gruplar, ozet, gruplar.Count, enEski, takilanGruplar, takilanOzet, takilanGruplar.Count, kapsam))
+            .Birincil.ToDictionary(kv => kv.Key.ToString(), kv => kv.Value);
+
         return new PendingWorkResult(
             KirpUygunOnce(gruplar, maxProtocols), ozet, gruplar.Count,
             enEski,
             Kirp(takilanGruplar, maxProtocols), takilanOzet, takilanGruplar.Count,
-            kapsam);
+            kapsam) { AsamaSayilari = asama };
     }
 
     // Bir kalemin durumu. KULLANICI KARARI (2026-10-03): "bekleyenleri ayrı bir listeye
@@ -846,6 +855,9 @@ public record PendingWorkResult(
     // kullanici iki ayri sayiyi karistirmasin.
     PendingKapsam Kapsam)
 {
+    // Asama adi (BekleyenDokum.Asama) -> o asamada EN AGIR sebebi olan protokol sayisi.
+    public Dictionary<string, int> AsamaSayilari { get; init; } = [];
+
     public static PendingWorkResult Bos => new([], new Dictionary<string, int>(), 0, null,
                                                [], new Dictionary<string, int>(), 0,
                                                PendingKapsam.Bos);

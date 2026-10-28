@@ -2138,6 +2138,7 @@ a.gb-sebep.danger:hover { background: var(--danger-soft); }
 .gb-kalan-cubuk { display: block; height: 8px; background: var(--surface-hover); border-radius: 4px; overflow: hidden; }
 .gb-kalan-cubuk > span { display: block; height: 100%; background: var(--primary); border-radius: 4px; }
 .gb-kalan-sayi { font-weight: 600; text-align: right; min-width: 56px; }
+.gb-kalan-alt { display: block; font-size: 11.5px; color: var(--text-muted); }
 
 /* Indirme oku -- kartin sag ust kosesi; kart uzerine gelince (ya da klavyeyle odaklaninca)
    belirir. Dokunmatik ekranda hover yok: orada hep gorunur. */

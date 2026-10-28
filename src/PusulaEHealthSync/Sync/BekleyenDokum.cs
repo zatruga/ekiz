@@ -1,7 +1,6 @@
 using PusulaEHealthSync.Persistence;
-using PusulaEHealthSync.Sync;
 
-namespace PusulaEHealthSync.Web;
+namespace PusulaEHealthSync.Sync;
 
 // ===== BEKLEYEN ISLER -- SEBEP DOKUMU (2026-10-27) =====
 //
@@ -19,6 +18,14 @@ namespace PusulaEHealthSync.Web;
 // 1-2 ana (bekleyen) kumeden PROTOKOL basina, 3-4 takilan kumeden KALEM basina
 // siniflandirilir -- takili bir protokolun kalemleri farkli sebeplerden takilmis olabilir
 // (epikriz bos + bir tetkikin LOINC'i yok). Bir protokol birden fazla satirda gorunebilir.
+//
+// TEK AŞAMA SAYIMI (2026-10-28, KULLANICI: "alt ile ust farkli olmasin, ustteki
+// sayilarin kirilimini versin"). Sebep tablolari ust uste binebilir, ama ASAMA SAYILARI
+// binmez: her protokol EN AGIR asamasinda bir kez sayilir (Veri > Pusula isi > Kural >
+// Hazir). Boylece Tamam + dort asama + Kapsam disi = taranan protokol, ve Genel Bakis'in
+// hatti (durak 2 / 4) ile bu sayfa ayni toplami verir. Genel Bakis bu sayilari taramanin
+// kalici ozetinden okur (PendingWorkResult.AsamaSayilari) -- bu yuzden dosya Web'de
+// degil burada: tarama servis (Worker) surecinde de calisiyor.
 //
 // SAF HESAP: Pusula'ya ya da SyncLog'a gitmez, yalnizca PendingWorkService'in son
 // sonucunu okur. Sebep kurallari PendingWorkService.Siniflandir/IsEligible'in metinlerine
@@ -50,9 +57,16 @@ public class BekleyenDokum
     public IEnumerable<SebepGrubu> AsamaGruplari(Asama a) =>
         Gruplar.Where(g => g.Asama == a).OrderByDescending(g => g.Protokol).ThenByDescending(g => g.Kalem);
 
-    // Asama kartindaki sayi: o asamada en az bir sebebi olan FARKLI protokol.
+    // Sebep tablosundaki cubuklarin olcegi: o asamada en az bir sebebi olan FARKLI protokol
+    // (ust uste binebilir -- asama KARTI icin AsamaSayisi kullanilir).
     public int AsamaProtokol(Asama a) => AsamaGruplari(a)
         .SelectMany(g => g.Uyeler).Select(u => u.Protokol.Protokol.ProtokolId).Distinct().Count();
+
+    // Asama karti: protokol EN AGIR asamasinda bir kez (bkz. dosya basi).
+    public Dictionary<Asama, int> Birincil { get; private init; } = [];
+    public int AsamaSayisi(Asama a) => Birincil.GetValueOrDefault(a);
+    public int SiradaToplam => AsamaSayisi(Asama.Hazir) + AsamaSayisi(Asama.Kural);
+    public int MudahaleToplam => AsamaSayisi(Asama.PusulaIsi) + AsamaSayisi(Asama.Veri);
 
     public int AsamaKalem(Asama a) => AsamaGruplari(a).Sum(g => g.Kalem);
 
@@ -75,6 +89,15 @@ public class BekleyenDokum
             foreach (var grup in p.Items.GroupBy(i => TakiliSebebi(p, i)))
                 Ekle(grup.Key, p, grup.ToList());
 
+        var enAgir = new Dictionary<int, Asama>();
+        foreach (var g in gruplar.Values)
+            foreach (var u in g.Uyeler)
+            {
+                var id = u.Protokol.Protokol.ProtokolId;
+                if (!enAgir.TryGetValue(id, out var mevcut) || g.Asama > mevcut) enAgir[id] = g.Asama;
+            }
+        var birincil = enAgir.Values.GroupBy(a => a).ToDictionary(g => g.Key, g => g.Count());
+
         var bekleyenIdler = s.Protokoller.Select(p => p.Protokol.ProtokolId).ToHashSet();
         var yalnizTakili = s.TakilanProtokoller.Count(p => !bekleyenIdler.Contains(p.Protokol.ProtokolId));
         var k = s.Kapsam;
@@ -84,7 +107,8 @@ public class BekleyenDokum
             Tamam = k.TamamlananProtokol,
             Bekliyor = bekleyenIdler.Count,
             YalnizTakili = yalnizTakili,
-            KapsamDisi = Math.Max(0, k.TarananProtokol - k.TamamlananProtokol - bekleyenIdler.Count - yalnizTakili),
+            KapsamDisi = Math.Max(0, k.TarananProtokol - k.TamamlananProtokol - enAgir.Count),
+            Birincil = birincil,
             Kirpik = s.Protokoller.Count < s.ToplamProtokolSayisi
                      || s.TakilanProtokoller.Count < s.ToplamTakilanProtokolSayisi,
             Gruplar = gruplar.Values.ToList(),

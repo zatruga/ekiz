@@ -128,6 +128,9 @@ public class GenelBakisModel(
     // SonSonuc zaten bellekte duruyor (GunSonuRaporService de oradan okuyor). Ayni
     // NESNE basiliyor, dolayisiyla iki ekran yapisal olarak ayrisamaz.
     public PendingKapsam? Kapsam { get; private set; }
+    // Hattin kirilimi: asama adi -> protokol (her protokol bir kez, en agir asamasinda).
+    // Eski surumun yazdigi ozette yok (null) -- kirilim karti o zaman bekleme yazisi gosterir.
+    public Dictionary<string, int>? AsamaSayilari { get; private set; }
     public DateTime? KapsamZamaniUtc { get; private set; }
     public DateTime? KapsamBaslangic { get; private set; }
     public DateTime? KapsamBitis { get; private set; }
@@ -292,6 +295,7 @@ public class GenelBakisModel(
         // servisinde calisiyor, bellekteki SonSonuc Web'de bos kaliyordu (2026-10-26).
         var tarama = await pendingWork.SonTaramaOzetiAsync(ct);
         Kapsam = tarama?.Kapsam;
+        AsamaSayilari = tarama?.AsamaSayilari;
         KapsamZamaniUtc = tarama?.HesaplamaUtc;
         KapsamBaslangic = tarama?.Baslangic;
         KapsamBitis = tarama?.Bitis;

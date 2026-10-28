@@ -259,50 +259,55 @@ else if (!Model.AktifOrtamCanli)
     </div>
 }
 
-@* ======================= IKI AYRI SORU =======================
-   Sol: SECILI DONEMDE ne yaptik (SyncLog'a bu pencerede yazilan canli satirlar -- hic
-   denenmemis kalemi goremez). Sag: geriye ne kaldi (tarama -- donemden bagimsiz). *@
+@* ======================= HATTIN KIRILIMI + GERIYE NE KALDI =======================
+   2026-10-28 (KULLANICI: "alt ile ust farkli olmasin, baska bir veri versin, ornegin
+   ustteki sayilarin kirilimi; vermeyecekse kaldiralim"). Sol kart eskiden DONEMDE
+   DENENEN protokolleri sayiyordu (dokunulan / sorunsuz / eksik / reddedildi); bu kume
+   hattin kumesi degildi ve "sorunsuz" ile "eksiksiz tamam" ayni seyi anlatir gibi gorunup
+   farkli cikiyordu. Artik hattin durak 2'sini kiriyor: ayni tarama, her protokol tek
+   satirda (en agir asamasi; bkz. BekleyenDokum), toplam = durak 2. Bekleyen Isler'in
+   ozet cubugu ve asama kartlari ayni sayilardan. Donemde acilan protokol kutusu da
+   kalkti: durak 1 ile ayni adi tasiyip farkli araliga bakiyordu. *@
 <div class="gb-split gb-esit">
     <section class="card card-pad">
-        <p class="gb-kart-ust-etiket">Durak 3 &rarr; 4 arası &middot; @Model.PeriodFromDate.ToString("dd.MM") &ndash; @Model.PeriodToDate.ToString("dd.MM.yyyy")</p>
-        <h2 class="gb-kart-baslik">Bu dönemde ne yaptık</h2>
-        <p class="gb-kart-acik">
-            Yalnızca bu dönemde <b>denenmiş</b> canlı gönderimler. Hiç denenmemiş bir kalem burada görünmez.
-        </p>
-        @* PUSULA'DA ACILAN (2026-10-26, kullanici istegi). Ayri bir kume: asagidaki dort sayi
-           o donemde DENENEN protokolleri sayiyor, bu ise donemde ACILANLARI. Tiklayinca
-           Aktivite'nin protokol tarihi gorunumu: bu protokollerin bugunku durumu. *@
-        <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Olcut="protokol" asp-route-From="@fromIso" asp-route-To="@toIso"
-           class="gb-acilan" target="_blank" rel="noopener">
-            <span class="gb-acilan-sayi num">@o.AcilanProtokol.ToString("N0")</span>
-            <span class="gb-acilan-metin">protokol bu dönemde <b>Pusula'da açıldı</b>
-                <span class="gb-acilan-alt">ne kadarı gönderildi, ne kadarı kaldı &rarr;</span></span>
-        </a>
-        <div class="gb-dort">
-            <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Olcut="gonderim" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-dort-hucre" target="_blank" rel="noopener">
-                <span class="gb-dort-sayi num">@o.ProtokolDokunulan.ToString("N0")</span>
-                <span class="gb-dort-ad">dokunulan protokol</span>
-            </a>
-            <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Olcut="gonderim" asp-route-Status="Success" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-dort-hucre" target="_blank" rel="noopener">
-                <span class="gb-dort-sayi num success">@o.ProtokolTamam.ToString("N0")</span>
-                <span class="gb-dort-ad">
-                    sorunsuz (%@o.TamamYuzde.ToString("0.0"))
-                    @if (o.DeltaVar)
-                    {
-                        <span class="@(o.TamamYuzdeDelta >= 0 ? "up" : "down")">@(o.TamamYuzdeDelta >= 0 ? "▲" : "▼")@Math.Abs(o.TamamYuzdeDelta).ToString("0.#")</span>
-                    }
-                </span>
-            </a>
-            <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Olcut="gonderim" asp-route-Status="Skipped" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-dort-hucre" target="_blank" rel="noopener">
-                <span class="gb-dort-sayi num warning">@o.ProtokolEksik.ToString("N0")</span>
-                <span class="gb-dort-ad">eksik verisi var</span>
-            </a>
-            <a asp-page="/Aktivite" asp-route-Ortam="Live" asp-route-Olcut="gonderim" asp-route-Status="Failed" asp-route-From="@fromIso" asp-route-To="@toIso" class="gb-dort-hucre" target="_blank" rel="noopener">
-                <span class="gb-dort-sayi num danger">@o.ProtokolHatali.ToString("N0")</span>
-                <span class="gb-dort-ad">TRƏS reddetti</span>
-            </a>
-        </div>
-        <p class="gb-kart-dip num">@birim(o.KayitToplam, o.SatirToplam)@(o.ProtokolsuzKayit > 0 ? " · " + o.ProtokolsuzKayit.ToString("N0") + " kayıt protokole bağlanmıyor (çoğu doktor)" : "")</p>
+        <p class="gb-kart-ust-etiket">Durak 2 &rarr; 4 kırılımı &middot; dönemden bağımsız</p>
+        <h2 class="gb-kart-baslik">Hazır protokoller ne durumda</h2>
+        @{
+            var asm = Model.AsamaSayilari;
+        }
+        @if (k is null || asm is null)
+        {
+            <p class="text-muted">Kırılım bir sonraki taramadan sonra görünür.</p>
+        }
+        else
+        {
+            int A(string ad) => asm.GetValueOrDefault(ad);
+            var dis = Math.Max(0, k.TarananProtokol - k.TamamlananProtokol - asm.Values.Sum());
+            var satirlar = new (string Ad, string Alt, int Sayi, string Renk, string Link)[]
+            {
+                ("Eksiksiz tamam", "her kalemi gitti", k.TamamlananProtokol, "var(--success)", "/BekleyenIsler"),
+                ("Sırada", "sıradaki turlarda gider", A("Hazir"), "var(--primary)", "/BekleyenIsler"),
+                ("Kural gereği bekliyor", "süresi dolunca kendiliğinden", A("Kural"), "#64748B", "/BekleyenIsler#asama-1"),
+                ("Pusula'da iş bekliyor", "onay, rapor, epikriz", A("PusulaIsi"), "var(--warning)", "/BekleyenIsler#asama-2"),
+                ("Veri düzeltilmeli", "düzeltilmezse hiç gitmez", A("Veri"), "var(--danger)", "/BekleyenIsler#asama-3"),
+                ("Kapsam dışı", "reçete, iptal, devreye alım öncesi", dis, "var(--border-strong)", "/BekleyenIsler"),
+            };
+            var taban = Math.Max(1, k.TarananProtokol);
+            <p class="gb-kart-acik">
+                Durak 2'deki <b class="num">@k.TarananProtokol.ToString("N0")</b> protokolün her biri <b>bir kez</b>, en ağır sebebiyle sayılır;
+                satırların toplamı durak 2'ye eşittir. <a asp-page="/BekleyenIsler">Bekleyen İşler</a> ile aynı sayılar.
+            </p>
+            <div class="gb-kalan">
+                @foreach (var s in satirlar)
+                {
+                    <a href="@s.Link" class="gb-kalan-satir">
+                        <span>@s.Ad<span class="gb-kalan-alt">@s.Alt</span></span>
+                        <span class="gb-kalan-cubuk"><span style="width:@((s.Sayi * 100.0 / taban).ToString("0.#", System.Globalization.CultureInfo.InvariantCulture))%; background:@s.Renk;"></span></span>
+                        <span class="num gb-kalan-sayi">@s.Sayi.ToString("N0")</span>
+                    </a>
+                }
+            </div>
+        }
     </section>
 
     <section class="card card-pad">
