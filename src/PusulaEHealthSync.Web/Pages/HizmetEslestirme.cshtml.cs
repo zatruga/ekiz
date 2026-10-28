@@ -23,6 +23,33 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
     [BindProperty(SupportsGet = true)] public string? Tip { get; set; }
     [BindProperty(SupportsGet = true)] public string? Ara { get; set; }
 
+    // LISTE SUZGECI VE SIRALAMA (KULLANICI ISTEGI 2026-10-28): "alt listede eslesen ve
+    // eslesmeyenleri suzebilecegimiz sayi alani olsun, sutun basliklari siralansin".
+    // Esles: ""=tumu, "evet", "hayir", "gonderilmez" -- ustteki Durum/Tip/Ara'nin
+    // SONUCU icinde calisir, sayilari da o sonuctan (EslesTumu...).
+    // Siralama SUNUCUDA: ekranda en fazla 400 satir var, tarayicida siralamak yalnizca
+    // onlari siralardi. Excel de ayni sirayla iner.
+    [BindProperty(SupportsGet = true)] public string? Esles { get; set; }
+    [BindProperty(SupportsGet = true)] public string? Sira { get; set; }
+    [BindProperty(SupportsGet = true)] public string? Yon { get; set; }
+
+    public int EslesTumu { get; set; }
+    public int EslesEvet { get; set; }
+    public int EslesHayir { get; set; }
+    public int EslesGonderilmez { get; set; }
+    public const int EkranSiniri = 400;
+
+    // Formlar ve yonlendirmeler arasinda tasinan filtre/sira durumu.
+    public object Rota(bool saved = false) => new { saved, Durum, Tip, Ara, Esles, Sira, Yon };
+
+    public static string KaynakAdi(HizmetMappingStore.Satir s) => s.Gonderilmez ? "gönderilmez" : s.Rozet switch
+    {
+        HizmetMappingStore.KaynakPusula => "Pusula",
+        HizmetMappingStore.KaynakMedigate => "Medigate",
+        HizmetMappingStore.KaynakKullanici => "elle",
+        _ => "",
+    };
+
     public bool Saved { get; set; }
     public int ToplamSayi { get; set; }
     public int PusulaSayi { get; set; }
@@ -80,7 +107,42 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
                 || (s.Oneri ?? "").Contains(q, StringComparison.OrdinalIgnoreCase));
         }
 
-        return [.. liste];
+        var ara = liste.ToList();
+        EslesTumu = ara.Count;
+        EslesEvet = ara.Count(s => s.Eslesti);
+        EslesHayir = ara.Count(s => s.Bekliyor);
+        EslesGonderilmez = ara.Count(s => s.Gonderilmez);
+        IEnumerable<HizmetMappingStore.Satir> sonuc = Esles switch
+        {
+            "evet" => ara.Where(s => s.Eslesti),
+            "hayir" => ara.Where(s => s.Bekliyor),
+            "gonderilmez" => ara.Where(s => s.Gonderilmez),
+            _ => ara,
+        };
+        return Sirala(sonuc);
+    }
+
+    private List<HizmetMappingStore.Satir> Sirala(IEnumerable<HizmetMappingStore.Satir> liste)
+    {
+        // Varsayilan: magazanin sirasi (istem cok olandan aza).
+        if (string.IsNullOrEmpty(Sira)) return [.. liste];
+        var tr = StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("tr-TR"), true);
+        var azalan = Yon == "desc";
+        IOrderedEnumerable<HizmetMappingStore.Satir> Metin(Func<HizmetMappingStore.Satir, string?> f) =>
+            azalan ? liste.OrderByDescending(s => f(s) ?? "", tr) : liste.OrderBy(s => f(s) ?? "", tr);
+        IOrderedEnumerable<HizmetMappingStore.Satir> Sayi(Func<HizmetMappingStore.Satir, int> f) =>
+            azalan ? liste.OrderByDescending(f) : liste.OrderBy(f);
+        return Sira switch
+        {
+            "id" => [.. Sayi(s => s.HizmetId)],
+            "kod" => [.. Metin(s => s.HizmetKodu)],
+            "ad" => [.. Metin(s => s.HizmetAdi)],
+            "tip" => [.. Metin(s => s.HizmetTipi)],
+            "istem" => [.. Sayi(s => s.Istem)],
+            "azkod" => [.. Metin(s => s.EtkinKod)],
+            "kaynak" => [.. Metin(KaynakAdi)],
+            _ => [.. liste],
+        };
     }
 
     public async Task OnGetAsync(bool saved = false, CancellationToken ct = default)
@@ -90,25 +152,25 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
         GosterilenSayi = liste.Count;
         // 20.613 satiri birden cizmek sayfayi agirlastiriyor -- hacme gore ilk 400,
         // daraltmak icin filtreler var. Excel'e aktarim TUM filtre sonucunu alir.
-        Satirlar = [.. liste.Take(400)];
+        Satirlar = [.. liste.Take(EkranSiniri)];
     }
 
     public async Task<IActionResult> OnPostKaydetAsync(int hizmetId, string? azKod, CancellationToken ct)
     {
         await store.SetAsync(hizmetId, azKod, gonderilmez: false, ct);
-        return RedirectToPage("/HizmetEslestirme", new { saved = true, Durum, Tip, Ara });
+        return RedirectToPage("/HizmetEslestirme", Rota(saved: true));
     }
 
     public async Task<IActionResult> OnPostGonderilmezAsync(int hizmetId, CancellationToken ct)
     {
         await store.SetAsync(hizmetId, null, gonderilmez: true, ct);
-        return RedirectToPage("/HizmetEslestirme", new { saved = true, Durum, Tip, Ara });
+        return RedirectToPage("/HizmetEslestirme", Rota(saved: true));
     }
 
     public async Task<IActionResult> OnPostSifirlaAsync(int hizmetId, CancellationToken ct)
     {
         await store.SifirlaAsync(hizmetId, ct);
-        return RedirectToPage("/HizmetEslestirme", new { saved = true, Durum, Tip, Ara });
+        return RedirectToPage("/HizmetEslestirme", Rota(saved: true));
     }
 
     /// <summary>
@@ -127,6 +189,7 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
 
         var sutunlar = new List<XlsxWriter.Sutun>
         {
+            new("Pusula Hizmet Id", 16, Sayi: true),
             new("Pusula Hizmet Kodu", 20),
             new("Hizmet Adı", 52),
             new("Hizmet Tipi", 22),
@@ -145,7 +208,8 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
         // populer hizmetlerin listesi -- bu oranlara gore eslestirme yaptirmaliyim").
         // Payda: indirilen listenin toplam istemi. "Kullanimda + eslesme yok" filtresiyle
         // indirildiginde kumulatif sutun "ilk N hizmet eslesirse eksigin yuzde kaci
-        // kapanir" sorusunu dogrudan cevapliyor. Liste istem sirasinda (HizmetMappingStore).
+        // kapanir" sorusunu dogrudan cevapliyor. Varsayilan sira istem sirasi; baslikla
+    // baska siralanmissa kumulatif o sirayi izler.
         var inv = System.Globalization.CultureInfo.InvariantCulture;
         var toplamIstem = Math.Max(1, liste.Sum(s => s.Istem));
         var birikim = 0;
@@ -155,6 +219,7 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
             birikim += s.Istem;
             return new string?[]
             {
+                s.HizmetId.ToString(inv),
                 s.HizmetKodu,
                 s.HizmetAdi,
                 s.HizmetTipi,
@@ -163,13 +228,7 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
                 (birikim * 100.0 / toplamIstem).ToString("0.0", inv),
                 s.IcbariKodu,
                 s.AzKod ?? s.Oneri,
-                s.Gonderilmez ? "gönderilmez" : s.Rozet switch
-                {
-                    HizmetMappingStore.KaynakPusula => "Pusula",
-                    HizmetMappingStore.KaynakMedigate => "Medigate",
-                    HizmetMappingStore.KaynakKullanici => "elle",
-                    _ => "",
-                },
+                KaynakAdi(s),
                 AzAdi(kod),
                 AzAdiTr(kod),
                 "",

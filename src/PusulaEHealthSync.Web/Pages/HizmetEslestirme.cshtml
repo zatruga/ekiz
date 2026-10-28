@@ -3,6 +3,20 @@
 @using PusulaEHealthSync.Persistence
 @{
     ViewData["Title"] = "Hizmet Eşleştirme";
+
+    // Siralanabilir baslik: ilk tik artan (istem icin azalan), ayni basliga ikinci tik
+    // yonu cevirir. Esles suzgeci korunur.
+    Microsoft.AspNetCore.Html.IHtmlContent Baslik(string anahtar, string ad)
+    {
+        var aktif = Model.Sira == anahtar;
+        var ilk = anahtar == "istem" ? "desc" : "asc";
+        var yon = aktif ? (Model.Yon == "desc" ? "asc" : "desc") : ilk;
+        var url = Url.Page("/HizmetEslestirme", new { Model.Durum, Model.Tip, Model.Ara, Model.Esles, Sira = anahtar, Yon = yon });
+        var ok = !aktif ? "↕" : Model.Yon == "desc" ? "↓" : "↑";
+        var enc = System.Text.Encodings.Web.HtmlEncoder.Default;
+        return new Microsoft.AspNetCore.Html.HtmlString(
+            $"<a class=\"hz-sirala{(aktif ? " active" : "")}\" href=\"{enc.Encode(url!)}\">{enc.Encode(ad)} <span aria-hidden=\"true\">{ok}</span></a>");
+    }
 }
 
 <div class="page-header">
@@ -22,37 +36,39 @@
 
 <div class="card card-pad" style="margin-bottom:20px;">
     <div style="display:flex; align-items:center; gap:6px; flex-wrap:wrap;">
-        <a asp-page="/HizmetEslestirme" asp-route-Durum="Tumu" asp-route-Tip="@Model.Tip" class="stat-link @(Model.Durum == "Tumu" ? "active" : "")">
+        <a asp-page="/HizmetEslestirme" asp-route-Durum="Tumu" asp-route-Tip="@Model.Tip" asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon" class="stat-link @(Model.Durum == "Tumu" ? "active" : "")">
             <span class="stat-value" style="font-size:24px;">@Model.ToplamSayi</span>
             <span class="text-muted" style="font-size:13px; display:block;">Pusula'daki tüm hizmetler</span>
         </a>
-        <a asp-page="/HizmetEslestirme" asp-route-Durum="Kullanimda" asp-route-Tip="@Model.Tip" class="stat-link @(Model.Durum == "Kullanimda" ? "active" : "")">
+        <a asp-page="/HizmetEslestirme" asp-route-Durum="Kullanimda" asp-route-Tip="@Model.Tip" asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon" class="stat-link @(Model.Durum == "Kullanimda" ? "active" : "")">
             <span class="stat-value" style="font-size:24px;">@Model.KullanilanSayi</span>
             <span class="text-muted" style="font-size:13px; display:block;">son 1 yılda kullanılan</span>
         </a>
-        <a asp-page="/HizmetEslestirme" asp-route-Durum="Pusula" asp-route-Tip="@Model.Tip" class="stat-link @(Model.Durum == "Pusula" ? "active" : "")">
+        <a asp-page="/HizmetEslestirme" asp-route-Durum="Pusula" asp-route-Tip="@Model.Tip" asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon" class="stat-link @(Model.Durum == "Pusula" ? "active" : "")">
             <span class="stat-value" style="font-size:24px; color:var(--success);">@Model.PusulaSayi</span>
             <span class="text-muted" style="font-size:13px; display:block;">Pusula'dan eşleşen</span>
         </a>
-        <a asp-page="/HizmetEslestirme" asp-route-Durum="Medigate" asp-route-Tip="@Model.Tip" class="stat-link @(Model.Durum == "Medigate" ? "active" : "")">
+        <a asp-page="/HizmetEslestirme" asp-route-Durum="Medigate" asp-route-Tip="@Model.Tip" asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon" class="stat-link @(Model.Durum == "Medigate" ? "active" : "")">
             <span class="stat-value" style="font-size:24px; color:var(--warning);">@Model.MedigateSayi</span>
             <span class="text-muted" style="font-size:13px; display:block;">Medigate önerisi</span>
         </a>
-        <a asp-page="/HizmetEslestirme" asp-route-Durum="Eksik" asp-route-Tip="@Model.Tip" class="stat-link @(Model.Durum == "Eksik" ? "active" : "")">
+        <a asp-page="/HizmetEslestirme" asp-route-Durum="Eksik" asp-route-Tip="@Model.Tip" asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon" class="stat-link @(Model.Durum == "Eksik" ? "active" : "")">
             <span class="stat-value" style="font-size:24px; color:var(--danger);">@Model.EksikSayi</span>
             <span class="text-muted" style="font-size:13px; display:block;">Pusula'da eşleşme yok</span>
         </a>
-        <a asp-page="/HizmetEslestirme" asp-route-Durum="KullanimdaEksik" asp-route-Tip="@Model.Tip" class="stat-link @(Model.Durum == "KullanimdaEksik" ? "active" : "")" style="border:1px dashed var(--danger);">
+        <a asp-page="/HizmetEslestirme" asp-route-Durum="KullanimdaEksik" asp-route-Tip="@Model.Tip" asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon" class="stat-link @(Model.Durum == "KullanimdaEksik" ? "active" : "")" style="border:1px dashed var(--danger);">
             <span class="stat-value" style="font-size:24px; color:var(--danger);">@Model.EksikKullanilanSayi</span>
             <span class="text-muted" style="font-size:13px; display:block;">▶ öncelikli: kullanımda + eşleşme yok</span>
         </a>
-        <a asp-page="/HizmetEslestirme" asp-route-Durum="Gonderilmez" asp-route-Tip="@Model.Tip" class="stat-link @(Model.Durum == "Gonderilmez" ? "active" : "")">
+        <a asp-page="/HizmetEslestirme" asp-route-Durum="Gonderilmez" asp-route-Tip="@Model.Tip" asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon" class="stat-link @(Model.Durum == "Gonderilmez" ? "active" : "")">
             <span class="stat-value" style="font-size:24px; color:var(--text-muted);">@Model.GonderilmezSayi</span>
             <span class="text-muted" style="font-size:13px; display:block;">gönderilmez</span>
         </a>
 
         <form method="get" style="margin-left:auto; display:flex; gap:8px; align-items:center; flex-wrap:wrap;">
             <input type="hidden" name="Durum" value="@Model.Durum" />
+            <input type="hidden" name="Sira" value="@Model.Sira" />
+            <input type="hidden" name="Yon" value="@Model.Yon" />
             <select name="Tip" class="form-control" style="width:190px;">
                 <option value="">— tüm hizmet tipleri —</option>
                 @foreach (var t in Model.Tipler)
@@ -85,13 +101,37 @@
     <input type="hidden" name="Durum" value="@Model.Durum" />
     <input type="hidden" name="Tip" value="@Model.Tip" />
     <input type="hidden" name="Ara" value="@Model.Ara" />
+    <input type="hidden" name="Esles" value="@Model.Esles" />
+    <input type="hidden" name="Sira" value="@Model.Sira" />
+    <input type="hidden" name="Yon" value="@Model.Yon" />
 
-    <div class="card card-pad" style="margin-bottom:12px; display:flex; align-items:center; gap:12px; flex-wrap:wrap;">
-        <button type="submit" class="btn btn-primary btn-sm">Seçilenleri Excel'e Aktar</button>
-        <span class="text-muted" style="font-size:13px;">
-            Hiçbiri seçilmezse <strong>filtrenin tamamı</strong> (@Model.GosterilenSayi kayıt) aktarılır.
-            Excel'in son sütunu <strong>Pusula'ya girilen kod</strong> için boş bırakılmıştır.
+    @* LISTE ARAC CUBUGU: eslesme suzgeci (sayilar ustteki filtrenin sonucundan) + Excel. *@
+    <div class="card card-pad hz-arac">
+        <div class="hz-sekmeler" role="group" aria-label="Eşleşme durumu">
+            @foreach (var (deger, ad, sayi, css) in new[]
+            {
+                ("", "Tümü", Model.EslesTumu, ""),
+                ("evet", "Eşleşen", Model.EslesEvet, "hz-yesil"),
+                ("hayir", "Eşleşmeyen", Model.EslesHayir, "hz-kirmizi"),
+                ("gonderilmez", "Gönderilmez", Model.EslesGonderilmez, "hz-gri"),
+            })
+            {
+                var secili = (Model.Esles ?? "") == deger;
+                <a asp-page="/HizmetEslestirme" asp-route-Durum="@Model.Durum" asp-route-Tip="@Model.Tip" asp-route-Ara="@Model.Ara"
+                   asp-route-Esles="@(deger == "" ? null : deger)" asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon"
+                   class="hz-sekme @css @(secili ? "active" : "")" aria-current="@(secili ? "true" : null)">
+                    <span class="hz-sekme-sayi">@sayi.ToString("N0")</span> @ad
+                </a>
+            }
+        </div>
+        <span class="text-muted hz-arac-not">
+            @if (Model.GosterilenSayi > HizmetEslestirmeModel.EkranSiniri)
+            {
+                <text>Ekranda ilk @HizmetEslestirmeModel.EkranSiniri.ToString("N0") / @Model.GosterilenSayi.ToString("N0") satır. </text>
+            }
+            Seçim yoksa listenin tamamı (@Model.GosterilenSayi.ToString("N0") kayıt) aktarılır.
         </span>
+        <button type="submit" class="btn btn-primary btn-sm" style="margin-left:auto;">Excel'e Aktar</button>
     </div>
 
     <div class="card">
@@ -100,20 +140,21 @@
                 <thead>
                     <tr>
                         <th style="width:34px;"><input type="checkbox" onclick="document.querySelectorAll('.satir-sec').forEach(c => c.checked = this.checked)" /></th>
-                        <th style="width:105px;">Hizmet Kodu</th>
-                        <th style="width:230px;">Hizmet Adı</th>
-                        <th style="width:125px;">Hizmet Tipi</th>
-                        <th style="width:80px; text-align:right;">İstem/yıl</th>
-                        <th style="width:105px;">Bakanlık Kodu</th>
+                        <th style="width:80px;">@Baslik("id", "Pusula Id")</th>
+                        <th style="width:105px;">@Baslik("kod", "Hizmet Kodu")</th>
+                        <th style="width:230px;">@Baslik("ad", "Hizmet Adı")</th>
+                        <th style="width:125px;">@Baslik("tip", "Hizmet Tipi")</th>
+                        <th style="width:80px; text-align:right;">@Baslik("istem", "İstem/yıl")</th>
+                        <th style="width:105px;">@Baslik("azkod", "Bakanlık Kodu")</th>
                         <th>Bakanlık Karşılığı</th>
-                        <th style="width:105px;">Kaynak</th>
+                        <th style="width:105px;">@Baslik("kaynak", "Kaynak")</th>
                         <th style="width:400px;">Eşleştir</th>
                     </tr>
                 </thead>
                 <tbody>
                 @if (Model.Satirlar.Count == 0)
                 {
-                    <tr><td colspan="9" class="text-muted" style="padding:20px;">Kayıt bulunamadı.</td></tr>
+                    <tr><td colspan="10" class="text-muted" style="padding:20px;">Kayıt bulunamadı.</td></tr>
                 }
                 @foreach (var s in Model.Satirlar)
                 {
@@ -122,6 +163,7 @@
                     var tr = PusulaEHealthSync.Web.Pages.HizmetEslestirmeModel.AzAdiTr(kod);
                     <tr>
                         <td><input type="checkbox" class="satir-sec" name="secili" value="@s.HizmetId" /></td>
+                        <td class="mono text-muted">@s.HizmetId</td>
                         <td><code>@s.HizmetKodu</code></td>
                         <td>@s.HizmetAdi</td>
                         <td class="text-muted" style="font-size:12px;">@s.HizmetTipi</td>
@@ -221,18 +263,27 @@
         <input type="hidden" name="Durum" value="@Model.Durum" />
         <input type="hidden" name="Tip" value="@Model.Tip" />
         <input type="hidden" name="Ara" value="@Model.Ara" />
+        <input type="hidden" name="Esles" value="@Model.Esles" />
+        <input type="hidden" name="Sira" value="@Model.Sira" />
+        <input type="hidden" name="Yon" value="@Model.Yon" />
         <input type="hidden" name="hizmetId" value="@s.HizmetId" />
     </form>
     <form method="post" asp-page-handler="Gonderilmez" id="g-@s.HizmetId" hidden>
         <input type="hidden" name="Durum" value="@Model.Durum" />
         <input type="hidden" name="Tip" value="@Model.Tip" />
         <input type="hidden" name="Ara" value="@Model.Ara" />
+        <input type="hidden" name="Esles" value="@Model.Esles" />
+        <input type="hidden" name="Sira" value="@Model.Sira" />
+        <input type="hidden" name="Yon" value="@Model.Yon" />
         <input type="hidden" name="hizmetId" value="@s.HizmetId" />
     </form>
     <form method="post" asp-page-handler="Sifirla" id="r-@s.HizmetId" hidden>
         <input type="hidden" name="Durum" value="@Model.Durum" />
         <input type="hidden" name="Tip" value="@Model.Tip" />
         <input type="hidden" name="Ara" value="@Model.Ara" />
+        <input type="hidden" name="Esles" value="@Model.Esles" />
+        <input type="hidden" name="Sira" value="@Model.Sira" />
+        <input type="hidden" name="Yon" value="@Model.Yon" />
         <input type="hidden" name="hizmetId" value="@s.HizmetId" />
     </form>
 }
