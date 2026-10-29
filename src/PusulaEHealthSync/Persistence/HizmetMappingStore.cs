@@ -52,7 +52,8 @@ public class HizmetMappingStore
 
     public record Satir(
         int HizmetId, string HizmetKodu, string HizmetAdi, string HizmetTipi, int Istem,
-        string IcbariKodu, string? Oneri, string? Adaylar, string? AzKod, bool Gonderilmez, string Kaynak, string UpdatedAtUtc)
+        string IcbariKodu, string? Oneri, string? Adaylar, string? AzKod, bool Gonderilmez, string Kaynak, string UpdatedAtUtc,
+        bool Kural = false)   // Gonderilmez, adi bir on ekle basladigi icin (HizmetKurali) -- elle degil
     {
         /// <summary>
         /// Gonderimde kullanilacak kod. SIRA ONEMLI: elle girilen > Pusula'nin Icbari kodu > oneri.

@@ -903,7 +903,7 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
     private const int IcbariKurumId = 7660;
 
     public async Task<List<IcbariIslemRecord>> GetIcbariIslemlerAsync(DateTime fromDate, DateTime toDateExclusive, CancellationToken ct = default,
-        IReadOnlyCollection<int>? haricHizmetler = null)
+        IReadOnlyCollection<int>? haricHizmetler = null, IReadOnlyCollection<string>? haricOnEkler = null)
     {
         var sql = @"
             SELECT pi.Id AS IslemId, pi.ProtokolId, h.Adi AS HastaAdi, h.Soyadi AS HastaSoyadi,
@@ -933,7 +933,7 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
               AND NOT EXISTS (
                   SELECT 1 FROM LIS.TestIslem lti
                   WHERE lti.ProtokolIslemId = pi.Id AND lti.State <> 0 AND lti.State <> 6
-              )" + HizmetHaric(haricHizmetler) + @"
+              )" + HizmetHaric(haricHizmetler) + PusulaEHealthSync.Sync.HizmetKurali.SqlHaric(haricOnEkler, "oh.Adi") + @"
             -- Laboratuvar kalemleri artik DISLANMIYOR -- GetIslemlerByProtokolIdAsync ile
             -- ayni karar (2026-09-14). Kapsam paneli gonderilenle birebir ayni kumeyi
             -- gostermeli, aksi halde gonderildi sayilari tutmaz.

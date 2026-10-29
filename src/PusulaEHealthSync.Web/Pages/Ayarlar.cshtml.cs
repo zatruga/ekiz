@@ -136,6 +136,12 @@ public class AyarlarModel(
     // yazilirsa kural sessizce hic calismiyordu.
     [BindProperty]
     public List<string> EpikrizMuafBolumler { get; set; } = [];
+
+    // Hizmet kurallari (bkz. HizmetKurali): ";" ile ayrilmis on ekler ve suzgec sozcukleri.
+    [BindProperty]
+    public string? HizmetGonderilmezOnEkler { get; set; }
+    [BindProperty]
+    public string? HizmetTibbiOlmayanSozcukler { get; set; }
     // Isaretlenebilir liste: son 90 gunde protokol acilmis bolumler + zaten secili olanlar
     // (artik kullanilmasa da secimi kaybolmasin). Pusula'ya ulasilamazsa yalnizca seciliiler.
     public List<string> BolumSecenekleri { get; private set; } = [];
@@ -388,6 +394,11 @@ public class AyarlarModel(
         await settings.SetStringAsync(SettingsStore.EpikrizMuafBolumlerKey,
             string.Join("; ", EpikrizMuafBolumler.Where(b => !string.IsNullOrWhiteSpace(b)).Select(b => b.Trim())
                 .Distinct(StringComparer.CurrentCultureIgnoreCase)), ct);
+        // Temizlenmis ve bicimlenmis haliyle yaziliyor (bkz. HizmetKurali.Ayristir).
+        await settings.SetStringAsync(SettingsStore.HizmetGonderilmezOnEklerKey,
+            string.Join("; ", PusulaEHealthSync.Sync.HizmetKurali.Ayristir(HizmetGonderilmezOnEkler)), ct);
+        await settings.SetStringAsync(SettingsStore.HizmetTibbiOlmayanSozcuklerKey,
+            string.Join("; ", PusulaEHealthSync.Sync.HizmetKurali.Ayristir(HizmetTibbiOlmayanSozcukler)), ct);
         return await SavedAsync("icerik", ct);
     }
 
@@ -641,6 +652,10 @@ public class AyarlarModel(
         var secili = PusulaEHealthSync.Sync.EpikrizMuafiyeti.Ayristir(await settings.GetStringAsync(
             SettingsStore.EpikrizMuafBolumlerKey, SettingsStore.EpikrizMuafBolumlerDefault, ct));
         EpikrizMuafBolumler = [.. secili];
+        HizmetGonderilmezOnEkler = await settings.GetStringAsync(
+            SettingsStore.HizmetGonderilmezOnEklerKey, SettingsStore.HizmetGonderilmezOnEklerDefault, ct);
+        HizmetTibbiOlmayanSozcukler = await settings.GetStringAsync(
+            SettingsStore.HizmetTibbiOlmayanSozcuklerKey, SettingsStore.HizmetTibbiOlmayanSozcuklerDefault, ct);
         var tr = StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("tr-TR"), true);
         List<string> kullanilan = [];
         try

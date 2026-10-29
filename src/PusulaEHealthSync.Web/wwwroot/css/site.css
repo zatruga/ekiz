@@ -2916,3 +2916,16 @@ a.hz-sirala.active span { color: var(--primary); }
 .hz-suzgec-btn { height: 36px; }
 .hz-temizle { font-size: 13px; color: var(--text-muted); align-self: center; padding-bottom: 2px; }
 .hz-temizle:hover { color: var(--primary); }
+
+/* Hizmet Eslestirme: "tibbi olmayabilir" kisayolu ve ad kurali notu (2026-10-28) */
+.hz-aday {
+  align-self: center; margin-left: auto; display: inline-flex; align-items: center; gap: 6px;
+  height: 32px; padding: 0 12px; border: 1px dashed var(--warning); border-radius: 999px;
+  color: var(--text); text-decoration: none; font-size: 13px; background: var(--surface);
+}
+.hz-aday b { color: var(--warning); font-variant-numeric: tabular-nums; }
+.hz-aday:hover { background: var(--surface-hover); }
+.hz-aday.active { border-style: solid; background: var(--warning-soft, var(--surface-hover)); }
+.hz-kural-not { margin: -6px 0 0; font-size: 12.5px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 4px 12px; }
+.hz-kural-not b { color: var(--text); }
+#hizmet-kurallari textarea { width: 100%; }

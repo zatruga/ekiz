@@ -29,7 +29,11 @@
     </div>
 </div>
 
-@if (Model.Saved)
+@if (Model.Toplu is { } toplu)
+{
+    <div class="alert alert-success">@toplu.ToString("N0") hizmet "gönderilmez" olarak işaretlendi.</div>
+}
+else if (Model.Saved)
 {
     <div class="alert alert-success">Kaydedildi.</div>
 }
@@ -101,7 +105,27 @@
         {
             <a asp-page="/HizmetEslestirme" asp-route-Durum="@Model.Durum" asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon" class="hz-temizle">Süzgeci temizle</a>
         }
+        @{ var adaySecili = Model.Durum == "TibbiOlmayabilir"; }
+        <a asp-page="/HizmetEslestirme" asp-route-Durum="@(adaySecili ? "Tumu" : "TibbiOlmayabilir")" asp-route-Tip="@Model.Tip" asp-route-Ara="@Model.Ara"
+           class="hz-aday @(adaySecili ? "active" : "")" aria-current="@(adaySecili ? "true" : null)"
+           title="Adında kafeterya, yemək, su, refakatçi gibi sözcükler geçen ve henüz gönderilmez olmayan hizmetler. Kendiliğinden işaretlemez.">
+            Tıbbi olmayabilir <b>@Model.TibbiOlmayabilirSayi.ToString("N0")</b>
+        </a>
     </form>
+    <p class="hz-kural-not">
+        @if (Model.OnEkler.Count > 0)
+        {
+            <text>Kural: adı <b>@string.Join(", ", Model.OnEkler)</b> ile başlayan <b>@Model.KuralSayi.ToString("N0")</b> hizmet kendiliğinden gönderilmez.</text>
+        }
+        else
+        {
+            <text>Ad kuralı tanımlı değil.</text>
+        }
+        @if (User.IsInRole("Admin"))
+        {
+            <a asp-page="/Ayarlar" asp-fragment="hizmet-kurallari">Kuralı ve süzgeç sözcüklerini düzenle</a>
+        }
+    </p>
 </section>
 
 <form method="post" asp-page-handler="Excel">
@@ -138,7 +162,11 @@
             }
             Seçim yoksa listenin tamamı (@Model.GosterilenSayi.ToString("N0") kayıt) aktarılır.
         </span>
-        <button type="submit" class="btn btn-primary btn-sm" style="margin-left:auto;">Excel'e Aktar</button>
+        <button type="submit" asp-page-handler="TopluGonderilmez" class="btn btn-outline btn-sm" style="margin-left:auto;"
+                onclick="var n=document.querySelectorAll('.satir-sec:checked').length; if(!n){alert('Önce listeden satır seçin.');return false;} return confirm(n+' hizmet &quot;gönderilmez&quot; olarak işaretlenecek. Devam edilsin mi?');">
+            Seçilenleri gönderilmez yap
+        </button>
+        <button type="submit" class="btn btn-primary btn-sm">Excel'e Aktar</button>
     </div>
 
     <div class="card">
@@ -206,7 +234,11 @@
                            bu hizmet bakanliga gitsin mi. "Gonderilmez" isaretli hizmet ne gonderilir ne de
                            Bekleyen Isler / Icbari kartinda eksik sayilir. *@
                         <td>
-                            @if (s.Gonderilmez)
+                            @if (s.Kural)
+                            {
+                                <span class="badge" title="Adı ad kuralındaki bir sözcükle başlıyor; kuraldan çıkarmak için Ayarlar'daki listeden silin."><span class="badge-dot"></span>gönderilmez · kural</span>
+                            }
+                            else if (s.Gonderilmez)
                             {
                                 <div style="display:flex; gap:6px; align-items:center; flex-wrap:wrap;">
                                     <span class="badge"><span class="badge-dot"></span>gönderilmez</span>

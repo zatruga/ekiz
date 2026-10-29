@@ -122,7 +122,7 @@ public partial class PusulaRepository
     // aday bile olmaz, yani Bekleyen Isler'de eksik gorunmez (2026-10-28).
     public async Task<List<PendingCandidate>> GetCreatedProceduresAsync(
         DateTime fromLocal, DateTime? toLocalExclusive = null, CancellationToken ct = default,
-        IReadOnlyCollection<int>? haricHizmetler = null)
+        IReadOnlyCollection<int>? haricHizmetler = null, IReadOnlyCollection<string>? haricOnEkler = null)
     {
         var sql = @"
             SELECT pi.ProtokolId, pi.Id, pi.CreatedDate, oh.Adi, " + GonderimDisiSebep + @"
@@ -130,7 +130,8 @@ public partial class PusulaRepository
             INNER JOIN Ortak.Hizmet oh ON oh.Id = pi.HizmetId
             " + IcbariApply + @"
             WHERE pi.State >= 2 AND pi.CreatedDate >= @From AND pi.CreatedDate < @To
-              AND oh.Kodu <> '30105'" + HizmetHaric(haricHizmetler);
+              AND oh.Kodu <> '30105'" + HizmetHaric(haricHizmetler)
+              + PusulaEHealthSync.Sync.HizmetKurali.SqlHaric(haricOnEkler, "oh.Adi");
         return await QueryCandidatesAsync(sql, fromLocal, toLocalExclusive ?? SinirYok, "Procedure", "İşlem", ct);
     }
 

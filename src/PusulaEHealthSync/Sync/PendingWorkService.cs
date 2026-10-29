@@ -303,7 +303,9 @@ public class PendingWorkService(
         candidates.AddRange(await repository.GetCompletedPathologyAsync(fromLocal, toLocalExclusive, ct));
         // Hizmet Eslestirme'de "gonderilmez" isaretli hizmetler aday degil (bkz. HizmetMappingStore).
         var gonderilmezHizmetler = await hizmetMapping.GetGonderilmezIdleriAsync(ct);
-        candidates.AddRange(await repository.GetCreatedProceduresAsync(fromLocal, toLocalExclusive, ct, gonderilmezHizmetler));
+        var gonderilmezOnEkler = await HizmetKurali.OnEkleriAsync(settings, ct);
+        candidates.AddRange(await repository.GetCreatedProceduresAsync(fromLocal, toLocalExclusive, ct,
+            gonderilmezHizmetler, gonderilmezOnEkler));
         candidates.AddRange(await repository.GetLockedEpikrizAsync(fromLocal, toLocalExclusive, ct));
 
         // 1b) Gonderimin denedigi ama yukaridaki sorgunun gormedigi epikrizler (kilitsiz ya

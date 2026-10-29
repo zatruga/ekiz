@@ -14,7 +14,7 @@ namespace PusulaEHealthSync.Web.Pages;
 //   - Eslesmesi Pusula'dan (Icbari Sigorta Fiyat Listesi) geliyorsa "Pusula" rozeti
 //   - Bizim onerimiz varsa "Medigate" rozeti -- henuz Pusula'ya islenmemis TEKLIF
 //   - Eslesmeyenler CHECKBOX ile secilip Excel'e aktarilir, eslestirme Pusula'da yapilir
-public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
+public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore settings) : PageModel
 {
     public List<HizmetMappingStore.Satir> Satirlar { get; set; } = [];
     public List<string> Tipler { get; set; } = [];
@@ -61,12 +61,31 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
     public int KullanilanSayi { get; set; }
     public int EksikKullanilanSayi { get; set; }
 
+    // Ad kurali ve "tibbi olmayabilir" suzgeci (bkz. HizmetKurali, Ayarlar > Hizmetler).
+    public List<string> OnEkler { get; private set; } = [];
+    public int KuralSayi { get; private set; }
+    public int TibbiOlmayabilirSayi { get; private set; }
+    [BindProperty(SupportsGet = true)] public int? Toplu { get; set; }
+
     public static string? AzAdi(string? kod) => AzProcedureCodes.Display(kod);
     public static string? AzAdiTr(string? kod) => AzProcedureCodes.DisplayTr(kod);
 
     private async Task<List<HizmetMappingStore.Satir>> FiltreleAsync(CancellationToken ct)
     {
-        var hepsi = await store.GetAllAsync(ct);
+        var ham = await store.GetAllAsync(ct);
+
+        // AD KURALI: adi on eklerden biriyle baslayan hizmet "gonderilmez" sayilir -- gonderim,
+        // tarama ve Icbari karti ayni kurali Pusula sorgusunda uyguluyor (HizmetKurali).
+        OnEkler = await PusulaEHealthSync.Sync.HizmetKurali.OnEkleriAsync(settings, ct);
+        var hepsi = ham.Select(s => !s.Gonderilmez && PusulaEHealthSync.Sync.HizmetKurali.OnEkUyar(s.HizmetAdi, OnEkler)
+                ? s with { Gonderilmez = true, Kural = true } : s).ToList();
+        KuralSayi = hepsi.Count(s => s.Kural);
+
+        // TIBBI OLMAYABILIR: tam sozcuk eslesmesi, yalnizca henuz gonderilmez olmayanlar.
+        var desen = PusulaEHealthSync.Sync.HizmetKurali.SozcukDeseni(
+            await PusulaEHealthSync.Sync.HizmetKurali.SozcukleriAsync(settings, ct));
+        bool Aday(HizmetMappingStore.Satir s) => !s.Gonderilmez && desen is not null && desen.IsMatch(s.HizmetAdi);
+        TibbiOlmayabilirSayi = hepsi.Count(Aday);
 
         // TEK KURAL (2026-10-28): Eslesen = kodu var ve gonderilmez degil; Eslesme yok = kodu
         // yok ve gonderilmez degil. Eslesen + Eslesme yok + Gonderilmez = Tum hizmetler, ve
@@ -90,6 +109,7 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
             // Bu filtre gercekten kullanilan kalemlere odaklanmayi sagliyor.
             "Kullanimda" => hepsi.Where(s => s.Istem > 0),
             "KullanimdaEksik" => hepsi.Where(s => s.Istem > 0 && s.Bekliyor),
+            "TibbiOlmayabilir" => hepsi.Where(Aday),
             _ => hepsi.AsEnumerable(),
         };
 
@@ -165,6 +185,24 @@ public class HizmetEslestirmeModel(HizmetMappingStore store) : PageModel
     {
         await store.SetAsync(hizmetId, null, gonderilmez: true, ct);
         return RedirectToPage("/HizmetEslestirme", Rota(saved: true));
+    }
+
+    // TOPLU ISARETLEME (2026-10-28): listede secilen satirlarin hepsi "gonderilmez". Kurala
+    // zaten uyanlar atlanir (onlar ad kuralindan geliyor, ayrica isaret gerekmiyor).
+    public async Task<IActionResult> OnPostTopluGonderilmezAsync(int[]? secili, CancellationToken ct)
+    {
+        if (secili is not { Length: > 0 }) return RedirectToPage("/HizmetEslestirme", Rota());
+        var onEkler = await PusulaEHealthSync.Sync.HizmetKurali.OnEkleriAsync(settings, ct);
+        var mevcut = (await store.GetAllAsync(ct)).ToDictionary(s => s.HizmetId);
+        var n = 0;
+        foreach (var id in secili.Distinct())
+        {
+            if (!mevcut.TryGetValue(id, out var s) || s.Gonderilmez
+                || PusulaEHealthSync.Sync.HizmetKurali.OnEkUyar(s.HizmetAdi, onEkler)) continue;
+            await store.SetAsync(id, s.AzKod, gonderilmez: true, ct);
+            n++;
+        }
+        return RedirectToPage("/HizmetEslestirme", new { Toplu = n, Durum, Tip, Ara, Esles, Sira, Yon });
     }
 
     // "Gonderilmez" isaretini kaldirir; varsa elle girilmis kod korunur.

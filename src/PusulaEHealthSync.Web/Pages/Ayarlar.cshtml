@@ -423,6 +423,18 @@
                                 <p class="field-hint" style="margin-top:4px;">Seçili: <b>@(Model.EpikrizMuafBolumler.Count == 0 ? "yok" : string.Join(", ", Model.EpikrizMuafBolumler))</b></p>
                             </div>
                         </fieldset>
+                        <fieldset class="ayar-grup" id="hizmet-kurallari">
+                            <legend>Hizmetler (işlem)</legend>
+                            <div class="field">
+                                <label for="hizmetOnEk" class="ayar-alt-baslik">Kendiliğinden gönderilmeyecek hizmetler</label>
+                                <input type="text" id="hizmetOnEk" asp-for="HizmetGonderilmezOnEkler" placeholder="Kafeterya" />
+                                <p class="field-hint">Adı bu sözcüklerle <b>başlayan</b> hizmetler bakanlığa gönderilmez ve hiçbir raporda eksik sayılmaz. Birden fazlaysa <code>;</code> ile ayırın. Boş bırakılırsa kural kapanır.</p>
+                            </div>
+                            <div class="field">
+                                <label for="hizmetSozcuk" class="ayar-alt-baslik">"Tıbbi olmayabilir" süzgecinin sözcükleri</label>
+                                <textarea id="hizmetSozcuk" asp-for="HizmetTibbiOlmayanSozcukler" rows="2"></textarea>
+                                <p class="field-hint">Hizmet Eşleştirme'deki süzgeç, adında bu sözcüklerden biri <b>tam sözcük olarak</b> geçen hizmetleri listeler (ör. "su", "suspenziya"yı yakalamaz). Süzgeç işaretleme yapmaz; karar sizin.</p>
+                            </div>
                         <div class="card-actions">
                             <button type="submit" class="btn btn-primary">Kaydet</button>
                             @if (Model.Saved && Model.SavedSection == "icerik") { <span class="rchip success">Kaydedildi</span> }

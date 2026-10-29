@@ -13,6 +13,7 @@ namespace PusulaEHealthSync.Sync;
 // bu yuzden burada ikinci bir Encounter update'i gerekmiyor.
 public class ProcedureSyncService(
     EHealthClient eHealthClient, SyncLogStore syncLog, HizmetMappingStore hizmetMappingStore,
+    SettingsStore settings,
     PractitionerSyncService practitionerSyncService,
     ILogger<ProcedureSyncService> logger)
 {
@@ -43,7 +44,10 @@ public class ProcedureSyncService(
         // raporunda eksik olarak yer almasin"). Atlandi kaydi yazilsaydi Genel Bakis'in
         // tablolari ve gun sonu raporu bu islemi "eksik verili" sayardi. Kayit bellekte
         // donuyor ki cagiran zincir sonucu yine gorebilsin.
-        if (eslestirme.TryGetValue(islem.HizmetId, out var karar) && karar.Gonderilmez)
+        // Ad kurali da ayni sekilde (bkz. HizmetKurali): adi "Kafeterya" ile baslayan hizmet.
+        var onEkler = await HizmetKurali.OnEkleriAsync(settings, ct);
+        if ((eslestirme.TryGetValue(islem.HizmetId, out var karar) && karar.Gonderilmez)
+            || HizmetKurali.OnEkUyar(islem.HizmetAdi, onEkler))
         {
             var bilgi = NewEntry(islem, protokol, SyncStatus.Skipped);
             bilgi.Message = "Hizmet Eşleştirme ekranında \"gönderilmez\" işaretli -- gönderilmedi, günlüğe yazılmadı";

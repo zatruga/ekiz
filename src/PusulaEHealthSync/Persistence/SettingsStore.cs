@@ -222,6 +222,14 @@ public class SettingsStore
     // ";" ile ayrilmis Pusula bolum ADLARI (Ortak.Bolum.Adi), buyuk/kucuk harf farksiz.
     // Bkz. EpikrizMuafiyeti.
     public const string EpikrizMuafBolumlerKey = "Epikriz.MuafBolumler";
+
+    // HIZMET KURALLARI (2026-10-28) -- bkz. HizmetKurali. On ek: adi bunlarla BASLAYAN hizmet
+    // kendiliginden gonderilmez. Sozcukler: "tibbi olmayabilir" suzgecinin adaylari (isaretlemez).
+    public const string HizmetGonderilmezOnEklerKey = "Hizmet.GonderilmezOnEkler";
+    public const string HizmetGonderilmezOnEklerDefault = "Kafeterya";
+    public const string HizmetTibbiOlmayanSozcuklerKey = "Hizmet.TibbiOlmayanSozcukler";
+    public const string HizmetTibbiOlmayanSozcuklerDefault =
+        "kafeterya; yemək; yeməyi; çay; kofe; refakatçi; xəstə yaxını; otopark; parkinq; CD tətbiqi; mesai dışı; reçete işlem";
     public const string EpikrizMuafBolumlerDefault = "Laboratoriya; Radiologiya";
 
     // Tanı (Condition) / İşlem (Procedure) -- KULLANICI ISTEGI (2026-08-25): "ama bence
