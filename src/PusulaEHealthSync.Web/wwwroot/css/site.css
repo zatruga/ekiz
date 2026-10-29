@@ -2943,3 +2943,17 @@ a.hz-sirala.active span { color: var(--primary); }
 .kural-liste .ayar-bolum { gap: 8px; }
 .kural-ad { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 .kural-adet { color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }
+.kural-liste--kisa { height: 180px; }
+.kural-mod--dikey { flex-direction: column; align-items: flex-start; }
+.kural-tablo-kap { overflow-x: auto; margin-bottom: 4px; }
+.kural-tablo { width: 100%; }
+.kural-tablo td { vertical-align: middle; }
+.kural-tablo .kural-islem { text-align: right; white-space: nowrap; }
+.kural-tablo .kural-islem .btn + form { margin-left: 4px; }
+.kural-tablo .kural-bos { color: var(--text-muted); }
+.kural-tablo tr.kural-diger td { background: var(--surface-hover); border-top: 2px solid var(--border); }
+.kural-tablo tr.kural-secili td { background: var(--primary-soft); }
+.kural-not { display: block; font-size: 12px; color: var(--text-muted); font-weight: 400; }
+.kural-duzen { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
+.kural-duzen-baslik { display: block; margin-bottom: 8px; font-weight: 600; }
+.kural-kurum-ad { font-weight: 600; margin: 2px 0 0; }

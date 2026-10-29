@@ -147,22 +147,47 @@ public class AyarlarModel(
     public List<string> BolumSecenekleri { get; private set; } = [];
     public bool BolumListesiOkunamadi { get; private set; }
 
-    // -- Kurum / bolum / doktor kurallari (bkz. GonderimKurali) --------------------------
-    // Mod: Tumu / Yalniz / Haric. Listeler Pusula Id'si (kurumda 0 = kurumsuz).
-    [BindProperty] public string KuralKurumModu { get; set; } = nameof(KuralModu.Tumu);
-    [BindProperty] public List<int> KuralKurumlar { get; set; } = [];
-    [BindProperty] public string KuralBolumModu { get; set; } = nameof(KuralModu.Tumu);
-    [BindProperty] public List<int> KuralBolumler { get; set; } = [];
-    [BindProperty] public string KuralDoktorModu { get; set; } = nameof(KuralModu.Tumu);
-    [BindProperty] public List<int> KuralDoktorlar { get; set; } = [];
+    // -- Kurum basina bolum / doktor kural tablosu (bkz. GonderimKurali) -----------------
+    public GonderimKurali KuralTablosu { get; private set; } = GonderimKurali.Serbest;
+
+    // Duzenlenen satir: "diger", "yeni" ya da kurum Id'si. GET'te ?kural= ile acilir.
+    [BindProperty(SupportsGet = true, Name = "kural")]
+    public string? KuralDuzenle { get; set; }
+
+    // Duzenleyici alanlari. Hatali POST'ta girilen degerler korunur (duzenPostlandi).
+    [BindProperty] public int? DuzenKurumId { get; set; }
+    [BindProperty] public bool DuzenGonderme { get; set; }
+    [BindProperty] public string DuzenBolumModu { get; set; } = nameof(KuralModu.Tumu);
+    [BindProperty] public List<int> DuzenBolumler { get; set; } = [];
+    [BindProperty] public string DuzenDoktorModu { get; set; } = nameof(KuralModu.Tumu);
+    [BindProperty] public List<int> DuzenDoktorlar { get; set; } = [];
+    private bool duzenPostlandi;
+
+    public bool DuzenDiger => KuralDuzenle == "diger";
+    public bool DuzenYeni => KuralDuzenle == "yeni";
 
     public record KuralSecenek(int Id, string Ad, int Adet);
     // Son 90 gunde protokol acilmis olanlar + zaten secili olanlar (secim kaybolmasin).
     public List<KuralSecenek> KurumSecenekleri { get; private set; } = [];
     public List<KuralSecenek> BolumKuralSecenekleri { get; private set; } = [];
     public List<KuralSecenek> DoktorSecenekleri { get; private set; } = [];
+    public Dictionary<int, string> KurumAdlari { get; private set; } = [];
+    public Dictionary<int, string> BolumAdlari { get; private set; } = [];
+    public Dictionary<int, string> DoktorAdlari { get; private set; } = [];
     public bool KuralListesiOkunamadi { get; private set; }
     public string? KuralHatasi { get; private set; }
+
+    public string KurumAdi(int id) => KurumAdlari.TryGetValue(id, out var a) ? a
+        : id == GonderimKurali.KurumsuzId ? "Kurumsuz (ücretli)" : $"Kurum #{id}";
+
+    // Ozet hucresi: "Tümü" / "Yalnız: A, B, C +2" / "Hariç: A".
+    public static string KuralMetni(KuralModu mod, IEnumerable<int> idler, Dictionary<int, string> adlar, string adsiz)
+    {
+        if (mod == KuralModu.Tumu) return "Tümü";
+        var adList = idler.Select(i => adlar.TryGetValue(i, out var a) ? a : $"{adsiz} #{i}").Order().ToList();
+        var metin = adList.Count == 0 ? "—" : string.Join(", ", adList.Take(3)) + (adList.Count > 3 ? $" +{adList.Count - 3}" : "");
+        return (mod == KuralModu.Yalniz ? "Yalnız: " : "Hariç: ") + metin;
+    }
 
     // -- Tanı (Condition) / İşlem (Procedure) ------------------------------------------------
     [BindProperty]
@@ -231,7 +256,12 @@ public class AyarlarModel(
     public string? MailSonucMetni { get; private set; }
     public bool MailSonucBasarili { get; private set; }
 
-    public async Task OnGetAsync(CancellationToken ct) => await LoadAsync(ct);
+    public async Task OnGetAsync(CancellationToken ct)
+    {
+        await LoadAsync(ct);
+        // Kural tablosundan gelindiyse (Duzenle / Vazgec) otomatik gonderim sekmesi acik gelsin.
+        if (Request.Query.ContainsKey("kural")) SavedSection = "kural";
+    }
 
     public async Task<IActionResult> OnPostVeritabaniAsync(CancellationToken ct)
     {
@@ -387,29 +417,54 @@ public class AyarlarModel(
         return await SavedAsync("kapsam", ct);
     }
 
-    // KURUM / BOLUM / DOKTOR. "Yalniz" secilip hicbir sey isaretlenmezse otomatik gonderim
-    // HICBIR SEY gondermez -- buyuk olasilikla yanlislik, bu yuzden kaydedilmiyor.
-    public async Task<IActionResult> OnPostKuralAsync(CancellationToken ct)
+    // KURAL TABLOSU: bir satiri kaydet / sil. "Yalniz" secilip hicbir sey isaretlenmezse o
+    // satirin protokolleri HIC gitmez -- buyuk olasilikla yanlislik, bu yuzden kaydedilmiyor
+    // (bilerek hic gondermemek icin "Hiç gönderme" secenegi var).
+    public async Task<IActionResult> OnPostKuralKaydetAsync(CancellationToken ct)
     {
-        var bos = new List<string>();
-        if (GonderimKurali.Mod(KuralKurumModu) == KuralModu.Yalniz && KuralKurumlar.Count == 0) bos.Add("kurum");
-        if (GonderimKurali.Mod(KuralBolumModu) == KuralModu.Yalniz && KuralBolumler.Count == 0) bos.Add("bölüm");
-        if (GonderimKurali.Mod(KuralDoktorModu) == KuralModu.Yalniz && KuralDoktorlar.Count == 0) bos.Add("doktor");
-        if (bos.Count > 0)
+        var hatalar = new List<string>();
+        int? kurumId = DuzenDiger ? null : DuzenYeni ? DuzenKurumId : int.TryParse(KuralDuzenle, out var k) ? k : null;
+        if (!DuzenDiger && kurumId is null) hatalar.Add("kurum seçilmedi");
+        var bolumModu = DuzenGonderme ? KuralModu.Tumu : GonderimKurali.Mod(DuzenBolumModu);
+        var doktorModu = DuzenGonderme ? KuralModu.Tumu : GonderimKurali.Mod(DuzenDoktorModu);
+        if (bolumModu == KuralModu.Yalniz && DuzenBolumler.Count == 0) hatalar.Add("\"Yalnız işaretliler\" seçildi ama hiç bölüm işaretlenmedi");
+        if (doktorModu == KuralModu.Yalniz && DuzenDoktorlar.Count == 0) hatalar.Add("\"Yalnız işaretliler\" seçildi ama hiç doktor işaretlenmedi");
+
+        var tablo = await GonderimKurali.YukleAsync(settings, ct);
+        if (DuzenYeni && kurumId is { } yeniId && tablo.Satir(yeniId) is not null)
+            hatalar.Add("bu kurumun zaten bir kuralı var — listeden onu düzenleyin");
+
+        if (hatalar.Count > 0)
         {
+            duzenPostlandi = true;
             await LoadAsync(ct);
             SavedSection = "kural";
-            KuralHatasi = $"\"Yalnız işaretliler\" seçildi ama hiç {string.Join(" / ", bos)} işaretlenmedi — böyle kaydedilirse otomatik gönderim hiçbir şey göndermez. Kaydedilmedi.";
+            KuralHatasi = string.Join("; ", hatalar) + ". Kaydedilmedi.";
             return Page();
         }
-        await settings.SetStringAsync(SettingsStore.AutoSendKuralKurumModKey, GonderimKurali.Mod(KuralKurumModu).ToString(), ct);
-        await settings.SetStringAsync(SettingsStore.AutoSendKuralKurumIdlerKey, GonderimKurali.Yaz(KuralKurumlar), ct);
-        await settings.SetStringAsync(SettingsStore.AutoSendKuralBolumModKey, GonderimKurali.Mod(KuralBolumModu).ToString(), ct);
-        await settings.SetStringAsync(SettingsStore.AutoSendKuralBolumIdlerKey, GonderimKurali.Yaz(KuralBolumler), ct);
-        await settings.SetStringAsync(SettingsStore.AutoSendKuralDoktorModKey, GonderimKurali.Mod(KuralDoktorModu).ToString(), ct);
-        await settings.SetStringAsync(SettingsStore.AutoSendKuralDoktorIdlerKey, GonderimKurali.Yaz(KuralDoktorlar), ct);
+
+        var satir = new KuralSatiri
+        {
+            KurumId = kurumId,
+            Gonderme = DuzenGonderme,
+            BolumModu = bolumModu,
+            Bolumler = bolumModu == KuralModu.Tumu ? [] : [.. DuzenBolumler],
+            DoktorModu = doktorModu,
+            Doktorlar = doktorModu == KuralModu.Tumu ? [] : [.. DuzenDoktorlar],
+        };
+        await settings.SetStringAsync(SettingsStore.AutoSendKuralTabloKey, tablo.Ile(satir).Yaz(), ct);
+        KuralDuzenle = null;
         return await SavedAsync("kural", ct);
     }
+
+    public async Task<IActionResult> OnPostKuralSilAsync(int kurumId, CancellationToken ct)
+    {
+        var tablo = await GonderimKurali.YukleAsync(settings, ct);
+        await settings.SetStringAsync(SettingsStore.AutoSendKuralTabloKey, tablo.Olmadan(kurumId).Yaz(), ct);
+        KuralDuzenle = null;
+        return await SavedAsync("kural", ct);
+    }
+
 
     public async Task<IActionResult> OnPostTakilanAsync(CancellationToken ct)
     {
@@ -616,13 +671,22 @@ public class AyarlarModel(
 
     private async Task KuralSecenekleriniYukleAsync(List<PusulaEHealthSync.Db.BolumUsage> bolumKullanimi, CancellationToken ct)
     {
-        var kural = await GonderimKurali.YukleAsync(settings, ct);
-        KuralKurumModu = kural.KurumModu.ToString();
-        KuralBolumModu = kural.BolumModu.ToString();
-        KuralDoktorModu = kural.DoktorModu.ToString();
-        KuralKurumlar = [.. kural.Kurumlar];
-        KuralBolumler = [.. kural.Bolumler];
-        KuralDoktorlar = [.. kural.Doktorlar];
+        KuralTablosu = await GonderimKurali.YukleAsync(settings, ct);
+
+        // Duzenleyiciyi kayitli satirdan doldur (hatali POST'ta girilen degerler kalir).
+        if (KuralDuzenle is not null && !duzenPostlandi)
+        {
+            var satir = DuzenDiger ? KuralTablosu.Diger
+                : int.TryParse(KuralDuzenle, out var id) ? KuralTablosu.Satir(id) : null;
+            if (satir is null && !DuzenYeni) KuralDuzenle = null;   // silinmis ya da gecersiz
+            satir ??= new KuralSatiri();
+            DuzenKurumId = satir.KurumId;
+            DuzenGonderme = satir.Gonderme;
+            DuzenBolumModu = satir.BolumModu.ToString();
+            DuzenBolumler = [.. satir.Bolumler];
+            DuzenDoktorModu = satir.DoktorModu.ToString();
+            DuzenDoktorlar = [.. satir.Doktorlar];
+        }
 
         List<PusulaEHealthSync.Db.BolumUsage> kurumlar = [], doktorlar = [];
         if (!KuralListesiOkunamadi)
@@ -646,17 +710,28 @@ public class AyarlarModel(
             }
         }
 
+        static Dictionary<int, string> Adlar(List<PusulaEHealthSync.Db.BolumUsage> l) => l
+            .Where(u => !string.IsNullOrWhiteSpace(u.Adi)).GroupBy(u => u.BolumId)
+            .ToDictionary(g => g.Key, g => g.First().Adi!.Trim());
+        KurumAdlari = Adlar(kurumlar);
+        KurumAdlari[GonderimKurali.KurumsuzId] = "Kurumsuz (ücretli)";
+        BolumAdlari = Adlar(bolumKullanimi);
+        DoktorAdlari = Adlar(doktorlar);
+
         // Secililer once, sonra en cok protokol acilan. Listede olmayan secili Id (son 90 gunde
-        // protokolu yok) adsiz da olsa gosterilir -- yoksa kaydet'te sessizce dusurdu.
+        // protokolu yok) adsiz da olsa gosterilir -- yoksa kaydet'te sessizce duserdi.
         static List<KuralSecenek> Kur(List<PusulaEHealthSync.Db.BolumUsage> liste, IReadOnlySet<int> secili, Func<int, string> adsiz)
         {
             var hepsi = liste.Select(u => new KuralSecenek(u.BolumId, string.IsNullOrWhiteSpace(u.Adi) ? adsiz(u.BolumId) : u.Adi.Trim(), u.Adet)).ToList();
             hepsi.AddRange(secili.Where(id => hepsi.All(h => h.Id != id)).Select(id => new KuralSecenek(id, adsiz(id), 0)));
             return [.. hepsi.OrderByDescending(h => secili.Contains(h.Id)).ThenByDescending(h => h.Adet)];
         }
-        KurumSecenekleri = Kur(kurumlar, kural.Kurumlar, id => id == GonderimKurali.KurumsuzId ? "Kurumsuz (ücretli)" : $"Kurum #{id}");
-        BolumKuralSecenekleri = Kur(bolumKullanimi, kural.Bolumler, id => $"Bölüm #{id}");
-        DoktorSecenekleri = Kur(doktorlar, kural.Doktorlar, id => $"Doktor #{id}");
+        // Yeni satirda kurum listesi: kurali OLMAYAN kurumlar.
+        var kuralliKurumlar = KuralTablosu.Satirlar.Select(s => s.KurumId!.Value).ToHashSet();
+        KurumSecenekleri = Kur(kurumlar.Where(u => !kuralliKurumlar.Contains(u.BolumId)).ToList(),
+            DuzenYeni && DuzenKurumId is { } dk ? new HashSet<int> { dk } : [], KurumAdi);
+        BolumKuralSecenekleri = Kur(bolumKullanimi, DuzenBolumler.ToHashSet(), id => $"Bölüm #{id}");
+        DoktorSecenekleri = Kur(doktorlar, DuzenDoktorlar.ToHashSet(), id => $"Doktor #{id}");
     }
 
     private async Task LoadAsync(CancellationToken ct,

@@ -145,17 +145,25 @@
             DateTime? taban = DateTime.TryParseExact(Model.SendFloorDate, "yyyy-MM-dd",
                 System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var tb) ? tb : null;
 
-            // Kurum / bolum / doktor kurali -- ozet satiri ve kart sutunlari (bkz. GonderimKurali).
-            var kuralOzet = new List<string>();
-            void OzetEkle(string ad, string mod, int adet)
+            // Kurum basina bolum / doktor kurali -- ozet satiri, tablo hucreleri, duzenleyici sutunlari
+            // (bkz. GonderimKurali).
+            var kt = Model.KuralTablosu;
+            string DigerMetni(PusulaEHealthSync.Sync.KuralSatiri d) => d.Gonderme ? "hiç gönderilmez"
+                : d.Serbest ? "hepsi gönderilir" : "bölüm / doktor kuralıyla gönderilir";
+
+            void KuralHucreleri(PusulaEHealthSync.Sync.KuralSatiri sr)
             {
-                var m = PusulaEHealthSync.Sync.GonderimKurali.Mod(mod);
-                if (m == PusulaEHealthSync.Sync.KuralModu.Yalniz) kuralOzet.Add($"{ad}: yalnız {adet} seçili");
-                else if (m == PusulaEHealthSync.Sync.KuralModu.Haric && adet > 0) kuralOzet.Add($"{ad}: {adet} seçili hariç");
+                if (sr.Gonderme)
+                {
+                    <td><span class="rchip danger">Hiç gönderilmez</span></td><td class="kural-bos">—</td><td class="kural-bos">—</td>
+                }
+                else
+                {
+                    <td><span class="rchip success">Gönderilir</span></td>
+                    <td>@AyarlarModel.KuralMetni(sr.BolumModu, sr.Bolumler, Model.BolumAdlari, "Bölüm")</td>
+                    <td>@AyarlarModel.KuralMetni(sr.DoktorModu, sr.Doktorlar, Model.DoktorAdlari, "Doktor")</td>
+                }
             }
-            OzetEkle("kurum", Model.KuralKurumModu, Model.KuralKurumlar.Count);
-            OzetEkle("bölüm", Model.KuralBolumModu, Model.KuralBolumler.Count);
-            OzetEkle("doktor", Model.KuralDoktorModu, Model.KuralDoktorlar.Count);
 
             void KuralSutunu(string baslik, string modAdi, string mod, string listeAdi, List<int> secili,
                              List<AyarlarModel.KuralSecenek> secenekler)
@@ -274,7 +282,7 @@
                         </li>
                         <li>
                             <span class="ayar-ozet-no">6</span>
-                            <span>@if (kuralOzet.Count == 0) { <text>Kurum, bölüm ve doktor sınırı yok: kurallara uyan her protokol gönderilir.</text> } else { <text>Yalnızca şu kurallara uyan protokoller gönderilir: <b>@string.Join(" · ", kuralOzet)</b>. Diğerleri elle gönderilir.</text> }</span>
+                            <span>@if (!kt.Etkin) { <text>Kurum, bölüm ve doktor sınırı yok: kurallara uyan her protokol gönderilir.</text> } else { <text>@if (kt.Satirlar.Count > 0) { <b>@kt.Satirlar.Count kurum</b><text> için ayrı bölüm / doktor kuralı var; </text> }diğer kurumlar <b>@DigerMetni(kt.Diger)</b>. Kural dışı kalanlar elle gönderilir.</text> }</span>
                         </li>
                     </ol>
                     @if (minYas == 0 && acikGun == 0)
@@ -362,31 +370,96 @@
                     </form>
                 </div>
 
-                @* ---- KART 2b: KIM GONDERILIR (KURUM / BOLUM / DOKTOR) ---- *@
+                @* ---- KART 2b: KIM GONDERILIR (KURUM BASINA BOLUM / DOKTOR) ---- *@
                 <div class="card card-pad settings-card span-2" id="gonderim-kurallari">
                     <p class="section-title">Hangi kurum, bölüm ve doktor gönderilir</p>
-                    <p class="card-desc">Otomatik gönderimi kuruma, bölüme ve doktora göre sınırlar. Üç kural birlikte uygulanır:
-                    protokol üçünden de geçmelidir. Kural dışı kalan protokol Bekleyen İşler'de <b>Kural</b> aşamasında görünür ve
-                    <b>elle gönderilebilir</b>. Listeler son 90 günde protokol açılanlardan; sayılar o protokollerin adedi.</p>
+                    <p class="card-desc">Her kurum için ayrı bölüm ve doktor kuralı tanımlanabilir. Protokolün kurumunun satırı varsa
+                    o satır, yoksa <b>Diğer kurumlar</b> satırı uygulanır; bölüm ve doktor kuralı birlikte geçerlidir. Kural dışı kalan
+                    protokol Bekleyen İşler'de <b>Kural</b> aşamasında görünür ve <b>elle gönderilebilir</b>.</p>
                     @if (Model.KuralListesiOkunamadi)
                     {
-                        <div class="alert alert-warning" style="margin-bottom:10px;">Pusula'ya ulaşılamadı — yalnızca şu an seçili olanlar gösteriliyor.</div>
+                        <div class="alert alert-warning" style="margin-bottom:10px;">Pusula'ya ulaşılamadı — adlar ve listeler eksik olabilir.</div>
                     }
                     @if (Model.KuralHatasi is { } kh)
                     {
                         <div class="alert alert-danger" style="margin-bottom:10px;">@kh</div>
                     }
-                    <form method="post" asp-page-handler="Kural" style="display:flex; flex-direction:column; flex:1;">
-                        <div class="kural-grid">
-                            @{ KuralSutunu("Kurum", "KuralKurumModu", Model.KuralKurumModu, "KuralKurumlar", Model.KuralKurumlar, Model.KurumSecenekleri); }
-                            @{ KuralSutunu("Bölüm", "KuralBolumModu", Model.KuralBolumModu, "KuralBolumler", Model.KuralBolumler, Model.BolumKuralSecenekleri); }
-                            @{ KuralSutunu("Doktor", "KuralDoktorModu", Model.KuralDoktorModu, "KuralDoktorlar", Model.KuralDoktorlar, Model.DoktorSecenekleri); }
-                        </div>
+                    <div class="kural-tablo-kap">
+                        <table class="table kural-tablo">
+                            <thead><tr><th>Kurum</th><th>Gönderim</th><th>Bölüm</th><th>Doktor</th><th></th></tr></thead>
+                            <tbody>
+                                @foreach (var sr in Model.KuralTablosu.Satirlar.OrderBy(x => Model.KurumAdi(x.KurumId!.Value), StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("tr-TR"), true)))
+                                {
+                                    var sid = sr.KurumId!.Value;
+                                    <tr class="@(Model.KuralDuzenle == sid.ToString() ? "kural-secili" : "")">
+                                        <td><b>@Model.KurumAdi(sid)</b></td>
+                                        @{ KuralHucreleri(sr); }
+                                        <td class="kural-islem">
+                                            <a class="btn btn-outline btn-sm" href="?kural=@sid#gonderim-kurallari">Düzenle</a>
+                                            <form method="post" asp-page-handler="KuralSil" asp-route-kurumId="@sid" style="display:inline;"
+                                                  onsubmit="return confirm('@Model.KurumAdi(sid).Replace("'", "") kuralı silinecek; bu kurumun protokollerine Diğer kurumlar kuralı uygulanır. Emin misiniz?')">
+                                                <button type="submit" class="btn btn-outline btn-sm">Sil</button>
+                                            </form>
+                                        </td>
+                                    </tr>
+                                }
+                                <tr class="kural-diger @(Model.DuzenDiger ? "kural-secili" : "")">
+                                    <td><b>Diğer kurumlar</b><span class="kural-not">tabloda satırı olmayan tüm kurumlar@(Model.KuralTablosu.Satirlar.Count == 0 ? ", kurumsuz dahil" : "")</span></td>
+                                    @{ KuralHucreleri(Model.KuralTablosu.Diger); }
+                                    <td class="kural-islem"><a class="btn btn-outline btn-sm" href="?kural=diger#gonderim-kurallari">Düzenle</a></td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+
+                    @if (Model.KuralDuzenle is null)
+                    {
                         <div class="card-actions">
-                            <button type="submit" class="btn btn-primary">Kaydet</button>
+                            <a class="btn btn-primary" href="?kural=yeni#gonderim-kurallari">+ Kurum kuralı ekle</a>
                             @if (Model.Saved && Model.SavedSection == "kural") { <span class="rchip success">Kaydedildi</span> }
                         </div>
-                    </form>
+                    }
+                    else
+                    {
+                        <form method="post" asp-page-handler="KuralKaydet" class="kural-duzen">
+                            <input type="hidden" name="kural" value="@Model.KuralDuzenle" />
+                            <p class="ayar-alt-baslik kural-duzen-baslik">@(Model.DuzenYeni ? "Yeni kurum kuralı" : Model.DuzenDiger ? "Diğer kurumlar kuralı" : $"{Model.KurumAdi(Model.DuzenKurumId ?? 0)} kuralı")</p>
+                            <div class="kural-grid">
+                                <fieldset class="ayar-grup kural-sutun">
+                                    <legend>Kurum</legend>
+                                    @if (Model.DuzenYeni)
+                                    {
+                                        <input type="search" class="ayar-bolum-ara" placeholder="Kurum ara" aria-label="Kurum ara"
+                                               oninput="var q=this.value.toLocaleLowerCase('tr');this.nextElementSibling.querySelectorAll('label').forEach(function(l){l.hidden=q&&l.textContent.toLocaleLowerCase('tr').indexOf(q)<0;})" />
+                                        <div class="ayar-bolum-liste kural-liste kural-liste--kisa">
+                                            @foreach (var o in Model.KurumSecenekleri)
+                                            {
+                                                <label class="ayar-bolum"><input type="radio" name="DuzenKurumId" value="@o.Id" checked="@(Model.DuzenKurumId == o.Id)" />
+                                                    <span class="kural-ad">@o.Ad</span><span class="kural-adet">@(o.Adet > 0 ? o.Adet.ToString("N0") : "—")</span></label>
+                                            }
+                                            @if (Model.KurumSecenekleri.Count == 0) { <span class="field-hint">Kuralı olmayan kurum kalmadı.</span> }
+                                        </div>
+                                    }
+                                    else
+                                    {
+                                        <p class="kural-kurum-ad">@(Model.DuzenDiger ? "Tabloda satırı olmayan tüm kurumlar" : Model.KurumAdi(Model.DuzenKurumId ?? 0))</p>
+                                    }
+                                    <span class="ayar-alt-baslik" style="margin-top:10px;">Gönderim</span>
+                                    <div class="kural-mod kural-mod--dikey" role="radiogroup" aria-label="Gönderim">
+                                        <label><input type="radio" name="DuzenGonderme" value="false" checked="@(!Model.DuzenGonderme)" /> Gönder — bölüm ve doktor kuralına göre</label>
+                                        <label><input type="radio" name="DuzenGonderme" value="true" checked="@Model.DuzenGonderme" /> Hiç otomatik gönderme</label>
+                                    </div>
+                                    <p class="field-hint">"Hiç otomatik gönderme" seçilirse bölüm ve doktor işaretleri dikkate alınmaz.</p>
+                                </fieldset>
+                                @{ KuralSutunu("Bölüm", "DuzenBolumModu", Model.DuzenBolumModu, "DuzenBolumler", Model.DuzenBolumler, Model.BolumKuralSecenekleri); }
+                                @{ KuralSutunu("Doktor", "DuzenDoktorModu", Model.DuzenDoktorModu, "DuzenDoktorlar", Model.DuzenDoktorlar, Model.DoktorSecenekleri); }
+                            </div>
+                            <div class="card-actions">
+                                <button type="submit" class="btn btn-primary">Kaydet</button>
+                                <a class="btn btn-outline" href="?kural=#gonderim-kurallari">Vazgeç</a>
+                            </div>
+                        </form>
+                    }
                 </div>
 
                 @* ---- KART 3: HATALAR VE TAKILANLAR ---- *@
@@ -787,7 +860,12 @@
 }
 @if (savedTab is not null)
 {
-    <script>document.addEventListener('DOMContentLoaded', function () { pusulaSettingsNavClick('@savedTab'); });</script>
+    <script>document.addEventListener('DOMContentLoaded', function () {
+        pusulaSettingsNavClick('@savedTab');
+        // Sekme acildiktan sonra capaya in (kural tablosu: ?kural=...#gonderim-kurallari).
+        var hedef = location.hash && document.getElementById(location.hash.slice(1));
+        if (hedef) { hedef.scrollIntoView({ block: 'start' }); }
+    });</script>
 }
 
 <script>

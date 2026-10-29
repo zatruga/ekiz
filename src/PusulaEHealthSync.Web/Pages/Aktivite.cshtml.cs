@@ -415,7 +415,7 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
         var kural = await GonderimKurali.YukleAsync(settings, ct);
         if (kural.Etkin && uygunDenenmemis.Count > 0)
         {
-            var ayrinti = kural.KurumModu == KuralModu.Tumu
+            var ayrinti = !kural.KurumGerekli
                 ? null
                 : await repository.GetProtokollerByIdsAsync(uygunDenenmemis.Select(p => p.ProtokolId).ToList(), ct);
             foreach (var p in uygunDenenmemis)
