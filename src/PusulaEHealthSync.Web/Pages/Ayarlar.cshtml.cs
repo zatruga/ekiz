@@ -147,6 +147,23 @@ public class AyarlarModel(
     public List<string> BolumSecenekleri { get; private set; } = [];
     public bool BolumListesiOkunamadi { get; private set; }
 
+    // -- Kurum / bolum / doktor kurallari (bkz. GonderimKurali) --------------------------
+    // Mod: Tumu / Yalniz / Haric. Listeler Pusula Id'si (kurumda 0 = kurumsuz).
+    [BindProperty] public string KuralKurumModu { get; set; } = nameof(KuralModu.Tumu);
+    [BindProperty] public List<int> KuralKurumlar { get; set; } = [];
+    [BindProperty] public string KuralBolumModu { get; set; } = nameof(KuralModu.Tumu);
+    [BindProperty] public List<int> KuralBolumler { get; set; } = [];
+    [BindProperty] public string KuralDoktorModu { get; set; } = nameof(KuralModu.Tumu);
+    [BindProperty] public List<int> KuralDoktorlar { get; set; } = [];
+
+    public record KuralSecenek(int Id, string Ad, int Adet);
+    // Son 90 gunde protokol acilmis olanlar + zaten secili olanlar (secim kaybolmasin).
+    public List<KuralSecenek> KurumSecenekleri { get; private set; } = [];
+    public List<KuralSecenek> BolumKuralSecenekleri { get; private set; } = [];
+    public List<KuralSecenek> DoktorSecenekleri { get; private set; } = [];
+    public bool KuralListesiOkunamadi { get; private set; }
+    public string? KuralHatasi { get; private set; }
+
     // -- Tanı (Condition) / İşlem (Procedure) ------------------------------------------------
     [BindProperty]
     public bool ConditionSendEnabled { get; set; }
@@ -370,6 +387,30 @@ public class AyarlarModel(
         return await SavedAsync("kapsam", ct);
     }
 
+    // KURUM / BOLUM / DOKTOR. "Yalniz" secilip hicbir sey isaretlenmezse otomatik gonderim
+    // HICBIR SEY gondermez -- buyuk olasilikla yanlislik, bu yuzden kaydedilmiyor.
+    public async Task<IActionResult> OnPostKuralAsync(CancellationToken ct)
+    {
+        var bos = new List<string>();
+        if (GonderimKurali.Mod(KuralKurumModu) == KuralModu.Yalniz && KuralKurumlar.Count == 0) bos.Add("kurum");
+        if (GonderimKurali.Mod(KuralBolumModu) == KuralModu.Yalniz && KuralBolumler.Count == 0) bos.Add("bölüm");
+        if (GonderimKurali.Mod(KuralDoktorModu) == KuralModu.Yalniz && KuralDoktorlar.Count == 0) bos.Add("doktor");
+        if (bos.Count > 0)
+        {
+            await LoadAsync(ct);
+            SavedSection = "kural";
+            KuralHatasi = $"\"Yalnız işaretliler\" seçildi ama hiç {string.Join(" / ", bos)} işaretlenmedi — böyle kaydedilirse otomatik gönderim hiçbir şey göndermez. Kaydedilmedi.";
+            return Page();
+        }
+        await settings.SetStringAsync(SettingsStore.AutoSendKuralKurumModKey, GonderimKurali.Mod(KuralKurumModu).ToString(), ct);
+        await settings.SetStringAsync(SettingsStore.AutoSendKuralKurumIdlerKey, GonderimKurali.Yaz(KuralKurumlar), ct);
+        await settings.SetStringAsync(SettingsStore.AutoSendKuralBolumModKey, GonderimKurali.Mod(KuralBolumModu).ToString(), ct);
+        await settings.SetStringAsync(SettingsStore.AutoSendKuralBolumIdlerKey, GonderimKurali.Yaz(KuralBolumler), ct);
+        await settings.SetStringAsync(SettingsStore.AutoSendKuralDoktorModKey, GonderimKurali.Mod(KuralDoktorModu).ToString(), ct);
+        await settings.SetStringAsync(SettingsStore.AutoSendKuralDoktorIdlerKey, GonderimKurali.Yaz(KuralDoktorlar), ct);
+        return await SavedAsync("kural", ct);
+    }
+
     public async Task<IActionResult> OnPostTakilanAsync(CancellationToken ct)
     {
         if (!ModelState.IsValid) { await LoadAsync(ct); return Page(); }
@@ -573,6 +614,51 @@ public class AyarlarModel(
         return Page();
     }
 
+    private async Task KuralSecenekleriniYukleAsync(List<PusulaEHealthSync.Db.BolumUsage> bolumKullanimi, CancellationToken ct)
+    {
+        var kural = await GonderimKurali.YukleAsync(settings, ct);
+        KuralKurumModu = kural.KurumModu.ToString();
+        KuralBolumModu = kural.BolumModu.ToString();
+        KuralDoktorModu = kural.DoktorModu.ToString();
+        KuralKurumlar = [.. kural.Kurumlar];
+        KuralBolumler = [.. kural.Bolumler];
+        KuralDoktorlar = [.. kural.Doktorlar];
+
+        List<PusulaEHealthSync.Db.BolumUsage> kurumlar = [], doktorlar = [];
+        if (!KuralListesiOkunamadi)
+        {
+            try
+            {
+                kurumlar = await pusulaRepository.GetUsedKurumlarAsync(90, ct);
+                doktorlar = (await pusulaRepository.GetUsedDoktorlarAsync(90, ct))
+                    .Select(d => new PusulaEHealthSync.Db.BolumUsage
+                    {
+                        BolumId = d.DoktorId,
+                        Adi = string.Join(" ", new[] { d.Adi, d.Soyadi }.Where(x => !string.IsNullOrWhiteSpace(x))),
+                        Adet = d.Adet,
+                    })
+                    .ToList();
+            }
+            catch (Exception ex)
+            {
+                KuralListesiOkunamadi = true;
+                logger.LogWarning(ex, "Ayarlar: Pusula kurum/doktor listesi okunamadi, yalnizca seciliiler gosteriliyor.");
+            }
+        }
+
+        // Secililer once, sonra en cok protokol acilan. Listede olmayan secili Id (son 90 gunde
+        // protokolu yok) adsiz da olsa gosterilir -- yoksa kaydet'te sessizce dusurdu.
+        static List<KuralSecenek> Kur(List<PusulaEHealthSync.Db.BolumUsage> liste, IReadOnlySet<int> secili, Func<int, string> adsiz)
+        {
+            var hepsi = liste.Select(u => new KuralSecenek(u.BolumId, string.IsNullOrWhiteSpace(u.Adi) ? adsiz(u.BolumId) : u.Adi.Trim(), u.Adet)).ToList();
+            hepsi.AddRange(secili.Where(id => hepsi.All(h => h.Id != id)).Select(id => new KuralSecenek(id, adsiz(id), 0)));
+            return [.. hepsi.OrderByDescending(h => secili.Contains(h.Id)).ThenByDescending(h => h.Adet)];
+        }
+        KurumSecenekleri = Kur(kurumlar, kural.Kurumlar, id => id == GonderimKurali.KurumsuzId ? "Kurumsuz (ücretli)" : $"Kurum #{id}");
+        BolumKuralSecenekleri = Kur(bolumKullanimi, kural.Bolumler, id => $"Bölüm #{id}");
+        DoktorSecenekleri = Kur(doktorlar, kural.Doktorlar, id => $"Doktor #{id}");
+    }
+
     private async Task LoadAsync(CancellationToken ct,
         bool skipProtokol = false, bool skipGenel = false, bool skipTekrar = false, bool skipMail = false,
         bool skipTarama = false)
@@ -658,16 +744,20 @@ public class AyarlarModel(
             SettingsStore.HizmetTibbiOlmayanSozcuklerKey, SettingsStore.HizmetTibbiOlmayanSozcuklerDefault, ct);
         var tr = StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("tr-TR"), true);
         List<string> kullanilan = [];
+        List<PusulaEHealthSync.Db.BolumUsage> bolumKullanimi = [];
         try
         {
-            kullanilan = (await pusulaRepository.GetUsedDepartmentsAsync(90, ct))
+            bolumKullanimi = await pusulaRepository.GetUsedDepartmentsAsync(90, ct);
+            kullanilan = bolumKullanimi
                 .Select(b => b.Adi).Where(a => !string.IsNullOrWhiteSpace(a)).Select(a => a!.Trim()).ToList();
         }
         catch (Exception ex)
         {
             BolumListesiOkunamadi = true;
+            KuralListesiOkunamadi = true;
             logger.LogWarning(ex, "Ayarlar: Pusula bolum listesi okunamadi, yalnizca secili bolumler gosteriliyor.");
         }
+        await KuralSecenekleriniYukleAsync(bolumKullanimi, ct);
         BolumSecenekleri = [.. secili.OrderBy(a => a, tr)
             .Concat(kullanilan.Where(a => !secili.Contains(a)).Distinct(StringComparer.CurrentCultureIgnoreCase).OrderBy(a => a, tr))];
 

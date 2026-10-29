@@ -151,6 +151,10 @@
                 <span class="akis-ozet-sayi akis-ozet-sayi--kucuk">@Model.Ozet.Denenmeyen.ToString("N0", tr)</span>
                 <span class="akis-ozet-alt" title="Bugün kapandı, açık ayaktan ya da taburcu olmamış yatan — kural gereği henüz gönderilmiyor">@Model.Ozet.DenenmeyenSirasiGelmedi.ToString("N0", tr) sırası gelmedi</span>
                 <span class="akis-ozet-alt" title="Yalnız tanı/reçete içeren ya da boş protokoller — bilinçli olarak gönderilmiyor">@Model.Ozet.DenenmeyenKaydiYok.ToString("N0", tr) gönderilecek kaydı yok</span>
+                @if (Model.Ozet.DenenmeyenKuralDisi > 0)
+                {
+                    <span class="akis-ozet-alt" title="Ayarlar'daki kurum / bölüm / doktor kuralı dışında — otomatik gönderilmiyor, elle gönderilebilir">@Model.Ozet.DenenmeyenKuralDisi.ToString("N0", tr) kural dışı</span>
+                }
                 @if (Model.Ozet.DenenmeyenKapsamDisi > 0)
                 {
                     <span class="akis-ozet-alt" title="Devreye alım tarihinden önce açılmış">@Model.Ozet.DenenmeyenKapsamDisi.ToString("N0", tr) kapsam dışı</span>

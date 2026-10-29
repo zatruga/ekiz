@@ -230,6 +230,7 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
             SettingsStore.YatanMaxOpenDaysKey, SettingsStore.YatanMaxOpenDaysDefault, ct);
         var yatanOtomatik = await settings.GetBoolAsync(
             SettingsStore.AutoSendYatanEnabledKey, SettingsStore.AutoSendYatanEnabledDefault, ct);
+        var gonderimKurali = await GonderimKurali.YukleAsync(settings, ct);
         var tabanHam = await settings.GetStringAsync(SettingsStore.SendFloorDateKey, "", ct);
         DateOnly? taban = DateOnly.TryParseExact(tabanHam, "yyyy-MM-dd",
             System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var t)
@@ -251,10 +252,12 @@ public class IcbariKapsamService(PusulaRepository repository, SyncLogStore syncL
             var (uygun, neden) = PendingWorkService.IsEligible(p, openAfterDays, minYas, yatanTavan);
             if (uygun && muayeneler.GetValueOrDefault(pid) is { Status: not SyncStatus.Success } muayene)
                 sonuc[pid] = ($"Muayene gönderilemedi — {SyncLogEntry.ErrorCategory(muayene.Message).Label}", muayene.Message);
+            else if (uygun && !yatanOtomatik && p.GelisTipiId == "Y")
+                sonuc[pid] = ("Yatan — otomatik dışı, elle gönderilecek", PendingWorkService.YatanOtomatikDisiSebep);
+            else if (uygun && gonderimKurali.Sebep(p) is { } kuralSebebi)
+                sonuc[pid] = ("Kurum / bölüm / doktor kuralı dışı — elle gönderilecek", kuralSebebi);
             else if (uygun)
-                sonuc[pid] = !yatanOtomatik && p.GelisTipiId == "Y"
-                    ? ("Yatan — otomatik dışı, elle gönderilecek", PendingWorkService.YatanOtomatikDisiSebep)
-                    : ("Kuyrukta — sıradaki turda gönderilecek", null);
+                sonuc[pid] = ("Kuyrukta — sıradaki turda gönderilecek", null);
             else if (p.GelisTipiId == "Y" && p.TaburcuTarihi is null && p.KapanisTarihi is null)
                 sonuc[pid] = ("Sırası gelmedi — hasta yatıyor", neden);
             else if (p.KapanisTarihi is null && p.GelisTipiId != "Y")

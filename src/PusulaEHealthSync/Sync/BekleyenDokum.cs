@@ -133,6 +133,12 @@ public class BekleyenDokum
             return new("yatan", Asama.Kural, "Yatan hasta taburcu olmadı", "Sistem", "taburcu edilince");
         if (r == PendingWorkService.YatanOtomatikDisiSebep)
             return new("yatan-elle", Asama.Kural, "Yatan — otomatik gönderim kapalı", "Kullanıcı", "Yatan Hastalar ekranından elle");
+        if (r.StartsWith(GonderimKurali.SebepBasi + " — kurum"))
+            return new("kural-kurum", Asama.Kural, "Kurum otomatik gönderim kuralı dışında", "Kullanıcı (Ayarlar)", "elle gönderilir");
+        if (r.StartsWith(GonderimKurali.SebepBasi + " — bölüm"))
+            return new("kural-bolum", Asama.Kural, "Bölüm otomatik gönderim kuralı dışında", "Kullanıcı (Ayarlar)", "elle gönderilir");
+        if (r.StartsWith(GonderimKurali.SebepBasi + " — doktor"))
+            return new("kural-doktor", Asama.Kural, "Doktor otomatik gönderim kuralı dışında", "Kullanıcı (Ayarlar)", "elle gönderilir");
         if (r.StartsWith("Az önce denendi"))
             return new("soguma", Asama.Kural, "Az önce denendi, hata sonrası bekleme", "Sistem", "bekleme süresi dolunca");
         return new("kural-diger", Asama.Kural, string.IsNullOrWhiteSpace(r) ? "Diğer" : r, "Sistem", "—");

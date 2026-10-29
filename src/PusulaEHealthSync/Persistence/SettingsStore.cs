@@ -93,6 +93,17 @@ public class SettingsStore
     public const string PendingScanSonOzetKey = "PendingScan.SonOzet";
     public const bool AutoSendYatanEnabledDefault = true;
 
+    // KURUM / BOLUM / DOKTOR KURALLARI (2026-10-29, kullanici: "gonderilecek kurum - brans -
+    // doktor secimi ve bu kurallara gore gonderim yapacagiz"). Her boyut icin bir MOD
+    // (Tumu / Yalniz / Haric) ve ";" ile ayrilmis Pusula Id'leri. Kurumda 0 = kurumsuz
+    // (ucretli) protokol. Varsayilan Tumu: anahtar eklenmeden onceki davranis. Bkz. GonderimKurali.
+    public const string AutoSendKuralKurumModKey = "AutoSend.Kural.Kurum.Mod";
+    public const string AutoSendKuralKurumIdlerKey = "AutoSend.Kural.Kurum.Idler";
+    public const string AutoSendKuralBolumModKey = "AutoSend.Kural.Bolum.Mod";
+    public const string AutoSendKuralBolumIdlerKey = "AutoSend.Kural.Bolum.Idler";
+    public const string AutoSendKuralDoktorModKey = "AutoSend.Kural.Doktor.Mod";
+    public const string AutoSendKuralDoktorIdlerKey = "AutoSend.Kural.Doktor.Idler";
+
     // SON TURUN IZI. Ayarlar sayfasindaki durum kutusu bunlari gosteriyor -- "acik" yazan
     // bir anahtar, dongunun GERCEKTEN calistigini kanitlamaz. Son tur saati ve ozeti
     // olmadan, acik ama sessizce olmus bir dongu ile saglikli bir dongu ekranda ayni

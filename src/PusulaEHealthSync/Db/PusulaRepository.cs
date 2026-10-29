@@ -1105,6 +1105,37 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
         return result;
     }
 
+    // OTOMATIK GONDERIM KURALLARI ICIN SECENEKLER (bkz. Sync.GonderimKurali): son N gunde
+    // protokol acilmis kurumlar, protokol sayisiyla. Kurumsuz protokoller Id 0 ile tek satir.
+    // (Bolumler icin GetUsedDepartmentsAsync, doktorlar icin GetUsedDoktorlarAsync.)
+    public async Task<List<BolumUsage>> GetUsedKurumlarAsync(int days, CancellationToken ct = default) =>
+        await KullanimAsync(@"
+            SELECT ISNULL(p.AKKurumId, 0), MAX(k.Adi), COUNT(*) AS Adet
+            FROM hasta.protokol p
+            LEFT JOIN Pazarlama.Kurum k ON k.Id = p.AKKurumId
+            WHERE p.AcilisTarihi >= @FromDate AND p.State <> 0
+            GROUP BY ISNULL(p.AKKurumId, 0)
+            ORDER BY Adet DESC", days, ct);
+
+    private async Task<List<BolumUsage>> KullanimAsync(string sql, int days, CancellationToken ct)
+    {
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
+        await conn.OpenAsync(ct);
+        await using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@FromDate", DateTime.Now.AddDays(-days));
+
+        var result = new List<BolumUsage>();
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            result.Add(new BolumUsage
+            {
+                BolumId = Convert.ToInt32(reader.GetValue(0)),
+                Adi = reader.IsDBNull(1) ? null : reader.GetString(1),
+                Adet = reader.GetInt32(2),
+            });
+        return result;
+    }
+
     // "Gonderilmis ama sonradan iptal/silinmis (State=0)" mutabakati icin -- Encounter
     // olarak daha once basariyla gonderilmis protokol Id'lerinin SU ANKI State'ini okur.
     // Sadece verilen id kumesiyle sinirli (SyncLogStore'daki "sent" kayitlar), tum tabloyu

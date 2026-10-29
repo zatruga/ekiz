@@ -331,11 +331,13 @@ public partial class PusulaRepository
                     -- Yatan hastanin gercek taburcu ani. Bir protokolde birden fazla yatis
                     -- olabilir (servis degisimi vb.), en SON taburcu alinir.
                     (SELECT MAX(y.TaburcuTarihi) FROM Tedavi.Yatis y
-                      WHERE y.ProtokolId = p.Id AND y.State <> 0) AS TaburcuTarihi
+                      WHERE y.ProtokolId = p.Id AND y.State <> 0) AS TaburcuTarihi,
+                    p.AKKurumId AS KurumId, k.Adi AS KurumAdi
                 FROM hasta.protokol p
                 LEFT JOIN hasta.hasta h ON h.Id = p.HastaId
                 LEFT JOIN IK.Personel pers ON pers.Id = p.DoktorId
                 LEFT JOIN Ortak.Bolum b ON b.Id = p.BolumId
+                LEFT JOIN Pazarlama.Kurum k ON k.Id = p.AKKurumId
                 WHERE p.Id IN ({names})";
 
             await using var cmd = new SqlCommand(sql, conn) { CommandTimeout = 300 };
@@ -348,6 +350,9 @@ public partial class PusulaRepository
                 // MapProtokol ortak yardimci ve bu kolonu bilmiyor -- burada okunuyor.
                 var ord = reader.GetOrdinal("TaburcuTarihi");
                 item.TaburcuTarihi = reader.IsDBNull(ord) ? null : reader.GetDateTime(ord);
+                var kOrd = reader.GetOrdinal("KurumId");
+                item.KurumId = reader.IsDBNull(kOrd) ? null : Convert.ToInt32(reader.GetValue(kOrd));
+                item.KurumAdi = GetString(reader, "KurumAdi");
                 result[item.ProtokolId] = item;
             }
         });

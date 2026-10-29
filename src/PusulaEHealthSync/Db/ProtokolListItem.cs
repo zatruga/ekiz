@@ -40,6 +40,12 @@ public class ProtokolListItem
     // KapanisTarihi'ne dusuyor.
     public DateTime? TaburcuTarihi { get; set; }
 
+    // Hasta.Protokol.AKKurumId (anlasmali kurum; bos = ucretli). TaburcuTarihi gibi SADECE
+    // GetProtokollerByIdsAsync dolduruyor -- otomatik gonderimin kurum kurali icin
+    // (bkz. Sync.GonderimKurali).
+    public int? KurumId { get; set; }
+    public string? KurumAdi { get; set; }
+
     // hasta.protokol.State -- 0: iptal/silinmis, 1: acik, 2: kapali (canli veriden
     // dogrulandi, 2026-08-20). State=0 protokoller Pusula'nin kendi raporlarinda da
     // sayilmiyor -- gonderim listemizde de gosterilmemeli/gonderilmemeli.

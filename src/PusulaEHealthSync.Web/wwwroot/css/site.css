@@ -2929,3 +2929,15 @@ a.hz-sirala.active span { color: var(--primary); }
 .hz-kural-not { margin: -6px 0 0; font-size: 12.5px; color: var(--text-muted); display: flex; flex-wrap: wrap; gap: 4px 12px; }
 .hz-kural-not b { color: var(--text); }
 #hizmet-kurallari textarea { width: 100%; }
+
+/* Otomatik gonderim: kurum / bolum / doktor kurali (Ayarlar) */
+.kural-grid { display: grid; grid-template-columns: repeat(3, minmax(0, 1fr)); gap: 12px; }
+@media (max-width: 1100px) { .kural-grid { grid-template-columns: minmax(0, 1fr); } }
+.kural-sutun { min-width: 0; margin: 0; }
+.kural-mod { display: flex; flex-wrap: wrap; gap: 4px 14px; margin-bottom: 8px; font-size: 13px; }
+.kural-mod label { display: flex; align-items: center; gap: 5px; cursor: pointer; }
+.kural-mod input { margin: 0; accent-color: var(--primary); }
+.kural-liste { grid-template-columns: minmax(0, 1fr); max-height: 260px; }
+.kural-liste .ayar-bolum { gap: 8px; }
+.kural-ad { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.kural-adet { color: var(--text-muted); font-size: 12px; font-variant-numeric: tabular-nums; }

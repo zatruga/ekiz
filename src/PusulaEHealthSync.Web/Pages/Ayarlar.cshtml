@@ -144,6 +144,43 @@
             string GunSonra(int n) => n == 0 ? "hemen (sıradaki turda)" : n == 1 ? "ertesi gün" : $"{n} gün sonra";
             DateTime? taban = DateTime.TryParseExact(Model.SendFloorDate, "yyyy-MM-dd",
                 System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var tb) ? tb : null;
+
+            // Kurum / bolum / doktor kurali -- ozet satiri ve kart sutunlari (bkz. GonderimKurali).
+            var kuralOzet = new List<string>();
+            void OzetEkle(string ad, string mod, int adet)
+            {
+                var m = PusulaEHealthSync.Sync.GonderimKurali.Mod(mod);
+                if (m == PusulaEHealthSync.Sync.KuralModu.Yalniz) kuralOzet.Add($"{ad}: yalnız {adet} seçili");
+                else if (m == PusulaEHealthSync.Sync.KuralModu.Haric && adet > 0) kuralOzet.Add($"{ad}: {adet} seçili hariç");
+            }
+            OzetEkle("kurum", Model.KuralKurumModu, Model.KuralKurumlar.Count);
+            OzetEkle("bölüm", Model.KuralBolumModu, Model.KuralBolumler.Count);
+            OzetEkle("doktor", Model.KuralDoktorModu, Model.KuralDoktorlar.Count);
+
+            void KuralSutunu(string baslik, string modAdi, string mod, string listeAdi, List<int> secili,
+                             List<AyarlarModel.KuralSecenek> secenekler)
+            {
+                var m = PusulaEHealthSync.Sync.GonderimKurali.Mod(mod);
+                <fieldset class="ayar-grup kural-sutun">
+                    <legend>@baslik</legend>
+                    <div class="kural-mod" role="radiogroup" aria-label="@baslik kuralı">
+                        <label><input type="radio" name="@modAdi" value="Tumu" checked="@(m == PusulaEHealthSync.Sync.KuralModu.Tumu)" /> Tümü</label>
+                        <label><input type="radio" name="@modAdi" value="Yalniz" checked="@(m == PusulaEHealthSync.Sync.KuralModu.Yalniz)" /> Yalnız işaretliler</label>
+                        <label><input type="radio" name="@modAdi" value="Haric" checked="@(m == PusulaEHealthSync.Sync.KuralModu.Haric)" /> İşaretliler hariç</label>
+                    </div>
+                    <input type="search" class="ayar-bolum-ara" placeholder="@baslik ara" aria-label="@baslik ara"
+                           oninput="var q=this.value.toLocaleLowerCase('tr');this.nextElementSibling.querySelectorAll('label').forEach(function(l){l.hidden=q&&l.textContent.toLocaleLowerCase('tr').indexOf(q)<0;})" />
+                    <div class="ayar-bolum-liste kural-liste">
+                        @foreach (var o in secenekler)
+                        {
+                            <label class="ayar-bolum"><input type="checkbox" name="@listeAdi" value="@o.Id" checked="@secili.Contains(o.Id)" />
+                                <span class="kural-ad">@o.Ad</span><span class="kural-adet">@(o.Adet > 0 ? o.Adet.ToString("N0") : "—")</span></label>
+                        }
+                        @if (secenekler.Count == 0) { <span class="field-hint">Liste boş.</span> }
+                    </div>
+                    <p class="field-hint" style="margin-top:4px;">@(m == PusulaEHealthSync.Sync.KuralModu.Tumu ? "Sınır yok — işaretler dikkate alınmaz." : $"{secili.Count} işaretli.")</p>
+                </fieldset>
+            }
         }
         <section class="settings-panel" id="panel-oto">
             <div class="settings-grid">
@@ -235,6 +272,10 @@
                             üst üste hata alırsa <b>Takılanlar</b>'a geçer. Takılanlar her gece <b>@(Model.TakilanDenemeSaati.ToString("00")):00</b>'da
                             en fazla <b>@Model.TakilanSureDakika dakika</b> boyunca bir kez daha denenir.</span>
                         </li>
+                        <li>
+                            <span class="ayar-ozet-no">6</span>
+                            <span>@if (kuralOzet.Count == 0) { <text>Kurum, bölüm ve doktor sınırı yok: kurallara uyan her protokol gönderilir.</text> } else { <text>Yalnızca şu kurallara uyan protokoller gönderilir: <b>@string.Join(" · ", kuralOzet)</b>. Diğerleri elle gönderilir.</text> }</span>
+                        </li>
                     </ol>
                     @if (minYas == 0 && acikGun == 0)
                     {
@@ -317,6 +358,33 @@
                         <div class="card-actions">
                             <button type="submit" class="btn btn-primary">Kaydet</button>
                             @if (Model.Saved && Model.SavedSection == "kapsam") { <span class="rchip success">Kaydedildi</span> }
+                        </div>
+                    </form>
+                </div>
+
+                @* ---- KART 2b: KIM GONDERILIR (KURUM / BOLUM / DOKTOR) ---- *@
+                <div class="card card-pad settings-card span-2" id="gonderim-kurallari">
+                    <p class="section-title">Hangi kurum, bölüm ve doktor gönderilir</p>
+                    <p class="card-desc">Otomatik gönderimi kuruma, bölüme ve doktora göre sınırlar. Üç kural birlikte uygulanır:
+                    protokol üçünden de geçmelidir. Kural dışı kalan protokol Bekleyen İşler'de <b>Kural</b> aşamasında görünür ve
+                    <b>elle gönderilebilir</b>. Listeler son 90 günde protokol açılanlardan; sayılar o protokollerin adedi.</p>
+                    @if (Model.KuralListesiOkunamadi)
+                    {
+                        <div class="alert alert-warning" style="margin-bottom:10px;">Pusula'ya ulaşılamadı — yalnızca şu an seçili olanlar gösteriliyor.</div>
+                    }
+                    @if (Model.KuralHatasi is { } kh)
+                    {
+                        <div class="alert alert-danger" style="margin-bottom:10px;">@kh</div>
+                    }
+                    <form method="post" asp-page-handler="Kural" style="display:flex; flex-direction:column; flex:1;">
+                        <div class="kural-grid">
+                            @{ KuralSutunu("Kurum", "KuralKurumModu", Model.KuralKurumModu, "KuralKurumlar", Model.KuralKurumlar, Model.KurumSecenekleri); }
+                            @{ KuralSutunu("Bölüm", "KuralBolumModu", Model.KuralBolumModu, "KuralBolumler", Model.KuralBolumler, Model.BolumKuralSecenekleri); }
+                            @{ KuralSutunu("Doktor", "KuralDoktorModu", Model.KuralDoktorModu, "KuralDoktorlar", Model.KuralDoktorlar, Model.DoktorSecenekleri); }
+                        </div>
+                        <div class="card-actions">
+                            <button type="submit" class="btn btn-primary">Kaydet</button>
+                            @if (Model.Saved && Model.SavedSection == "kural") { <span class="rchip success">Kaydedildi</span> }
                         </div>
                     </form>
                 </div>
@@ -711,7 +779,7 @@
     var savedTab = Model.SavedSection switch
     {
         "veritabani" or "ortam" => "ortam",
-        "oto" or "zamanlama" or "kapsam" or "takilan" => "oto",
+        "oto" or "zamanlama" or "kapsam" or "kural" or "takilan" => "oto",
         "icerik" or "tarama" => "param",
         "mail" => "mail",
         _ => null,

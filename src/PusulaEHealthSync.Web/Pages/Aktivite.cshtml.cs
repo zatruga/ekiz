@@ -397,7 +397,8 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
             System.Globalization.CultureInfo.InvariantCulture, System.Globalization.DateTimeStyles.None, out var t)
             ? t : null;
 
-        int kapsamDisi = 0, sirasiGelmedi = 0, kaydiYok = 0;
+        int kapsamDisi = 0, sirasiGelmedi = 0, kaydiYok = 0, kuralDisi = 0;
+        var uygunDenenmemis = new List<ProtokolListItem>();
         foreach (var p in protokoller.Values)
         {
             if (denenen.Contains(p.ProtokolId)) continue;
@@ -406,8 +407,21 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
             else if (!PendingWorkService.IsEligible(p, openAfterDays, minYas, yatanTavan).Eligible)
                 sirasiGelmedi++;
             else
-                kaydiYok++;
+                uygunDenenmemis.Add(p);
         }
+
+        // KURUM / BOLUM / DOKTOR KURALI (bkz. GonderimKurali). Protokol listesi sorgusu kurumu
+        // tasimiyor; kurum kurali aciksa yalniz bu kucuk kume icin toplu okunuyor.
+        var kural = await GonderimKurali.YukleAsync(settings, ct);
+        if (kural.Etkin && uygunDenenmemis.Count > 0)
+        {
+            var ayrinti = kural.KurumModu == KuralModu.Tumu
+                ? null
+                : await repository.GetProtokollerByIdsAsync(uygunDenenmemis.Select(p => p.ProtokolId).ToList(), ct);
+            foreach (var p in uygunDenenmemis)
+                if (kural.Sebep(ayrinti?.GetValueOrDefault(p.ProtokolId) ?? p) is not null) kuralDisi++;
+        }
+        kaydiYok = uygunDenenmemis.Count - kuralDisi;
 
         return new AkisOzeti(
             protokolGruplari, protokoller,
@@ -431,6 +445,7 @@ public class AktiviteModel(SyncLogStore syncLog, PusulaRepository repository,
             DenenmeyenKapsamDisi = kapsamDisi,
             DenenmeyenSirasiGelmedi = sirasiGelmedi,
             DenenmeyenKaydiYok = kaydiYok,
+            DenenmeyenKuralDisi = kuralDisi,
         };
     }
 
@@ -933,7 +948,8 @@ public record AkisOzeti(
     public int DenenmeyenKapsamDisi { get; init; }
     public int DenenmeyenSirasiGelmedi { get; init; }
     public int DenenmeyenKaydiYok { get; init; }
-    public int Denenmeyen => DenenmeyenKapsamDisi + DenenmeyenSirasiGelmedi + DenenmeyenKaydiYok;
+    public int DenenmeyenKuralDisi { get; init; }   // kurum / bolum / doktor kurali (GonderimKurali)
+    public int Denenmeyen => DenenmeyenKapsamDisi + DenenmeyenSirasiGelmedi + DenenmeyenKaydiYok + DenenmeyenKuralDisi;
 }
 
 // Ozetteki tek bir KAYIT (satir degil): kimligi, en kotu durumu, kac kez denendigi ve

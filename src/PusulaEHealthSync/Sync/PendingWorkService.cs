@@ -426,6 +426,7 @@ public class PendingWorkService(
             SettingsStore.YatanMaxOpenDaysKey, SettingsStore.YatanMaxOpenDaysDefault, ct);
         var yatanOtomatik = await settings.GetBoolAsync(
             SettingsStore.AutoSendYatanEnabledKey, SettingsStore.AutoSendYatanEnabledDefault, ct);
+        var gonderimKurali = await GonderimKurali.YukleAsync(settings, ct);
 
         // SOGUMA SURESI -- Ayarlar'daki "Kac dakika sonra tekrar dene?" (2026-10-05'te
         // gercekten baglandi; o alan da okunmuyordu).
@@ -494,6 +495,13 @@ public class PendingWorkService(
                 {
                     eligible = false;
                     reason = YatanOtomatikDisiSebep;
+                }
+
+                // KURUM / BOLUM / DOKTOR KURALI -- yatan adimiyla ayni mantik (bkz. GonderimKurali).
+                if (eligible && gonderimKurali.Sebep(protokol) is { } kuralSebebi)
+                {
+                    eligible = false;
+                    reason = kuralSebebi;
                 }
 
                 var items = group
