@@ -1117,25 +1117,27 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
             GROUP BY ISNULL(p.AKKurumId, 0)
             ORDER BY Adet DESC", days, ct);
 
-    // Doktor -> son N gunde protokol actigi bolumler. Kural duzenleyicisi bolum secilince
-    // doktor listesini bu eslemeyle suzuyor (yalniz o bolumlerde calisan doktorlar).
-    public async Task<Dictionary<int, HashSet<int>>> GetDoktorBolumleriAsync(int days, CancellationToken ct = default)
+    // Doktor -> son N gunde protokol actigi bolumler ve oradaki protokol sayisi. Kural
+    // duzenleyicisi bolum secilince doktor listesini bununla suzuyor; birden fazla bolum
+    // seciliyse doktoru EN COK protokol actigi secili bolumun grubuna koyuyor.
+    public async Task<Dictionary<int, Dictionary<int, int>>> GetDoktorBolumleriAsync(int days, CancellationToken ct = default)
     {
         const string sql = @"
-            SELECT DISTINCT p.DoktorId, p.BolumId
+            SELECT p.DoktorId, p.BolumId, COUNT(*)
             FROM hasta.protokol p
-            WHERE p.AcilisTarihi >= @FromDate AND p.State <> 0 AND p.DoktorId IS NOT NULL AND p.BolumId IS NOT NULL";
+            WHERE p.AcilisTarihi >= @FromDate AND p.State <> 0 AND p.DoktorId IS NOT NULL AND p.BolumId IS NOT NULL
+            GROUP BY p.DoktorId, p.BolumId";
         await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(sql, conn);
         cmd.Parameters.AddWithValue("@FromDate", DateTime.Now.AddDays(-days));
-        var result = new Dictionary<int, HashSet<int>>();
+        var result = new Dictionary<int, Dictionary<int, int>>();
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
         {
             var d = Convert.ToInt32(reader.GetValue(0));
             if (!result.TryGetValue(d, out var b)) result[d] = b = [];
-            b.Add(Convert.ToInt32(reader.GetValue(1)));   // BolumId smallint
+            b[Convert.ToInt32(reader.GetValue(1))] = reader.GetInt32(2);   // BolumId smallint
         }
         return result;
     }

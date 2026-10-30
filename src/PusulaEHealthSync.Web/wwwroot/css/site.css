@@ -2959,3 +2959,8 @@ a.hz-sirala.active span { color: var(--primary); }
 .kural-kurum-ad { font-weight: 600; margin: 2px 0 0; }
 .kural-liste .ayar-bolum.kural-bolum-disi { display: none; }
 .kural-suzgec-not { margin: 0 0 4px; }
+.kural-grup-bas { display: flex; align-items: center; gap: 8px; margin: 8px 0 2px; padding: 5px 6px; border-radius: var(--radius-sm); background: var(--surface-hover); font-size: 12px; font-weight: 600; text-transform: uppercase; letter-spacing: .02em; cursor: pointer; position: sticky; top: -8px; z-index: 1; }
+.kural-grup-bas:first-child { margin-top: 0; }
+.kural-grup-bas input { margin: 0; accent-color: var(--primary); }
+.kural-grup-bas .kural-adet { text-transform: none; font-weight: 400; }
+.kural-grup-bas[hidden] { display: none; }

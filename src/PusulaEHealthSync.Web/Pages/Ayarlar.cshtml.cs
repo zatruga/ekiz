@@ -172,7 +172,7 @@ public class AyarlarModel(
     public List<KuralSecenek> BolumKuralSecenekleri { get; private set; } = [];
     public List<KuralSecenek> DoktorSecenekleri { get; private set; } = [];
     public Dictionary<int, string> KurumAdlari { get; private set; } = [];
-    public Dictionary<int, HashSet<int>> DoktorBolumleri { get; private set; } = [];
+    public Dictionary<int, Dictionary<int, int>> DoktorBolumleri { get; private set; } = [];
     public Dictionary<int, string> BolumAdlari { get; private set; } = [];
     public Dictionary<int, string> DoktorAdlari { get; private set; } = [];
     public bool KuralListesiOkunamadi { get; private set; }

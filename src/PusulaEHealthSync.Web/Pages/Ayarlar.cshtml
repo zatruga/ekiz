@@ -182,7 +182,7 @@
                     <div class="ayar-bolum-liste kural-liste">
                         @foreach (var o in secenekler)
                         {
-                            <label class="ayar-bolum" data-bolumler="@(doktorSutunu && Model.DoktorBolumleri.TryGetValue(o.Id, out var db) ? string.Join(",", db) : null)"><input type="checkbox" name="@listeAdi" value="@o.Id" checked="@secili.Contains(o.Id)" />
+                            <label class="ayar-bolum" data-bolumler="@(doktorSutunu && Model.DoktorBolumleri.TryGetValue(o.Id, out var db) ? string.Join(",", db.Select(x => $"{x.Key}:{x.Value}")) : null)"><input type="checkbox" name="@listeAdi" value="@o.Id" checked="@secili.Contains(o.Id)" />
                                 <span class="kural-ad">@o.Ad</span><span class="kural-adet">@(o.Adet > 0 ? o.Adet.ToString("N0") : "—")</span></label>
                         }
                         @if (secenekler.Count == 0) { <span class="field-hint">Liste boş.</span> }
@@ -882,29 +882,110 @@
             var n = s.querySelectorAll('.kural-liste input:checked').length;
             s.querySelector('.kural-sayac').textContent = mod(s) === 'Tumu' ? 'Sınır yok — hepsi gönderilir.' : n + ' işaretli.';
         }
+        // Doktor etiketinin bolumleri: {"37": 120, "12": 5}
+        function bolumleri(l) {
+            var o = {};
+            (l.getAttribute('data-bolumler') || '').split(',').forEach(function (p) {
+                var kv = p.split(':'); if (kv[0]) { o[kv[0]] = +kv[1] || 0; }
+            });
+            return o;
+        }
+        // GRUPLAMA (kullanici 2026-10-30): birden fazla bolum seciliyse doktorlar bolum basliklari
+        // altinda, her baslikta "tumunu sec". Doktor tek grupta: secili bolumlerden en cok protokol
+        // actigi. Isaretli ama secili bolumlerde calismayan doktor "Diğer işaretliler" grubunda.
+        // Etiketler TASINIYOR (kopyalanmiyor) -- ayni kutu iki yerde olsaydi isaretler karisirdi.
         function doktorSuz() {
             var b = sutun('DuzenBolumler'), d = sutun('DuzenDoktorlar');
             if (!b || !d) { return; }
+            var liste = d.querySelector('.kural-liste');
             var secili = mod(b) === 'Yalniz'
                 ? Array.prototype.map.call(b.querySelectorAll('.kural-liste input:checked'), function (i) { return i.value; }) : [];
-            var gorunen = 0;
-            d.querySelectorAll('.kural-liste label').forEach(function (l) {
-                var bl = (l.getAttribute('data-bolumler') || '').split(',');
-                var uyar = secili.length === 0 || l.querySelector('input').checked
-                    || secili.some(function (v) { return bl.indexOf(v) >= 0; });
+            var etiketler = Array.prototype.slice.call(liste.querySelectorAll('label.ayar-bolum'));
+            etiketler.forEach(function (l, n) { if (!l.hasAttribute('data-sira')) { l.setAttribute('data-sira', n); } });
+            etiketler.sort(function (x, y) { return x.getAttribute('data-sira') - y.getAttribute('data-sira'); });
+            liste.querySelectorAll('.kural-grup-bas').forEach(function (h) { h.remove(); });
+
+            var gruplar = {}, gorunen = 0;
+            etiketler.forEach(function (l) {
+                var bl = bolumleri(l), en = null;
+                secili.forEach(function (v) { if (v in bl && (en === null || bl[v] > bl[en])) { en = v; } });
+                var isaretli = l.querySelector('input').checked;
+                var uyar = secili.length === 0 || en !== null || isaretli;
                 l.classList.toggle('kural-bolum-disi', !uyar);
-                if (uyar) { gorunen++; }
+                if (!uyar) { return; }
+                gorunen++;
+                var g = secili.length === 0 ? '' : en === null ? 'diger' : en;
+                (gruplar[g] = gruplar[g] || []).push(l);
             });
+
+            if (secili.length < 2) {
+                etiketler.forEach(function (l) { liste.appendChild(l); });
+            } else {
+                var adlar = {};
+                b.querySelectorAll('.kural-liste label').forEach(function (l) {
+                    adlar[l.querySelector('input').value] = l.querySelector('.kural-ad').textContent.trim();
+                });
+                secili.concat(['diger']).forEach(function (g) {
+                    var uyeler = gruplar[g];
+                    if (!uyeler || !uyeler.length) { return; }
+                    var bas = document.createElement('div');
+                    bas.className = 'kural-grup-bas';
+                    bas.innerHTML = '<input type="checkbox" class="kural-grup-sec" aria-label="Grubun tümünü seç" />'
+                        + '<span class="kural-ad"></span><span class="kural-adet"></span>';
+                    bas.querySelector('.kural-ad').textContent = g === 'diger' ? 'Diğer işaretliler' : (adlar[g] || 'Bölüm #' + g);
+                    bas.querySelector('.kural-adet').textContent = uyeler.length + ' doktor';
+                    bas._uyeler = uyeler;
+                    liste.appendChild(bas);
+                    uyeler.forEach(function (l) { liste.appendChild(l); });
+                });
+                etiketler.forEach(function (l) { if (l.classList.contains('kural-bolum-disi')) { liste.appendChild(l); } });
+                grupDurumu(liste);
+            }
+
             var not = d.querySelector('.kural-suzgec-not');
             if (!not) {
                 not = document.createElement('p');
                 not.className = 'field-hint kural-suzgec-not';
-                d.querySelector('.kural-liste').before(not);
+                liste.before(not);
             }
-            not.textContent = secili.length ? 'Seçili bölümlerde protokol açan ' + gorunen + ' doktor gösteriliyor.' : '';
+            not.textContent = secili.length
+                ? 'Seçili bölümlerde protokol açan ' + gorunen + ' doktor gösteriliyor' + (secili.length > 1 ? ', bölüme göre gruplu.' : '.')
+                : '';
+        }
+        // Baslik kutusu: grubun hepsi isaretliyse dolu, bir kismiysa yarim.
+        function grupDurumu(liste) {
+            liste.querySelectorAll('.kural-grup-bas').forEach(function (h) {
+                var n = h._uyeler.filter(function (l) { return l.querySelector('input').checked; }).length;
+                var k = h.querySelector('.kural-grup-sec');
+                k.checked = n > 0 && n === h._uyeler.length;
+                k.indeterminate = n > 0 && n < h._uyeler.length;
+            });
+        }
+        var doktorS = sutun('DuzenDoktorlar');
+        if (doktorS) {
+            doktorS.addEventListener('click', function (e) {
+                var h = e.target.closest('.kural-grup-bas');
+                if (!h) { return; }
+                var k = h.querySelector('.kural-grup-sec');
+                if (e.target !== k) { k.checked = !k.checked; }   // basligin yazisina tiklamak da secsin
+                h._uyeler.forEach(function (l) { l.querySelector('input').checked = k.checked; });
+                k.indeterminate = false;
+                if (k.checked && mod(doktorS) === 'Tumu') { doktorS.querySelector('.kural-mod input[value="Yalniz"]').checked = true; }
+                sayac(doktorS);
+            });
+            doktorS.addEventListener('change', function (e) {
+                if (!e.target.classList.contains('kural-grup-sec')) { grupDurumu(doktorS.querySelector('.kural-liste')); }
+            });
+            // Aramada eslesen doktoru kalmayan grubun basligi da gizlensin.
+            doktorS.querySelector('.ayar-bolum-ara').addEventListener('input', function () {
+                doktorS.querySelectorAll('.kural-grup-bas').forEach(function (h) {
+                    h.hidden = !h._uyeler.some(function (l) { return !l.hidden; });
+                });
+            });
         }
         form.querySelectorAll('[data-kural-sutun]').forEach(function (s) {
             s.addEventListener('change', function (e) {
+                if (e.target.classList.contains('kural-grup-sec')) { return; }
                 if (e.target.type === 'checkbox' && e.target.checked && mod(s) === 'Tumu') {
                     s.querySelector('.kural-mod input[value="Yalniz"]').checked = true;
                 }
