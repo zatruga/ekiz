@@ -54,8 +54,11 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
     {
         public bool PusulaListesindeYok => PusulaFiyat is { Count: 0 };
         // Resmi tarif sayiysa ve Pusula'daki satirlarin HICBIRI ona esit degilse.
-        public bool FiyatFarkli => TarifTutari is { } t && PusulaFiyat is { Count: > 0 } && !PusulaFiyat.Contains(t);
-        public decimal? PusulaTutari => PusulaFiyat is { Count: > 0 } ? PusulaFiyat.Max() : null;
+        // PUSULA FIYATI YALNIZ HIZMETE BAGLI KODDA (2026-10-30, kullanici: "esleniği olmayanlarin
+        // fiyatlarini gosterme kafa karisikligi olmasin"). Pusula'nin fiyat listesi 2022'de toplu
+        // yuklendi, her kodun fiyati var; hicbir hizmet bagli degilse o fiyat kullanilmiyor.
+        public bool FiyatFarkli => TarifTutari is { } t && PusulaTutari is not null && !PusulaFiyat!.Contains(t);
+        public decimal? PusulaTutari => Hizmetler.Count > 0 && PusulaFiyat is { Count: > 0 } ? PusulaFiyat.Max() : null;
 
         // Eslesen: gonderilen (gonderilmez olmayan) en az bir Pusula hizmeti bu kodu tasiyor.
         // Yalniz gonderilmez: koda bagli hizmet var ama hepsi gonderilmez isaretli.
@@ -504,7 +507,7 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
             k.Grup,
             k.TarifTutari?.ToString(inv),
             k.TarifTutari is null ? k.Tarif : null,
-            k.PusulaFiyat is { Count: > 0 } pf ? string.Join(" / ", pf.Select(f => f.ToString(inv))) : null,
+            k.PusulaTutari is not null ? string.Join(" / ", k.PusulaFiyat!.Select(f => f.ToString(inv))) : null,
             k.FiyatFarkli ? (k.TarifTutari!.Value - k.PusulaTutari!.Value).ToString(inv) : null,
             k.PusulaFiyat is null ? "okunamadı" : k.PusulaListesindeYok ? "yok" : "var",
             k.Eslesti ? "Eşleşen" : k.YalnizGonderilmez ? "Yalnız gönderilmez" : "Pusula karşılığı yok",
