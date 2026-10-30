@@ -26,6 +26,27 @@ public static class AzProcedureCodes
     private static readonly Lazy<FrozenDictionary<string, string>> Tablo = new(() => Yukle(ResourceName));
     private static readonly Lazy<FrozenDictionary<string, string>> TrTablo = new(() => Yukle(TrResourceName));
 
+    // RESMI GRUP VE TARIF (KULLANICI 2026-10-30: "webte arasan guncel fiyatlarla icbari listesi
+    // yayinlanmistir"). Kaynak opendata.az "ITS uzre Xidmetler Zerfi" CSV'si -- 6.094 kodun
+    // HEPSI bu listeyle birebir ayni. Bakanligin FHIR CodeSystem'inde grup/tarif alani YOK.
+    // Tarif cogunlukla manat; 45 kodda metin ("adambasi 20 manat", "odenissiz").
+    private const string TarifResourceName = "PusulaEHealthSync.Resources.az-procedure-tarif.tsv";
+    public const string TarifKaynagi = "opendata.az — İTS Xidmətlər Zərfi, 07.04.2025";
+    private static readonly Lazy<FrozenDictionary<string, (string Grup, string Tarif)>> TarifTablo = new(() =>
+    {
+        using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(TarifResourceName);
+        if (stream is null) return FrozenDictionary<string, (string, string)>.Empty;
+        using var reader = new StreamReader(stream);
+        var d = new Dictionary<string, (string, string)>(6_500, StringComparer.OrdinalIgnoreCase);
+        while (reader.ReadLine() is { } satir)
+        {
+            if (satir.StartsWith('#')) continue;
+            var p = satir.Split('\t');
+            if (p.Length >= 3) d[p[0]] = (p[1], p[2]);
+        }
+        return d.ToFrozenDictionary(StringComparer.OrdinalIgnoreCase);
+    });
+
     private static FrozenDictionary<string, string> Yukle(string kaynak)
     {
         using var stream = Assembly.GetExecutingAssembly().GetManifestResourceStream(kaynak);
@@ -61,6 +82,21 @@ public static class AzProcedureCodes
     public static string? DisplayTr(string? kod) =>
         string.IsNullOrWhiteSpace(kod) ? null
         : TrTablo.Value.TryGetValue(Sadelestir(kod), out var d) ? d : null;
+
+    /// <summary>Resmi xidmet qrupu ("Cerrahi tibbi xidmetler" ...); bilinmiyorsa null.</summary>
+    public static string? Grup(string? kod) =>
+        string.IsNullOrWhiteSpace(kod) ? null
+        : TarifTablo.Value.TryGetValue(Sadelestir(kod), out var t) ? t.Grup : null;
+
+    /// <summary>Resmi tarif metni (cogunlukla manat tutari); bos ya da bilinmiyorsa null.</summary>
+    public static string? Tarif(string? kod) =>
+        string.IsNullOrWhiteSpace(kod) || !TarifTablo.Value.TryGetValue(Sadelestir(kod), out var t)
+        || t.Tarif.Length == 0 ? null : t.Tarif;
+
+    /// <summary>Resmi tarif sayiysa tutari (manat); metin tarifte null.</summary>
+    public static decimal? TarifTutari(string? kod) =>
+        decimal.TryParse(Tarif(kod)?.Replace(" ", "").Replace(',', '.'), System.Globalization.NumberStyles.Number,
+            System.Globalization.CultureInfo.InvariantCulture, out var v) ? v : null;
 
     /// <summary>Kod bakanlik listesinde var mi.</summary>
     public static bool Iceriyor(string? kod) =>

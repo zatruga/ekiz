@@ -1117,6 +1117,29 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
             GROUP BY ISNULL(p.AKKurumId, 0)
             ORDER BY Adet DESC", days, ct);
 
+    // Pusula'daki ICBARI SIGORTA FIYAT LISTESI (KurumHizmet, kategori 13): kod -> fiyat(lar).
+    // Hizmet Eslestirme'nin Icbari -> Pusula gorunumu resmi tarifle karsilastiriyor. Bir kod
+    // birden fazla satirda olabiliyor (olculdu: 2.4.314 -> 8 ve 5), bu yuzden liste.
+    // Kod Pusula'da sonu noktali ("1.1.2.") -- anahtar AzProcedureCodes.Anahtar ile sadelestirilir.
+    public async Task<Dictionary<string, List<decimal>>> GetIcbariFiyatListesiAsync(CancellationToken ct = default)
+    {
+        const string sql = @"
+            SELECT Kodu, Fiyat FROM Pazarlama.KurumHizmet
+            WHERE KurumHizmetKategoriId = 13 AND State <> 0 AND Kodu IS NOT NULL AND LEN(Kodu) > 0";
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
+        await conn.OpenAsync(ct);
+        await using var cmd = new SqlCommand(sql, conn);
+        var result = new Dictionary<string, List<decimal>>(StringComparer.OrdinalIgnoreCase);
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            var kod = PusulaEHealthSync.Mapping.AzProcedureCodes.Anahtar(reader.GetString(0));
+            if (!result.TryGetValue(kod, out var l)) result[kod] = l = [];
+            l.Add(reader.IsDBNull(1) ? 0m : reader.GetDecimal(1));
+        }
+        return result;
+    }
+
     // Doktor -> son N gunde protokol actigi bolumler ve oradaki protokol sayisi. Kural
     // duzenleyicisi bolum secilince doktor listesini bununla suzuyor; birden fazla bolum
     // seciliyse doktoru EN COK protokol actigi secili bolumun grubuna koyuyor.

@@ -14,7 +14,8 @@ namespace PusulaEHealthSync.Web.Pages;
 //   - Eslesmesi Pusula'dan (Icbari Sigorta Fiyat Listesi) geliyorsa "Pusula" rozeti
 //   - Bizim onerimiz varsa "Medigate" rozeti -- henuz Pusula'ya islenmemis TEKLIF
 //   - Eslesmeyenler CHECKBOX ile secilip Excel'e aktarilir, eslestirme Pusula'da yapilir
-public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore settings) : PageModel
+public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore settings,
+    PusulaEHealthSync.Db.PusulaRepository pusulaRepository, ILogger<HizmetEslestirmeModel> logger) : PageModel
 {
     public List<HizmetMappingStore.Satir> Satirlar { get; set; } = [];
     public List<string> Tipler { get; set; } = [];
@@ -46,8 +47,16 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
     [BindProperty(SupportsGet = true)] public string? Gorunum { get; set; }
     public bool IcbariGorunum => Gorunum == "icbari";
 
-    public record KodSatiri(string Kod, string Ad, string? AdTr, List<HizmetMappingStore.Satir> Hizmetler, int OneriSayi)
+    // Grup/Tarif: resmi Xidmetler Zerfi (AzProcedureCodes.Grup/Tarif). PusulaFiyat: Pusula'daki
+    // Icbari fiyat listesindeki fiyat(lar); kod listede yoksa bos, Pusula okunamadiysa null.
+    public record KodSatiri(string Kod, string Ad, string? AdTr, List<HizmetMappingStore.Satir> Hizmetler, int OneriSayi,
+        string? Grup, string? Tarif, decimal? TarifTutari, List<decimal>? PusulaFiyat)
     {
+        public bool PusulaListesindeYok => PusulaFiyat is { Count: 0 };
+        // Resmi tarif sayiysa ve Pusula'daki satirlarin HICBIRI ona esit degilse.
+        public bool FiyatFarkli => TarifTutari is { } t && PusulaFiyat is { Count: > 0 } && !PusulaFiyat.Contains(t);
+        public decimal? PusulaTutari => PusulaFiyat is { Count: > 0 } ? PusulaFiyat.Max() : null;
+
         // Eslesen: gonderilen (gonderilmez olmayan) en az bir Pusula hizmeti bu kodu tasiyor.
         // Yalniz gonderilmez: koda bagli hizmet var ama hepsi gonderilmez isaretli.
         public int GonderilenSayi => Hizmetler.Count(h => !h.Gonderilmez);
@@ -79,6 +88,10 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
     public int KodGonderilmez { get; set; }
     public int KodOneri { get; set; }
     public int KodKullanimda { get; set; }
+    public int KodListedeYok { get; set; }
+    public int KodFiyatFarkli { get; set; }
+    public List<string> Gruplar { get; set; } = [];
+    public bool FiyatListesiOkunamadi { get; set; }
 
     // Formlar ve yonlendirmeler arasinda tasinan filtre/sira durumu.
     public object Rota(bool saved = false) => new { saved, Durum, Tip, Ara, Esles, Sira, Yon, Gorunum };
@@ -134,9 +147,21 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
             .GroupBy(s => AzProcedureCodes.Anahtar(s.Oneri!), StringComparer.OrdinalIgnoreCase)
             .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
 
+        // Pusula fiyat listesi canli okunur (salt-okunur SELECT). Okunamazsa ekran calismaya
+        // devam eder, yalniz fiyat sutunu ve fiyat kutulari bos kalir.
+        Dictionary<string, List<decimal>>? fiyatlar = null;
+        try { fiyatlar = await pusulaRepository.GetIcbariFiyatListesiAsync(ct); }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            FiyatListesiOkunamadi = true;
+            logger.LogWarning(ex, "Icbari fiyat listesi Pusula'dan okunamadi");
+        }
+
         var kodlar = AzProcedureCodes.Hepsi
             .Select(k => new KodSatiri(k.Key, k.Value, AzProcedureCodes.DisplayTr(k.Key),
-                [.. kodaGore[k.Key].OrderByDescending(h => h.Istem)], oneriler.GetValueOrDefault(k.Key)))
+                [.. kodaGore[k.Key].OrderByDescending(h => h.Istem)], oneriler.GetValueOrDefault(k.Key),
+                AzProcedureCodes.Grup(k.Key), AzProcedureCodes.Tarif(k.Key), AzProcedureCodes.TarifTutari(k.Key),
+                fiyatlar is null ? null : fiyatlar.GetValueOrDefault(k.Key) ?? []))
             .OrderBy(k => k.Kod, KodSirasi)
             .ToList();
 
@@ -146,9 +171,14 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
         KodGonderilmez = kodlar.Count(k => k.YalnizGonderilmez);
         KodOneri = kodlar.Count(k => k.Bekliyor && k.OneriSayi > 0);
         KodKullanimda = kodlar.Count(k => k.Istem > 0);
+        KodListedeYok = kodlar.Count(k => k.PusulaListesindeYok);
+        KodFiyatFarkli = kodlar.Count(k => k.FiyatFarkli);
+        Gruplar = [.. kodlar.Select(k => k.Grup).OfType<string>().Distinct().OrderBy(g => g)];
 
         var liste = Durum switch
         {
+            "ListedeYok" => kodlar.Where(k => k.PusulaListesindeYok),
+            "FiyatFarki" => kodlar.Where(k => k.FiyatFarkli),
             "Pusula" => kodlar.Where(k => k.Eslesti),
             "Eksik" => kodlar.Where(k => k.Bekliyor),
             "Gonderilmez" => kodlar.Where(k => k.YalnizGonderilmez),
@@ -156,6 +186,10 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
             "Kullanimda" => kodlar.Where(k => k.Istem > 0),
             _ => kodlar.AsEnumerable(),
         };
+
+        // Bu gorunumde Tip = resmi xidmet qrupu (Pusula gorunumunde hizmet tipi).
+        if (!string.IsNullOrWhiteSpace(Tip))
+            liste = liste.Where(k => k.Grup == Tip);
 
         if (!string.IsNullOrWhiteSpace(Ara))
         {
@@ -194,6 +228,8 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
             "ad" => [.. Metin(k => k.AdTr ?? k.Ad)],
             "hizmet" => [.. Sayi(k => k.Hizmetler.Count)],
             "istem" => [.. Sayi(k => k.Istem)],
+            "tarif" => azalan ? [.. sonuc.OrderByDescending(k => k.TarifTutari ?? -1)] : [.. sonuc.OrderBy(k => k.TarifTutari ?? decimal.MaxValue)],
+            "fiyat" => azalan ? [.. sonuc.OrderByDescending(k => k.PusulaTutari ?? -1)] : [.. sonuc.OrderBy(k => k.PusulaTutari ?? decimal.MaxValue)],
             _ => [.. sonuc],
         };
     }
@@ -433,6 +469,12 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
             new("Bakanlık Kodu", 16),
             new("Bakanlık Adı (AZ)", 62),
             new("Bakanlık Adı (TR)", 62),
+            new("Xidmət Qrupu", 34),
+            new("Resmi Tarif (₼)", 16, Sayi: true),
+            new("Resmi Tarif (metin)", 30),
+            new("Pusula Fiyatı (₼)", 16, Sayi: true),
+            new("Fiyat Farkı (resmi − Pusula)", 18, Sayi: true),
+            new("Pusula Fiyat Listesinde", 14),
             new("Durum", 18),
             new("Pusula Hizmet Sayısı", 14, Sayi: true),
             new("İstem (365 gün)", 16, Sayi: true),
@@ -445,6 +487,12 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
             k.Kod,
             k.Ad,
             k.AdTr,
+            k.Grup,
+            k.TarifTutari?.ToString(inv),
+            k.TarifTutari is null ? k.Tarif : null,
+            k.PusulaFiyat is { Count: > 0 } pf ? string.Join(" / ", pf.Select(f => f.ToString(inv))) : null,
+            k.FiyatFarkli ? (k.TarifTutari!.Value - k.PusulaTutari!.Value).ToString(inv) : null,
+            k.PusulaFiyat is null ? "okunamadı" : k.PusulaListesindeYok ? "yok" : "var",
             k.Eslesti ? "Eşleşen" : k.YalnizGonderilmez ? "Yalnız gönderilmez" : "Pusula karşılığı yok",
             k.Hizmetler.Count.ToString(inv),
             k.Istem.ToString(inv),

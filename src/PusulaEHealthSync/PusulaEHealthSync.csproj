@@ -57,6 +57,7 @@
     <EmbeddedResource Include="Resources/az-procedure-codes.tsv" LogicalName="PusulaEHealthSync.Resources.az-procedure-codes.tsv" />
     <EmbeddedResource Include="Resources/hizmet-eslestirme.tsv" LogicalName="PusulaEHealthSync.Resources.hizmet-eslestirme.tsv" />
     <EmbeddedResource Include="Resources/az-procedure-tr.tsv" LogicalName="PusulaEHealthSync.Resources.az-procedure-tr.tsv" />
+    <EmbeddedResource Include="Resources/az-procedure-tarif.tsv" LogicalName="PusulaEHealthSync.Resources.az-procedure-tarif.tsv" />
   </ItemGroup>
 
 </Project>
