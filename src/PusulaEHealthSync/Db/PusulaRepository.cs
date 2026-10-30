@@ -1117,6 +1117,29 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
             GROUP BY ISNULL(p.AKKurumId, 0)
             ORDER BY Adet DESC", days, ct);
 
+    // Doktor -> son N gunde protokol actigi bolumler. Kural duzenleyicisi bolum secilince
+    // doktor listesini bu eslemeyle suzuyor (yalniz o bolumlerde calisan doktorlar).
+    public async Task<Dictionary<int, HashSet<int>>> GetDoktorBolumleriAsync(int days, CancellationToken ct = default)
+    {
+        const string sql = @"
+            SELECT DISTINCT p.DoktorId, p.BolumId
+            FROM hasta.protokol p
+            WHERE p.AcilisTarihi >= @FromDate AND p.State <> 0 AND p.DoktorId IS NOT NULL AND p.BolumId IS NOT NULL";
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
+        await conn.OpenAsync(ct);
+        await using var cmd = new SqlCommand(sql, conn);
+        cmd.Parameters.AddWithValue("@FromDate", DateTime.Now.AddDays(-days));
+        var result = new Dictionary<int, HashSet<int>>();
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+        {
+            var d = Convert.ToInt32(reader.GetValue(0));
+            if (!result.TryGetValue(d, out var b)) result[d] = b = [];
+            b.Add(Convert.ToInt32(reader.GetValue(1)));   // BolumId smallint
+        }
+        return result;
+    }
+
     private async Task<List<BolumUsage>> KullanimAsync(string sql, int days, CancellationToken ct)
     {
         await using var conn = new SqlConnection(await ConnectionStringAsync(ct));

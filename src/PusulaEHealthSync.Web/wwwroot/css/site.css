@@ -2957,3 +2957,5 @@ a.hz-sirala.active span { color: var(--primary); }
 .kural-duzen { margin-top: 14px; padding-top: 14px; border-top: 1px solid var(--border); }
 .kural-duzen-baslik { display: block; margin-bottom: 8px; font-weight: 600; }
 .kural-kurum-ad { font-weight: 600; margin: 2px 0 0; }
+.kural-liste .ayar-bolum.kural-bolum-disi { display: none; }
+.kural-suzgec-not { margin: 0 0 4px; }

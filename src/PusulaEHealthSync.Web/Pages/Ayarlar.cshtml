@@ -169,7 +169,8 @@
                              List<AyarlarModel.KuralSecenek> secenekler)
             {
                 var m = PusulaEHealthSync.Sync.GonderimKurali.Mod(mod);
-                <fieldset class="ayar-grup kural-sutun">
+                var doktorSutunu = listeAdi == "DuzenDoktorlar";
+                <fieldset class="ayar-grup kural-sutun" data-kural-sutun="@listeAdi">
                     <legend>@baslik</legend>
                     <div class="kural-mod" role="radiogroup" aria-label="@baslik kuralı">
                         <label><input type="radio" name="@modAdi" value="Tumu" checked="@(m == PusulaEHealthSync.Sync.KuralModu.Tumu)" /> Tümü</label>
@@ -181,12 +182,12 @@
                     <div class="ayar-bolum-liste kural-liste">
                         @foreach (var o in secenekler)
                         {
-                            <label class="ayar-bolum"><input type="checkbox" name="@listeAdi" value="@o.Id" checked="@secili.Contains(o.Id)" />
+                            <label class="ayar-bolum" data-bolumler="@(doktorSutunu && Model.DoktorBolumleri.TryGetValue(o.Id, out var db) ? string.Join(",", db) : null)"><input type="checkbox" name="@listeAdi" value="@o.Id" checked="@secili.Contains(o.Id)" />
                                 <span class="kural-ad">@o.Ad</span><span class="kural-adet">@(o.Adet > 0 ? o.Adet.ToString("N0") : "—")</span></label>
                         }
                         @if (secenekler.Count == 0) { <span class="field-hint">Liste boş.</span> }
                     </div>
-                    <p class="field-hint" style="margin-top:4px;">@(m == PusulaEHealthSync.Sync.KuralModu.Tumu ? "Sınır yok — işaretler dikkate alınmaz." : $"{secili.Count} işaretli.")</p>
+                    <p class="field-hint kural-sayac" style="margin-top:4px;">@(m == PusulaEHealthSync.Sync.KuralModu.Tumu ? "Sınır yok — hepsi gönderilir." : $"{secili.Count} işaretli.")</p>
                 </fieldset>
             }
         }
@@ -869,6 +870,51 @@
 }
 
 <script>
+    // KURAL DUZENLEYICISI. (1) Tumu seciliyken kutu isaretlenirse "Yalniz isaretliler"e gec --
+    // yoksa isaretler kaydette yok sayiliyordu. (2) Bolum "Yalniz" ve isaretli ise doktor
+    // listesi yalniz o bolumlerde protokol acan doktorlari gosterir (isaretli doktorlar hep gorunur).
+    (function () {
+        var form = document.querySelector('form.kural-duzen');
+        if (!form) { return; }
+        function sutun(ad) { return form.querySelector('[data-kural-sutun="' + ad + '"]'); }
+        function mod(s) { var r = s.querySelector('.kural-mod input:checked'); return r ? r.value : 'Tumu'; }
+        function sayac(s) {
+            var n = s.querySelectorAll('.kural-liste input:checked').length;
+            s.querySelector('.kural-sayac').textContent = mod(s) === 'Tumu' ? 'Sınır yok — hepsi gönderilir.' : n + ' işaretli.';
+        }
+        function doktorSuz() {
+            var b = sutun('DuzenBolumler'), d = sutun('DuzenDoktorlar');
+            if (!b || !d) { return; }
+            var secili = mod(b) === 'Yalniz'
+                ? Array.prototype.map.call(b.querySelectorAll('.kural-liste input:checked'), function (i) { return i.value; }) : [];
+            var gorunen = 0;
+            d.querySelectorAll('.kural-liste label').forEach(function (l) {
+                var bl = (l.getAttribute('data-bolumler') || '').split(',');
+                var uyar = secili.length === 0 || l.querySelector('input').checked
+                    || secili.some(function (v) { return bl.indexOf(v) >= 0; });
+                l.classList.toggle('kural-bolum-disi', !uyar);
+                if (uyar) { gorunen++; }
+            });
+            var not = d.querySelector('.kural-suzgec-not');
+            if (!not) {
+                not = document.createElement('p');
+                not.className = 'field-hint kural-suzgec-not';
+                d.querySelector('.kural-liste').before(not);
+            }
+            not.textContent = secili.length ? 'Seçili bölümlerde protokol açan ' + gorunen + ' doktor gösteriliyor.' : '';
+        }
+        form.querySelectorAll('[data-kural-sutun]').forEach(function (s) {
+            s.addEventListener('change', function (e) {
+                if (e.target.type === 'checkbox' && e.target.checked && mod(s) === 'Tumu') {
+                    s.querySelector('.kural-mod input[value="Yalniz"]').checked = true;
+                }
+                sayac(s);
+                if (s.getAttribute('data-kural-sutun') === 'DuzenBolumler') { doktorSuz(); }
+            });
+        });
+        doktorSuz();
+    })();
+
     // E-posta sablonu: degisken dugmesi imlecin oldugu yere {degisken} ekler.
     function mailDegiskenEkle(alanId, metin) {
         var t = document.getElementById(alanId);

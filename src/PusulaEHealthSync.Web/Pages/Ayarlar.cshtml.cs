@@ -172,6 +172,7 @@ public class AyarlarModel(
     public List<KuralSecenek> BolumKuralSecenekleri { get; private set; } = [];
     public List<KuralSecenek> DoktorSecenekleri { get; private set; } = [];
     public Dictionary<int, string> KurumAdlari { get; private set; } = [];
+    public Dictionary<int, HashSet<int>> DoktorBolumleri { get; private set; } = [];
     public Dictionary<int, string> BolumAdlari { get; private set; } = [];
     public Dictionary<int, string> DoktorAdlari { get; private set; } = [];
     public bool KuralListesiOkunamadi { get; private set; }
@@ -425,8 +426,15 @@ public class AyarlarModel(
         var hatalar = new List<string>();
         int? kurumId = DuzenDiger ? null : DuzenYeni ? DuzenKurumId : int.TryParse(KuralDuzenle, out var k) ? k : null;
         if (!DuzenDiger && kurumId is null) hatalar.Add("kurum seçilmedi");
-        var bolumModu = DuzenGonderme ? KuralModu.Tumu : GonderimKurali.Mod(DuzenBolumModu);
-        var doktorModu = DuzenGonderme ? KuralModu.Tumu : GonderimKurali.Mod(DuzenDoktorModu);
+        // "Tumu" secili kalip kutu isaretlendiyse niyet "yalniz isaretliler"dir -- eskiden
+        // isaretler sessizce atiliyordu (kullanici: AZAL'a Kardiyoloji + doktor sectim, tabloda Tumu cikti).
+        static KuralModu Niyet(string mod, List<int> secili)
+        {
+            var m = GonderimKurali.Mod(mod);
+            return m == KuralModu.Tumu && secili.Count > 0 ? KuralModu.Yalniz : m;
+        }
+        var bolumModu = DuzenGonderme ? KuralModu.Tumu : Niyet(DuzenBolumModu, DuzenBolumler);
+        var doktorModu = DuzenGonderme ? KuralModu.Tumu : Niyet(DuzenDoktorModu, DuzenDoktorlar);
         if (bolumModu == KuralModu.Yalniz && DuzenBolumler.Count == 0) hatalar.Add("\"Yalnız işaretliler\" seçildi ama hiç bölüm işaretlenmedi");
         if (doktorModu == KuralModu.Yalniz && DuzenDoktorlar.Count == 0) hatalar.Add("\"Yalnız işaretliler\" seçildi ama hiç doktor işaretlenmedi");
 
@@ -694,6 +702,7 @@ public class AyarlarModel(
             try
             {
                 kurumlar = await pusulaRepository.GetUsedKurumlarAsync(90, ct);
+                DoktorBolumleri = await pusulaRepository.GetDoktorBolumleriAsync(90, ct);
                 doktorlar = (await pusulaRepository.GetUsedDoktorlarAsync(90, ct))
                     .Select(d => new PusulaEHealthSync.Db.BolumUsage
                     {
