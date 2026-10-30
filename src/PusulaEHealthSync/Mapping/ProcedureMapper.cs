@@ -24,7 +24,7 @@ public static class ProcedureMapper
         // Iki ayri sey soyleyebiliyor:
         //   Gonderilmez -> bu kalem bakanliga hic gitmez (yatak ucreti, recete islemi,
         //                  CD ucreti gibi TIBBI ISLEM OLMAYAN kalemler)
-        //   Kod         -> Icbari kodu yoksa elle girilen bakanlik kodu
+        //   Kod         -> elle girilen bakanlik kodu; yoksa Pusula'nin CANLI Icbari kodu
         var karar = eslestirme is not null && eslestirme.TryGetValue(islem.HizmetId, out var k) ? k : default;
         if (karar.Gonderilmez)
             return new MappingResult.Skipped("Hizmet Eşleştirme ekranında \"gönderilmez\" işaretli");

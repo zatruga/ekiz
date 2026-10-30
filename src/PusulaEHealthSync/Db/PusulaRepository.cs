@@ -1140,6 +1140,31 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
         return result;
     }
 
+    // Hizmet -> Pusula'daki GUNCEL Icbari kodu. GetIslemlerByProtokolIdAsync'teki OUTER APPLY
+    // ile AYNI kural (aktif bag, aktif liste satiri, paket once) -- ekran gonderimin
+    // kullandigi kodu gostersin. Hizmet Eslestirme'nin gomulu katalogu 24.09 kopyasi ve pasif
+    // bagi da almis (olculdu 2026-10-30: 99 hizmette eski kod, 2.683 hizmette bag eksik).
+    public async Task<Dictionary<int, string>> GetIcbariBaglariAsync(CancellationToken ct = default)
+    {
+        const string sql = @"
+            SELECT HizmetId, Kodu FROM (
+                SELECT OHKH.HizmetId, PKH.Kodu,
+                       ROW_NUMBER() OVER (PARTITION BY OHKH.HizmetId ORDER BY PKH.IsPaket DESC) AS Sira
+                FROM Ortak.HizmetKurumHizmet OHKH
+                INNER JOIN Pazarlama.KurumHizmet PKH ON PKH.Id = OHKH.KurumHizmetId
+                WHERE PKH.KurumHizmetKategoriId = 13 AND PKH.State <> 0 AND OHKH.State <> 0
+                  AND PKH.Kodu IS NOT NULL AND LEN(PKH.Kodu) > 0
+            ) b WHERE Sira = 1";
+        await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
+        await conn.OpenAsync(ct);
+        await using var cmd = new SqlCommand(sql, conn);
+        var result = new Dictionary<int, string>();
+        await using var reader = await cmd.ExecuteReaderAsync(ct);
+        while (await reader.ReadAsync(ct))
+            result[reader.GetInt32(0)] = PusulaEHealthSync.Mapping.AzProcedureCodes.Anahtar(reader.GetString(1));
+        return result;
+    }
+
     // Doktor -> son N gunde protokol actigi bolumler ve oradaki protokol sayisi. Kural
     // duzenleyicisi bolum secilince doktor listesini bununla suzuyor; birden fazla bolum
     // seciliyse doktoru EN COK protokol actigi secili bolumun grubuna koyuyor.

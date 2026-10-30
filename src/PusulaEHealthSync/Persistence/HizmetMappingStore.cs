@@ -199,11 +199,13 @@ public class HizmetMappingStore
         while (await r.ReadAsync(ct))
         {
             var az = r.IsDBNull(1) ? null : r.GetString(1);
-            var icb = r.IsDBNull(2) ? "" : r.GetString(2);
-            var oneri = r.IsDBNull(3) ? null : r.GetString(3);
-            // Oneri gonderimde kullanilmaz (bkz. Satir.EtkinKod).
-            var kod = !string.IsNullOrWhiteSpace(az) ? az
-                : !string.IsNullOrWhiteSpace(icb) ? icb : null;
+            // YALNIZ ELLE GIRILEN KOD (2026-10-30, kullanici: "pusula karsiligi yok diyor ama
+            // pusula fiyati var"). Gomulu katalogdaki IcbariKodu 24.09 kopyasi ve PASIF bagi
+            // da almis: 99 hizmette Pusula'nin bugunku kodu yerine 2022-2024'te kaldirilmis
+            // kod gidiyordu (olculdu: glukoz 104489 Pusula 1.1.23, giden 2.4.128). Icbari
+            // kodu gonderim sorgusu zaten CANLI okuyor (islem.IcbariKodu); burada ezilmemeli.
+            // Oneri de gonderimde kullanilmaz (bkz. Satir.EtkinKod).
+            var kod = !string.IsNullOrWhiteSpace(az) ? az : null;
             d[r.GetInt32(0)] = (kod, r.GetInt32(4) == 1);
         }
         return d;

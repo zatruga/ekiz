@@ -45,6 +45,11 @@
     </div>
 </div>
 
+@if (Model.BaglarOkunamadi)
+{
+    <p class="hz-kural-not" style="color:var(--danger);">Pusula'ya ulaşılamadı; Icbari kodları 24.09.2026 tarihli kopyadan gösteriliyor ve güncel olmayabilir.</p>
+}
+
 @if (Model.IcbariGorunum)
 {
     <partial name="_HizmetIcbari" />

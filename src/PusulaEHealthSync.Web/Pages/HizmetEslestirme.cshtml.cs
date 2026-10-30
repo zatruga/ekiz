@@ -124,10 +124,24 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
     public static string? AzAdi(string? kod) => AzProcedureCodes.Display(kod);
     public static string? AzAdiTr(string? kod) => AzProcedureCodes.DisplayTr(kod);
 
+    // Pusula'daki bag canli okunamadiysa ekran gomulu katalogdaki (24.09) koda dustu.
+    public bool BaglarOkunamadi { get; private set; }
+
     // Ad kurali uygulanmis tum hizmetler -- iki gorunum de buradan baslar.
+    // IcbariKodu Pusula'dan CANLI (gonderimin kullandigi kod); okunamazsa gomulu katalog.
     private async Task<List<HizmetMappingStore.Satir>> HepsiAsync(CancellationToken ct)
     {
         var ham = await store.GetAllAsync(ct);
+        try
+        {
+            var baglar = await pusulaRepository.GetIcbariBaglariAsync(ct);
+            ham = [.. ham.Select(s => s with { IcbariKodu = baglar.GetValueOrDefault(s.HizmetId) ?? "" })];
+        }
+        catch (Exception ex) when (ex is not OperationCanceledException)
+        {
+            BaglarOkunamadi = true;
+            logger.LogWarning(ex, "Icbari baglari Pusula'dan okunamadi, gomulu katalog kullaniliyor");
+        }
         OnEkler = await PusulaEHealthSync.Sync.HizmetKurali.OnEkleriAsync(settings, ct);
         var hepsi = ham.Select(s => !s.Gonderilmez && PusulaEHealthSync.Sync.HizmetKurali.OnEkUyar(s.HizmetAdi, OnEkler)
                 ? s with { Gonderilmez = true, Kural = true } : s).ToList();
