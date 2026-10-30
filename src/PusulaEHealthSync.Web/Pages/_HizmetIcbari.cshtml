@@ -209,6 +209,13 @@
                         <td style="text-align:right; font-variant-numeric:tabular-nums;">
                             @if (k.PusulaFiyat is null) { }
                             else if (k.PusulaListesindeYok) { <span class="text-muted" style="font-size:12px;">listede yok</span> }
+                            else if (k.Hizmetler.Count == 0)
+                            {
+                                @* Fiyat listesi 2022'de toplu yuklendi: her kodun fiyati var, ama hicbir
+                                   hastane hizmeti bu satira bagli degil -- fiyat kullanilmiyor. *@
+                                <span class="text-muted" title="Kod Pusula'nın İcbari fiyat listesinde tanımlı ama hiçbir Pusula hizmeti bu koda bağlı değil; fiyat kullanılmıyor.">@string.Join(" / ", k.PusulaFiyat.Select(f => f.ToString("N2"))) ₼</span>
+                                <div class="text-muted" style="font-size:11.5px; margin-top:2px;">hizmete bağlı değil</div>
+                            }
                             else
                             {
                                 <span style="@(k.FiyatFarkli ? "color:var(--danger); font-weight:600;" : "")"
