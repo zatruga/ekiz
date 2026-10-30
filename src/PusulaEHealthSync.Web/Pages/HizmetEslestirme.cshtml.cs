@@ -66,7 +66,6 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
         public bool Eslesti => GonderilenSayi > 0;
         public bool YalnizGonderilmez => !Eslesti && Hizmetler.Count > 0;
         public bool Bekliyor => Hizmetler.Count == 0;
-        public int Istem => Hizmetler.Where(h => !h.Gonderilmez).Sum(h => h.Istem);
     }
 
     // Bakanlik kodlari noktali sayilar (1.1.2, 1.1.10): parca parca SAYI olarak karsilastir,
@@ -90,7 +89,6 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
     public int KodEksik { get; set; }
     public int KodGonderilmez { get; set; }
     public int KodOneri { get; set; }
-    public int KodKullanimda { get; set; }
     public int KodListedeYok { get; set; }
     public int KodFiyatFarkli { get; set; }
     public List<string> Gruplar { get; set; } = [];
@@ -219,7 +217,6 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
         KodEksik = kodlar.Count(k => k.Bekliyor);
         KodGonderilmez = kodlar.Count(k => k.YalnizGonderilmez);
         KodOneri = kodlar.Count(k => k.Bekliyor && k.OneriSayi > 0);
-        KodKullanimda = kodlar.Count(k => k.Istem > 0);
         KodListedeYok = kodlar.Count(k => k.PusulaListesindeYok);
         KodFiyatFarkli = kodlar.Count(k => k.FiyatFarkli);
         Gruplar = [.. kodlar.Select(k => k.Grup).OfType<string>().Distinct().OrderBy(g => g)];
@@ -232,7 +229,6 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
             "Eksik" => kodlar.Where(k => k.Bekliyor),
             "Gonderilmez" => kodlar.Where(k => k.YalnizGonderilmez),
             "Oneri" => kodlar.Where(k => k.Bekliyor && k.OneriSayi > 0),
-            "Kullanimda" => kodlar.Where(k => k.Istem > 0),
             _ => kodlar.AsEnumerable(),
         };
 
@@ -276,7 +272,6 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
             "kod" => azalan ? [.. sonuc.OrderByDescending(k => k.Kod, KodSirasi)] : [.. sonuc.OrderBy(k => k.Kod, KodSirasi)],
             "ad" => [.. Metin(k => k.AdTr ?? k.Ad)],
             "hizmet" => [.. Sayi(k => k.Hizmetler.Count)],
-            "istem" => [.. Sayi(k => k.Istem)],
             "tarif" => azalan ? [.. sonuc.OrderByDescending(k => k.TarifTutari ?? -1)] : [.. sonuc.OrderBy(k => k.TarifTutari ?? decimal.MaxValue)],
             "fiyat" => azalan ? [.. sonuc.OrderByDescending(k => k.PusulaTutari ?? -1)] : [.. sonuc.OrderBy(k => k.PusulaTutari ?? decimal.MaxValue)],
             _ => [.. sonuc],
@@ -503,7 +498,9 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
         return File(bayt, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ad);
     }
 
-    // Icbari -> Pusula listesi Excel'i: kod basina bir satir, bagli Pusula hizmetleri tek hucrede.
+    // Icbari -> Pusula listesi Excel'i: HER BAGLI HIZMET AYRI SATIR, bakanlik kodu sutunlari
+    // yinelenir (2026-10-30, kullanici: "tek satirda yazmasin satir satir yazsin"). Karsiligi
+    // olmayan kod tek satir, hizmet sutunlari bos. Istem yok (kullanici: "bu ekranda istem kalkabilir").
     private async Task<IActionResult> KodExcelAsync(string[]? seciliKod, CancellationToken ct)
     {
         var liste = await KodlariFiltreleAsync(ct);
@@ -525,29 +522,38 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
             new("Fiyat Farkı (resmi − Pusula)", 18, Sayi: true),
             new("Pusula Fiyat Listesinde", 14),
             new("Durum", 18),
-            new("Pusula Hizmet Sayısı", 14, Sayi: true),
-            new("İstem (365 gün)", 16, Sayi: true),
-            new("Pusula Hizmetleri (Id · Kod · Ad)", 80),
             new("Medigate Önerisi (hizmet)", 16, Sayi: true),
+            new("Pusula Hizmet Id", 14),
+            new("Pusula Hizmet Kodu", 14),
+            new("Pusula Hizmet Adı", 62),
+            new("Hizmet Tipi", 20),
+            new("Gönderilmez", 12),
         };
         var inv = System.Globalization.CultureInfo.InvariantCulture;
-        var satirlar = liste.Select(k => new string?[]
+        var satirlar = new List<string?[]>();
+        foreach (var k in liste)
         {
-            k.Kod,
-            k.Ad,
-            k.AdTr,
-            k.Grup,
-            k.TarifTutari?.ToString(inv),
-            k.TarifTutari is null ? k.Tarif : null,
-            k.PusulaTutari is not null ? string.Join(" / ", k.PusulaFiyat!.Select(f => f.ToString(inv))) : null,
-            k.FiyatFarkli ? (k.TarifTutari!.Value - k.PusulaTutari!.Value).ToString(inv) : null,
-            k.PusulaFiyat is null ? "okunamadı" : k.PusulaListesindeYok ? "yok" : "var",
-            k.Eslesti ? "Eşleşen" : k.YalnizGonderilmez ? "Yalnız gönderilmez" : "Pusula karşılığı yok",
-            k.Hizmetler.Count.ToString(inv),
-            k.Istem.ToString(inv),
-            string.Join(" | ", k.Hizmetler.Select(h => $"{h.HizmetId} · {h.HizmetKodu} · {h.HizmetAdi}{(h.Gonderilmez ? " (gönderilmez)" : "")}")),
-            k.OneriSayi.ToString(inv),
-        }).ToList();
+            string?[] kod =
+            [
+                k.Kod,
+                k.Ad,
+                k.AdTr,
+                k.Grup,
+                k.TarifTutari?.ToString(inv),
+                k.TarifTutari is null ? k.Tarif : null,
+                k.PusulaTutari is not null ? string.Join(" / ", k.PusulaFiyat!.Select(f => f.ToString(inv))) : null,
+                k.FiyatFarkli ? (k.TarifTutari!.Value - k.PusulaTutari!.Value).ToString(inv) : null,
+                k.PusulaFiyat is null ? "okunamadı" : k.PusulaListesindeYok ? "yok" : "var",
+                k.Eslesti ? "Eşleşen" : k.YalnizGonderilmez ? "Yalnız gönderilmez" : "Pusula karşılığı yok",
+                k.OneriSayi.ToString(inv),
+            ];
+            if (k.Hizmetler.Count == 0)
+                satirlar.Add([.. kod, null, null, null, null, null]);
+            foreach (var h in k.Hizmetler.OrderBy(h => h.HizmetAdi, StringComparer.Create(
+                         System.Globalization.CultureInfo.GetCultureInfo("tr-TR"), true)))
+                satirlar.Add([.. kod, h.HizmetId.ToString(inv), h.HizmetKodu, h.HizmetAdi, h.HizmetTipi,
+                    h.Gonderilmez ? "evet" : null]);
+        }
 
         var bayt = XlsxWriter.Olustur("İcbari-Pusula", sutunlar, satirlar);
         var ad = $"icbari-pusula-{DateTime.Now:yyyyMMdd-HHmm}.xlsx";

@@ -5,7 +5,7 @@
     Microsoft.AspNetCore.Html.IHtmlContent Baslik(string anahtar, string ad)
     {
         var aktif = Model.Sira == anahtar;
-        var ilk = anahtar is "istem" or "hizmet" or "tarif" or "fiyat" ? "desc" : "asc";
+        var ilk = anahtar is "hizmet" or "tarif" or "fiyat" ? "desc" : "asc";
         var yon = aktif ? (Model.Yon == "desc" ? "asc" : "desc") : ilk;
         var url = Url.Page("/HizmetEslestirme", new { Gorunum = "icbari", Model.Durum, Model.Tip, Model.Ara, Model.Esles, Sira = anahtar, Yon = yon });
         var ok = !aktif ? "↕" : Model.Yon == "desc" ? "↓" : "↑";
@@ -18,7 +18,6 @@
     var kutular = new (string Durum, string Ad, int Sayi, string Alt, string Css)[]
     {
         ("Tumu", "Tüm İcbari kodlar", Model.KodToplam, "bakanlık listesi", ""),
-        ("Kullanimda", "Son 1 yılda kullanılan", Model.KodKullanimda, "bağlı hizmet istenmiş", ""),
         ("Pusula", "Pusula'da karşılığı var", Model.KodEslesen, "en az bir hizmet bağlı", "hz-k-yesil"),
         ("Eksik", "Karşılığı yok", Model.KodEksik, "hiçbir hizmet bağlı değil", "hz-k-kirmizi"),
         ("Oneri", "Önerisi var", Model.KodOneri, "karşılığı yok, Medigate önerisi var", "hz-k-kirmizi hz-k-oncelik"),
@@ -151,13 +150,12 @@
                         <th>@Baslik("hizmet", "Pusula Karşılığı")</th>
                         <th style="width:100px; text-align:right;">@Baslik("tarif", "Resmi Tarif")</th>
                         <th style="width:100px; text-align:right;">@Baslik("fiyat", "Pusula Fiyatı")</th>
-                        <th style="width:90px; text-align:right;">@Baslik("istem", "İstem/yıl")</th>
                     </tr>
                 </thead>
                 <tbody>
                 @if (Model.KodSatirlari.Count == 0)
                 {
-                    <tr><td colspan="7" class="text-muted" style="padding:20px;">Kayıt bulunamadı.</td></tr>
+                    <tr><td colspan="6" class="text-muted" style="padding:20px;">Kayıt bulunamadı.</td></tr>
                 }
                 @foreach (var k in Model.KodSatirlari)
                 {
@@ -216,7 +214,6 @@
                                       title="@(k.FiyatFarkli ? "Resmi tariften farklı" : null)">@string.Join(" / ", k.PusulaFiyat.Select(f => f.ToString("N2"))) ₼</span>
                             }
                         </td>
-                        <td style="text-align:right; font-variant-numeric:tabular-nums;">@k.Istem.ToString("N0")</td>
                     </tr>
                 }
                 </tbody>
@@ -229,9 +226,7 @@
     <p class="text-muted" style="font-size:13px; margin:0;">
         Bir kod, Pusula'da <strong>İcbari Sigorta Fiyat Listesi</strong> üzerinden (ya da bu ekrandan elle) ona bağlanmış en az bir
         hizmet varsa <strong>karşılığı var</strong> sayılır. Medigate önerisi eşleşme sayılmaz; yalnızca <strong>Önerisi var</strong>
-        kutusunda görünür. Bağlı hizmetlerin hepsi gönderilmez işaretliyse kod <strong>yalnız gönderilmez</strong> olur.
-        İstem, bağlı ve gönderilen hizmetlerin son bir yıldaki istem toplamıdır.
-        <strong>Resmi tarif</strong> ve xidmət qrupu: @PusulaEHealthSync.Mapping.AzProcedureCodes.TarifKaynagi (projeye gömülü).
-        <strong>Pusula fiyatı</strong> Pusula'daki İcbari Sigorta Fiyat Listesi'nden canlı okunur; farklıysa kırmızı.
+        kutusunda görünür. Bağlı hizmetlerin hepsi gönderilmez işaretliyse kod <strong>yalnız gönderilmez</strong> olur.        <strong>Resmi tarif</strong> ve xidmət qrupu: @PusulaEHealthSync.Mapping.AzProcedureCodes.TarifKaynagi (projeye gömülü).
+        <strong>Pusula fiyatı</strong> Pusula'daki İcbari Sigorta Fiyat Listesi'nden canlı okunur; yalnız hizmete bağlı kodlarda gösterilir, farklıysa kırmızı. Excel'de her bağlı hizmet ayrı satırdadır.
     </p>
 </div>
