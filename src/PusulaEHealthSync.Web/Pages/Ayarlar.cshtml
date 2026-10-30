@@ -946,7 +946,8 @@
             if (!not) {
                 not = document.createElement('p');
                 not.className = 'field-hint kural-suzgec-not';
-                liste.before(not);
+                // Arama kutusunun USTUNE: kutu hemen arkasindaki listeyi suzuyor (oninput, nextElementSibling).
+                d.querySelector('.ayar-bolum-ara').before(not);
             }
             not.textContent = secili.length
                 ? 'Seçili bölümlerde protokol açan ' + gorunen + ' doktor gösteriliyor' + (secili.length > 1 ? ', bölüme göre gruplu.' : '.')
