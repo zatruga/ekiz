@@ -1,0 +1,186 @@
+@model PusulaEHealthSync.Web.Pages.HizmetEslestirmeModel
+@* ICBARI -> PUSULA GORUNUMU (2026-10-30). Hizmet Eslestirme'nin tersi: bakanlik listesindeki her
+   kod, ona bagli Pusula hizmetleri. Ayni kutu / arama / eslesme sekmesi / siralama / Excel kalibi. *@
+@{
+    Microsoft.AspNetCore.Html.IHtmlContent Baslik(string anahtar, string ad)
+    {
+        var aktif = Model.Sira == anahtar;
+        var ilk = anahtar is "istem" or "hizmet" ? "desc" : "asc";
+        var yon = aktif ? (Model.Yon == "desc" ? "asc" : "desc") : ilk;
+        var url = Url.Page("/HizmetEslestirme", new { Gorunum = "icbari", Model.Durum, Model.Ara, Model.Esles, Sira = anahtar, Yon = yon });
+        var ok = !aktif ? "↕" : Model.Yon == "desc" ? "↓" : "↑";
+        var enc = System.Text.Encodings.Web.HtmlEncoder.Default;
+        return new Microsoft.AspNetCore.Html.HtmlString(
+            $"<a class=\"hz-sirala{(aktif ? " active" : "")}\" href=\"{enc.Encode(url!)}\">{enc.Encode(ad)} <span aria-hidden=\"true\">{ok}</span></a>");
+    }
+
+    var oran = Model.KodToplam == 0 ? 0 : 100.0 * Model.KodEslesen / Model.KodToplam;
+    var kutular = new (string Durum, string Ad, int Sayi, string Alt, string Css)[]
+    {
+        ("Tumu", "Tüm İcbari kodlar", Model.KodToplam, "bakanlık listesi", ""),
+        ("Kullanimda", "Son 1 yılda kullanılan", Model.KodKullanimda, "bağlı hizmet istenmiş", ""),
+        ("Pusula", "Pusula'da karşılığı var", Model.KodEslesen, "en az bir hizmet bağlı", "hz-k-yesil"),
+        ("Eksik", "Karşılığı yok", Model.KodEksik, "hiçbir hizmet bağlı değil", "hz-k-kirmizi"),
+        ("Oneri", "Önerisi var", Model.KodOneri, "karşılığı yok, Medigate önerisi var", "hz-k-kirmizi hz-k-oncelik"),
+        ("Gonderilmez", "Yalnız gönderilmez", Model.KodGonderilmez, "bağlı hizmetler gönderilmiyor", "hz-k-gri"),
+    };
+}
+
+<section class="card card-pad hz-ust" aria-label="İcbari kod özeti">
+    <div class="hz-kutular">
+        @foreach (var k in kutular)
+        {
+            var secili = (Model.Durum ?? "Tumu") == k.Durum;
+            <a asp-page="/HizmetEslestirme" asp-route-Gorunum="icbari" asp-route-Durum="@k.Durum" asp-route-Ara="@Model.Ara"
+               asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon"
+               class="hz-kutu @k.Css @(secili ? "active" : "")" aria-current="@(secili ? "true" : null)">
+                <span class="hz-kutu-ad">@k.Ad</span>
+                <span class="hz-kutu-sayi">@k.Sayi.ToString("N0")</span>
+                <span class="hz-kutu-alt">@k.Alt</span>
+            </a>
+        }
+    </div>
+    <p class="hz-denklem">
+        Karşılığı var <b>@Model.KodEslesen.ToString("N0")</b> + Karşılığı yok <b>@Model.KodEksik.ToString("N0")</b>
+        + Yalnız gönderilmez <b>@Model.KodGonderilmez.ToString("N0")</b> = Tüm İcbari kodlar <b>@Model.KodToplam.ToString("N0")</b>
+    </p>
+
+    <div class="hz-istem">
+        <div class="hz-istem-bas">
+            <span class="text-muted">Pusula'da karşılığı olan İcbari kodların payı</span>
+            <span><strong>@oran.ToString("0.0")%</strong>
+                  <span class="text-muted">(@Model.KodEslesen.ToString("N0") / @Model.KodToplam.ToString("N0") kod)</span></span>
+        </div>
+        <div class="hz-istem-cubuk"><span style="width:@oran.ToString("0.0", System.Globalization.CultureInfo.InvariantCulture)%"></span></div>
+    </div>
+
+    <form method="get" class="hz-suzgec" role="search">
+        <input type="hidden" name="Gorunum" value="icbari" />
+        <input type="hidden" name="Durum" value="@Model.Durum" />
+        <input type="hidden" name="Sira" value="@Model.Sira" />
+        <input type="hidden" name="Yon" value="@Model.Yon" />
+        <label class="hz-alan hz-alan-ara">
+            <span>Ara</span>
+            <span class="hz-ara">
+                <svg width="15" height="15" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><circle cx="11" cy="11" r="7"/><path d="m20 20-3.5-3.5"/></svg>
+                <input id="hz-ara" type="search" name="Ara" value="@Model.Ara" placeholder="Bakanlık kodu, adı ya da bağlı Pusula hizmeti" />
+            </span>
+        </label>
+        <button type="submit" class="btn btn-primary btn-sm hz-suzgec-btn">Filtrele</button>
+        @if (!string.IsNullOrWhiteSpace(Model.Ara))
+        {
+            <a asp-page="/HizmetEslestirme" asp-route-Gorunum="icbari" asp-route-Durum="@Model.Durum" asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon" class="hz-temizle">Süzgeci temizle</a>
+        }
+    </form>
+</section>
+
+<form method="post" asp-page-handler="Excel">
+    <input type="hidden" name="Gorunum" value="icbari" />
+    <input type="hidden" name="Durum" value="@Model.Durum" />
+    <input type="hidden" name="Ara" value="@Model.Ara" />
+    <input type="hidden" name="Esles" value="@Model.Esles" />
+    <input type="hidden" name="Sira" value="@Model.Sira" />
+    <input type="hidden" name="Yon" value="@Model.Yon" />
+
+    <div class="card card-pad hz-arac">
+        <div class="hz-sekmeler" role="group" aria-label="Eşleşme durumu">
+            @foreach (var (deger, ad, sayi, css) in new[]
+            {
+                ("", "Tümü", Model.EslesTumu, ""),
+                ("evet", "Karşılığı var", Model.EslesEvet, "hz-yesil"),
+                ("hayir", "Karşılığı yok", Model.EslesHayir, "hz-kirmizi"),
+                ("gonderilmez", "Yalnız gönderilmez", Model.EslesGonderilmez, "hz-gri"),
+            })
+            {
+                var secili = (Model.Esles ?? "") == deger;
+                <a asp-page="/HizmetEslestirme" asp-route-Gorunum="icbari" asp-route-Durum="@Model.Durum" asp-route-Ara="@Model.Ara"
+                   asp-route-Esles="@(deger == "" ? null : deger)" asp-route-Sira="@Model.Sira" asp-route-Yon="@Model.Yon"
+                   class="hz-sekme @css @(secili ? "active" : "")" aria-current="@(secili ? "true" : null)">
+                    <span class="hz-sekme-sayi">@sayi.ToString("N0")</span> @ad
+                </a>
+            }
+        </div>
+        <span class="text-muted hz-arac-not">
+            @if (Model.GosterilenSayi > HizmetEslestirmeModel.EkranSiniri)
+            {
+                <text>Ekranda ilk @HizmetEslestirmeModel.EkranSiniri.ToString("N0") / @Model.GosterilenSayi.ToString("N0") satır. </text>
+            }
+            Seçim yoksa listenin tamamı (@Model.GosterilenSayi.ToString("N0") kod) aktarılır.
+        </span>
+        <button type="submit" class="btn btn-primary btn-sm" style="margin-left:auto;">Excel'e Aktar</button>
+    </div>
+
+    <div class="card">
+        <div style="overflow-x:auto;">
+            <table class="table">
+                <thead>
+                    <tr>
+                        <th style="width:34px;"><input type="checkbox" onclick="document.querySelectorAll('.satir-sec').forEach(c => c.checked = this.checked)" /></th>
+                        <th style="width:110px;">@Baslik("kod", "Bakanlık Kodu")</th>
+                        <th>@Baslik("ad", "Bakanlık Adı")</th>
+                        <th>@Baslik("hizmet", "Pusula Karşılığı")</th>
+                        <th style="width:90px; text-align:right;">@Baslik("istem", "İstem/yıl")</th>
+                    </tr>
+                </thead>
+                <tbody>
+                @if (Model.KodSatirlari.Count == 0)
+                {
+                    <tr><td colspan="5" class="text-muted" style="padding:20px;">Kayıt bulunamadı.</td></tr>
+                }
+                @foreach (var k in Model.KodSatirlari)
+                {
+                    <tr>
+                        <td><input type="checkbox" class="satir-sec" name="seciliKod" value="@k.Kod" /></td>
+                        <td><code>@k.Kod</code></td>
+                        <td style="font-size:13px;">
+                            @if (k.AdTr is not null)
+                            {
+                                <div>@k.AdTr</div>
+                                <div class="text-muted" style="font-size:12px; margin-top:2px;">@k.Ad</div>
+                            }
+                            else
+                            {
+                                <div>@k.Ad</div>
+                            }
+                        </td>
+                        <td style="font-size:13px;">
+                            @if (k.Hizmetler.Count == 0)
+                            {
+                                <span style="color:var(--danger);">Pusula'da karşılığı yok.</span>
+                                @if (k.OneriSayi > 0)
+                                {
+                                    <div class="text-muted" style="font-size:12px; margin-top:2px;">Medigate @k.OneriSayi hizmet için bu kodu öneriyor.</div>
+                                }
+                            }
+                            else
+                            {
+                                @foreach (var h in k.Hizmetler.Take(3))
+                                {
+                                    <div class="@(h.Gonderilmez ? "text-muted" : "")">
+                                        <code>@h.HizmetKodu</code> @h.HizmetAdi
+                                        @if (h.Gonderilmez) { <span class="badge"><span class="badge-dot"></span>gönderilmez</span> }
+                                    </div>
+                                }
+                                @if (k.Hizmetler.Count > 3)
+                                {
+                                    <div class="text-muted" style="font-size:12px;">+ @((k.Hizmetler.Count - 3).ToString("N0")) hizmet daha (Excel'de tamamı)</div>
+                                }
+                            }
+                        </td>
+                        <td style="text-align:right; font-variant-numeric:tabular-nums;">@k.Istem.ToString("N0")</td>
+                    </tr>
+                }
+                </tbody>
+            </table>
+        </div>
+    </div>
+</form>
+
+<div class="card card-pad" style="margin-top:20px;">
+    <p class="text-muted" style="font-size:13px; margin:0;">
+        Bir kod, Pusula'da <strong>İcbari Sigorta Fiyat Listesi</strong> üzerinden (ya da bu ekrandan elle) ona bağlanmış en az bir
+        hizmet varsa <strong>karşılığı var</strong> sayılır. Medigate önerisi eşleşme sayılmaz; yalnızca <strong>Önerisi var</strong>
+        kutusunda görünür. Bağlı hizmetlerin hepsi gönderilmez işaretliyse kod <strong>yalnız gönderilmez</strong> olur.
+        İstem, bağlı ve gönderilen hizmetlerin son bir yıldaki istem toplamıdır.
+    </p>
+</div>

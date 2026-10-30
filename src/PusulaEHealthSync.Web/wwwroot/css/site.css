@@ -2964,3 +2964,5 @@ a.hz-sirala.active span { color: var(--primary); }
 .kural-grup-bas input { margin: 0; accent-color: var(--primary); }
 .kural-grup-bas .kural-adet { text-transform: none; font-weight: 400; }
 .kural-grup-bas[hidden] { display: none; }
+.hz-yon { align-self: flex-end; }
+.hz-yon .hz-sekme { padding: 8px 16px; font-size: 13.5px; }

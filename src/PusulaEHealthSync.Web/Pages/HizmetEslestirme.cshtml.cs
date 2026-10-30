@@ -39,8 +39,49 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
     public int EslesGonderilmez { get; set; }
     public const int EkranSiniri = 400;
 
+    // TERS GORUNUM (KULLANICI ISTEGI 2026-10-30): "Pusula-Icbari / Icbari-Pusula" dugmesi.
+    // Varsayilan gorunum Pusula hizmetinden bakanlik koduna bakar; "icbari" gorunumu
+    // bakanlik listesindeki (az-procedure-codes, 6.094 kod) her koddan Pusula'ya bakar:
+    // bu koda baglanan bir Pusula hizmeti var mi. Ayni suzgecler, siralama ve Excel.
+    [BindProperty(SupportsGet = true)] public string? Gorunum { get; set; }
+    public bool IcbariGorunum => Gorunum == "icbari";
+
+    public record KodSatiri(string Kod, string Ad, string? AdTr, List<HizmetMappingStore.Satir> Hizmetler, int OneriSayi)
+    {
+        // Eslesen: gonderilen (gonderilmez olmayan) en az bir Pusula hizmeti bu kodu tasiyor.
+        // Yalniz gonderilmez: koda bagli hizmet var ama hepsi gonderilmez isaretli.
+        public int GonderilenSayi => Hizmetler.Count(h => !h.Gonderilmez);
+        public bool Eslesti => GonderilenSayi > 0;
+        public bool YalnizGonderilmez => !Eslesti && Hizmetler.Count > 0;
+        public bool Bekliyor => Hizmetler.Count == 0;
+        public int Istem => Hizmetler.Where(h => !h.Gonderilmez).Sum(h => h.Istem);
+    }
+
+    // Bakanlik kodlari noktali sayilar (1.1.2, 1.1.10): parca parca SAYI olarak karsilastir,
+    // yoksa metin sirasinda 1.1.10, 1.1.2'den once gelir. Sayi olmayan parca metin gibi.
+    private static readonly Comparer<string> KodSirasi = Comparer<string>.Create((a, b) =>
+    {
+        var x = a.Split('.');
+        var y = b.Split('.');
+        for (var i = 0; i < Math.Min(x.Length, y.Length); i++)
+        {
+            var c = int.TryParse(x[i], out var p) && int.TryParse(y[i], out var q)
+                ? p.CompareTo(q) : string.Compare(x[i], y[i], StringComparison.OrdinalIgnoreCase);
+            if (c != 0) return c;
+        }
+        return x.Length.CompareTo(y.Length);
+    });
+
+    public List<KodSatiri> KodSatirlari { get; set; } = [];
+    public int KodToplam { get; set; }
+    public int KodEslesen { get; set; }
+    public int KodEksik { get; set; }
+    public int KodGonderilmez { get; set; }
+    public int KodOneri { get; set; }
+    public int KodKullanimda { get; set; }
+
     // Formlar ve yonlendirmeler arasinda tasinan filtre/sira durumu.
-    public object Rota(bool saved = false) => new { saved, Durum, Tip, Ara, Esles, Sira, Yon };
+    public object Rota(bool saved = false) => new { saved, Durum, Tip, Ara, Esles, Sira, Yon, Gorunum };
 
     public static string KaynakAdi(HizmetMappingStore.Satir s) => s.Gonderilmez ? "gönderilmez" : s.Rozet switch
     {
@@ -70,16 +111,99 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
     public static string? AzAdi(string? kod) => AzProcedureCodes.Display(kod);
     public static string? AzAdiTr(string? kod) => AzProcedureCodes.DisplayTr(kod);
 
-    private async Task<List<HizmetMappingStore.Satir>> FiltreleAsync(CancellationToken ct)
+    // Ad kurali uygulanmis tum hizmetler -- iki gorunum de buradan baslar.
+    private async Task<List<HizmetMappingStore.Satir>> HepsiAsync(CancellationToken ct)
     {
         var ham = await store.GetAllAsync(ct);
-
-        // AD KURALI: adi on eklerden biriyle baslayan hizmet "gonderilmez" sayilir -- gonderim,
-        // tarama ve Icbari karti ayni kurali Pusula sorgusunda uyguluyor (HizmetKurali).
         OnEkler = await PusulaEHealthSync.Sync.HizmetKurali.OnEkleriAsync(settings, ct);
         var hepsi = ham.Select(s => !s.Gonderilmez && PusulaEHealthSync.Sync.HizmetKurali.OnEkUyar(s.HizmetAdi, OnEkler)
                 ? s with { Gonderilmez = true, Kural = true } : s).ToList();
         KuralSayi = hepsi.Count(s => s.Kural);
+        return hepsi;
+    }
+
+    // ICBARI -> PUSULA: bakanlik listesinin her kodu ve ona bagli Pusula hizmetleri.
+    // Hizmetin kodu EtkinKod (Pusula'daki Icbari kodu ya da elle girilen); Medigate
+    // onerisi eslesme SAYILMAZ, yalnizca "onerisi var" suzgecinde gorunur.
+    private async Task<List<KodSatiri>> KodlariFiltreleAsync(CancellationToken ct)
+    {
+        var hepsi = await HepsiAsync(ct);
+        var kodaGore = hepsi.Where(s => s.EtkinKod is not null)
+            .ToLookup(s => AzProcedureCodes.Anahtar(s.EtkinKod!), StringComparer.OrdinalIgnoreCase);
+        var oneriler = hepsi.Where(s => s.Bekliyor && !string.IsNullOrWhiteSpace(s.Oneri))
+            .GroupBy(s => AzProcedureCodes.Anahtar(s.Oneri!), StringComparer.OrdinalIgnoreCase)
+            .ToDictionary(g => g.Key, g => g.Count(), StringComparer.OrdinalIgnoreCase);
+
+        var kodlar = AzProcedureCodes.Hepsi
+            .Select(k => new KodSatiri(k.Key, k.Value, AzProcedureCodes.DisplayTr(k.Key),
+                [.. kodaGore[k.Key].OrderByDescending(h => h.Istem)], oneriler.GetValueOrDefault(k.Key)))
+            .OrderBy(k => k.Kod, KodSirasi)
+            .ToList();
+
+        KodToplam = kodlar.Count;
+        KodEslesen = kodlar.Count(k => k.Eslesti);
+        KodEksik = kodlar.Count(k => k.Bekliyor);
+        KodGonderilmez = kodlar.Count(k => k.YalnizGonderilmez);
+        KodOneri = kodlar.Count(k => k.Bekliyor && k.OneriSayi > 0);
+        KodKullanimda = kodlar.Count(k => k.Istem > 0);
+
+        var liste = Durum switch
+        {
+            "Pusula" => kodlar.Where(k => k.Eslesti),
+            "Eksik" => kodlar.Where(k => k.Bekliyor),
+            "Gonderilmez" => kodlar.Where(k => k.YalnizGonderilmez),
+            "Oneri" => kodlar.Where(k => k.Bekliyor && k.OneriSayi > 0),
+            "Kullanimda" => kodlar.Where(k => k.Istem > 0),
+            _ => kodlar.AsEnumerable(),
+        };
+
+        if (!string.IsNullOrWhiteSpace(Ara))
+        {
+            var q = Ara.Trim();
+            liste = liste.Where(k =>
+                k.Kod.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || k.Ad.Contains(q, StringComparison.OrdinalIgnoreCase)
+                || (k.AdTr ?? "").Contains(q, StringComparison.OrdinalIgnoreCase)
+                || k.Hizmetler.Any(h => h.HizmetAdi.Contains(q, StringComparison.OrdinalIgnoreCase)
+                    || h.HizmetKodu.Contains(q, StringComparison.OrdinalIgnoreCase)));
+        }
+
+        var ara = liste.ToList();
+        EslesTumu = ara.Count;
+        EslesEvet = ara.Count(k => k.Eslesti);
+        EslesHayir = ara.Count(k => k.Bekliyor);
+        EslesGonderilmez = ara.Count(k => k.YalnizGonderilmez);
+        IEnumerable<KodSatiri> sonuc = Esles switch
+        {
+            "evet" => ara.Where(k => k.Eslesti),
+            "hayir" => ara.Where(k => k.Bekliyor),
+            "gonderilmez" => ara.Where(k => k.YalnizGonderilmez),
+            _ => ara,
+        };
+
+        if (string.IsNullOrEmpty(Sira)) return [.. sonuc];
+        var tr = StringComparer.Create(System.Globalization.CultureInfo.GetCultureInfo("tr-TR"), true);
+        var azalan = Yon == "desc";
+        IOrderedEnumerable<KodSatiri> Metin(Func<KodSatiri, string?> f) =>
+            azalan ? sonuc.OrderByDescending(k => f(k) ?? "", tr) : sonuc.OrderBy(k => f(k) ?? "", tr);
+        IOrderedEnumerable<KodSatiri> Sayi(Func<KodSatiri, int> f) =>
+            azalan ? sonuc.OrderByDescending(f) : sonuc.OrderBy(f);
+        return Sira switch
+        {
+            "kod" => azalan ? [.. sonuc.OrderByDescending(k => k.Kod, KodSirasi)] : [.. sonuc.OrderBy(k => k.Kod, KodSirasi)],
+            "ad" => [.. Metin(k => k.AdTr ?? k.Ad)],
+            "hizmet" => [.. Sayi(k => k.Hizmetler.Count)],
+            "istem" => [.. Sayi(k => k.Istem)],
+            _ => [.. sonuc],
+        };
+    }
+
+    private async Task<List<HizmetMappingStore.Satir>> FiltreleAsync(CancellationToken ct)
+    {
+        var hepsi = await HepsiAsync(ct);
+
+        // AD KURALI (HepsiAsync): adi on eklerden biriyle baslayan hizmet "gonderilmez" sayilir --
+        // gonderim, tarama ve Icbari karti ayni kurali Pusula sorgusunda uyguluyor (HizmetKurali).
 
         // TIBBI OLMAYABILIR: tam sozcuk eslesmesi, yalnizca henuz gonderilmez olmayanlar.
         var desen = PusulaEHealthSync.Sync.HizmetKurali.SozcukDeseni(
@@ -168,6 +292,13 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
     public async Task OnGetAsync(bool saved = false, CancellationToken ct = default)
     {
         Saved = saved;
+        if (IcbariGorunum)
+        {
+            var kodlar = await KodlariFiltreleAsync(ct);
+            GosterilenSayi = kodlar.Count;
+            KodSatirlari = [.. kodlar.Take(EkranSiniri)];
+            return;
+        }
         var liste = await FiltreleAsync(ct);
         GosterilenSayi = liste.Count;
         // 20.613 satiri birden cizmek sayfayi agirlastiriyor -- hacme gore ilk 400,
@@ -202,7 +333,7 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
             await store.SetAsync(id, s.AzKod, gonderilmez: true, ct);
             n++;
         }
-        return RedirectToPage("/HizmetEslestirme", new { Toplu = n, Durum, Tip, Ara, Esles, Sira, Yon });
+        return RedirectToPage("/HizmetEslestirme", new { Toplu = n, Durum, Tip, Ara, Esles, Sira, Yon, Gorunum });
     }
 
     // "Gonderilmez" isaretini kaldirir; varsa elle girilmis kod korunur.
@@ -224,8 +355,9 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
     /// kullanilacak: son sutun BOS birakiliyor, oraya Pusula'ya girilen kod yazilir.
     /// Hicbiri secilmemisse mevcut filtrenin TAMAMI aktarilir.
     /// </summary>
-    public async Task<IActionResult> OnPostExcelAsync(int[]? secili, CancellationToken ct)
+    public async Task<IActionResult> OnPostExcelAsync(int[]? secili, string[]? seciliKod, CancellationToken ct)
     {
+        if (IcbariGorunum) return await KodExcelAsync(seciliKod, ct);
         var liste = await FiltreleAsync(ct);
         if (secili is { Length: > 0 })
         {
@@ -283,6 +415,45 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
 
         var bayt = XlsxWriter.Olustur("Hizmet Eşleştirme", sutunlar, satirlar);
         var ad = $"hizmet-eslestirme-{DateTime.Now:yyyyMMdd-HHmm}.xlsx";
+        return File(bayt, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ad);
+    }
+
+    // Icbari -> Pusula listesi Excel'i: kod basina bir satir, bagli Pusula hizmetleri tek hucrede.
+    private async Task<IActionResult> KodExcelAsync(string[]? seciliKod, CancellationToken ct)
+    {
+        var liste = await KodlariFiltreleAsync(ct);
+        if (seciliKod is { Length: > 0 })
+        {
+            var küme = seciliKod.ToHashSet(StringComparer.OrdinalIgnoreCase);
+            liste = [.. liste.Where(k => küme.Contains(k.Kod))];
+        }
+
+        var sutunlar = new List<XlsxWriter.Sutun>
+        {
+            new("Bakanlık Kodu", 16),
+            new("Bakanlık Adı (AZ)", 62),
+            new("Bakanlık Adı (TR)", 62),
+            new("Durum", 18),
+            new("Pusula Hizmet Sayısı", 14, Sayi: true),
+            new("İstem (365 gün)", 16, Sayi: true),
+            new("Pusula Hizmetleri (Id · Kod · Ad)", 80),
+            new("Medigate Önerisi (hizmet)", 16, Sayi: true),
+        };
+        var inv = System.Globalization.CultureInfo.InvariantCulture;
+        var satirlar = liste.Select(k => new string?[]
+        {
+            k.Kod,
+            k.Ad,
+            k.AdTr,
+            k.Eslesti ? "Eşleşen" : k.YalnizGonderilmez ? "Yalnız gönderilmez" : "Pusula karşılığı yok",
+            k.Hizmetler.Count.ToString(inv),
+            k.Istem.ToString(inv),
+            string.Join(" | ", k.Hizmetler.Select(h => $"{h.HizmetId} · {h.HizmetKodu} · {h.HizmetAdi}{(h.Gonderilmez ? " (gönderilmez)" : "")}")),
+            k.OneriSayi.ToString(inv),
+        }).ToList();
+
+        var bayt = XlsxWriter.Olustur("İcbari-Pusula", sutunlar, satirlar);
+        var ad = $"icbari-pusula-{DateTime.Now:yyyyMMdd-HHmm}.xlsx";
         return File(bayt, "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", ad);
     }
 }

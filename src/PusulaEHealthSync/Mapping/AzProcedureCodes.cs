@@ -46,6 +46,12 @@ public static class AzProcedureCodes
 
     private static string Sadelestir(string kod) => kod.Trim().TrimEnd('.');
 
+    /// <summary>Listenin tamami (kod -> Azerbaycanca ad). Hizmet Eslestirme'nin ters gorunumu icin.</summary>
+    public static IEnumerable<KeyValuePair<string, string>> Hepsi => Tablo.Value;
+
+    /// <summary>Hizmetin kodunu listedeki kodla karsilastirilabilir hale getirir (bosluk, sondaki nokta).</summary>
+    public static string Anahtar(string kod) => Sadelestir(kod);
+
     /// <summary>Bakanlik listesindeki Azerbaycanca ad; kod listede yoksa null.</summary>
     public static string? Display(string? kod) =>
         string.IsNullOrWhiteSpace(kod) ? null

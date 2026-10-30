@@ -23,11 +23,35 @@
     <div>
         <h1 class="page-title">Hizmet Eşleştirme</h1>
         <p class="page-subtitle">
-            Pusula'daki tüm hizmetler ve bakanlık <code>az-procedure-codes</code> karşılıkları (6.094 kod).
-            Asıl eşleştirme Pusula'da yapılır -- eşleşmeyenleri seçip Excel'e aktarın.
+            @if (Model.IcbariGorunum)
+            {
+                <text>Bakanlığın İcbari kod listesi (<code>az-procedure-codes</code>, @PusulaEHealthSync.Mapping.AzProcedureCodes.KodSayisi.ToString("N0") kod)
+                ve her kodun Pusula'daki karşılığı. Karşılığı olmayan kodları seçip Excel'e aktarın.</text>
+            }
+            else
+            {
+                <text>Pusula'daki tüm hizmetler ve bakanlık <code>az-procedure-codes</code> karşılıkları (6.094 kod).
+                Asıl eşleştirme Pusula'da yapılır -- eşleşmeyenleri seçip Excel'e aktarın.</text>
+            }
         </p>
     </div>
+    @* YON DUGMESI (2026-10-30): ayni veri iki yonden. Gecerken durum/siralama sifirlanir --
+       iki gorunumun kutulari ve sutunlari farkli; arama metni korunur. *@
+    <div class="hz-sekmeler hz-yon" role="group" aria-label="Eşleştirme yönü">
+        <a asp-page="/HizmetEslestirme" asp-route-Ara="@Model.Ara"
+           class="hz-sekme @(Model.IcbariGorunum ? "" : "active")" aria-current="@(Model.IcbariGorunum ? null : "true")">Pusula → İcbari</a>
+        <a asp-page="/HizmetEslestirme" asp-route-Gorunum="icbari" asp-route-Ara="@Model.Ara"
+           class="hz-sekme @(Model.IcbariGorunum ? "active" : "")" aria-current="@(Model.IcbariGorunum ? "true" : null)">İcbari → Pusula</a>
+    </div>
 </div>
+
+@if (Model.IcbariGorunum)
+{
+    <partial name="_HizmetIcbari" />
+}
+else
+{
+<div class="hz-gorunum">
 
 @if (Model.Toplu is { } toplu)
 {
@@ -289,3 +313,5 @@ else if (Model.Saved)
         <strong>Geri al</strong> ile işaret kaldırılır. Bu tablo Pusula'ya <em>yazmaz</em>.
     </p>
 </div>
+</div>
+}
