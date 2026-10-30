@@ -1140,28 +1140,40 @@ public partial class PusulaRepository(IOptions<PusulaOptions> options, SettingsS
         return result;
     }
 
-    // Hizmet -> Pusula'daki GUNCEL Icbari kodu. GetIslemlerByProtokolIdAsync'teki OUTER APPLY
-    // ile AYNI kural (aktif bag, aktif liste satiri, paket once) -- ekran gonderimin
-    // kullandigi kodu gostersin. Hizmet Eslestirme'nin gomulu katalogu 24.09 kopyasi ve pasif
-    // bagi da almis (olculdu 2026-10-30: 99 hizmette eski kod, 2.683 hizmette bag eksik).
-    public async Task<Dictionary<int, string>> GetIcbariBaglariAsync(CancellationToken ct = default)
+    // Pusula'nin AKTIF hizmet katalogu + her hizmetin GUNCEL Icbari kodu (Hizmet Eslestirme).
+    // Icbari kodu GetIslemlerByProtokolIdAsync'teki OUTER APPLY ile AYNI kural (aktif bag, aktif
+    // liste satiri, paket once) -- ekran gonderimin kullandigi kodu gostersin. Gomulu katalog
+    // 24.09 kopyasiydi ve pasif bagi da almisti (olculdu 2026-10-30: 99 hizmette eski kod,
+    // 32 aktif hizmet eksik). Silinmis hizmet (State=0) gelmez: bagi duruyor olsa bile (2.1.1'e
+    // bagli 121 hizmetin 31'i silinmis) gonderime giremez. Olculdu: 20.644 satir, ~0,3 sn.
+    public record HizmetKatalogSatiri(int Id, string Kodu, string Adi, int? TipId, string? IcbariKodu);
+
+    public async Task<List<HizmetKatalogSatiri>> GetHizmetKatalogAsync(CancellationToken ct = default)
     {
         const string sql = @"
-            SELECT HizmetId, Kodu FROM (
+            SELECT oh.Id, oh.Kodu, oh.Adi, oh.HizmetTipiId, b.Kodu
+            FROM Ortak.Hizmet oh
+            LEFT JOIN (
                 SELECT OHKH.HizmetId, PKH.Kodu,
                        ROW_NUMBER() OVER (PARTITION BY OHKH.HizmetId ORDER BY PKH.IsPaket DESC) AS Sira
                 FROM Ortak.HizmetKurumHizmet OHKH
                 INNER JOIN Pazarlama.KurumHizmet PKH ON PKH.Id = OHKH.KurumHizmetId
                 WHERE PKH.KurumHizmetKategoriId = 13 AND PKH.State <> 0 AND OHKH.State <> 0
                   AND PKH.Kodu IS NOT NULL AND LEN(PKH.Kodu) > 0
-            ) b WHERE Sira = 1";
+            ) b ON b.HizmetId = oh.Id AND b.Sira = 1
+            WHERE oh.State <> 0";
         await using var conn = new SqlConnection(await ConnectionStringAsync(ct));
         await conn.OpenAsync(ct);
         await using var cmd = new SqlCommand(sql, conn);
-        var result = new Dictionary<int, string>();
+        var result = new List<HizmetKatalogSatiri>(21_000);
         await using var reader = await cmd.ExecuteReaderAsync(ct);
         while (await reader.ReadAsync(ct))
-            result[reader.GetInt32(0)] = PusulaEHealthSync.Mapping.AzProcedureCodes.Anahtar(reader.GetString(1));
+            result.Add(new HizmetKatalogSatiri(
+                reader.GetInt32(0),
+                reader.IsDBNull(1) ? "" : Convert.ToString(reader.GetValue(1))!.Trim(),
+                reader.IsDBNull(2) ? "" : reader.GetString(2).Trim(),
+                reader.IsDBNull(3) ? null : Convert.ToInt32(reader.GetValue(3)),
+                reader.IsDBNull(4) ? null : PusulaEHealthSync.Mapping.AzProcedureCodes.Anahtar(reader.GetString(4))));
         return result;
     }
 

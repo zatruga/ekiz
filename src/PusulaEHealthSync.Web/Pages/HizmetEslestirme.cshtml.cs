@@ -130,15 +130,47 @@ public class HizmetEslestirmeModel(HizmetMappingStore store, SettingsStore setti
     // Pusula'daki bag canli okunamadiysa ekran gomulu katalogdaki (24.09) koda dustu.
     public bool BaglarOkunamadi { get; private set; }
 
+    // Pusula'da HizmetTipiId'nin ad tablosu YOK (uygulama icinde sabit). Gomulu katalogdaki
+    // adlardan turetildi (2026-10-30, her tipte ezici cogunluk); yalniz yeni eklenen hizmette kullanilir.
+    private static readonly Dictionary<int, string> TipAdlari = new()
+    {
+        [1] = "Muayene Hizmeti", [2] = "Laboratuar Hizmeti", [3] = "Radyoloji Hizmeti", [4] = "Tetkik Hizmeti",
+        [5] = "Müdahale Hizmeti", [6] = "Ameliyat Hizmeti", [7] = "Yatış Hizmeti", [8] = "Konsültasyon Hizmeti",
+        [9] = "Yoğun Bakım Hizmeti", [10] = "Fizik Tedavi Hizmeti", [11] = "Diş", [12] = "Ameliyathane",
+        [13] = "Diğer Hizmet", [14] = "Anestezi Hizmeti", [15] = "Tıbbi Gaz", [16] = "1. Asistan",
+        [17] = "2. Asistan", [18] = "3. Asistan", [19] = "Anestezi Asistanı", [21] = "CheckUp",
+        [22] = "Kontrol Muayenesi", [23] = "Patoloji Hizmeti", [25] = "DSH", [28] = "Ameliyathane Dışı Anestezi",
+    };
+
     // Ad kurali uygulanmis tum hizmetler -- iki gorunum de buradan baslar.
-    // IcbariKodu Pusula'dan CANLI (gonderimin kullandigi kod); okunamazsa gomulu katalog.
+    // PUSULA'DAN CANLI (2026-10-30, kullanici: "pusuladan okusun anlik kontrol etsin"): hangi
+    // hizmetin aktif oldugu, kodu, adi ve Icbari kodu (gonderimin kullandigi kod). Silinmis
+    // hizmet ekrandan cikar (karari veritabaninda kalir); Pusula'da aktif olup bizde olmayan
+    // eklenir. Istem gomulu katalogdan (24.09) -- canli sayim cok yavas. Okunamazsa gomulu katalog.
     private async Task<List<HizmetMappingStore.Satir>> HepsiAsync(CancellationToken ct)
     {
         var ham = await store.GetAllAsync(ct);
         try
         {
-            var baglar = await pusulaRepository.GetIcbariBaglariAsync(ct);
-            ham = [.. ham.Select(s => s with { IcbariKodu = baglar.GetValueOrDefault(s.HizmetId) ?? "" })];
+            var katalog = (await pusulaRepository.GetHizmetKatalogAsync(ct)).ToDictionary(h => h.Id);
+            var bizde = ham.Select(s => s.HizmetId).ToHashSet();
+            var yeni = katalog.Values.Where(h => !bizde.Contains(h.Id)).ToList();
+            if (yeni.Count > 0)
+            {
+                await store.EkleAsync(yeni.Select(h => (h.Id, h.Kodu, h.Adi,
+                    h.TipId is { } t ? TipAdlari.GetValueOrDefault(t, "") : "")), ct);
+                ham = await store.GetAllAsync(ct);
+            }
+            ham = [.. ham.Where(s => katalog.ContainsKey(s.HizmetId)).Select(s =>
+            {
+                var h = katalog[s.HizmetId];
+                return s with
+                {
+                    HizmetKodu = h.Kodu.Length > 0 ? h.Kodu : s.HizmetKodu,
+                    HizmetAdi = h.Adi.Length > 0 ? h.Adi : s.HizmetAdi,
+                    IcbariKodu = h.IcbariKodu ?? "",
+                };
+            })];
         }
         catch (Exception ex) when (ex is not OperationCanceledException)
         {

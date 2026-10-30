@@ -227,6 +227,35 @@ public class HizmetMappingStore
         return s;
     }
 
+    /// <summary>
+    /// Pusula'da aktif olup gomulu katalogda olmayan hizmetleri ekler (Istem 0; canli istem
+    /// sayimi 16 sn surdugu icin sayfa acilisinda yapilmiyor). Var olan satira DOKUNMAZ --
+    /// SetAsync yalniz var olan satiri gunceller, eklenmeyen hizmetin karari kaybolurdu.
+    /// </summary>
+    public async Task EkleAsync(IEnumerable<(int Id, string Kodu, string Adi, string Tip)> hizmetler, CancellationToken ct = default)
+    {
+        using var conn = new SqliteConnection(_connectionString);
+        await conn.OpenAsync(ct);
+        using var tx = conn.BeginTransaction();
+        using var cmd = conn.CreateCommand();
+        cmd.Transaction = tx;
+        cmd.CommandText = @"
+            INSERT INTO HizmetMapping (HizmetId, HizmetKodu, HizmetAdi, HizmetTipi, Istem, IcbariKodu, Gonderilmez, Kaynak, UpdatedAtUtc)
+            VALUES ($id, $k, $a, $t, 0, '', 0, '', $u)
+            ON CONFLICT(HizmetId) DO NOTHING;";
+        var pid = cmd.Parameters.Add("$id", SqliteType.Integer);
+        var pk = cmd.Parameters.Add("$k", SqliteType.Text);
+        var pa = cmd.Parameters.Add("$a", SqliteType.Text);
+        var pt = cmd.Parameters.Add("$t", SqliteType.Text);
+        cmd.Parameters.AddWithValue("$u", DateTime.UtcNow.ToString("O"));
+        foreach (var h in hizmetler)
+        {
+            pid.Value = h.Id; pk.Value = h.Kodu; pa.Value = h.Adi; pt.Value = h.Tip;
+            await cmd.ExecuteNonQueryAsync(ct);
+        }
+        tx.Commit();
+    }
+
     public async Task<List<Satir>> GetAllAsync(CancellationToken ct = default)
     {
         using var conn = new SqliteConnection(_connectionString);
